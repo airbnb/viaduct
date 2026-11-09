@@ -1,0 +1,116 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Selectivity — Viaduct Runtime2</title>
+<script src="../assets/theme.js"></script>
+<link rel="icon" type="image/svg+xml" href="../assets/viaduct-logo.svg">
+<link rel="stylesheet" href="../assets/style.css"></head>
+<body data-layer="-1"><main>
+<div class="kicker">Deep dive</div>
+<h1>Selectivity</h1>
+<p class="lede">What Runtime2 does with a <a class="gl" href="../glossary.html#resolver">field resolver</a>&rsquo;s output. A <a class="gl" href="../glossary.html#selective-resolver">selective resolver</a>&rsquo;s output is used without trimming, but checked: it must stay inside what was asked. A non-selective resolver&rsquo;s output is trimmed to fit.</p>
+<div class="explain">
+<p>The examples use one query that asks for a booking&rsquo;s start time and its customer&rsquo;s first name. The booking resolver is selective and the customer resolver isn&rsquo;t, so a single request shows both rules.</p>
+</div>
+<div class="code-pair">
+<pre class="cmd"><span class="c"># schema</span>
+type Query {
+  booking(id: ID!): Booking <span class="d">@resolver(isSelective: true)</span>
+}
+
+type Booking {
+  id: ID!
+  startsAt: String
+  endsAt: String
+  status: String
+  customerId: ID
+  customer: User
+    <span class="d">@resolver(
+      objectValueFragment: "customerId"
+    )</span>
+}
+
+type User {
+  id: ID!
+  firstName: String
+  email: String
+  phone: String
+}</pre>
+<pre class="cmd"><span class="c"># query</span>
+query {
+  booking(id: "b1") {
+    startsAt
+    customer {
+      firstName
+    }
+  }
+}</pre>
+</div>
+<div class="explain">
+<p>In these schemas, <code>@resolver(isSelective: true)</code> is real schema definition language (SDL). <code>objectValueFragment</code> inside <code>@resolver(...)</code> is shorthand for the <a class="gl" href="../glossary.html#rss">required selection set</a> (RSS) that the field&rsquo;s <code>@Resolver</code> class declares in Kotlin. Public Viaduct&rsquo;s <code>@resolver</code> directive takes only <code>isSelective</code> and <code>isBatching</code> (<a class="src" data-src="docs/docs/docs/developers/schema_reference/index.md" data-lines="21-22" data-expect="isSelective: Boolean! = false||isBatching: Boolean! = false">schema reference</a>).</p>
+<p>The booking resolver returns only startsAt and customerId. The schema declares it selective, so the engine expects it to return no more and checks that it doesn&rsquo;t. The customer resolver makes no such promise. Like many tenant resolvers, it loads the customer&rsquo;s whole user record, email and phone included. What should the engine do with the extras?</p>
+</div>
+
+<section id="selectivity"><h2>What if a resolver returns more than it was asked for?</h2>
+<div class="explain">
+<p>Every field resolver call comes with a <a class="gl" href="../glossary.html#successor-demand">successor demand</a>, the set of fields later readers need from its output. So what happens when the output doesn&rsquo;t match it? A <b>selective resolver</b> promises to honor its <a class="gl" href="../glossary.html#demand">demand</a>, so its output is used without trimming, but checked against the demand. A <b>non-selective</b> resolver makes no such promise, so its output is trimmed to fit. What remains becomes the new object&rsquo;s <a class="gl" href="../glossary.html#object-result">object engine result</a> (OER), the engine&rsquo;s record of one object in the response.</p>
+<p>Runtime2&rsquo;s resolution always enforces both rules. The <b><a class="gl" href="../glossary.html#selective-policy">selective policy</a></b>, the per-schema switch for them, is on by default, and Runtime2&rsquo;s engine never turns it off (<a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/model/registry/Assumptions.kt" data-lines="23-34" data-expect="val selectiveResolvers: Boolean||selectiveResolvers: Boolean = true">setting</a> · <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/Engine2.kt" data-lines="93-97" data-expect="Assumptions.of(">engine</a> · <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/Engine2.kt" data-lines="157-167" data-expect="Assumptions.of(||usePrecomputedConstructionDemand = world.usePrecomputedConstructionDemand">per-request setup</a>). The off setting exists only for tests of some <a href="reference-resolver-families.html">reference resolvers</a>, test-only alternative engines that require it off (<a class="src" data-src="core/engine/runtime2/src/testFixtures/kotlin/viaduct/engine/runtime2/resolvers/resolver07/Resolver.kt" data-lines="22-24" data-expect="Resolver07 requires non-selective resolvers">Resolver07</a>). Runtime2&rsquo;s resolution refuses to start with it off (<a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/Resolver.kt" data-lines="109-111" data-expect="Resolution requires selective resolvers">check</a>).</p>
+<aside class="today"><b>In today&rsquo;s engine</b> a non-selective resolver&rsquo;s output isn&rsquo;t trimmed. The engine creates an empty OER, keeps the whole returned object as its source, and fills a cell only when the query plan selects that field, reading the value from the source. Extra fields such as email stay in the source without a cell. <a class="src" data-src="core/engine/runtime/src/main/kotlin/viaduct/engine/runtime/execution/FieldResolver.kt" data-lines="1005-1011" data-expect="ObjectEngineResultImpl.newForType(">empty OER</a> · <a class="src" data-src="core/engine/runtime/src/main/kotlin/viaduct/engine/runtime/execution/FieldResolver.kt" data-lines="1334-1346" data-expect="parameters.forObjectTraversal(field, oer, fieldResolutionResult.localContext, fieldResolutionResult.originalSource">output kept as source</a> · <a class="src" data-src="core/engine/runtime/src/main/kotlin/viaduct/engine/runtime/execution/ExecutionParameters.kt" data-lines="756-780" data-expect="source = source,||selectionSet = checkNotNull(field.selectionSet)">traversal</a></aside>
+<aside class="today"><b>In today&rsquo;s engine</b> the public Viaduct docs let a selective resolver also return fields it wasn&rsquo;t asked for, as long as no other resolver owns them. Viaduct records those values and may use them if one of those fields is needed later in the request. Runtime2 rejects them instead, so a selective resolver that returns unselected fields today must stop doing so before it runs on Runtime2. <a class="src" data-src="docs/docs/docs/developers/resolvers/selective_resolution.md" data-lines="38" data-expect="also produce values for fields in its output selection set that were not selected||This value will be recorded by Viaduct">selective_resolution.md</a></aside>
+</div>
+<figure class="scene" data-duration="23">
+<div class="stage"><svg viewBox="0 0 960 410" role="img" aria-label="The selective booking resolver's output is used without trimming and an extra field is an error; the non-selective customer resolver runs once customerId is there, and its output is trimmed to its demand.">
+<defs>
+<marker id="se-ah-c2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0L10,5L0,10z" class="ah c2"/></marker>
+<marker id="se-ah-c4" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0L10,5L0,10z" class="ah c4"/></marker>
+</defs>
+<g data-in="0"><rect class="zone" x="20" y="16" width="450" height="380" rx="12"/><text x="40" y="42" class="title">Selective</text><text x="130" y="42" class="mono small muted">@resolver(isSelective: true)</text></g>
+<g data-in="0"><rect class="zone" x="490" y="16" width="450" height="380" rx="12"/><text x="510" y="42" class="title">Non-selective</text><text x="630" y="42" class="mono small muted">@resolver</text></g>
+
+<g data-in="1" data-anim="pop" class="c3"><rect class="box c3" x="40" y="58" width="410" height="50" rx="8"/><text x="56" y="77" class="small">asked for</text><text x="56" y="97" class="mono small">startsAt customerId customer { firstName }</text></g>
+<g data-in="1" data-anim="pop" class="c3"><rect class="box c3" x="510" y="58" width="410" height="50" rx="8"/><text x="526" y="77" class="small">asked for</text><text x="526" y="97" class="mono small">firstName</text></g>
+
+<g data-in="3" data-anim="pop" data-on="3-5" class="c4"><rect class="box c4" x="40" y="124" width="180" height="50" rx="10"/><text x="130" y="154" text-anchor="middle" class="title">booking resolver</text></g>
+<g data-in="13" data-anim="pop" data-on="13-15" data-out="19" class="c4"><rect class="box c4" x="510" y="124" width="180" height="50" rx="10"/><text x="600" y="154" text-anchor="middle" class="title">customer resolver</text></g>
+<g data-in="5" data-anim="draw" class="c2"><path class="wire c2" d="M220,149 L246,149" marker-end="url(#se-ah-c2)"/></g>
+<g data-in="15" data-anim="draw" data-out="19" class="c2"><path class="wire c2" d="M690,149 L716,149" marker-end="url(#se-ah-c2)"/></g>
+<g data-in="5" data-anim="pop" class="c2"><rect class="box c2" x="250" y="122" width="200" height="58" rx="8"/><text x="350" y="140" text-anchor="middle" class="small">returns</text><text x="350" y="157" text-anchor="middle" class="mono small" data-text="5:{startsAt, customerId}|19:{startsAt, customerId,">{startsAt, customerId}</text><text x="350" y="172" text-anchor="middle" class="mono small" data-text="5: |19:status}"> </text></g>
+<g data-in="15" data-anim="pop" data-out="19" class="c2"><rect class="box c2" x="720" y="122" width="200" height="58" rx="8"/><text x="820" y="140" text-anchor="middle" class="small">returns the whole record</text><text x="820" y="157" text-anchor="middle" class="mono small">{id, firstName,</text><text x="820" y="172" text-anchor="middle" class="mono small">email, phone}</text></g>
+
+<g data-in="8" data-anim="pop" class="c1"><rect class="box c1" x="40" y="190" width="410" height="40" rx="8"/><text x="245" y="215" text-anchor="middle" class="small" data-text="8:no trimming · checked against demand|19:checked: status was not asked for">no trimming · checked against demand</text></g>
+<g data-in="16.5" data-anim="pop" data-out="19" class="c1"><rect class="box c1" x="510" y="190" width="410" height="40" rx="8"/><text x="715" y="215" text-anchor="middle" class="small" data-text="16.5:trimmed to demand|17.2:trimmed to demand → {firstName}">trimmed to demand</text></g>
+
+<g data-in="10.5" data-anim="pop" data-out="19" class="c2"><rect class="box c2" x="40" y="246" width="410" height="78" rx="10"/><text x="56" y="268" class="title">Booking OER</text>
+<rect class="cell full" x="48" y="280" width="122" height="30" rx="6"/><text x="109" y="300" text-anchor="middle" class="mono">startsAt: Jun 3</text>
+<rect class="cell full" x="176" y="280" width="114" height="30" rx="6"/><text x="233" y="300" text-anchor="middle" class="mono">customerId: u1</text>
+</g>
+<g data-in="13" data-out="19"><rect class="cell claimed" x="296" y="280" width="146" height="30" rx="6"/><text x="369" y="300" text-anchor="middle" class="mono">customer: own task</text></g>
+<g data-in="17.2" data-anim="pop" data-out="19" class="c2"><rect class="box c2" x="510" y="246" width="410" height="78" rx="10"/><text x="526" y="268" class="title">User OER</text>
+<rect class="cell full" x="526" y="280" width="130" height="30" rx="6"/><text x="591" y="300" text-anchor="middle" class="mono">firstName: Ada</text>
+</g>
+<g data-in="17.2" data-out="19" class="c4"><text x="715" y="346" text-anchor="middle" class="small ink">email and phone never reach the User OER</text></g>
+<g data-in="13" data-out="19" class="c4"><text x="245" y="346" text-anchor="middle" class="small ink">customer was omitted: the customer resolver fills it</text></g>
+
+<g data-in="19" data-anim="pop" class="c5"><rect class="box c5" x="40" y="246" width="410" height="78" rx="10"/><text x="245" y="272" text-anchor="middle" class="title">booking: error</text><text x="245" y="296" text-anchor="middle" class="mono small err">"…Booking contains unselected</text><text x="245" y="312" text-anchor="middle" class="mono small err">fields: status"</text></g>
+<g data-in="19" class="c5"><text x="715" y="160" text-anchor="middle" class="small ink">in that run, customer never runs</text></g>
+<g data-in="19" class="c5"><text x="245" y="374" text-anchor="middle" class="small ink">another run: one field too many</text></g>
+</svg></div>
+<ol class="beats">
+<li data-at="0" data-title="Two resolvers, two contracts">The booking resolver is declared selective with <code>@resolver(isSelective: true)</code> in the schema. The customer resolver has a plain <code>@resolver</code>, so it&rsquo;s non-selective, like most of today&rsquo;s tenant resolvers.</li>
+<li data-at="1" data-title="Each gets its demand">The booking resolver&rsquo;s successor demand covers startsAt, customer with its firstName, and customerId, which customer&rsquo;s RSS reads. The customer resolver&rsquo;s demand is just firstName. The engine hands the requested <a class="gl" href="../glossary.html#selection">selections</a> to every field-resolver call, selective or not. So the customer resolver sees its demand too, but its output is still trimmed.</li>
+<li data-at="5" data-title="The booking resolver returns">The booking resolver returns part of what it was asked for, <code>{startsAt, customerId}</code>, and leaves out customer.</li>
+<li data-at="8" data-title="Checked, not trimmed">Runtime2 uses the booking output without trimming. It only checks that every returned field is in the demand, and here each one is.</li>
+<li data-at="10.5" data-title="The Booking OER">The Booking OER gets startsAt and customerId, the two fields the resolver returned.</li>
+<li data-at="13" data-title="Omitted, not missing">The booking resolver left customer out, and that&rsquo;s fine, because customer has its own resolver. Its <a class="gl" href="../glossary.html#cell">cell</a> in the Booking OER is <a class="gl" href="../glossary.html#claim">claimed</a> for the customer resolver&rsquo;s own <a class="gl" href="../glossary.html#resolver-task">resolver task</a>. The customer resolver runs only now: its task belongs to the Booking OER, which exists only once the booking resolver returns, and it reads customerId from that OER.</li>
+<li data-at="15" data-title="The whole record">The customer resolver returns the whole user record it loaded, <code>id</code>, <code>email</code> and <code>phone</code> included.</li>
+<li data-at="16.5" data-title="Trimmed to the demand">Runtime2 trims the output (<code>snipToDemand</code>) to the demand before it builds objects from it, which leaves <code>{firstName}</code>. The User OER gets only firstName, so email and phone never reach it.</li>
+<li data-at="19" data-title="Extra selective output">In another run, the booking resolver also returns <code>status</code>. For a selective resolver, a field nobody asked for is an error, not a harmless extra, so the booking field fails with &ldquo;Selective resolver output Booking contains unselected fields: status&rdquo;. The client gets <code>booking: null</code> with that error at its path, and loses startsAt and customer with it. The new Booking OER&rsquo;s tasks are never dispatched, so the customer resolver never runs (<a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/framework/SharedPassiveValueResolutionLogic.kt" data-lines="213-229" data-expect="materializePassiveFields(||operation.dispatcher.dispatchOrchestration(orchestration)">check before dispatch</a> · <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/execution/QPlanWiringFactory.kt" data-lines="150-177" data-expect="materializeCheckedValue { true }||is ErrorEngineResult -> {||errorResult(errorData, source.exceptionHandler, environment, path)">error in response</a>).</li>
+</ol>
+</figure>
+<aside class="note"><b>Selective without the schema</b>A service can also mark fields selective without the schema, by passing a <code>FieldSelectivityProvider</code>, an engine interface that answers whether a field is selective, to <code>StandardViaduct.Builder</code> (<a class="src" data-src="core/engine/api/src/main/kotlin/viaduct/engine/api/spi/FieldSelectivityProvider.kt" data-lines="5-10" data-expect="fun isSelective(coordinate: Coordinate): Boolean">interface</a> · <a class="src" data-src="core/service/runtime/src/main/kotlin/viaduct/service/runtime/StandardViaduct.kt" data-lines="257-259" data-expect="fun withFieldSelectivityProvider">builder</a>). Runtime2 treats a field as selective if either says so (<a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/bootstrap/ExecutorRegistryInputs.kt" data-lines="210-211" data-expect="executor.isSelective || fieldSelectivityProvider.isSelective(coordinate)">either</a>), and today&rsquo;s engine takes the same provider in its configuration (<a class="src" data-src="core/engine/wiring/src/main/kotlin/viaduct/engine/EngineConfiguration.kt" data-lines="50-50" data-expect="val fieldSelectivityProvider: FieldSelectivityProvider">EngineConfiguration</a>).</aside>
+<p class="where">Where in code: <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/model/registry/FieldValueResolver.kt" data-lines="311-319" data-expect="projectNonselectiveOutput && selectiveResolvers||snipToDemand">output trimming</a> · <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/model/registry/FieldValueResolver.kt" data-lines="354-410" data-expect="does not project||fun ofSelectionAwareNonselective||independently of the executor's selectivity declaration">resolver kinds</a> · <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/bootstrap/ExecutorRegistryInputs.kt" data-lines="210-235" data-expect="executor.isSelective||selectiveFieldResolverOf||selectionAwareFieldResolverOf">tenant adapter</a> · <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/framework/SharedPassiveValueResolutionLogic.kt" data-lines="251-258" data-expect="contains unselected fields">unselected-field check</a> · <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/Resolver.kt" data-lines="103-111" data-expect="Resolution requires selective resolvers">policy required</a> · <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/model/registry/SnipToDemand.kt" data-lines="44-65" data-expect="fun ResolverOutputData?.snipToDemand">snipToDemand</a> · <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/SuccessorDemand.kt" data-lines="304-315" data-expect="fixedSuccessorInputDemand||val resolverInputs = key.field.fixedResolverInputDemand(context)">RSS in successor demand</a> · <a class="src" data-src="core/engine/runtime2/src/test/kotlin/viaduct/engine/runtime2/model/registry/ResolverRegistryTest.kt" data-lines="371-430" data-expect="selection-aware nonselective resolver receives demand and projects output||projects output">trimming test</a></p>
+<div class="explain closing">
+<p>Either way, the output is held to the demand: a selective resolver must stay inside it, and a non-selective one is trimmed to fit.</p>
+</div>
+</section>
+</main>
+<script src="../assets/app.js"></script><script src="../assets/motion.js"></script>
+</body></html>

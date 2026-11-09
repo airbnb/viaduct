@@ -1,0 +1,271 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Viaduct's Runtime2 engine</title>
+<script src="assets/theme.js"></script>
+<link rel="icon" type="image/svg+xml" href="assets/viaduct-logo.svg">
+<link rel="stylesheet" href="assets/style.css"></head>
+<body data-layer="0"><main>
+<div class="kicker">Overview</div>
+<h1>Viaduct&rsquo;s Runtime2 engine</h1>
+
+<section id="preface">
+<div class="explain">
+<p>Every Viaduct request involves the same parties. The client writes a query, and tenants write the <a class="gl" href="glossary.html#resolver">resolvers</a>. Tenants are the teams whose modules contribute schema and resolver code to a Viaduct service. Each resolver can declare what it needs to read through its <a class="gl" href="glossary.html#rss">required selection set</a> (RSS). Somewhere in between, something has to decide which resolver produces each value, what that resolver is given, and when it runs. That something is the engine.</p>
+<p>Runtime2 is a reimplementation of that engine. Viaduct itself stays the same, and Runtime2 implements the same engine contract as today&rsquo;s engine; what changes is how the work gets done. Runtime2 is designed so that its behavior can be reasoned about precisely. Its central design choice is that it plans before it runs. Because every resolver declares its inputs up front, Runtime2 can work out in advance what each resolver call must provide.</p>
+<aside class="note"><b>Differences from today&rsquo;s engine</b>The contract is the same, but some behavior differs, and the pages that cover each case say so: batching and caching across resolver calls (<a href="chapters/3-a-request.html#batching">chapter 3</a>), Query-rooted inputs (<a href="chapters/2-demand-and-supply.html#associated-query">chapter 2</a>), fields already in the parent&rsquo;s output (<a href="chapters/2-demand-and-supply.html#supply">chapter 2</a>), checkers on mutation fields and types (<a href="deep-dives/mutations.html#rejects">Mutations</a>), and selective resolvers that return extra fields (<a href="deep-dives/selectivity.html#selectivity">Selectivity</a>).</aside>
+</div>
+</section>
+
+<section id="intro">
+<h2>The running query</h2>
+<div class="explain">
+<p>Here is a venue, its location, and the location&rsquo;s display name. It&rsquo;s small, but it has three resolvers, and two of them need data that another one produces.</p>
+</div>
+<div class="code-pair">
+<pre class="cmd"><span class="c"># schema</span>
+<span class="c"># objectValueFragment is shorthand for the resolver&rsquo;s inputs</span>
+type Query {
+  venue(id: ID!): Venue <span class="d">@resolver(isSelective: true)</span>
+}
+
+type Venue implements Node {
+  id: ID!
+  title: String
+  lat: Float
+  lng: Float
+  description: String
+  location: Location
+    <span class="d">@resolver(
+      isSelective: true
+      objectValueFragment: "lat lng"
+    )</span>
+}
+
+type Location {
+  city: String
+  country: String
+  timezone: String
+  displayName: String
+    <span class="d">@resolver(
+      isSelective: true
+      objectValueFragment: "city country"
+    )</span>
+}</pre>
+<pre class="cmd"><span class="c"># query</span>
+query {
+  venue(id: "V1") {
+    title
+    location {
+      displayName
+    }
+  }
+}</pre>
+</div>
+<div class="explain">
+<p>Venue implements <code>Node</code>, so it has a <a class="gl" href="glossary.html#node-resolver">node resolver</a>, which loads a venue by its ID. In a real tenant, <code>Query.venue</code> would have its own small field resolver that returns a <a class="gl" href="glossary.html#node-reference">node reference</a> for the ID (<code>ctx.ref</code>), and Runtime2 would resolve that reference through the built-in <code>Query.node</code> field, which calls the Venue node resolver. This tour folds those steps into one and calls the resolver behind <code>Query.venue</code> the Venue node resolver.</p>
+<p>Each <code>objectValueFragment</code> argument lists the fields a resolver reads from its parent object, its RSS. Public Viaduct&rsquo;s <code>@resolver</code> directive takes only <code>isSelective</code> and <code>isBatching</code>, so <code>objectValueFragment</code> here is shorthand for what the field&rsquo;s <code>@Resolver</code> class declares in Kotlin. <code>isSelective</code> is a real argument of the directive. All three resolvers are declared <a class="gl" href="glossary.html#selective-resolver">selective</a> (<code>isSelective: true</code>), which means each one promises to return only the fields it was asked for.</p>
+<p>Each resolver reads its inputs, is asked for a set of fields, and returns the ones it produces. The Venue node resolver loads venue V1 by its ID. Location doesn&rsquo;t implement <code>Node</code> and has no ID, so location&rsquo;s resolver computes the location instead: it reverse-geocodes the venue&rsquo;s coordinates, lat and lng. displayName&rsquo;s resolver builds the name from that location&rsquo;s city and country. The client never asks for lat, lng, city or country; they appear in what a resolver is asked for because a resolver below it reads them. Every chapter uses these values:</p>
+</div>
+<pre class="cmd"><span class="c"># what each resolver reads, is asked for and returns</span>
+<span class="c"># Venue node resolver (Query.venue)</span>
+reads:      the ID "V1", taken from venue(id:)
+asked for:  title lat lng location { displayName city country }
+returns:    { title: "Loft", lat: 48.86, lng: 2.35 }
+
+<span class="c"># location&rsquo;s resolver (Venue.location)</span>
+reads:      lat 48.86, lng 2.35 from the Venue
+asked for:  displayName city country
+returns:    { city: "Paris", country: "France" }
+
+<span class="c"># displayName&rsquo;s resolver (Location.displayName)</span>
+reads:      city "Paris", country "France" from the Location
+returns:    "Paris, France"</pre>
+<div class="explain">
+<p>Runtime2 arranges this chain so that each resolver is called at most once and gets what it needs.</p>
+</div>
+</section>
+
+<section id="what">
+<h2>Resolution, not completion</h2>
+<div class="explain">
+<p>Executing a query splits into two jobs. Runtime2 does <b><a class="gl" href="glossary.html#resolution">resolution</a></b>: it obtains every value the client&rsquo;s <a class="gl" href="glossary.html#selection">selections</a> need and writes it into a <a class="gl" href="glossary.html#result-tree">result tree</a>. GraphQL Java does <b><a class="gl" href="glossary.html#completion">completion</a></b>: it builds the response from that tree as values arrive. Runtime2&rsquo;s entry point is its <a class="gl" href="glossary.html#execution-strategy">execution strategy</a>, <code>QPlanExecutionStrategy</code>.</p>
+<aside class="today"><b>In today&rsquo;s engine</b> The work is already split in two: one part fetches venue, location and displayName into result objects, and another reads them out to build the response. In code, <code>ViaductExecutionStrategy</code> calls <code>ExecuteRootSelectionSet</code>, which runs <code>FieldResolver</code> to fetch into <code>ObjectEngineResult</code>s and Viaduct&rsquo;s own <code>FieldCompleter</code> to read them. Runtime2 keeps the split but drops <code>FieldCompleter</code>: completion reads Runtime2&rsquo;s cells directly. <a class="src" data-src="core/engine/runtime/src/main/kotlin/viaduct/engine/runtime/execution/ExecuteRootSelectionSet.kt" data-lines="66-80" data-expect="fieldResolver.fetchObject||fieldCompleter.completeObject">ExecuteRootSelectionSet</a></aside>
+<p>The two share the result tree while the request runs: completion reads values out as soon as Runtime2 writes them, and waits for any value that isn&rsquo;t written yet.</p>
+<p>Runtime2 works out what everything below a resolver needs before it calls that resolver. So it can call each resolver once for <a class="gl" href="glossary.html#occurrence">each place its field appears</a> in the response, and ask that one call for everything the fields under it need.</p>
+</div>
+<p class="where">Where in code: <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/execution/QPlanExecutionStrategy.kt" data-lines="36-53" data-expect="delegates GraphQL completion with a live promise-backed OER as the root source||AsyncExecutionStrategy">QPlanExecutionStrategy</a> · <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/execution/QPlanWiringFactory.kt" data-lines="51-63" data-expect="GraphQL-Java completion wiring backed by a live qplan result tree">QPlanWiringFactory</a></p>
+</section>
+
+<section id="picture">
+<h2>The big picture: one tree, two kinds of task</h2>
+<div class="explain">
+<p>Runtime2 builds the response as a tree of <b>object engine results (OERs)</b>, one per object in the response. Each OER holds a <b><a class="gl" href="glossary.html#cell">cell</a></b> for every field it must build, and a cell is a write-once slot. Writing a cell&rsquo;s value is called completing the cell. That is not GraphQL completion, the step that reads the cells to build the response.</p>
+<aside class="today"><b>In today&rsquo;s engine</b> Today, venue, location and displayName each get a cell in their parent&rsquo;s OER too, holding the value and the access-check result, and both are filled in one step. In code, that is a <code>Cell</code> in an <code>ObjectEngineResult</code>. In Runtime2 the two slots fill independently, and the cell also records whether <code>@skip</code>/<code>@include</code> let its field run. <a class="src" data-src="core/engine/runtime/src/main/kotlin/viaduct/engine/runtime/ObjectEngineResultImpl.kt" data-lines="248-250" data-expect="RAW_VALUE_SLOT||ACCESS_CHECK_SLOT">ObjectEngineResultImpl</a></aside>
+<p>What an OER must build is its <b><a class="gl" href="glossary.html#demand">demand</a></b>. Demand is a <b><a class="gl" href="glossary.html#selection-forest">selection forest</a></b>, a collection of <b>selections</b>, each one field requested at that place with its <a class="gl" href="glossary.html#arguments">arguments</a> and subselections but no alias. Each demanded field then has one of two sources. If the parent resolver&rsquo;s output already holds it, it is a <b><a class="gl" href="glossary.html#passive-field">passive field</a></b>, passively resolved from that output. If it is missing and has a resolver, it is an <b><a class="gl" href="glossary.html#active-field">active field</a></b>, which needs its field resolver to run.</p>
+<p>Two kinds of task take turns growing the tree. An <b><a class="gl" href="glossary.html#orchestrator">orchestrator</a></b> plans one OER in two phases: Prepare <a class="gl" href="glossary.html#closure">closes</a> the result&rsquo;s demand, and Run <a class="gl" href="glossary.html#claim">claims</a> a cell for each active field. A <b><a class="gl" href="glossary.html#resolver-task">resolver task</a></b> calls one field&rsquo;s resolver and fills that field&rsquo;s cell.</p>
+<aside class="note"><b>Note</b>The running query has only ordinary resolver-backed fields. The <a href="deep-dives/index.html">deep dives</a> cover the rest, such as lists, node references and mutations. Access checks, which run in their own <a class="gl" href="glossary.html#checker-task">checker tasks</a>, get their own deep dive: <a href="deep-dives/access-checks.html">Access checks</a>.</aside>
+</div>
+<div class="scene-key" aria-label="How to read the diagram below">
+<div><span class="sw c2"></span><b>OER</b><small>left column</small><p>One object in the response, with a write-once cell per demanded field.</p></div>
+<div><span class="sw c4"></span><b>Orchestrator</b><small>middle column</small><p>Plans one OER in two phases. Prepare closes its demand. Run claims a cell and <a class="gl" href="glossary.html#dispatch">dispatches</a> a resolver task for each active field, then freezes the OER.</p></div>
+<div><span class="sw c4 dash"></span><b>Resolver task</b><small>right column</small><p>Calls one field's resolver once, creates the next OER and its orchestrator from a returned object, then <a class="gl" href="glossary.html#complete">completes</a> its cell.</p></div>
+</div>
+<figure class="scene" data-duration="23">
+  <div class="stage"><svg viewBox="0 0 1020 536" role="img" aria-label="Three OERs grow on the left: Query, Venue and Location. On the right, orchestrators and resolver tasks alternate: the Query orchestrator launches the venue resolver task, which creates the Venue OER and its orchestrator, which launches the location resolver task, which creates the Location OER and its orchestrator, which launches the displayName resolver task.">
+    <defs>
+      <marker id="h0-ah-c2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0L10,5L0,10z" class="ah c2"/></marker>
+      <marker id="h0-ah-c4" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0,0L10,5L0,10z" class="ah c4"/></marker>
+    </defs>
+
+    <text x="160" y="13" text-anchor="middle" class="small muted">result tree</text>
+    <text x="480" y="13" text-anchor="middle" class="small muted">orchestrators</text>
+    <text x="861" y="13" text-anchor="middle" class="small muted">resolver tasks</text>
+
+    <!-- Query OER -->
+    <g data-in="0.2" data-anim="pop" class="c2"><rect class="box c2" x="20" y="20" width="280" height="80" rx="10"/>
+      <text x="36" y="42" class="title">Query</text></g>
+    <g data-in="1.4"><rect class="cell" data-add="11.2:full" x="36" y="54" width="248" height="32" rx="6"/>
+      <text x="48" y="75" class="mono">venue</text>
+      <text x="272" y="75" text-anchor="end" class="mono muted" data-text="1.4:demanded|2.2:claimed|11.2:→ Venue">demanded</text></g>
+
+    <!-- Orchestrator: Query -->
+    <g data-in="1" data-anim="pop" data-on="1-3.8" class="c4"><rect class="box c4" x="340" y="20" width="280" height="88" rx="10"/>
+      <text x="356" y="42" class="title">Orchestrator · Query</text><text x="604" y="42" text-anchor="end" class="small muted" data-text="1:prepare|2.2:run">prepare</text>
+      <text x="356" y="62" class="mono small">close demand: { venue }</text>
+      <text x="356" y="79" class="mono small" data-in="2.2">claim venue, dispatch its task</text>
+      <text x="356" y="96" class="mono small" data-in="2.2">freeze the Query OER</text></g>
+    <g data-in="2.2" data-dur=".3" data-anim="draw"><path class="wire c4 dash" d="M338,70 L286,70" marker-end="url(#h0-ah-c4)"/></g>
+
+    <!-- launch venue resolver task -->
+    <g data-in="3.8" data-dur=".4" data-anim="draw"><path id="h0-p1" class="wire c4 thick" d="M620,55 C670,55 660,135 706,135" marker-end="url(#h0-ah-c4)"/></g>
+    <g data-in="3.8" data-dur=".6" data-anim="move" data-path="#h0-p1" class="c4"><circle class="tok" r="6"/></g>
+    <g data-in="3.8"><text x="650" y="118" text-anchor="end" class="small muted">dispatches</text></g>
+
+    <!-- Resolver task: venue -->
+    <g data-in="4.1" data-anim="pop" data-on="4.1-6.8" class="c4"><rect class="box c4 dash" x="712" y="100" width="298" height="70" rx="10"/>
+      <text x="726" y="122" class="title">Resolver task · venue</text>
+      <text x="726" y="142" class="mono small">asks: title lat lng location{…}</text>
+      <text x="726" y="160" class="mono small" data-text="4.1:calls Venue node resolver…|5.4:got { title, lat, lng }|6.4:creates Venue OER + orchestrator">calls Venue node resolver…</text></g>
+
+    <!-- creates Venue OER + orchestrator -->
+    <g data-in="6.4" data-dur=".4" data-anim="draw"><path id="h0-p2" class="wire c4 thick" d="M712,150 C668,150 676,200 626,200" marker-end="url(#h0-ah-c4)"/></g>
+    <g data-in="6.4" data-dur=".6" data-anim="move" data-path="#h0-p2" class="c4"><circle class="tok" r="6"/></g>
+    <g data-in="6.4" data-dur=".4" data-anim="draw"><path id="h0-p2b" class="wire c4 thick" d="M712,160 C560,160 440,166 304,166" marker-end="url(#h0-ah-c4)"/></g>
+    <g data-in="6.4" data-dur=".6" data-anim="move" data-path="#h0-p2b" class="c4"><circle class="tok" r="6"/></g>
+    <g data-in="6.4"><text x="480" y="152" text-anchor="middle" class="small muted">creates</text><text x="672" y="206" text-anchor="start" class="small muted">creates</text></g>
+    <g data-in="6.5" data-anim="pop" class="c2"><rect class="box c2" x="20" y="150" width="280" height="186" rx="10"/>
+      <text x="36" y="172" class="title">Venue</text></g>
+    <g data-in="6.65" data-anim="pop" data-on="7.3-10.8" class="c4"><rect class="box c4" x="340" y="180" width="280" height="88" rx="10"/>
+      <text x="356" y="202" class="title">Orchestrator · Venue</text><text x="604" y="202" text-anchor="end" class="small muted" data-text="6.65:prepare|9.4:run">prepare</text>
+      <text x="356" y="222" class="mono small" data-in="7.3">close demand: + lat lng</text>
+      <text x="356" y="239" class="mono small" data-in="9.4">claim location, dispatch its task</text>
+      <text x="356" y="256" class="mono small" data-in="9.4">freeze the Venue OER</text></g>
+    <g data-in="7.3"><rect class="cell" data-add="8.4:full" x="36" y="184" width="248" height="30" rx="6"/>
+      <text x="48" y="204" class="mono">title</text>
+      <text x="272" y="204" text-anchor="end" class="mono muted" data-text="7.3:demanded|8.4:&quot;Loft&quot;">demanded</text></g>
+    <g data-in="7.3"><rect class="cell" data-add="8.4:full" x="36" y="220" width="248" height="30" rx="6"/>
+      <text x="48" y="240" class="mono">lat</text>
+      <text x="272" y="240" text-anchor="end" class="mono muted" data-text="7.3:+ closure|8.4:48.86">+ closure</text></g>
+    <g data-in="7.3"><rect class="cell" data-add="8.4:full" x="36" y="256" width="248" height="30" rx="6"/>
+      <text x="48" y="276" class="mono">lng</text>
+      <text x="272" y="276" text-anchor="end" class="mono muted" data-text="7.3:+ closure|8.4:2.35">+ closure</text></g>
+    <g data-in="7.3"><rect class="cell" data-add="17.2:full" x="36" y="292" width="248" height="30" rx="6"/>
+      <text x="48" y="312" class="mono">location</text>
+      <text x="272" y="312" text-anchor="end" class="mono muted" data-text="7.3:demanded|9.4:claimed|17.2:→ Location">demanded</text></g>
+    <g data-in="9.4" data-dur=".3" data-anim="draw"><path class="wire c4 dash" d="M338,240 C318,240 312,307 286,307" marker-end="url(#h0-ah-c4)"/></g>
+    <g data-in="11.2" data-dur=".4" data-anim="draw"><path class="wire c2" d="M160,86 L160,148" marker-end="url(#h0-ah-c2)"/></g>
+
+    <!-- launch location resolver task -->
+    <g data-in="10.2" data-dur=".4" data-anim="draw"><path id="h0-p3" class="wire c4 thick" d="M620,215 C670,215 660,295 706,295" marker-end="url(#h0-ah-c4)"/></g>
+    <g data-in="10.2" data-dur=".6" data-anim="move" data-path="#h0-p3" class="c4"><circle class="tok" r="6"/></g>
+    <g data-in="10.2"><text x="650" y="278" text-anchor="end" class="small muted">dispatches</text></g>
+    <g data-in="10.5" data-anim="pop" data-on="10.5-12.8" class="c4"><rect class="box c4 dash" x="712" y="260" width="298" height="70" rx="10"/>
+      <text x="726" y="282" class="title">Resolver task · location</text>
+      <text x="726" y="302" class="mono small">asks: city country displayName</text>
+      <text x="726" y="320" class="mono small" data-text="10.5:calls location resolver…|12.4:got { city, country }|12.4:creates Location OER + orchestrator">calls location resolver…</text></g>
+
+    <!-- creates Location OER + orchestrator -->
+    <g data-in="12.4" data-dur=".4" data-anim="draw"><path id="h0-p4" class="wire c4 thick" d="M712,310 C668,310 676,396 626,396" marker-end="url(#h0-ah-c4)"/></g>
+    <g data-in="12.4" data-dur=".6" data-anim="move" data-path="#h0-p4" class="c4"><circle class="tok" r="6"/></g>
+    <g data-in="12.4" data-dur=".4" data-anim="draw"><path id="h0-p4b" class="wire c4 thick" d="M712,320 C560,320 420,370 304,370" marker-end="url(#h0-ah-c4)"/></g>
+    <g data-in="12.4" data-dur=".6" data-anim="move" data-path="#h0-p4b" class="c4"><circle class="tok" r="6"/></g>
+    <g data-in="12.4"><text x="520" y="330" text-anchor="middle" class="small muted">creates</text><text x="672" y="388" text-anchor="start" class="small muted">creates</text></g>
+    <g data-in="13" data-anim="pop" class="c2"><rect class="box c2" x="20" y="366" width="280" height="150" rx="10"/>
+      <text x="36" y="388" class="title">Location</text></g>
+    <g data-in="13.3" data-anim="pop" data-on="13.3-18.4" class="c4"><rect class="box c4" x="340" y="376" width="280" height="88" rx="10"/>
+      <text x="356" y="398" class="title">Orchestrator · Location</text><text x="604" y="398" text-anchor="end" class="small muted" data-text="13.3:prepare|15.4:run">prepare</text>
+      <text x="356" y="418" class="mono small">close demand: + city country</text>
+      <text x="356" y="435" class="mono small" textLength="250" lengthAdjust="spacingAndGlyphs" data-in="15.4">claim displayName, dispatch its task</text>
+      <text x="356" y="452" class="mono small" data-in="15.4">freeze the Location OER</text></g>
+    <g data-in="13.3"><rect class="cell" data-add="14.4:full" x="36" y="400" width="248" height="30" rx="6"/>
+      <text x="48" y="420" class="mono">city</text>
+      <text x="272" y="420" text-anchor="end" class="mono muted" data-text="13.3:+ closure|14.4:&quot;Paris&quot;">+ closure</text></g>
+    <g data-in="13.3"><rect class="cell" data-add="14.4:full" x="36" y="436" width="248" height="30" rx="6"/>
+      <text x="48" y="456" class="mono">country</text>
+      <text x="272" y="456" text-anchor="end" class="mono muted" data-text="13.3:+ closure|14.4:&quot;France&quot;">+ closure</text></g>
+    <g data-in="13.3"><rect class="cell" data-add="20.6:full" x="36" y="472" width="248" height="30" rx="6"/>
+      <text x="48" y="492" class="mono">displayName</text>
+      <text x="272" y="492" text-anchor="end" class="mono muted" data-text="13.3:demanded|15.4:claimed|20.6:&quot;Paris, France&quot;">demanded</text></g>
+    <g data-in="15.4" data-dur=".3" data-anim="draw"><path class="wire c4 dash" d="M338,436 C318,436 312,487 286,487" marker-end="url(#h0-ah-c4)"/></g>
+    <g data-in="17.2" data-dur=".4" data-anim="draw"><path class="wire c2" d="M160,322 L160,364" marker-end="url(#h0-ah-c2)"/></g>
+
+    <!-- launch displayName resolver task -->
+    <g data-in="16.2" data-dur=".4" data-anim="draw"><path id="h0-p5" class="wire c4 thick" d="M620,411 C670,411 660,491 706,491" marker-end="url(#h0-ah-c4)"/></g>
+    <g data-in="16.2" data-dur=".6" data-anim="move" data-path="#h0-p5" class="c4"><circle class="tok" r="6"/></g>
+    <g data-in="16.2"><text x="668" y="438" text-anchor="start" class="small muted">dispatches</text></g>
+    <g data-in="16.8" data-anim="pop" data-on="18.4-21" class="c4"><rect class="box c4 dash" x="712" y="456" width="298" height="70" rx="10"/>
+      <text x="726" y="478" class="title">Resolver task · displayName</text>
+      <text x="726" y="498" class="mono small">reads city, country</text>
+      <text x="726" y="516" class="mono small" data-text="16.8:calls displayName resolver…|20:returns &quot;Paris, France&quot;">calls displayName resolver…</text></g>
+    <g data-in="18.4" data-dur=".5" data-anim="draw"><path id="h0-p6" class="wire c2 dash" d="M302,510 C440,510 560,514 706,514" marker-end="url(#h0-ah-c2)"/></g>
+    <g data-in="18.6" data-dur=".7" data-anim="move" data-path="#h0-p6" class="c2"><circle class="tok" r="6"/></g>
+    <g data-in="18.4"><text x="480" y="528" text-anchor="middle" class="small muted">reads</text></g>
+    <g data-in="20" data-dur=".4" data-anim="draw"><path id="h0-p7" class="wire c4 thick" d="M712,480 C560,480 420,496 288,496" marker-end="url(#h0-ah-c4)"/></g>
+    <g data-in="20" data-dur=".6" data-anim="move" data-path="#h0-p7" class="c2"><circle class="tok" r="7"/></g>
+    <g data-in="20"><text x="480" y="479" text-anchor="middle" class="small muted">completes</text></g>
+  </svg></div>
+  <ol class="beats">
+    <li data-at="0" data-title="The root"><p>Nothing has run yet. The query itself arrives as the demand of the root Query OER:</p><pre><code><span class="c"># the query, as the client wrote it</span>
+venue(id: "V1") {
+  title
+  location {
+    displayName
+  }
+}</code></pre></li>
+    <li data-at="1" data-title="Orchestrator · Query">The Query orchestrator&rsquo;s first phase, Prepare, closes its demand, which adds the inputs its fields&rsquo; resolvers declare; the Venue node resolver declares none. Its second phase, Run, then claims the venue cell so that exactly one writer owns it, dispatches a resolver task for that cell, and <a class="gl" href="glossary.html#freeze">freezes</a> the Query OER so that no new cells can appear.</li>
+    <li data-at="3.8" data-title="Resolver task · venue">The venue resolver task calls the Venue node resolver once, and that one call asks for everything later readers may need: title, location with everything below it, and lat and lng, which location&rsquo;s resolver will read. The node resolver returns title, lat and lng.</li>
+    <li data-at="6.4" data-title="The task creates the next level">The venue resolver task, not an orchestrator, creates the next level. It walks over the value the resolver returned, and this walk, its <a class="gl" href="glossary.html#passive-descent">passive descent</a>, creates the Venue OER from that value together with the Venue orchestrator. Creating the orchestrator runs its first phase, Prepare.</li>
+    <li data-at="7.3" data-title="Prepare, then fill">Prepare closes Venue&rsquo;s demand: location isn&rsquo;t in the returned value, so it is active, and its resolver&rsquo;s inputs, lat and lng, are added. Then the venue resolver task itself fills the cells of the passive fields, title, lat and lng, from the resolver&rsquo;s output, so none of those cells needs a task.</li>
+    <li data-at="9.4" data-title="Run">The venue resolver task then dispatches the Venue orchestrator, which runs its second phase, Run, at once: it claims location&rsquo;s cell, dispatches location&rsquo;s resolver task and freezes Venue.</li>
+    <li data-at="11.2" data-title="Parent completes">Only now does the venue resolver task complete the venue cell, with the Venue OER as its one value. The location resolver task runs concurrently, and location&rsquo;s cell is still pending.</li>
+    <li data-at="12.4" data-title="Same pattern, one level down">The same steps repeat one level down. location&rsquo;s resolver returns city and country, and location&rsquo;s resolver task creates the Location OER and the Location orchestrator. The orchestrator&rsquo;s Prepare adds them as displayName&rsquo;s inputs, the location resolver task then fills them at once in the Location OER, and the orchestrator&rsquo;s Run claims displayName and dispatches its resolver task. Then location&rsquo;s cell completes with the Location OER.</li>
+    <li data-at="18.4" data-title="A leaf resolver">displayName&rsquo;s resolver task reads its inputs, city and country, from the Location OER. It calls its resolver once and writes its cell once, with <code>"Paris, France"</code>.</li>
+    <li data-at="21" data-title="Tree complete">Nothing is missing: each of the three resolvers ran once, and each cell had one writer.</li>
+  </ol>
+</figure>
+<aside class="today"><b>In today&rsquo;s engine</b> The engine fetches venue first and then fetches each field of the Venue object separately and in parallel, title, lat and lng included, each run by <code>FieldResolver</code>. In Runtime2 the venue resolver task copies title, lat and lng straight from the resolver&rsquo;s output and then hands the Venue object to its own orchestrator. <a class="src" data-src="core/engine/runtime/src/main/kotlin/viaduct/engine/runtime/execution/FieldResolver.kt" data-lines="510-522" data-expect="maybeFetchNestedObject(">executeField</a></aside>
+<p class="where">Where in code: <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/Resolver.kt" data-lines="154-175" data-expect="OrchestrationTask.create||dispatchOrchestration">startResolve</a> · <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/OrchestrationTask.kt" data-lines="87-132" data-expect="closeSelectedConstructionDemand||FieldCheckerTask.prepareAll">OrchestrationTask.create</a> · <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/FieldResolutionLogic.kt" data-lines="111-187" data-expect="successorDemandFromConstructionDemand||resolvePassiveValues||publicationCell.value.complete(passiveValue)">publishResult</a> · <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/framework/SharedPassiveValueResolutionLogic.kt" data-lines="213-229" data-expect="createOrchestrationTask||materializePassiveFields||dispatchOrchestration">resolvePassiveObjectValues</a></p>
+</section>
+
+<div class="key multi"><ul>
+<li>Runtime2 does resolution and completion builds the response; the two share one result tree, where Runtime2 writes values and completion reads them.</li>
+<li>The response is built as a tree of OERs, and each OER holds a write-once cell for every field it must build.</li>
+<li>An orchestrator plans one OER: it closes the result&rsquo;s demand, claims a cell for each active field, dispatches a resolver task for it, and freezes the result.</li>
+<li>A resolver task calls its field&rsquo;s resolver once, fills the passive fields from what it returned, and dispatches the orchestrator of any child OER.</li>
+<li>The two kinds of task take turns down the tree until every demanded field has a value.</li>
+</ul></div>
+
+<section id="how">
+<h2>What comes next</h2>
+<div class="dd-sec c4"><ul class="dd-list">
+<li><a href="chapters/1-actors.html"><span class="no">01</span><span class="body"><b>The actors</b><span>The orchestrator, the resolver task, the result tree and the registry, and what each one is responsible for.</span></span><span class="go" aria-hidden="true">→</span></a></li>
+<li><a href="chapters/2-demand-and-supply.html"><span class="no">02</span><span class="body"><b>Demand and supply</b><span>What each object must build, and how each value is supplied: passive fields from data already resolved, active fields from their own resolver.</span></span><span class="go" aria-hidden="true">→</span></a></li>
+<li><a href="chapters/3-a-request.html"><span class="no">03</span><span class="body"><b>A request, end to end</b><span>The running query from parsing to response, in the order the code runs it.</span></span><span class="go" aria-hidden="true">→</span></a></li>
+<li><a href="chapters/4-exercises.html"><span class="no">04</span><span class="body"><b>Exercises</b><span>Six short exercises that check the rules from chapters 1 to 3.</span></span><span class="go" aria-hidden="true">→</span></a></li>
+</ul></div>
+<div class="dd-sec c2"><h3 class="dd-group">More</h3><ul class="dd-list">
+<li><a href="deep-dives/index.html"><span class="no">+</span><span class="body"><b>Deep dives</b><span>Why Runtime2 exists, common scenarios, the code itself and advanced topics. Each can be read on its own.</span></span><span class="go" aria-hidden="true">→</span></a></li>
+</ul></div>
+</section>
+</main>
+<script src="assets/app.js"></script><script src="assets/motion.js"></script>
+</body></html>

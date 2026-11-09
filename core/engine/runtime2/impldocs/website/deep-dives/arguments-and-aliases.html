@@ -1,0 +1,121 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Arguments and aliases — Viaduct Runtime2</title>
+<script src="../assets/theme.js"></script>
+<link rel="icon" type="image/svg+xml" href="../assets/viaduct-logo.svg">
+<link rel="stylesheet" href="../assets/style.css"></head>
+<body data-layer="-1"><main>
+<div class="kicker">Deep dive</div>
+<h1>Arguments and aliases</h1>
+<p class="lede">When a query selects the same field more than once, under different aliases or with different <a class="gl" href="../glossary.html#arguments">arguments</a>, which of those selections are the same work?</p>
+<div class="explain">
+<p>The query below loads a venue page. It quotes the text of the first two reviews, shows a star card for the same two, lists as many reviews as an operation variable asks for, and shows the venue&rsquo;s rating. Aliases, a default argument and a <a class="gl" href="../glossary.html#resolver">resolver</a> input with its own <a class="gl" href="../glossary.html#variable">variable</a> all meet on one Venue, so Runtime2 has to decide which of these requests are the same work.</p>
+</div>
+<div class="code-pair">
+<pre class="cmd"><span class="c"># schema</span>
+type Query {
+  venue(id: ID!): Venue <span class="d">@resolver</span>
+}
+
+type Venue {
+  id: ID!
+  reviews(first: Int): [Review] <span class="d">@resolver</span>
+  rating(sample: Int = 20): Float
+    <span class="d">@resolver(
+      objectValueFragment: "reviews(first: $k) { stars }"
+      variables: [{name: "k", fromArgument: "sample"}]
+    )</span>
+}
+
+type Review {
+  stars: Int
+  text: String
+}</pre>
+<pre class="cmd"><span class="c"># query</span>
+query VenuePage($n: Int) {
+  venue(id: "V1") {
+    quotes: reviews(first: 2) { text }
+    card: reviews(first: 2) { stars }
+    more: reviews(first: $n) { stars }
+    rating
+  }
+}
+
+<span class="c"># variables: { "n": 5 }</span></pre>
+</div>
+<div class="explain">
+<p>In this schema, <code>objectValueFragment</code> and <code>variables</code> inside <code>@resolver(...)</code> are shorthand for what rating&rsquo;s <code>@Resolver</code> class declares in Kotlin: its <a class="gl" href="../glossary.html#rss">required selection set</a> (RSS), and a variable <code>$k</code> bound to the <code>sample</code> argument. Public Viaduct&rsquo;s <code>@resolver</code> directive takes only <code>isSelective</code> and <code>isBatching</code> (<a class="src" data-src="docs/docs/docs/developers/schema_reference/index.md" data-lines="21-22" data-expect="isSelective: Boolean! = false||isBatching: Boolean! = false">schema reference</a>).</p>
+<p>The question is identity. When two <a class="gl" href="../glossary.html#selection">selections</a> look alike, too generous an answer lets different requests share one result, and too strict an answer runs a resolver twice for nothing. Runtime2 decides with <a class="gl" href="../glossary.html#key">keys</a>.</p>
+</div>
+
+<section id="arguments"><h2>Which selections share a cell?</h2>
+<div class="explain">
+<p>Do two aliases of the same reviews get one <a class="gl" href="../glossary.html#cell">cell</a> or two? A cell is one field&rsquo;s slot in an <a class="gl" href="../glossary.html#object-result">object engine result</a> (OER), the engine&rsquo;s record of one object in the response, and Runtime2 finds it by its key. In a query, the key is the field plus its argument values, with no alias. (Mutations are the exception: their keys add the response key.) So aliases with equal arguments share one cell and one resolver run.</p>
+<p>A resolver&rsquo;s RSS can hold variables of its own. A variable&rsquo;s value for this request is its <b><a class="gl" href="../glossary.html#binding">binding</a></b>. So keys come in two kinds: a <b><a class="gl" href="../glossary.html#ground-key">ground key</a></b> has all its argument values known, while a <b><a class="gl" href="../glossary.html#symbolic-key">symbolic key</a></b> still holds a variable. A symbolic key names its cell for good, so a late binding never changes which cell it is. Each OER&rsquo;s <a class="gl" href="../glossary.html#orchestrator">orchestrator</a> <b><a class="gl" href="../glossary.html#binding-declaration">declares the bindings</a></b> when it is created.</p>
+<aside class="today"><b>In today&rsquo;s engine</b> Today, <code>quotes: reviews(first: 2)</code> and <code>card: reviews(first: 2)</code> get two cells in the Venue OER, because the key that finds a cell includes the alias. In code, that is the <code>Key</code> of an <code>ObjectEngineResult</code>. Each cell is fetched on its own, so the reviews resolver runs once per alias. Runtime2 drops the alias, except in <a class="gl" href="../glossary.html#mutation-key">mutation keys</a>. <a class="src" data-src="core/engine/runtime/src/main/kotlin/viaduct/engine/runtime/result/ObjectEngineResult.kt" data-lines="45-52" data-expect="if (alias != other.alias) return false">ObjectEngineResult.Key</a> · <a class="src" data-src="core/engine/runtime/src/main/kotlin/viaduct/engine/runtime/execution/FieldResolver.kt" data-lines="489-505" data-expect="currentOER.computeIfAbsent(oerKey)">fetch per key</a></aside>
+</div>
+<figure class="scene" data-duration="21">
+<div class="stage"><svg viewBox="0 0 960 400" role="img" aria-label="Two aliases with equal arguments share one cell and merge their subselections; a different argument gets its own cell; a fragment variable gets a symbolic cell bound from rating's argument.">
+<defs>
+<marker id="ar-ah-c2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0L10,5L0,10z" class="ah c2"/></marker>
+<marker id="ar-ah-c3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0L10,5L0,10z" class="ah c3"/></marker>
+<marker id="ar-ah-c4" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0L10,5L0,10z" class="ah c4"/></marker>
+</defs>
+<g data-in="0"><rect class="zone" x="20" y="16" width="300" height="214" rx="12"/><text x="36" y="40" class="title">Client query (example)</text>
+<text x="36" y="66" class="mono small">query($n: Int) {</text>
+<text x="42" y="84" class="mono small">venue(id: "V1") {</text>
+<text x="48" y="104" class="mono small">quotes: reviews(first: 2) { text }</text>
+<text x="48" y="124" class="mono small">card: reviews(first: 2) { stars }</text>
+<text x="48" y="144" class="mono small">more: reviews(first: $n) { stars }</text>
+<text x="48" y="164" class="mono small">rating</text>
+<text x="36" y="182" class="mono small">}}</text>
+<text x="36" y="210" class="small muted">$n = 5 · rating omits sample</text></g>
+
+<g data-in="2" data-anim="pop" class="c1"><rect class="box c1" x="20" y="244" width="300" height="122" rx="10"/><text x="36" y="268" class="title">Keys after coercion</text>
+<text x="36" y="294" class="mono small">reviews(first: 2) ← quotes, card</text>
+<text x="36" y="318" class="mono small">reviews(first: 5) ← more</text>
+<text x="36" y="342" class="mono small">rating(sample: 20) ← default</text></g>
+
+<g data-in="4.5" data-anim="pop" class="c2"><rect class="box c2" x="346" y="16" width="344" height="350" rx="10"/><text x="362" y="40" class="title">Venue OER</text><text x="674" y="40" text-anchor="end" class="small muted" data-text="4.5:demand (keys, no cells yet)|9.4:cells">demand (keys, no cells yet)</text></g>
+<g data-in="9.4" data-anim="pop"><rect class="cell" data-add="10.6:claimed,12.4:-claimed,12.4:full" x="362" y="56" width="312" height="32" rx="6"/></g><g data-in="5"><text x="518" y="77" text-anchor="middle" class="mono">reviews(first: 2)</text></g>
+<g data-in="9.4" data-anim="pop"><rect class="cell" data-add="10.6:claimed,12.4:-claimed,12.4:full" x="362" y="104" width="312" height="32" rx="6"/></g><g data-in="5.4"><text x="518" y="125" text-anchor="middle" class="mono">reviews(first: 5)</text></g>
+<g data-in="9.4" data-anim="pop"><rect class="cell" data-add="10.6:claimed,16.6:-claimed,16.6:full" x="362" y="152" width="312" height="32" rx="6"/></g><g data-in="5.8"><text x="518" y="173" text-anchor="middle" class="mono">rating(sample: 20)</text></g>
+<g data-in="7.6"><text x="362" y="214" class="small muted">from rating's RSS</text></g>
+<g data-in="9.4" data-anim="pop" class="c3"><rect class="cell" data-add="10.6:claimed,14:-claimed,14:full" x="362" y="222" width="312" height="32" rx="6"/></g><g data-in="7.6" data-anim="pop" class="c3"><text x="518" y="243" text-anchor="middle" class="mono" data-text="7.6:reviews(first: $k)|13:reviews(first: $k) · k = 20">reviews(first: $k)</text></g>
+<g data-in="8.6" data-anim="pop" class="c3"><rect class="box c3" x="362" y="276" width="312" height="44" rx="8"/><text x="518" y="303" text-anchor="middle" class="mono small">$k ← rating's sample = 20</text></g>
+<g data-in="8.6" data-anim="draw" class="c3"><path class="wire c3" d="M518,276 L518,258" marker-end="url(#ar-ah-c3)"/></g>
+<g data-in="8.7"><text x="518" y="344" text-anchor="middle" class="small muted">bound at binding declaration</text></g>
+
+<g data-in="10.6" data-anim="pop" data-on="11-12.4" class="c4"><rect class="box c4" x="716" y="52" width="224" height="40" rx="10"/><text x="828" y="70" text-anchor="middle" class="title">reviews resolver task</text><text x="828" y="85" text-anchor="middle" class="mono muted small">{ text stars }</text></g>
+<g data-in="10.6" data-anim="pop" data-on="11-12.4" class="c4"><rect class="box c4" x="716" y="100" width="224" height="40" rx="10"/><text x="828" y="125" text-anchor="middle" class="title">reviews resolver task</text></g>
+<g data-in="10.6" data-anim="pop" data-on="15-17.4" class="c4"><rect class="box c4" x="716" y="148" width="224" height="40" rx="10"/><text x="828" y="173" text-anchor="middle" class="title">rating resolver task</text></g>
+<g data-in="10.6" data-anim="pop" data-on="12.4-15" class="c4"><rect class="box c4" x="716" y="218" width="224" height="40" rx="10"/><text x="828" y="236" text-anchor="middle" class="title">reviews resolver task</text><text x="828" y="251" text-anchor="middle" class="mono muted small" data-text="10.6:reads $k|13:first: 20">reads $k</text></g>
+<g data-in="15" data-anim="draw" class="c4"><path class="wire c4 dash" d="M716,176 C690,182 696,238 676,238" marker-end="url(#ar-ah-c4)"/></g>
+<g data-in="15.2" class="c4"><text x="828" y="208" text-anchor="middle" class="small ink">rating reads the reviews($k) cell</text></g>
+
+<g data-in="17.4" data-anim="draw" class="c2"><path class="wire c2 dash" d="M308,100 C330,98 340,74 360,72" marker-end="url(#ar-ah-c2)"/><path class="wire c2 dash" d="M300,120 C324,118 336,80 360,76" marker-end="url(#ar-ah-c2)"/><path class="wire c2 dash" d="M308,140 C328,140 340,122 360,120" marker-end="url(#ar-ah-c2)"/><path class="wire c2 dash" d="M98,160 C220,170 300,170 360,168" marker-end="url(#ar-ah-c2)"/></g>
+<g data-in="17.4" class="c2"><text x="824" y="300" text-anchor="middle" class="small ink">quotes and card read one cell</text><text x="824" y="320" text-anchor="middle" class="small muted">reviews($k) stays its own cell,</text><text x="824" y="338" text-anchor="middle" class="small muted">even if sample were 2</text></g>
+</svg></div>
+<ol class="beats">
+<li data-at="0" data-title="Three aliases, one variable">The client selects reviews three times under different aliases: <code>quotes</code> and <code>card</code> with <code>first: 2</code>, and <code>more</code> with <code>first: $n</code>, where <code>$n = 5</code>. The <code>quotes</code> alias asks for <code>text</code>, and the other two ask for <code>stars</code>. The client also selects <code>rating</code>, whose RSS reads reviews too.</li>
+<li data-at="2" data-title="Coerced, aliases dropped">Before <a class="gl" href="../glossary.html#resolution">resolution</a> starts, Runtime2 coerces the client&rsquo;s arguments, substituting operation variables and applying declared defaults. The alias is dropped from the key, so quotes and card now have the same key, <code>reviews(first: 2)</code>.</li>
+<li data-at="4.5" data-title="One key per argument set">The Venue OER&rsquo;s <a class="gl" href="../glossary.html#demand">demand</a> has one key for <code>first: 2</code> and one for <code>first: 5</code>, because more has a different value and so gets its own cell. The two <code>first: 2</code> occurrences <a class="gl" href="../glossary.html#merge">merge</a> into one selection whose subselections combine <code>text</code> and <code>stars</code> (<a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/model/Selection.kt" data-lines="168-171" data-expect="occurrences with equal reconstructed keys||concatenated subselections">merge by key</a>). <code>rating</code> isn&rsquo;t given <code>sample</code>, so its default applies and its key is <code>rating(sample: 20)</code>.</li>
+<li data-at="7.6" data-title="A symbolic key">rating&rsquo;s RSS adds <code>reviews(first: $k)</code>, a separate key that holds the variable. Client variables are gone by now, but <code>$k</code> is resolver-relative: it comes from rating&rsquo;s <code>sample</code> argument.</li>
+<li data-at="8.6" data-title="Bound from an argument">A binding comes from an argument, a field, or a <a class="gl" href="../glossary.html#variables-provider">variables provider</a> (a function the resolver supplies). <code>$k</code> comes from rating&rsquo;s argument, so its value is read from rating&rsquo;s own key, not from the reviews key that uses it. That key, <code>rating(sample: 20)</code>, is ground, so <code>$k</code> is bound to 20 as soon as the Venue orchestrator declares bindings.</li>
+<li data-at="9.4" data-title="Then the cells">Once bindings are declared, each key in the Venue OER&rsquo;s demand gets its cell.</li>
+<li data-at="10.6" data-title="One task per cell">Each resolver cell is <a class="gl" href="../glossary.html#claim">claimed</a> for its own resolver task, and the tasks can run at the same time. The quotes and card aliases share one cell, so their reviews resolver runs once and is asked for both <code>text</code> and <code>stars</code> (<a class="src" data-src="core/engine/runtime2/src/test/kotlin/viaduct/engine/runtime2/contract/VariableSelectionIdentityResolverContract.kt" data-lines="93-121" data-expect="payload(arg: 1) { one }||payload(arg: 1) { two }||listOf(setOf(&quot;one&quot;, &quot;two&quot;), setOf(&quot;one&quot;, &quot;two&quot;))">test</a>).</li>
+<li data-at="12.4" data-title="Grounded, not rekeyed">The two ground reviews resolver tasks complete their cells. The <code>reviews($k)</code> resolver task reads the bound <code>$k</code> and calls its resolver with <code>first: 20</code>. Binding <code>$k</code> never rekeys the cell. Runtime2&rsquo;s resolution never coalesces a ground key with a symbolic key, so if the client asked for <code>rating(sample: 2)</code>, reviews would run twice with <code>first: 2</code> (<a class="src" data-src="core/engine/runtime2/src/test/kotlin/viaduct/engine/runtime2/contract/VariableSelectionIdentityResolverContract.kt" data-lines="204-205" data-expect="a symbolic fromArgument key remains distinct from an equal grounded key">test</a>). That holds even here, where <code>$k</code> is bound before the cells exist: a symbolic key&rsquo;s identity comes from its variable instance, not from the binding&rsquo;s value, so the rule doesn&rsquo;t depend on timing. The instance is the variable&rsquo;s name and resolver plus the resolver occurrence it belongs to, so the same <code>reviews(first: $k)</code> in two resolvers&rsquo; RSSs, or in two occurrences of one resolver, gets separate keys (<a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/model/Arguments.kt" data-lines="9-12" data-expect="resolver target, name, instance ID, and recursive expression||Equality and hashing never inspect">Arguments</a>). In general a binding can arrive late. To share the cell anyway, Runtime2 would have to wait until every key that might match is ground, which can deadlock when resolvers depend on each other, or ask resolvers for extra fields in case keys match later. Runtime2&rsquo;s resolution deliberately does neither, and accepts the duplicate run (<a class="src" data-src="core/engine/runtime2/impldocs/architecture/principles.md" data-lines="55-63" data-expect="Resolution uses the third policy">policy</a>).</li>
+
+<li data-at="15" data-title="rating reads its input">rating gets its input from the <code>reviews(first: $k)</code> cell, through its RSS, and its task completes the rating cell.</li>
+<li data-at="17.4" data-title="Completion finds the cell by key"><a class="gl" href="../glossary.html#completion">Completion</a> looks each cell up by field and arguments, so quotes and card read the same cell.</li>
+</ol>
+</figure>
+<aside class="note"><b>When a binding is pending</b>Suppose instead that rating were selected only by another resolver&rsquo;s RSS, say a summary resolver on Venue whose RSS reads <code>rating(sample: $m)</code>, with <code>$m</code> bound to summary&rsquo;s own argument. Then rating&rsquo;s key would be symbolic, and <code>$k</code> would stay pending until rating&rsquo;s <a class="gl" href="../glossary.html#resolver-task">resolver task</a> works out its arguments. Readers would wait for it.</aside>
+<p class="where">Where in code: <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/schema/GJSelectionParser.kt" data-lines="386-417" data-expect="ValuesResolver.getArgumentValues">argument coercion</a> · <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/model/Selection.kt" data-lines="402-425" data-expect="alias-free">alias-free keys</a> · <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/model/EngineResult.kt" data-lines="223-236" data-expect="GroundKey.of(field, arguments)||ObjectKeyImpl(field, arguments)">ground vs symbolic</a> · <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/OrchestrationTask.kt" data-lines="212-222" data-expect="is VariableDefinition.FromArgument||bindVariable">binding declaration</a> · <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/framework/GroundObjectKey.kt" data-lines="23-31" data-expect="fetchBinding">awaiting bindings</a> · <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/execution/QPlanWiringFactory.kt" data-lines="121-133" data-expect="ObjectEngineResult.GroundKey.of(||getCell(publicationKey)">completion lookup</a> · <a class="src" data-src="core/engine/runtime2/impldocs/architecture/resolution.md" data-lines="31-33" data-expect="permanent cell identity||remain distinct even when their completed bindings have equal values">identity rules</a></p>
+<div class="explain closing">
+<p>So in a query, a cell&rsquo;s identity comes from its field and argument values, never from an alias or from a value that arrives late. One key means one cell and, for a resolver field, one task.</p>
+<aside class="note"><b>Note</b>Every request follows this rule. Only test-only models of resolution, the <a class="gl" href="../glossary.html#reference-resolver-families">reference resolver families</a>, behave differently: some of them share a cell once keys become equal. They never serve requests and are not in the published library (<a class="src" data-src="core/engine/runtime2/src/testFixtures/kotlin/viaduct/engine/runtime2/resolvers/GroundSelections.kt" data-lines="19-20" data-expect="Grounds top-level keys and coalesces selections whose keys become equal">GroundSelections</a> · <a class="src" data-src="publications/runtime/build.gradle.kts" data-lines="23" data-expect="Runtime fat JAR contains runtime2 test fixture output">not published</a>).</aside>
+</div>
+</section>
+</main>
+<script src="../assets/app.js"></script><script src="../assets/motion.js"></script>
+</body></html>

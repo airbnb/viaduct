@@ -1,0 +1,119 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Mutations — Viaduct Runtime2</title>
+<script src="../assets/theme.js"></script>
+<link rel="icon" type="image/svg+xml" href="../assets/viaduct-logo.svg">
+<link rel="stylesheet" href="../assets/style.css"></head>
+<body data-layer="-1"><main>
+<div class="kicker">Deep dive</div>
+<h1>Mutations</h1>
+<p class="lede">Why a mutation&rsquo;s root fields run one at a time under a single <a class="gl" href="../glossary.html#mutation-orchestrator">mutation orchestrator</a>, what Runtime2 doesn&rsquo;t allow on them, and when completion starts reading the result.</p>
+<div class="explain">
+<p>A query never changes anything, so Runtime2 can start its root fields together and let <a class="gl" href="../glossary.html#completion">completion</a> read their <a class="gl" href="../glossary.html#cell">cells</a> as they fill. A cell is one field&rsquo;s slot in an <a class="gl" href="../glossary.html#object-result">object engine result</a> (OER), Runtime2&rsquo;s record of one object in the result, like today&rsquo;s <code>ObjectEngineResult</code>. A mutation is different, because each root field may change data the next one reads, so the order the client wrote is part of what the request means.</p>
+</div>
+
+<section id="mutations"><h2>What if the operation is a mutation?</h2>
+<div class="explain">
+<p>GraphQL requires mutation root fields to run in order. For a query, the root <a class="gl" href="../glossary.html#orchestrator">orchestrator</a> <a class="gl" href="../glossary.html#dispatch">dispatches</a> every root field at once. A mutation is run instead by one <b>mutation orchestrator</b>, which takes the root fields one at a time.</p>
+<p>A field&rsquo;s <b><a class="gl" href="../glossary.html#payload">payload</a></b> is its value plus every check and cell beneath it, except <code>@parent</code> fields (a public Viaduct directive), which return the object one level up (<a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/framework/MutationCompletion.kt" data-lines="37" data-expect="keys.filterNot { it is ObjectEngineResult.ParentKey }">MutationCompletion</a>). Before the next field starts, the orchestrator waits for the current field&rsquo;s whole payload, not just its value.</p>
+<p>Mutation fields can also sit inside a namespace: a field with no <a class="gl" href="../glossary.html#resolver">resolver</a> whose type is marked <code>@namespaceType</code>, the public Viaduct directive that marks a type whose fields group related operations, such as <code>venue</code> here (<a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/model/MutationSelectionForest.kt" data-lines="52-55" data-expect="hasAppliedDirective(&quot;namespaceType&quot;)">MutationSelectionForest</a>).</p>
+<div class="code-pair">
+<pre class="cmd"><span class="c"># schema</span>
+type Mutation {
+  venue: VenueMutations
+  publish: Boolean <span class="d">@resolver</span>
+}
+
+type VenueMutations <span class="d">@namespaceType</span> {
+  create: ID <span class="d">@resolver</span>
+  update: ID <span class="d">@resolver</span>
+}</pre>
+<pre class="cmd"><span class="c"># query</span>
+mutation {
+  venue {
+    create
+    update
+  }
+  publish
+}</pre>
+</div>
+<p>The fields inside a namespace run in order too. When the mutation orchestrator reaches <code>venue</code>, it creates a mutation orchestrator for that level and runs it to the end before moving on, so this request runs <code>create</code>, then <code>update</code>, then <code>publish</code>. The namespace field <code>venue</code> has no resolver task: the mutation orchestrator claims its cell itself and, once the nested level has run, completes it with that level&rsquo;s OER (<a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/framework/MutationOrchestrationTask.kt" data-lines="30-68" data-expect="namespace.target.getCell(key).value.claim()||next.run()||cell.value.complete(nextNamespace.target)">MutationOrchestrationTask</a>).</p>
+<p>Two aliases of the same mutation field, such as <code>a: publish</code> and <code>b: publish</code>, run separately, one after the other. Their keys include the alias, unlike keys in a query (<a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/model/EngineResult.kt" data-lines="274-286" data-expect="A mutation publication key, distinguished by its collected response key">MutationKey</a>; see <a href="arguments-and-aliases.html#arguments">Arguments and aliases</a>).</p>
+<aside class="today"><b>In today&rsquo;s engine</b> Each mutation field&rsquo;s fetch, and every object below it, also finishes before the next mutation field starts. Today&rsquo;s engine also runs a namespace&rsquo;s fields one at a time (<a class="src" data-src="core/engine/runtime/src/main/kotlin/viaduct/engine/runtime/execution/FieldResolver.kt" data-lines="1345-1346" data-expect="isMutationNamespace(parameters, oer.type)) ExecutionMode.Serial">FieldResolver</a>), and a failed field doesn&rsquo;t stop the next one (<a class="src" data-src="core/engine/runtime/src/main/kotlin/viaduct/engine/runtime/execution/FieldResolver.kt" data-lines="510-515" data-expect="Failed fields and shallow-only callers do not traverse nested objects">FieldResolver</a>). Runtime2 keeps that order. <a class="src" data-src="core/engine/runtime/src/main/kotlin/viaduct/engine/runtime/execution/FieldResolver.kt" data-lines="242-258" data-expect="Each field will kick off only after the previous one completes">dispatchFieldsSerially</a> Completion is different: today it runs alongside the fetch for a mutation too, while Runtime2 holds it back until every mutation has finished. <a class="src" data-src="core/engine/runtime/src/main/kotlin/viaduct/engine/runtime/execution/ExecuteRootSelectionSet.kt" data-lines="67-80" data-expect="fieldResolver.fetchObject(objectType, parameters, executionMode = executionMode)||fieldCompleter.completeObject(parameters).await()">ExecuteRootSelectionSet</a></aside>
+</div>
+<figure class="scene" data-duration="14">
+<div class="stage"><svg viewBox="0 0 960 380" role="img" aria-label="Query root resolver tasks launch together; mutation root fields run one after another, and completion waits for all of them.">
+<defs><marker id="mu-ah-c1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0L10,5L0,10z" class="ah c1"/></marker></defs>
+<g data-in="0"><rect class="zone" x="20" y="16" width="920" height="146" rx="12"/><text x="40" y="42" class="mono title">query { a b }</text><text x="40" y="60" class="small muted">root orchestrator</text></g>
+<g data-in="0"><text x="240" y="90" text-anchor="end" class="small">resolver task a</text><text x="240" y="118" text-anchor="end" class="small">resolver task b</text><text x="240" y="146" text-anchor="end" class="small">completion</text></g>
+<g data-in="2" data-dur="1.7" data-anim="draw" data-ease="linear" class="c4"><path class="wire c4 bar" d="M262,86 L640,86"/></g>
+<g data-in="2" data-dur="1.3" data-anim="draw" data-ease="linear" class="c4"><path class="wire c4 bar" d="M262,114 L540,114"/></g>
+<g data-in="2" data-dur="1.9" data-anim="draw" data-ease="linear"><path class="wire bar" d="M262,142 L700,142"/></g>
+<g data-in="2.6" class="c4"><text x="660" y="91" class="small ink">both start at once</text></g>
+
+<g data-in="0"><rect class="zone" x="20" y="176" width="920" height="190" rx="12"/><text x="40" y="202" class="mono title">mutation { a b }</text></g>
+<g data-in="0"><text x="240" y="250" text-anchor="end" class="small">mutation orchestrator</text><text x="240" y="280" text-anchor="end" class="small">mutation a</text><text x="240" y="310" text-anchor="end" class="small">mutation b</text><text x="240" y="346" text-anchor="end" class="small">completion</text></g>
+<g data-in="4" data-out="6" class="c1"><text x="262" y="230" class="small ink">claims the cells of a and b first</text></g>
+<g data-in="4" data-dur="6.4" data-anim="draw" data-ease="linear" class="c4"><path id="mu-trav" class="wire c4 thick" d="M262,246 L790,246"/></g>
+<g data-in="4" data-dur="1.6" data-anim="draw" data-ease="linear" class="c4"><path class="wire c4 bar" d="M262,276 L420,276"/></g>
+<g data-in="4.2" data-on="4.2-6" class="c4"><text x="341" y="264" text-anchor="middle" class="small ink">task a</text></g>
+<g data-in="6" data-dur="1.2" data-anim="draw" data-ease="linear" class="c2"><path class="wire c2 bar" d="M428,276 L530,276"/></g>
+<g data-in="6.2" class="c2"><text x="479" y="264" text-anchor="middle" class="small ink">awaits payload</text></g>
+<g data-in="8" data-dur="1.4" data-anim="draw" data-ease="linear" class="c4"><path class="wire c4 bar" d="M548,306 L680,306"/></g>
+<g data-in="8.2" class="c4"><text x="614" y="326" text-anchor="middle" class="small ink">task b</text></g>
+<g data-in="9.4" data-dur="1" data-anim="draw" data-ease="linear" class="c2"><path class="wire c2 bar" d="M688,306 L780,306"/></g>
+<g data-in="9.6" class="c2"><text x="734" y="326" text-anchor="middle" class="small ink">awaits payload</text></g>
+<g data-in="10.5" data-anim="draw" class="c1"><path class="wire c1 dash" d="M800,232 L800,352"/><text x="808" y="232" class="small ink">resolution done</text></g>
+<g data-in="10.8" data-dur="1.2" data-anim="draw" data-ease="linear"><path class="wire bar" d="M810,342 L920,342"/></g>
+</svg></div>
+<ol class="beats">
+<li data-at="0" data-title="Two operations">Take a query with root fields <code>a</code> and <code>b</code>, and a mutation with the same shape.</li>
+<li data-at="2" data-title="Query: all at once">For the query, the root orchestrator dispatches every root field&rsquo;s <a class="gl" href="../glossary.html#resolver-task">resolver task</a> together. Completion starts as soon as <a class="gl" href="../glossary.html#resolution">resolution</a> has started and reads cells as they <a class="gl" href="../glossary.html#complete">complete</a>.</li>
+<li data-at="4" data-title="Mutation: one orchestrator">The mutation runs one mutation orchestrator, a single coroutine that visits the root fields in source order. When it is created, before any mutation runs, it <a class="gl" href="../glossary.html#claim">claims</a> the cell of every root mutation field for that field&rsquo;s one writer, so the Mutation OER&rsquo;s set of fields is fixed. Then it dispatches <code>a</code> and waits for a&rsquo;s resolver task.</li>
+<li data-at="6" data-title="Then the whole payload">Next it waits for a&rsquo;s payload. That covers a&rsquo;s value and every check and cell beneath it, including work that the value&rsquo;s own tasks started.</li>
+<li data-at="8" data-title="Only then b">Only once a&rsquo;s payload has settled does <code>b</code> start.</li>
+<li data-at="10.5" data-title="Completion waits">For a mutation, completion starts only after the whole resolution finishes. Every mutation runs by then, even after an earlier one fails: the orchestrator never skips a field because of an earlier error. So null propagation from a failed field shapes the response only after every mutation&rsquo;s side effects have happened.</li>
+</ol>
+</figure>
+<p class="where">Where in code: <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/CoroutineTaskDispatcher.kt" data-lines="30-36" data-expect="coroutineScope { publication.dispatch(this) }||awaitMutationPayloadCompletion">dispatchMutationField</a> · <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/execution/QPlanExecutionStrategy.kt" data-lines="123-127" data-expect="MUTATION||resolution.await()">QPlanExecutionStrategy</a></p>
+<div class="explain">
+<h3 id="rejects">What Runtime2 rejects on mutation fields</h3>
+<p>Runtime2 also limits what a mutation field may declare. Both rules cover the root Mutation type and any namespace type nested under it, not the payload a mutation returns.</p>
+<ul>
+<li><b>No <a class="gl" href="../glossary.html#resolver-fragment">required selection sets</a> (RSS).</b> When Runtime2 builds its <a class="gl" href="../glossary.html#registry">registry</a>, it rejects a mutation resolver that declares an object or Query RSS. A mutation resolver reads other data by calling <code>ctx.query()</code> inside its body instead, which the error message suggests.</li>
+<li><b>No checkers.</b> As the mutation orchestrator prepares each namespace level, it fails the request if a selected field at that level has a <a class="gl" href="../glossary.html#field-checker">field checker</a>, or if that level&rsquo;s type, the Mutation type or a nested namespace type, has a <a class="gl" href="../glossary.html#type-checker">type checker</a>. Checkers on the payload&rsquo;s objects and fields still run as in a query. Runtime2&rsquo;s initial mutation support doesn&rsquo;t cover these checkers (<a class="src" data-src="core/engine/runtime2/impldocs/architecture/resolution.md" data-lines="266" data-expect="Namespace field and type checkers are excluded from this initial mutation surface">resolution.md</a>). The check runs when the orchestrator for that level is created, and the error reads &ldquo;Mutation namespace field checkers are not supported&rdquo; or &ldquo;Mutation namespace type checkers are not supported&rdquo; (<a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/framework/MutationOrchestrationTask.kt" data-lines="30-33" data-expect="Mutation namespace type checkers are not supported||Mutation namespace field checkers are not supported">prepare</a>). A nested level&rsquo;s orchestrator is created only when the run reaches it, so this check can fail after earlier mutation fields have run, and no code undoes their effects (<a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/framework/MutationOrchestrationTask.kt" data-lines="52-58" data-expect="suspend fun run()||val next = create(operation, nextNamespace, prepareField, namespacePrepared)">run</a>).</li>
+</ul>
+<aside class="today"><b>In today&rsquo;s engine</b> Today&rsquo;s engine rejects an RSS on a mutation resolver too, with similar advice. <a class="src" data-src="core/engine/runtime/src/main/kotlin/viaduct/engine/runtime/tenantloading/ResolverSelectionSetsAreProperlyTyped.kt" data-lines="23-26" data-expect="must not declare object or query selections">ResolverSelectionSetsAreProperlyTyped</a> Checkers differ: today a field checker on a top-level mutation field is allowed, and it runs first, so the resolver runs only if the check passes. Runtime2 has no equivalent: a request that selects such a field fails. <a class="src" data-src="core/engine/runtime/src/main/kotlin/viaduct/engine/runtime/execution/FieldResolver.kt" data-lines="1389-1390" data-expect="For top-level mutation and subscription fields, execute the data fetcher only if the access check succeeds">fetchField</a></aside>
+</div>
+<p class="where">Where in code: <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/bootstrap/ResolverRegistryImpl.kt" data-lines="461-468" data-expect="mutationNamespaceTypes()||cannot declare object or Query fragments; use ctx.query()">registry check</a> · <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/framework/MutationOrchestrationTask.kt" data-lines="29-45" data-expect="All local publications are claimed before any mutation is dispatched||Mutation namespace type checkers are not supported||Mutation namespace field checkers are not supported">MutationOrchestrationTask.prepare</a></p>
+<div class="explain closing">
+<p>A query&rsquo;s root fields start together, while a mutation&rsquo;s go one at a time, each with everything it set off, and completion begins only after the last one.</p>
+</div>
+</section>
+
+<section id="try-it" class="exercises"><h2>Try it</h2>
+<h3 id="ex-p3-mutation">Two mutations, one fails</h3>
+<p>The first mutation returns an error. The second one&rsquo;s resolver <b>suspends</b> for a while, pausing without blocking a thread, before it returns a value.</p>
+<div class="code-pair">
+<pre class="cmd"><span class="c"># schema</span>
+type Mutation {
+  failed: Int! <span class="d">@resolver</span>
+    <span class="c"># returns an error</span>
+  later: Int! <span class="d">@resolver</span>
+    <span class="c"># suspends, then returns a value</span>
+}</pre>
+<pre class="cmd"><span class="c"># query</span>
+mutation {
+  failed
+  later
+}</pre>
+</div>
+<div class="drill choice"><p class="q">Can the response finish before <code>later</code> does?</p>
+<button class="opt" data-why="for a mutation, completion starts only after the whole resolution, so every mutation finishes first.">Yes: the error from failed ends the response early</button>
+<button class="opt" data-why="that holds for a query. For a mutation, completion waits until resolution has finished.">Yes: completion reads cells as they fill, as for a query</button>
+<button class="opt" data-correct="true">No; completion starts only after <code>later</code> finishes</button>
+<button class="opt" data-why="a failed mutation doesn&rsquo;t cancel the next one. later runs and finishes before the response.">No, because later is canceled once failed errors</button>
+<p class="why">No. Completion waits for every mutation to finish, failed or not, so <code>later</code> runs to the end before the response is built (<a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/execution/QPlanExecutionStrategy.kt" data-lines="123-127" data-expect="resolution.await()">strategy</a>). The response then has <code>data</code> null and one error at <code>[failed]</code>: failed is non-null (<code>Int!</code>), so its error nulls the whole result. A test checks both, and that the response isn&rsquo;t done while <code>later</code> is suspended (<a class="src" data-src="core/engine/runtime2/src/test/kotlin/viaduct/engine/runtime2/execution/QPlanExecutionStrategyTest.kt" data-lines="23-37" data-expect="assertFalse(result.isDone)||assertNull(response.getData||listOf(&quot;failed&quot;)">test</a>).</p></div>
+</section>
+</main>
+<script src="../assets/app.js"></script><script src="../assets/motion.js"></script><script src="../assets/drill.js"></script>
+</body></html>

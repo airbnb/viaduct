@@ -1,0 +1,52 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Deep dives — Viaduct Runtime2</title>
+<script src="../assets/theme.js"></script>
+<link rel="icon" type="image/svg+xml" href="../assets/viaduct-logo.svg">
+<link rel="stylesheet" href="../assets/style.css"></head>
+<body data-layer="-1"><main>
+<div class="kicker">Runtime2 in depth</div>
+<h1>Deep dives</h1>
+<p class="lede">Topics beyond the end-to-end flow. Each page can be read on its own.</p>
+
+<section id="intro">
+<div class="explain">
+<p>Each deep dive covers one topic in depth. Start with Motivation, which explains why Runtime2 exists.</p>
+</div>
+
+</section>
+
+<section id="start" class="dd-sec c2"><h2 class="dd-group">Start here</h2>
+<ul class="dd-list">
+<li class="first"><a href="motivation/index.html"><span class="no">01</span><span class="body"><b>Motivation</b><span>Why Viaduct needs a new engine: declaring each resolver&rsquo;s inputs up front lets the engine discover and schedule a dependency graph.</span></span><span class="go" aria-hidden="true">→</span></a></li>
+</ul>
+</section>
+
+<section id="twists" class="dd-sec c1"><h2 class="dd-group">Common scenarios</h2>
+<ul class="dd-list">
+<li><a href="nested-inputs-and-node-references.html"><span class="no">02</span><span class="body"><b>Nested inputs and node references</b><span>How a parent resolver is asked for the fields its children&rsquo;s resolvers read, shown with a new example, a booking and its list of messages, and how a returned node reference still becomes a Venue.</span></span><span class="go" aria-hidden="true">→</span></a></li>
+<li><a href="arguments-and-aliases.html"><span class="no">03</span><span class="body"><b>Arguments and aliases</b><span>Why aliases with equal arguments share a cell, and where resolver variables get their values.</span></span><span class="go" aria-hidden="true">→</span></a></li>
+<li><a href="selectivity.html"><span class="no">04</span><span class="body"><b>Selectivity</b><span>Selective output is used as returned; non-selective output is trimmed to the demand.</span></span><span class="go" aria-hidden="true">→</span></a></li>
+<li><a href="access-checks.html"><span class="no">05</span><span class="body"><b>Access checks</b><span>Checker tasks run beside resolvers, and checked reads apply their results.</span></span><span class="go" aria-hidden="true">→</span></a></li>
+<li><a href="skip-include.html"><span class="no">06</span><span class="body"><b>@skip and @include</b><span>How directives become inclusion conditions, and why a skipped resolver field still gets a task.</span></span><span class="go" aria-hidden="true">→</span></a></li>
+</ul>
+</section>
+
+<section id="mechanisms" class="dd-sec c3"><h2 class="dd-group">Mechanisms in depth</h2>
+<ul class="dd-list">
+<li><a href="field-selection/index.html"><span class="no">07</span><span class="body"><b>Field selection forests</b><span>How aliases, fragments, arguments, guards and type conditions turn an operation into selection forests, and what merging at one concrete type changes, in 13 tested examples.</span></span><span class="go" aria-hidden="true">→</span></a></li>
+<li><a href="demand-closure/index.html"><span class="no">08</span><span class="body"><b>Demand closure</b><span>Nine progressive examples, adapted from Andy Marek&rsquo;s Viaduct guide, follow demand across resolver boundaries, Query roots, access checks and existing ancestors.</span></span><span class="go" aria-hidden="true">→</span></a></li>
+</ul>
+</section>
+
+<section id="beyond" class="dd-sec c4"><h2 class="dd-group">Code and special cases</h2>
+<ul class="dd-list">
+<li><a href="into-the-code.html"><span class="no">09</span><span class="body"><b>Into the code</b><span>Where each concept lives in the Runtime2 source, six excerpts that follow one request through the code, and how the packages are layered.</span></span><span class="go" aria-hidden="true">→</span></a></li>
+<li><a href="mutations.html"><span class="no">10</span><span class="body"><b>Mutations</b><span>One mutation orchestrator runs root fields in order, each waiting for its payload, and Runtime2 rejects required selection sets (RSS) on mutation resolvers, as today&rsquo;s engine does. It also fails a mutation when a selected mutation field has a field checker, or when the Mutation type or a namespace type under it has a type checker.</span></span><span class="go" aria-hidden="true">→</span></a></li>
+<li><a href="cycles.html"><span class="no">11</span><span class="body"><b>Cycles</b><span>Registry assembly rejects resolver cycles. The cycle checker turns anything that slips through into an error, not a deadlock.</span></span><span class="go" aria-hidden="true">→</span></a></li>
+<li><a href="type-hierarchies.html"><span class="no">12</span><span class="body"><b>Type hierarchies</b><span>The Kotlin type families behind the actors, and why each one has its shape.</span></span><span class="go" aria-hidden="true">→</span></a></li>
+<li><a href="reference-resolver-families.html"><span class="no">13</span><span class="body"><b>Reference resolver families</b><span>Six test-only models of resolution, in two families, used to develop and test features. They are not tenant resolvers and never serve requests.</span></span><span class="go" aria-hidden="true">→</span></a></li>
+</ul>
+</section>
+</main>
+<script src="../assets/app.js"></script>
+</body></html>

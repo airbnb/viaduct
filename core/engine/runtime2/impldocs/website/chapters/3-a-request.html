@@ -1,0 +1,265 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>3 · A request, end to end — Viaduct Runtime2</title>
+<script src="../assets/theme.js"></script>
+<link rel="icon" type="image/svg+xml" href="../assets/viaduct-logo.svg">
+<link rel="stylesheet" href="../assets/style.css"></head>
+<body data-layer="3"><main>
+<div class="kicker">Chapter 3</div>
+<h1>A request, end to end</h1>
+<p class="lede">One query from parsing to response: <a class="gl" href="../glossary.html#demand">demand</a> descends, tasks are <a class="gl" href="../glossary.html#dispatch">dispatched</a> and <a class="gl" href="../glossary.html#cell">cells</a> fill, and <a class="gl" href="../glossary.html#completion">completion</a> reads them out.</p>
+
+<div class="explain">
+<p>Chapters 1 and 2 looked at the engine one object at a time. In a real request the steps overlap: completion reads cells while <a class="gl" href="../glossary.html#resolver-task">resolver tasks</a> are still running, and a dispatched task may run while the task that dispatched it keeps going.</p>
+<p>This chapter replays the running query through all three <a class="gl" href="../glossary.html#resolver">resolvers</a>, in the order the code runs it and with the overlaps the code allows. It answers the question the earlier chapters set aside: when does each thing happen?</p>
+</div>
+
+<section id="example"><h2>The example: a venue and its location</h2>
+<div class="explain">
+<p>Three fields have resolvers: <code>Query.venue</code>, <code>Venue.location</code> and <code>Location.displayName</code>. Venue implements <code>Node</code>, and as in the <a href="../index.html#intro">overview</a>, this tour treats the resolver behind <code>Query.venue</code> as the Venue <a class="gl" href="../glossary.html#node-resolver">node resolver</a>. All three are declared <a class="gl" href="../glossary.html#selective-resolver">selective</a>, with <code>isSelective: true</code> in the <a href="../index.html#intro">schema</a>, so each returns only what it&rsquo;s asked for (<a href="2-demand-and-supply.html#successor">chapter 2</a>). Every other field has no resolver, so it can only be a <a class="gl" href="../glossary.html#passive-field">passive field</a>, passively resolved from the output of the resolver above it.</p>
+<p>Location is not a Node and has no ID. Its resolver builds it by reverse-geocoding the venue&rsquo;s coordinates, which it reads from the <code>lat</code> and <code>lng</code> fields of the Venue.</p>
+</div>
+<pre class="cmd"><span class="c"># what each resolver reads, is asked for and returns</span>
+<span class="c"># Venue node resolver (Query.venue)</span>
+reads:      the ID "V1", taken from venue(id:)
+asked for:  title lat lng location { displayName city country }
+returns:    { title: "Loft", lat: 48.86, lng: 2.35 }
+
+<span class="c"># location&rsquo;s resolver (Venue.location)</span>
+reads:      lat 48.86, lng 2.35 from the Venue
+asked for:  displayName city country
+returns:    { city: "Paris", country: "France" }
+
+<span class="c"># displayName&rsquo;s resolver (Location.displayName)</span>
+reads:      city "Paris", country "France" from the Location
+returns:    "Paris, France"</pre>
+</section>
+
+<section id="trace"><h2>How does one query become a response?</h2>
+<div class="explain">
+<p>Here is the whole request laid out in time, with completion, the <a class="gl" href="../glossary.html#result-tree">result tree</a> and the tasks side by side. There is one <a class="gl" href="../glossary.html#orchestrator">orchestrator</a> per object engine result (OER) in the response and one resolver task per <a class="gl" href="../glossary.html#active-field">active field</a>, and each one does the steps from <a href="1-actors.html">chapter 1</a>.</p>
+<p>What&rsquo;s new is the timing. Completion starts reading as soon as <a class="gl" href="../glossary.html#resolution">resolution</a> starts, so it reads cells while the tasks below them are still running, and it waits only on cells that are still pending.</p>
+</div>
+<pre class="cmd"><span class="c"># the running query</span>
+query {
+  venue(id: "V1") {
+    title
+    location {
+      displayName
+    }
+  }
+}</pre>
+<figure class="scene" data-duration="62">
+  <div class="stage"><svg viewBox="0 0 960 560" role="img" aria-label="Animated trace of the venue query through completion, the result tree and tasks">
+    <defs>
+      <marker id="rq-ah-c2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0L10,5L0,10z" class="ah c2"/></marker>
+      <marker id="rq-ah-c4" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0L10,5L0,10z" class="ah c4"/></marker>
+      <marker id="rq-ah-mu" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0L10,5L0,10z" class="ah"/></marker>
+    </defs>
+
+    <!-- lanes -->
+    <rect class="zone" x="12" y="38" width="204" height="512" rx="12"/>
+    <rect class="zone" x="222" y="38" width="490" height="512" rx="12"/>
+    <rect class="zone" x="720" y="38" width="228" height="512" rx="12"/>
+    <text x="114" y="27" text-anchor="middle" class="title">Entry and completion</text>
+    <text x="467" y="27" text-anchor="middle" class="title">Result tree</text>
+    <text x="834" y="27" text-anchor="middle" class="title">Tasks</text>
+
+    <!-- invisible token routes -->
+    <path id="rq-plan" d="M210,84 L288,84" class="route"/>
+    <path id="rq-ut" d="M402,110 C450,146 600,142 728,142" class="route"/>
+    <path id="rq-ugj" d="M302,100 C262,100 260,155 212,155" class="route"/>
+    <path id="rq-ngj" d="M242,224 C228,224 226,211 212,211" class="route"/>
+    <path id="rq-ftf" d="M644,240 C676,262 690,300 728,300" class="route"/>
+    <path id="rq-fgj" d="M590,250 C576,290 270,286 212,251" class="route"/>
+    <path id="rq-idtf" d="M389,250 C389,284 640,284 726,302" class="route"/>
+    <path id="rq-idtf2" d="M485,250 C485,280 650,282 726,302" class="route"/>
+    <path id="rq-fnr" d="M420,370 C426,420 640,462 728,462" class="route"/>
+    <path id="rq-dngj" d="M560,370 C540,430 260,454 212,454" class="route"/>
+
+    <!-- wires: orchestration plans its OER -->
+    <g data-in="4.8"><path class="wire c4 dash" d="M728,78 L562,78"/></g>
+    <g data-in="25.5"><path class="wire c4 dash" d="M728,236 L702,236"/></g>
+    <g data-in="46.3"><path class="wire c4 dash" d="M728,398 C714,398 716,360 702,360"/></g>
+    <!-- wires: launch arcs -->
+    <g data-in="11.6" data-anim="draw"><path id="rq-l1" class="wire c4" d="M940,78 C960,78 958,110 958,120 C958,138 956,142 942,142" marker-end="url(#rq-ah-c4)"/></g>
+    <g data-in="32.2" data-anim="draw"><path id="rq-l2" class="wire c4" d="M940,236 C960,236 958,268 958,278 C958,296 956,300 942,300" marker-end="url(#rq-ah-c4)"/></g>
+    <g data-in="49.5" data-anim="draw"><path id="rq-l3" class="wire c4" d="M940,398 C960,398 958,430 958,445 C958,464 956,470 942,470" marker-end="url(#rq-ah-c4)"/></g>
+    <!-- wires: value pointers (cell value = child result) -->
+    <g data-in="36.2" data-anim="draw"><path id="rq-uU1" class="wire c2 thick" d="M352,114 L352,177" marker-end="url(#rq-ah-c2)"/></g>
+    <g data-in="51.2" data-anim="draw"><path id="rq-fl" class="wire c2 thick" d="M590,248 L590,297" marker-end="url(#rq-ah-c2)"/></g>
+
+    <!-- completion lane -->
+    <g data-in="0.2" data-anim="pop"><rect class="box c1" x="20" y="48" width="190" height="82" rx="10"/>
+      <text x="30" y="68" class="title">Execution strategy</text>
+      <text x="30" y="86" class="mono muted small">QPlanExecutionStrategy</text></g>
+    <g data-in="1.2" data-anim="slide" data-from="0,10" class="c1"><text x="30" y="112" class="small ink">receives the running query</text></g>
+
+    <g data-in="14.6" data-anim="slide" data-from="-20,0"><rect class="box" x="20" y="140" width="190" height="30" rx="8"/>
+      <text x="30" y="160">read venue</text>
+      <text x="202" y="160" text-anchor="end" class="mono small muted" data-text="0:pending|37.5:Venue">pending</text></g>
+    <g data-in="38.6" data-anim="slide" data-from="-20,0"><rect class="box" x="20" y="196" width="190" height="30" rx="8"/>
+      <text x="30" y="216">read title</text>
+      <text x="202" y="216" text-anchor="end" class="mono small muted" data-text="0:…|39.5:&quot;Loft&quot;">…</text></g>
+    <g data-in="39.6" data-anim="slide" data-from="-20,0"><rect class="box" x="20" y="236" width="190" height="30" rx="8"/>
+      <text x="30" y="256">read location</text>
+      <text x="202" y="256" text-anchor="end" class="mono small muted" data-text="0:pending|52.3:Location">pending</text></g>
+    <g data-in="57.3" data-anim="pop" class="c2"><rect class="box c2" x="20" y="300" width="190" height="116" rx="10"/>
+      <text x="30" y="320" class="title">Response</text>
+      <g data-in="57.7"><text x="28" y="340" class="mono small">{"venue":{</text>
+      <text x="36" y="356" class="mono small">"title":"Loft",</text>
+      <text x="36" y="372" class="mono small">"location":{</text>
+      <text x="44" y="388" class="mono small">"displayName":</text>
+      <text x="44" y="404" class="mono small">"Paris, France"}}}</text></g></g>
+    <g data-in="52.6" data-anim="slide" data-from="-20,0"><rect class="box" x="20" y="432" width="190" height="44" rx="8"/>
+      <text x="30" y="450">read displayName</text>
+      <text x="202" y="468" text-anchor="end" class="mono small muted" data-text="0:pending|56.8:&quot;Paris, France&quot;">pending</text></g>
+
+    <!-- Result tree: Query OER -->
+    <g data-in="3.6" data-anim="pop"><rect class="box c2" x="290" y="48" width="270" height="76" rx="10"/>
+      <text x="304" y="70" class="title">Query OER</text>
+      <text x="412" y="102" class="mono muted small">ObjectEngineResult</text></g>
+    <g data-in="5" data-out="6.4" data-on="5-6.4" class="c3 pulse"><rect class="wire c3 thick" x="285" y="43" width="280" height="86" rx="13"/></g>
+    <g data-in="7.4" data-anim="pop"><rect class="cell" data-add="11:claimed,36.2:-claimed,36.2:full" x="304" y="80" width="96" height="34" rx="6"/>
+      <text x="352" y="102" text-anchor="middle" class="mono" data-text="0:venue|36.2:venue ↓">venue</text></g>
+    <g data-in="14.2" data-anim="pop" class="c1"><rect class="box c1" x="492" y="54" width="60" height="20" rx="10"/><text x="522" y="68" text-anchor="middle" class="small">frozen</text></g>
+
+    <!-- Venue OER -->
+    <g data-in="24.6" data-anim="pop"><rect class="box c2" x="230" y="180" width="470" height="82" rx="10"/>
+      <text x="244" y="200" class="title">Venue OER</text>
+      <text x="420" y="200" class="mono muted small">ObjectEngineResult</text></g>
+    <g data-in="25.4" data-out="26.4" data-on="25.4-26.4" class="c3 pulse"><rect class="wire c3 thick" x="225" y="175" width="480" height="92" rx="13"/></g>
+    <g data-in="26.6" data-anim="pop"><rect class="cell" data-add="29:full" x="244" y="212" width="90" height="36" rx="6"/>
+      <text x="289" y="235" text-anchor="middle" class="mono" data-text="0:title|29:title=Loft">title</text></g>
+    <g data-in="26.9" data-anim="pop" data-on="40-42"><rect class="cell" data-add="29:full" x="344" y="212" width="90" height="36" rx="6"/>
+      <text x="389" y="235" text-anchor="middle" class="mono" data-text="0:lat|29:lat=48.86">lat</text></g>
+    <g data-in="27" data-anim="pop" data-on="40-42"><rect class="cell" data-add="29:full" x="442" y="212" width="86" height="36" rx="6"/>
+      <text x="485" y="235" text-anchor="middle" class="mono" data-text="0:lng|29:lng=2.35">lng</text></g>
+    <g data-in="26.75" data-anim="pop"><rect class="cell" data-add="32:claimed,51.2:-claimed,51.2:full" x="536" y="212" width="108" height="36" rx="6"/>
+      <text x="590" y="235" text-anchor="middle" class="mono" data-text="0:location|51.2:location ↓">location</text></g>
+    <g data-in="34" data-anim="pop" class="c1"><rect class="box c1" x="628" y="186" width="60" height="20" rx="10"/><text x="658" y="200" text-anchor="middle" class="small">frozen</text></g>
+
+    <!-- Location OER -->
+    <g data-in="45.9" data-anim="pop"><rect class="box c2" x="240" y="300" width="460" height="82" rx="10"/>
+      <text x="254" y="320" class="title">Location OER</text>
+      <text x="420" y="320" class="mono muted small">ObjectEngineResult</text></g>
+    <g data-in="46.2" data-out="47" data-on="46.2-47" class="c3 pulse"><rect class="wire c3 thick" x="235" y="295" width="470" height="92" rx="13"/></g>
+    <g data-in="46.5" data-anim="pop" data-on="52.8-56"><rect class="cell" data-add="46.9:full" x="254" y="332" width="96" height="36" rx="6"/>
+      <text x="302" y="355" text-anchor="middle" class="mono" data-text="0:city|46.9:city=Paris">city</text></g>
+    <g data-in="46.7" data-anim="pop" data-on="52.8-56"><rect class="cell" data-add="47.1:full" x="358" y="332" width="124" height="36" rx="6"/>
+      <text x="420" y="355" text-anchor="middle" class="mono" data-text="0:country|47.1:country=France">country</text></g>
+    <g data-in="46.6" data-anim="pop"><rect class="cell" data-add="49.2:claimed,54.8:-claimed,54.8:full" x="490" y="332" width="202" height="36" rx="6"/>
+      <text x="591" y="355" text-anchor="middle" class="mono" data-text="0:displayName|54.8:displayName=Paris, France">displayName</text></g>
+    <g data-in="50.4" data-anim="pop" class="c1"><rect class="box c1" x="628" y="306" width="60" height="20" rx="10"/><text x="658" y="320" text-anchor="middle" class="small">frozen</text></g>
+
+    <!-- wires: resolver task writes its cell (over boxes) -->
+    <g data-in="12.4" data-anim="draw"><path id="rq-tu" class="wire c4" d="M728,142 C600,142 450,146 402,110" marker-end="url(#rq-ah-c4)"/></g>
+    <g data-in="33.2" data-anim="draw"><path id="rq-tf" class="wire c4" d="M728,300 C690,300 676,262 644,240" marker-end="url(#rq-ah-c4)"/></g>
+    <g data-in="50.1" data-anim="draw"><path id="rq-tdn" class="wire c4" d="M728,462 C670,462 640,420 640,371" marker-end="url(#rq-ah-c4)"/></g>
+    <!-- wires: completion awaits cells (drawn over boxes so arrowheads show) -->
+    <g data-in="15"><path class="wire dash" d="M212,155 C260,155 262,100 302,100" marker-end="url(#rq-ah-mu)"/></g>
+    <g data-in="38.8"><path class="wire dash" d="M212,211 C226,211 228,224 242,224" marker-end="url(#rq-ah-mu)"/></g>
+    <g data-in="39.8"><path class="wire dash" d="M212,251 C290,296 590,310 590,251" marker-end="url(#rq-ah-mu)"/></g>
+    <g data-in="52.8"><path class="wire dash" d="M212,454 C260,454 540,430 560,370" marker-end="url(#rq-ah-mu)"/></g>
+    <!-- Tasks lane -->
+    <g data-in="4.6" data-anim="pop" data-on="10.5-14.4" class="c4"><rect class="box c4" x="730" y="56" width="210" height="44" rx="10"/>
+      <text x="835" y="75" text-anchor="middle" class="title">Orchestrator · Query OER</text>
+      <text x="835" y="92" text-anchor="middle" class="mono muted small">OrchestrationTask</text></g>
+    <g data-in="12" data-anim="pop" data-on="14.5-36.2" class="c4"><rect class="box c4" x="730" y="120" width="210" height="44" rx="10"/>
+      <text x="835" y="139" text-anchor="middle" class="title">Resolver task · venue</text>
+      <text x="835" y="156" text-anchor="middle" class="mono muted small">FieldResolverTask</text></g>
+    <g data-in="18.8" class="c3"><text x="736" y="182" class="mono small ink">↳ title lat lng location{…}</text></g>
+    <g data-in="21.8" class="c2"><text x="736" y="199" class="small ink" style="font-size:11px">→ {title:"Loft", lat:48.86, lng:2.35}</text></g>
+    <g data-in="25.2" data-anim="pop" data-on="31.5-35" class="c4"><rect class="box c4" x="730" y="214" width="210" height="44" rx="10"/>
+      <text x="835" y="233" text-anchor="middle" class="title">Orchestrator · Venue OER</text>
+      <text x="835" y="250" text-anchor="middle" class="mono muted small">OrchestrationTask</text></g>
+    <g data-in="32.8" data-anim="pop" data-on="34.5-51.2" class="c4"><rect class="box c4" x="730" y="278" width="210" height="44" rx="10"/>
+      <text x="835" y="297" text-anchor="middle" class="title">Resolver task · location</text>
+      <text x="835" y="314" text-anchor="middle" class="mono muted small">FieldResolverTask</text></g>
+    <g data-in="39.8" class="c3"><text x="736" y="340" class="small ink" style="font-size:11px">↳ displayName city country</text></g>
+    <g data-in="42.6" class="c2"><text x="736" y="357" class="small ink" style="font-size:11px">→ {city:"Paris", country:"France"}</text></g>
+    <g data-in="46.1" data-anim="pop" data-on="49-52.5" class="c4"><rect class="box c4" x="730" y="376" width="210" height="44" rx="10"/>
+      <text x="835" y="395" text-anchor="middle" class="title" style="font-size:13px">Orchestrator · Location OER</text>
+      <text x="835" y="412" text-anchor="middle" class="mono muted small">OrchestrationTask</text></g>
+    <g data-in="49.8" data-anim="pop" data-on="52.6-56" class="c4"><rect class="box c4" x="730" y="440" width="210" height="44" rx="10"/>
+      <text x="835" y="459" text-anchor="middle" class="title" style="font-size:13px">Resolver task · displayName</text>
+      <text x="835" y="476" text-anchor="middle" class="mono muted small">FieldResolverTask</text></g>
+    <g data-in="52.9" class="c2"><text x="736" y="502" class="small ink">reads city, country</text></g>
+    <g data-in="54" class="c2"><text x="736" y="519" class="small ink">→ "Paris, France"</text></g>
+    <g data-in="58.6" class="c5"><text x="835" y="541" text-anchor="middle" class="small ink">request job canceled</text></g>
+    <!-- mini key -->
+    <rect class="cell" x="244" y="486" width="30" height="16" rx="4"/><text x="284" y="499" class="small muted">reserved, unclaimed</text>
+    <rect class="cell claimed" x="244" y="512" width="30" height="16" rx="4"/><text x="284" y="525" class="small muted">claimed by a writer</text>
+    <rect class="cell full" x="474" y="486" width="30" height="16" rx="4"/><text x="514" y="499" class="small muted">value complete</text>
+    <g class="c1"><rect class="box c1" x="472" y="514" width="34" height="12" rx="6"/></g><text x="514" y="525" class="small muted">frozen (key set sealed)</text>
+
+    <!-- tokens -->
+    <g data-in="3.7" data-dur="1" data-anim="move" data-path="#rq-plan" class="c3"><circle class="tok" r="7"/></g>
+    <g data-in="11.6" data-dur=".8" data-anim="move" data-path="#rq-l1" class="c4"><circle class="tok" r="6"/></g>
+    <g data-in="17.7" data-dur="1.2" data-anim="move" data-path="#rq-ut" class="c3"><circle class="tok" r="7"/></g>
+    <g data-in="24.6" data-dur=".7" data-anim="move" data-path="#rq-uU1" class="c3"><circle class="tok" r="7"/></g>
+    <g data-in="32.2" data-dur=".8" data-anim="move" data-path="#rq-l2" class="c4"><circle class="tok" r="6"/></g>
+    <g data-in="35.2" data-dur="1" data-anim="move" data-path="#rq-tu" class="c2"><circle class="tok" r="7"/></g>
+    <g data-in="36.6" data-dur=".9" data-anim="move" data-path="#rq-ugj" class="c2"><circle class="tok" r="7"/></g>
+    <g data-in="38.8" data-dur="1" data-anim="move" data-path="#rq-ftf" class="c3"><circle class="tok" r="7"/></g>
+    <g data-in="38.9" data-dur=".6" data-anim="move" data-path="#rq-ngj" class="c2"><circle class="tok" r="7"/></g>
+    <g data-in="40.2" data-dur="1.2" data-anim="move" data-path="#rq-idtf" class="c2"><circle class="tok" r="7"/></g>
+    <g data-in="40.4" data-dur="1.1" data-anim="move" data-path="#rq-idtf2" class="c2"><circle class="tok" r="7"/></g>
+    <g data-in="45.5" data-dur=".4" data-anim="move" data-path="#rq-fl" class="c3"><circle class="tok" r="7"/></g>
+    <g data-in="49.5" data-dur=".8" data-anim="move" data-path="#rq-l3" class="c4"><circle class="tok" r="6"/></g>
+    <g data-in="50.4" data-dur=".8" data-anim="move" data-path="#rq-tf" class="c2"><circle class="tok" r="7"/></g>
+    <g data-in="51.3" data-dur=".8" data-anim="move" data-path="#rq-fgj" class="c2"><circle class="tok" r="7"/></g>
+    <g data-in="52.8" data-dur="1.2" data-anim="move" data-path="#rq-fnr" class="c2"><circle class="tok" r="7"/></g>
+    <g data-in="54.2" data-dur=".6" data-anim="move" data-path="#rq-tdn" class="c2"><circle class="tok" r="7"/></g>
+    <g data-in="56.2" data-dur=".6" data-anim="move" data-path="#rq-dngj" class="c2"><circle class="tok" r="7"/></g>
+  </svg></div>
+  <ol class="beats">
+    <li data-at="0" data-title="Decode">Before resolution starts, Runtime2&rsquo;s <a class="gl" href="../glossary.html#execution-strategy">execution strategy</a> (<code>QPlanExecutionStrategy</code>) decodes the validated query into a <a class="gl" href="../glossary.html#selection-forest">selection forest</a>, which becomes the <a class="gl" href="../glossary.html#checked-demand">checked demand</a> on the root Query OER.</li>
+    <li data-at="3.5" data-title="Root OER and closure">Demand lands on the root Query OER, which is still empty, and its orchestrator runs <a class="gl" href="../glossary.html#closure">closure</a>. The Venue node resolver declares no inputs, so nothing is added.</li>
+    <li data-at="7" data-title="Reserve">While the orchestrator is created, it <a class="gl" href="../glossary.html#reserve">reserves</a> a cell for each checked <a class="gl" href="../glossary.html#key">key</a>, which here is just venue.</li>
+    <li data-at="10.5" data-title="Claim and dispatch">The orchestrator <a class="gl" href="../glossary.html#claim">claims</a> the venue cell, <a class="gl" href="../glossary.html#register-as-writer">registers</a> the Venue node resolver&rsquo;s task as its writer, then dispatches that resolver task.</li>
+    <li data-at="14" data-title="Freeze and hand-off"><a class="gl" href="../glossary.html#freeze">Freeze</a> seals the Query OER&rsquo;s key set. Completion starts waiting on the pending venue cell, while the resolver task may already be running.</li>
+    <li data-at="17.5" data-title="Successor demand"><p>The Venue node resolver is asked for its <a class="gl" href="../glossary.html#successor-demand">successor demand</a>, which includes lat and lng because they are location&rsquo;s inputs:</p><pre><code><span class="c"># asked of the Venue node resolver (successor demand)</span>
+title
+lat
+lng
+location {
+  displayName
+  city
+  country
+}</code></pre></li>
+    <li data-at="21" data-title="Resolver invocation">With <code>id: "V1"</code>, the Venue node resolver returns <code>{ title: "Loft", lat: 48.86, lng: 2.35 }</code>, omitting location.</li>
+    <li data-at="24.5" data-title="Child OER">Inside the venue resolver task, the Venue OER is created. Its orchestrator runs closure, adding lat and lng, and then reserves title, location, lat and lng.</li>
+    <li data-at="28" data-title="Passive fields">The venue resolver task&rsquo;s <a class="gl" href="../glossary.html#passive-descent">passive descent</a> fills title, lat and lng from the resolver output at once; they are passive, so they need no task.</li>
+    <li data-at="31.5" data-title="Venue OER orchestrator">The Venue OER&rsquo;s orchestrator claims location, dispatches the location resolver task, then freezes the Venue OER, though claimed cells can still <a class="gl" href="../glossary.html#complete">complete</a>.</li>
+    <li data-at="35" data-title="Venue cell completes">The venue resolver task writes the Venue OER into the venue cell before that result&rsquo;s location is filled, so completion, which was waiting on that cell, can read it.</li>
+    <li data-at="38.5" data-title="Both sides at once">Completion reads title and awaits location while, concurrently, the location resolver task gets its demand and reads lat and lng, which are already filled, so the task doesn&rsquo;t wait.</li>
+    <li data-at="42" data-title="Location output">location&rsquo;s resolver returns <code>{ city: "Paris", country: "France" }</code>, omitting displayName.</li>
+    <li data-at="45.5" data-title="Second child OER">Inside the location resolver task, the Location OER is created the same way: its orchestrator reserves cells, and passive descent fills city and country.</li>
+    <li data-at="49" data-title="Location cell completes">The Location OER&rsquo;s orchestrator claims displayName, dispatches its resolver task and freezes the Location OER. Only then does the location cell complete, with the Location OER.</li>
+    <li data-at="52.5" data-title="Last resolver">Completion awaits displayName while, concurrently, displayName&rsquo;s resolver task reads city and country, returns <code>"Paris, France"</code> and completes the cell.</li>
+    <li data-at="56" data-title="Response and teardown">Completion reads displayName and assembles the response. Runtime2 then cancels the <b>request job</b>, a coroutine job it creates for the request, separate from the caller&rsquo;s scope, so that no task of this request outlives the response. Every task of this request runs under that one coroutine job.</li>
+  </ol>
+</figure>
+<aside class="today" id="batching"><b>In today&rsquo;s engine</b> Today, location&rsquo;s resolver is called through a loader shared by the whole request, a request-wide <code>FieldDataLoader</code>, so a batch resolver can resolve several locations in one call. Node resolvers share a request-wide <code>NodeDataLoader</code>, which also caches results unless caching is turned off. Runtime2 gives every call a fresh loader that calls its resolver at once, even a batch resolver, so it has no batching or caching across calls yet. The code calls this a transitional policy. <a class="src" data-src="core/engine/runtime/src/main/kotlin/viaduct/engine/runtime/EngineExecutionContextImpl.kt" data-lines="329-342" data-expect="fieldDataLoaders.computeIfAbsent||nodeDataLoaders.computeIfAbsent">fieldDataLoader</a> · <a class="src" data-src="core/engine/runtime/src/main/kotlin/viaduct/engine/runtime/NodeDataLoader.kt" data-lines="22-30" data-expect="Results are cached within this loader unless caching is disabled||cachingEnabled">NodeDataLoader</a> · <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/Engine2.kt" data-lines="285-293" data-expect="fresh immediate loader||transitional physical-dispatch policy||Runtime2DispatchStrategy">fresh loader</a> · <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/execution/Runtime2DispatchStrategy.kt" data-lines="7-16" data-expect="calls each resolver directly in the calling||shouldDispatchImmediately(resolver: FieldResolverExecutor): Boolean = true">Runtime2DispatchStrategy</a></aside>
+<p class="where">Where in code:
+  <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/OrchestrationTask.kt" data-lines="87-132" data-expect="closeSelectedConstructionDemand||FieldCheckerTask.prepareAll">OrchestrationTask</a> ·
+  <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/FieldResolverTask.kt" data-lines="197-222" data-expect="reserveCell||value.claim()">FieldResolverTask</a> ·
+  <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/FieldResolutionLogic.kt" data-lines="111-187" data-expect="successorDemandFromConstructionDemand||publicationCell.value.complete(passiveValue)">FieldResolutionLogic</a> ·
+  <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/framework/SharedPassiveValueResolutionLogic.kt" data-lines="213-229" data-expect="createOrchestrationTask||dispatchOrchestration">SharedPassiveValueResolutionLogic</a> ·
+  <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/CoroutineTaskDispatcher.kt" data-lines="17-25" data-expect="CoroutineStart.UNDISPATCHED">CoroutineTaskDispatcher</a> ·
+  <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/execution/QPlanWiringFactory.kt" data-lines="149-164" data-expect="materializeCheckedValue||awaitCheckedValue">QPlanWiringFactory</a></p>
+</section>
+
+<p class="key">A resolver task completes its own cell last, only after any child object it built has dispatched its tasks and frozen.</p>
+
+<section id="takeaways"><h2>What just happened</h2>
+<div class="explain">
+<p>Three orchestrators, one for each of the Query, Venue and Location OERs, ran closure, claimed cells, dispatched resolver tasks and froze. Three resolver tasks each called their resolver once. Completion only read cells: complete ones right away, pending ones once they completed.</p>
+<p>In short, Runtime2 plans each object before anything below it runs and calls each resolver once per <a class="gl" href="../glossary.html#occurrence">occurrence</a>, while readers wait on cells rather than on each other.</p>
+<p>The running query is a simple case: venue and location each returned a single object, not a list or a reference to one. Two <a href="../deep-dives/index.html">deep dives</a> go further: <a href="../deep-dives/nested-inputs-and-node-references.html">Nested inputs and node references</a> covers lists and node references, and <a href="../deep-dives/into-the-code.html">Into the code</a> finds this trace in the source.</p>
+<p><a href="4-exercises.html">Chapter 4</a> is a set of exercises in which you predict what the rules say, then replay this request one decision at a time.</p>
+</div>
+</section>
+</main>
+<script src="../assets/app.js"></script><script src="../assets/motion.js"></script>
+</body></html>

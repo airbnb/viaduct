@@ -1,0 +1,161 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>@skip and @include — Viaduct Runtime2</title>
+<script src="../assets/theme.js"></script>
+<link rel="icon" type="image/svg+xml" href="../assets/viaduct-logo.svg">
+<link rel="stylesheet" href="../assets/style.css"></head>
+<body data-layer="-1"><main>
+<div class="kicker">Deep dive</div>
+<h1>@skip and @include</h1>
+<p class="lede">How <code>@skip</code> and <code>@include</code> turn into <a class="gl" href="../glossary.html#inclusion-condition">inclusion conditions</a>, and why a skipped <a class="gl" href="../glossary.html#resolver">resolver</a> field in a query still gets a task, one that stops before the resolver runs.</p>
+<div class="explain">
+<p>A client can ask for a field only sometimes, with <code>@skip</code> or <code>@include</code> and a variable. A skipped field never reaches the response, but how much work does Runtime2 do for it first?</p>
+<p>There is a harder case, too: a resolver&rsquo;s own declared input can carry a condition on a <a class="gl" href="../glossary.html#variable">resolver variable</a>, one the resolver defines for its own inputs, rather than an operation variable the client sends. Its value may stay unknown until the request is running.</p>
+<p>The fragment case also touches variables and <a class="gl" href="../glossary.html#binding">bindings</a>, which <a href="arguments-and-aliases.html">Arguments and aliases</a> covers in depth.</p>
+</div>
+
+<section id="skip-include"><h2>What if a field sits behind @skip or @include?</h2>
+<div class="explain">
+<p>Runtime2 holds each object it builds in an <a class="gl" href="../glossary.html#object-result">object engine result</a> (OER), like today&rsquo;s <code>ObjectEngineResult</code>, with one <a class="gl" href="../glossary.html#cell">cell</a> per field. Normally, a field with a resolver gets a <a class="gl" href="../glossary.html#resolver-task">resolver task</a> that owns the field&rsquo;s cell. The task&rsquo;s first decision is the cell&rsquo;s <a class="gl" href="../glossary.html#activation">activation</a>, a write-once include-or-skip decision that comes from the field&rsquo;s <b>inclusion condition</b>. The inclusion condition is the symbolic form of the field&rsquo;s <code>@skip</code> and <code>@include</code>: Always, Never, or Requires when it depends on a resolver or checker variable.</p>
+<p>The examples use one schema. A venue has an owner, and the owner&rsquo;s <code>venues</code> and <code>blurb</code> fields have resolvers. In it, <code>objectValueFragment</code> inside <code>@resolver(...)</code> is shorthand for the <a class="gl" href="../glossary.html#rss">required selection set</a> (RSS) that the field&rsquo;s <code>@Resolver</code> class declares in Kotlin. Public Viaduct&rsquo;s <code>@resolver</code> directive takes only <code>isSelective</code> and <code>isBatching</code> (<a class="src" data-src="docs/docs/docs/developers/schema_reference/index.md" data-lines="21-22" data-expect="isSelective: Boolean! = false||isBatching: Boolean! = false">schema reference</a>).</p>
+<p>Conditions come from two places, and the client&rsquo;s own are the simpler case. This query includes the owner&rsquo;s <code>venues</code> only if the operation variable <code>$v</code> is true, and the client sends false:</p>
+</div>
+<div class="code-pair">
+<pre class="cmd"><span class="c"># example schema</span>
+type Query {
+  venue(id: ID!): Venue <span class="d">@resolver</span>
+}
+
+type Venue {
+  id: ID!
+  title: String
+  owner: User <span class="d">@resolver</span>
+}
+
+type User {
+  id: ID!
+  firstName: String
+  venues: [Venue]
+    <span class="d">@resolver(objectValueFragment: "id")</span>
+  blurb: String
+    <span class="d">@resolver(
+      objectValueFragment:
+        "venues @include(if: $withVenues) { title }"
+    )</span>
+    <span class="c"># $withVenues from a variables provider</span>
+}</pre>
+<pre class="cmd"><span class="c"># query</span>
+query($v: Boolean!) {
+  venue(id: "V1") {
+    owner {
+      firstName
+      venues <span class="d">@include(if: $v)</span> {
+        title
+      }
+    }
+  }
+}
+<span class="c"># variables: { "v": false }</span></pre>
+</div>
+<div class="explain">
+<p>Runtime2 gets the operation already parsed and validated, and decodes it into its own <a class="gl" href="../glossary.html#selection">selections</a>. The operation variables are coerced by then, so decoding decides every client condition, literal or variable: each selection gets Always or Never. With <code>$v</code> false, venues is Never.</p>
+<p>In a query, a Never resolver field still gets a task. Runtime2 doesn&rsquo;t special-case it: <a class="gl" href="../glossary.html#closure">closure</a> keeps every selected resolver field, and the field&rsquo;s resolver task is the one writer of its cell&rsquo;s activation. A Never field takes the same path as a Requires field whose variable turns out false; its task just knows the answer at once. So both share one code path, at the cost of one short task per skipped resolver field, which calls no tenant code (<a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/ConstructionDemandClosure.kt" data-lines="263-266" data-expect="resolverContexts.getOrPut(key)||inclusion === InclusionCondition.Never">closure</a>).</p>
+<aside class="today"><b>In today&rsquo;s engine</b> Today&rsquo;s engine also evaluates <code>@skip</code> and <code>@include</code> with the coerced variables, but while it collects fields. A skipped field is dropped there, so it gets no resolver call and nothing else is scheduled for it. <a class="src" data-src="core/engine/runtime/src/main/kotlin/viaduct/engine/runtime/execution/CollectFields.kt" data-lines="185-188" data-expect="Resolution.Drop">CollectFields</a></aside>
+<p>Mutations differ. A mutation&rsquo;s root fields go to the <a href="mutations.html">mutation orchestrator</a>, which runs only the fields in its ordered list. Its conditions are all decided at decoding, so only Always fields enter that list, and a Never mutation field gets no cell and no task at all (<a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/schema/MutationSelections.kt" data-lines="16-21" data-expect="selection.inclusionCondition === InclusionCondition.Always">MutationSelections</a>).</p>
+</div>
+<div class="explain">
+<p>The harder case is a condition inside a resolver&rsquo;s own fragment, whose variable may stay unknown until the request is running. In the schema above, <code>User.blurb</code>&rsquo;s resolver includes venues only if its resolver variable <code>$withVenues</code> is true. blurb&rsquo;s <a class="gl" href="../glossary.html#variables-provider">variables provider</a>, a function that computes its resolver variables, supplies that value.</p>
+<p>The guard on venues carries over to what venues needs. Closure adds its resolver&rsquo;s declared input, <code>id</code>, to the User&rsquo;s <a class="gl" href="../glossary.html#demand">demand</a> with the same condition, and it would add a field checker on venues the same way. Demand that carries a condition like this is <b><a class="gl" href="../glossary.html#guarded-demand">guarded demand</a></b> (<a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/ConstructionDemandClosure2.kt" data-lines="131-134" data-expect="guardedBy(condition)">closure</a>). Every task it leads to waits for <code>$withVenues</code>, like the venues resolver task. If the value is false, none of them does any work: a resolver among the inputs is never called, and the checker never runs (<a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/FieldResolutionLogic.kt" data-lines="205-230" data-expect="includeAnyReadyAlternative||setActivated(activated)">resolver task</a>, <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/FieldCheckerTask.kt" data-lines="153-156" data-expect="fetchActivated()">checker task</a>).</p>
+<p>blurb&rsquo;s resolver task calls the provider right after blurb activates, before it reads its inputs. If <code>$withVenues</code> is false, blurb&rsquo;s resolver gets an input without venues: a selection whose condition is false is dropped before the input is built (<a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/MaterializeResolverInput.kt" data-lines="76-78" data-expect="selections.fetchIncluded(operation).collect(type)">resolver input</a> · <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/framework/InclusionCondition.kt" data-lines="27-36" data-expect="if (selection.inclusionCondition.fetchIncluded(operation)) included.add(selection)">fetchIncluded</a>). If the client also selected <code>venues</code> itself, the two selections would combine with OR, so venues would run whatever <code>$withVenues</code> is.</p>
+<aside class="today"><b>In today&rsquo;s engine</b> Today&rsquo;s engine runs blurb&rsquo;s RSS as a child query plan. It first resolves that plan&rsquo;s variables, calling blurb&rsquo;s variables provider, and then runs the plan with them, so venues is collected or dropped like any other field (<a class="src" data-src="core/engine/runtime/src/main/kotlin/viaduct/engine/runtime/execution/FieldResolver.kt" data-lines="429-440" data-expect="resolveQueryPlanVariables||forChildPlan(plan, variables, target)">FieldResolver</a>).</aside>
+</div>
+<figure class="scene" data-duration="14">
+<div class="stage"><svg viewBox="0 0 960 380" role="img" aria-label="Left: a client @include decided at parsing deactivates the venues resolver task before tenant code. Right: a fragment @include waits for a binding at runtime.">
+<defs>
+<marker id="si-ah-c4" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0L10,5L0,10z" class="ah c4"/></marker>
+<marker id="si-ah-c3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0L10,5L0,10z" class="ah c3"/></marker>
+<marker id="si-ah-c5" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0L10,5L0,10z" class="ah c5"/></marker>
+</defs>
+<g data-in="0"><rect class="zone" x="20" y="16" width="450" height="350" rx="12"/><text x="40" y="42" class="title">1 · Client condition · decoding</text>
+<text x="40" y="70" class="mono">venues @include(if: $v) { title }</text><text x="40" y="90" class="mono muted small">variables: { "v": false }</text></g>
+<g data-in=".6" data-anim="pop" class="c1"><rect class="box c1" x="40" y="106" width="200" height="40" rx="8"/><text x="140" y="131" text-anchor="middle" class="mono" data-text="0:decoded: ?|1:decoded: Never">decoded: ?</text></g>
+
+<g data-in="2" data-anim="pop" class="c2"><rect class="box c2" x="40" y="170" width="210" height="140" rx="10"/><text x="56" y="194" class="title">User OER</text>
+<rect class="cell full" x="56" y="206" width="178" height="28" rx="6"/><text x="145" y="225" text-anchor="middle" class="mono">firstName: Ada</text>
+<text x="56" y="296" class="small muted">no id demand, no checker</text></g>
+<g data-in="2"><rect class="cell" data-add="4:claimed" x="56" y="244" width="178" height="28" rx="6"/><text x="145" y="263" text-anchor="middle" class="mono" data-text="2:venues: Never|4:venues: claimed|5:venues: skipped">venues: Never</text></g>
+<path id="si-g1" class="route" d="M250,258 C268,258 266,201 278,201"/>
+<g data-in="4" data-dur=".6" data-anim="move" data-path="#si-g1" class="c4"><circle class="tok" r="6"/></g>
+<g data-in="4.2" data-anim="pop" data-on="4.4-6.5" class="c4"><rect class="box c4" x="278" y="176" width="180" height="50" rx="10"/><text x="368" y="198" text-anchor="middle" class="title">venues resolver task</text><text x="368" y="216" text-anchor="middle" class="mono muted small" data-text="4:dispatched|4.8:activated: false">dispatched</text></g>
+<g data-in="4.8" class="c5"><path class="wire c5 dash" d="M368,226 L368,260" marker-end="url(#si-ah-c5)"/><text x="378" y="248" class="small ink">stops here</text></g>
+<g data-in="4.2"><rect class="box dash" x="278" y="262" width="180" height="48" rx="10"/><text x="368" y="284" text-anchor="middle" class="muted">tenant resolver</text><text x="368" y="301" text-anchor="middle" class="small muted" data-text="4.2: |5:never called">&#160;</text></g>
+
+<g data-in="6.5"><rect class="zone" x="490" y="16" width="450" height="350" rx="12"/><text x="510" y="42" class="title">2 · Fragment condition · runtime</text>
+<text x="510" y="70" class="mono">resolver fragment of blurb:</text><text x="510" y="90" class="mono small">venues @include(if: $withVenues)</text></g>
+<g data-in="7" data-anim="pop" class="c1"><rect class="box c1" x="510" y="106" width="210" height="40" rx="8"/><text x="615" y="131" text-anchor="middle" class="mono small" data-text="0:condition: ?|7.5:Requires($withVenues)">condition: ?</text></g>
+
+<g data-in="8.5" data-anim="pop" class="c2"><rect class="box c2" x="510" y="170" width="210" height="140" rx="10"/><text x="526" y="194" class="title">User OER</text>
+<rect class="cell" data-add="8.8:claimed" x="526" y="206" width="178" height="28" rx="6"/><text x="615" y="225" text-anchor="middle" class="mono">blurb: pending</text>
+<rect class="cell" data-add="8.8:claimed,12:-claimed,12:full" x="526" y="244" width="178" height="28" rx="6"/><text x="615" y="263" text-anchor="middle" class="mono" data-text="8.5:venues: waiting|11:venues: activated|12:venues: 2 results">venues: waiting</text>
+<text x="526" y="296" class="small muted">guarded demand</text></g>
+<path id="si-g2" class="route" d="M720,258 C738,258 736,201 748,201"/>
+<g data-in="8.8" data-dur=".6" data-anim="move" data-path="#si-g2" class="c4"><circle class="tok" r="6"/></g>
+<g data-in="9" data-anim="pop" data-on="9.4-10.6" class="c4 pulse"><rect class="box c4" x="748" y="176" width="180" height="50" rx="10"/><text x="838" y="198" text-anchor="middle" class="title">venues resolver task</text><text x="838" y="216" text-anchor="middle" class="mono muted small" data-text="9:awaits binding|11:activated: true">awaits binding</text></g>
+<g data-in="8.6" data-anim="pop" class="c3"><rect class="box c3" x="730" y="106" width="190" height="40" rx="8"/><text x="825" y="131" text-anchor="middle" class="mono small" data-text="8.6:$withVenues: ?|10.9:$withVenues: true">$withVenues: ?</text></g>
+<g data-in="10.5" data-anim="pop" data-on="10.5-11" class="c4"><rect class="box c4" x="510" y="316" width="196" height="46" rx="8"/><text x="526" y="335" class="title">blurb resolver task</text><text x="526" y="353" class="small muted">calls its variables provider</text></g>
+<g data-in="10.6" data-dur=".3" data-anim="draw" class="c3"><path class="wire c3" d="M706,339 L738,339 L738,148" marker-end="url(#si-ah-c3)"/></g>
+<g data-in="10.9" data-anim="draw" class="c3"><path class="wire c3" d="M838,146 L838,174" marker-end="url(#si-ah-c3)"/><text x="846" y="165" class="small ink">from provider</text></g>
+<g data-in="11" data-anim="draw" class="c4"><path class="wire c4" d="M838,226 L838,260" marker-end="url(#si-ah-c4)"/></g>
+<g data-in="11.2" data-on="11.2" class="c4"><rect class="box c4" x="748" y="262" width="180" height="48" rx="10"/><text x="838" y="284" text-anchor="middle" class="title">tenant resolver</text><text x="838" y="301" text-anchor="middle" class="small muted">runs</text></g>
+<g data-in="12"><text x="832" y="358" text-anchor="middle" class="small muted">if false: not activated, never called</text></g>
+</svg></div>
+<ol class="beats">
+<li data-at="0" data-title="Decoding decides">Decoding reads <code>$v</code> from the coerced operation variables and gives venues the condition Never.</li>
+<li data-at="2" data-title="Kept, but adds nothing">In a query, a Never field isn&rsquo;t dropped. venues stays in the User&rsquo;s demand, but closure adds nothing on its behalf: no field checker, and no <a class="gl" href="../glossary.html#input-demand">input demand</a> for the fields its resolver declares it reads, here <code>id</code>.</li>
+<li data-at="4" data-title="Dispatched, then deactivated">The venues cell is still <a class="gl" href="../glossary.html#claim">claimed</a>, and its task is <a class="gl" href="../glossary.html#dispatch">dispatched</a>. The task sees Never, sets the cell&rsquo;s activation to skip and returns. Tenant code never runs.</li>
+<li data-at="6.5" data-title="A runtime condition"><p>Now the client selects only blurb:</p><pre><code>query {
+  venue(id: "V1") {
+    owner {
+      blurb
+    }
+  }
+}</code></pre><p>blurb&rsquo;s fragment includes venues if <code>$withVenues</code>. A literal such as <code>@include(if: false)</code> is decided when the fragment is parsed. This condition uses a resolver variable, so it stays <code>Requires(…)</code>.</p></li>
+<li data-at="8.5" data-title="Created, then waiting">The venues resolver task is created for blurb&rsquo;s input, and the User&rsquo;s demand for venues is guarded. Before the task decides activation, it waits for the binding of <code>$withVenues</code>, its value for this request.</li>
+<li data-at="10.5" data-title="The binding decides">blurb&rsquo;s resolver task calls its variables provider, which binds <code>$withVenues</code> to true. venues activates, and its resolver runs.</li>
+</ol>
+</figure>
+<p class="where">Where in code: <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/schema/GJSelectionParser.kt" data-lines="419-432" data-expect="ConditionalNodes().shouldInclude||InclusionCondition.Never">decodeCondition</a> · <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/schema/GJSelectionParser.kt" data-lines="340-383" data-expect="InclusionCondition.requires">fragment conditions</a> · <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/FieldResolutionLogic.kt" data-lines="205-230" data-expect="includeAnyReadyAlternative||setActivated(activated)">activation</a></p>
+<div class="explain closing">
+<p>So in a query, a condition never removes a resolver field&rsquo;s cell or task; sometimes the task&rsquo;s only job is to mark the cell skipped.</p>
+</div>
+</section>
+
+<section id="try-it" class="exercises"><h2>Try it</h2>
+<h3 id="ex-p4-skip"><code>@skip</code> on a resolver field</h3>
+<div class="code-pair">
+<pre class="cmd"><span class="c"># schema</span>
+type Query {
+  venue(id: ID!): Venue <span class="d">@resolver</span>
+}</pre>
+<pre class="cmd"><span class="c"># query</span>
+query($s: Boolean!) {
+  venue(id: "V1") @skip(if: $s) {
+    title
+  }
+}
+<span class="c"># variables: $s = true</span></pre>
+</div>
+<div class="drill choice"><p class="q">Is a task created? Does tenant code run?</p>
+<button class="opt" data-why="that&rsquo;s the rule for top-level mutation fields. In a query, decoding keeps the field and marks it Never, so it still gets a task.">No task: decoding drops the field</button>
+<button class="opt" data-correct="true">A task starts, deactivates the cell and returns before tenant code</button>
+<button class="opt" data-why="the task decides activation first, and a Never field is never activated, so it returns before tenant code runs.">The resolver runs; its result is hidden</button>
+<button class="opt" data-why="a Never field contributes no inputs, so closure adds nothing for it.">Closure adds its inputs, then the task skips the call</button>
+<p class="why">In a query, decoding keeps the field and makes its inclusion condition Never (<a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/schema/GJSelectionParser.kt" data-lines="419-432" data-expect="InclusionCondition.Never">parser</a>). A Never field adds no inputs, so closure adds nothing for it (<a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/ConstructionDemandClosure.kt" data-lines="263-266" data-expect="inclusion === InclusionCondition.Never">closure</a>). Its task still starts, sets the cell&rsquo;s activation to skip and returns before tenant code (<a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/FieldResolutionLogic.kt" data-lines="125-126" data-expect="if (!activated) return">task</a>).</p></div>
+<div class="drill choice"><p class="q">What about the same <code>@skip(if: true)</code> on a mutation field?</p>
+<button class="opt" data-why="that&rsquo;s the query rule. Top-level mutation selections keep only Always fields.">Its task starts, then deactivates</button>
+<button class="opt" data-correct="true">It is dropped before any task exists</button>
+<button class="opt" data-why="it&rsquo;s filtered out before any task exists, so nothing runs.">It runs; its result is hidden</button>
+<p class="why">It&rsquo;s dropped. The mutation orchestrator runs only the fields in its ordered list, and only Always fields enter it (<a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/schema/MutationSelections.kt" data-lines="16-21" data-expect="selection.inclusionCondition === InclusionCondition.Always">source</a>).</p></div>
+</section>
+</main>
+<script src="../assets/app.js"></script><script src="../assets/motion.js"></script><script src="../assets/drill.js"></script>
+</body></html>

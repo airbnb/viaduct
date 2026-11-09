@@ -1,0 +1,46 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Motivation — Viaduct Runtime2</title>
+<script src="../../assets/theme.js"></script>
+<link rel="icon" type="image/svg+xml" href="../../assets/viaduct-logo.svg">
+<link rel="stylesheet" href="../../assets/style.css">
+<link rel="stylesheet" href="assets/motivation.css"></head>
+<body data-layer="-1"><main class="mo">
+<div class="kicker">Deep dive</div>
+<h1>Motivation</h1>
+<p class="lede">Runtime2 is a new implementation of Viaduct&rsquo;s engine, in <code>core/engine/runtime2</code>. It is still in <a class="src" data-src="core/engine/runtime2/README.md" data-lines="3" data-expect="Runtime2 is the alpha engine implementation||remains the default">alpha</a>, and today&rsquo;s engine remains the default. This deep dive explains why Viaduct needs an engine of its own on top of GraphQL Java, and what Runtime2 changes in that engine.</p>
+<section id="graphql-java">
+<h2>What Viaduct adds to a GraphQL Java engine</h2>
+<div class="explain">
+<p>GraphQL Java can already run a GraphQL service on its own. It parses and validates the request, walks the client&rsquo;s <a class="gl" href="../../glossary.html#selection">selections</a> from the top, and calls each selected field&rsquo;s data fetcher. Each data fetcher gets its <a class="gl" href="../../glossary.html#arguments">arguments</a> and a <b><a class="gl" href="../../glossary.html#source">source</a></b>: its parent&rsquo;s value, the spec&rsquo;s <code>objectValue</code>. GraphQL Java then <a class="gl" href="../../glossary.html#completion">completes</a> the result: it coerces scalars and applies GraphQL&rsquo;s null and error rules.</p>
+</div>
+</section>
+
+<section id="contract">
+<h2>The hidden contract: a data fetcher&rsquo;s source</h2>
+<div class="explain">
+<p>Take <code>displayName</code>, which joins a user&rsquo;s <code>firstName</code> and <code>lastName</code>. In a traditional GraphQL engine such as GraphQL Java, its data fetcher assumes that its source is something specific, for example the User data service&rsquo;s response. It plucks <code>firstName</code> and <code>lastName</code> out of that object. The <code>firstName</code> and <code>lastName</code> fields themselves are probably served by the default property data fetcher, reading the same response object.</p>
+</div>
+<div class="code-pair even">
+<pre class="cmd" data-lang="kotlin"><span class="c">// GraphQL Java: displayName's data fetcher (sketch)</span>
+val displayName = DataFetcher { env -&gt;
+  <span class="c">// assumes a User service response</span>
+  val user = env.getSource&lt;UserResponse&gt;()
+  "${user.firstName} ${user.lastName}"
+}</pre>
+<pre class="cmd" data-lang="kotlin"><span class="c">// Viaduct: displayName's resolver (sketch)</span>
+<span class="d">@Resolver</span>(objectValueFragment = "firstName lastName")
+class DisplayName : UserResolvers.DisplayName() {
+  override suspend fun resolve(ctx: Context): String? {
+    val user = ctx.getObjectValue()
+    return "${user.getFirstName()} ${user.getLastName()}"
+  }
+}</pre>
+</div>
+<div class="explain">
+<p>So traditional engines rely on the source far more than they advertise. A well-structured application needs a carefully structured source, and however careful the structure, it leads to a web of data dependencies: <code>displayName</code> depends on a specific version of the User service&rsquo;s response. That web limits how many teams can contribute to one graph.</p>
+<p>This isn&rsquo;t a flaw in GraphQL Java. The GraphQL spec is intentionally unopinionated about how execution interacts with the sources of its inputs, and most GraphQL servers, GraphQL Java included, carry that over as a source parameter with very few constraints. That makes sense in the spec, and in a server that wants to give application developers maximum flexibility. It lacks modularity, though, so it can&rsquo;t scale to <a class="gl" href="../../glossary.html#multi-tenancy">multi-tenancy</a>: many teams contributing to one well-connected schema.</p>
+</div>
+</section>
+</main>
+<script src="../../assets/app.js"></script>
+</body></html>

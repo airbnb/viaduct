@@ -1,0 +1,655 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Type hierarchies — Viaduct Runtime2</title>
+<script src="../assets/theme.js"></script>
+<link rel="icon" type="image/svg+xml" href="../assets/viaduct-logo.svg">
+<link rel="stylesheet" href="../assets/style.css"></head>
+<body data-layer="-1"><main>
+<div class="kicker">Deep dive</div>
+<h1>Type hierarchies</h1>
+<p class="lede">Each of Runtime2&rsquo;s actors is backed by a family of Kotlin types. This page covers them in roughly the order a request reaches them, and explains why each one has its shape.</p>
+<div class="explain">
+<p>Runtime2 builds each response as a tree of <a class="gl" href="../glossary.html#oer">object engine results</a> (OERs), one per object. An OER maps the object&rsquo;s fields to slots that fill in as values arrive. Today&rsquo;s engine has an <a class="src" data-src="core/engine/runtime/src/main/kotlin/viaduct/engine/runtime/ObjectEngineResultImpl.kt" data-lines="47-51" data-expect="ConcurrentHashMap<ObjectEngineResult.Key, Cell>"><code>ObjectEngineResult</code></a> in the same role; Runtime2&rsquo;s is a separate type with the same name.</p>
+<p>Runtime2 is easiest to explain with a small set of actors: <a class="gl" href="../glossary.html#orchestrator">orchestrators</a>, <a class="gl" href="../glossary.html#resolver-task">resolver tasks</a>, the <a class="gl" href="../glossary.html#result-tree">result tree</a>, the <a class="gl" href="../glossary.html#registry">registry</a>. In the code, those actors and the data they pass around fall into families of Kotlin types, with sealed interfaces, private implementations and names that nearly repeat.</p>
+<p>An orchestrator is a one-shot task that plans one object in the response. It works out every field the object must hold, including the inputs its resolvers read, and for each field whose resolver must run it reserves a slot and dispatches a resolver task. It never calls tenant code. A resolver task runs one field&rsquo;s resolver: it reads the resolver&rsquo;s inputs, calls it and fills the field&rsquo;s slot. Before filling it, the task runs <b>passive descent</b>: it walks the returned value, fills each <a class="gl" href="../glossary.html#passive-field">passive field</a> (one whose value the output already holds) from that value, and gives each object it meets an OER and an orchestrator. The result tree is the tree of OERs, the response under construction. The registry maps each field to its resolver and checkers.</p>
+<p>Each shape has a reason, and this deep dive explains them. It starts with the big map and how long each thing lives, then takes the families one at a time.</p>
+<p>The examples use one query. It asks for a booking&rsquo;s customer, its ten most recent messages under an alias, and its unread count over the last 50 messages, so it includes a list, arguments, a variable in unreadCount&rsquo;s inputs and a field with both a resolver and a checker:</p>
+</div>
+<div class="code-pair">
+<pre class="cmd"><span class="c"># schema</span>
+interface Node {
+  id: ID!
+}
+
+type Query {
+  booking(id: ID!): Booking <span class="d">@resolver(isSelective: true)</span>
+}
+
+type Mutation {
+  markRead(id: ID!): Message <span class="d">@resolver</span>
+}
+
+type Booking implements Node {
+  id: ID!
+  customerId: ID
+  customer: User
+    <span class="d">@resolver(objectValueFragment: "customerId")
+    @fieldChecker(objectValueFragment: "customerId")</span>
+  messages(last: Int): [Message] <span class="d">@resolver</span>
+  unreadCount(window: Int = 20): Int
+    <span class="d">@resolver(
+      objectValueFragment: "messages(last: $n) { read }"
+      variables: [{name: "n", fromArgument: "window"}]
+    )</span>
+}
+
+type User {
+  id: ID!
+  firstName: String
+}
+
+type Message {
+  id: ID!
+  body: String
+  read: Boolean
+}</pre>
+<pre class="cmd"><span class="c"># query</span>
+query {
+  booking(id: "b1") {
+    customer {
+      firstName
+    }
+    recent: messages(last: 10) {
+      body
+    }
+    unreadCount(window: 50)
+  }
+}</pre>
+</div>
+<div class="explain">
+<p>In this schema, <code>objectValueFragment</code> and <code>variables</code> inside <code>@resolver(...)</code> are shorthand for what each field&rsquo;s <code>@Resolver</code> class declares. <code>objectValueFragment</code> is the <a class="gl" href="../glossary.html#resolver">resolver</a>&rsquo;s <a class="gl" href="../glossary.html#rss">required selection set</a> (RSS), and <code>variables</code> is the annotation&rsquo;s <code>variables</code> parameter, which here binds <code>$n</code> to the <code>window</code> argument (<a class="src" data-src="core/tenant/api/src/main/kotlin/viaduct/api/resolver/Resolver.kt" data-lines="103-107" data-expect="val variables: Array&lt;Variable&gt;">@Resolver</a>). Public Viaduct&rsquo;s <code>@resolver</code> directive takes only <code>isSelective</code> and <code>isBatching</code> (<a class="src" data-src="core/shared/graphql/src/main/kotlin/viaduct/graphql/utils/DefaultSchemaFactory.kt" data-lines="57-86" data-expect="name(&quot;isSelective&quot;)||name(&quot;isBatching&quot;)">directive definition</a>). <code>@fieldChecker(...)</code> is shorthand too, for a field checker with that RSS. Public Viaduct has no such directive: a <code>CheckerExecutorFactory</code> turns schema directives, such as a policy-check directive, into checkers, each with its own RSS (<a class="src" data-src="impldocs/modern-access-check.md" data-lines="87" data-expect="Engineers implement the `CheckerExecutorFactory` SPI">registration</a> · <a class="src" data-src="core/engine/api/src/main/kotlin/viaduct/engine/api/spi/CheckerExecutor.kt" data-lines="18-22" data-expect="val requiredSelectionSets">checker RSS</a>).</p>
+<p>Everything here describes a query unless a paragraph says otherwise; mutation-only types appear in a few spots, each with Mutation in its name. The other <a href="index.html">deep dives</a> cover mutations and the rest.</p>
+</div>
+
+<!-- ============================== CONNECTS ============================== -->
+<section id="connects"><h2>How it all connects</h2>
+<div class="explain">
+<p>Every object in the response goes through the same four steps, and each pass builds that object&rsquo;s OER:</p>
+<ol class="flow">
+<li>Creating the object&rsquo;s orchestrator runs <a class="gl" href="../glossary.html#closure">closure</a>, which grows the object&rsquo;s <a class="gl" href="../glossary.html#demand">demand</a> (what must be built) with the inputs the registry says its resolvers read. It also <a class="gl" href="../glossary.html#reserve">reserves</a> a <a class="gl" href="../glossary.html#cell">cell</a> for each field that consumers read through access checks.</li>
+<li>Whoever created the orchestrator, usually the parent field&rsquo;s resolver task, copies the passive fields from the parent resolver&rsquo;s output into their cells, then dispatches the orchestrator.</li>
+<li>Once dispatched, the orchestrator <a class="gl" href="../glossary.html#claim">claims</a> the cell of each <a class="gl" href="../glossary.html#active-field">active field</a>, which makes that field&rsquo;s resolver task the cell&rsquo;s one writer.</li>
+<li>It <a class="gl" href="../glossary.html#dispatch">dispatches</a> those resolver tasks and the object&rsquo;s checker tasks (<a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/OrchestrationTask.kt" data-lines="149-155" data-expect="dispatchFieldChecker(publication)||dispatchTypeChecker">dispatch</a>), then <a class="gl" href="../glossary.html#freeze">freezes</a> the OER, without waiting for any value.</li>
+</ol>
+<p>Fields read only without access checks, such as a field that only a checker reads, aren&rsquo;t reserved up front. They get cells only when a writer comes: an active field when the orchestrator claims its cell for the resolver task, and a passive field when its parent copies the value in. So every demanded field that has a resolver or appears in the parent&rsquo;s output has a cell before the freeze. Later reads, such as a checker reading its inputs, also reserve, but after the freeze a reserve <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/model/EngineResult.kt" data-lines="931-941" data-expect="throw missingResultCell(type, field)">only finds existing cells</a>, and a key with no cell is an error. A reserved cell that nobody filled or claimed, such as a checked field that the parent&rsquo;s output omits and that has no resolver, fails at the <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/model/EngineResult.kt" data-lines="966-979" data-expect="fun freeze()||missingResultCell(type, field)">freeze</a> with &ldquo;Missing engine-result cell&rdquo;: an error, not a hang.</p>
+<p>When a task returns an object, that object gets its own pass. The root Query&rsquo;s pass dispatches <code>booking</code>. The Booking&rsquo;s pass dispatches <code>customer</code>, <code>unreadCount</code> and two <code>messages</code> cells, one for the query&rsquo;s recent messages and one for the messages that unreadCount reads. Assume the booking resolver returns the Booking with its <code>customerId</code>, the customer resolver returns the User with its <code>firstName</code>, and the messages resolver returns each Message with its <code>body</code> and <code>read</code>. Those fields are then passive, so the User&rsquo;s and each Message&rsquo;s passes have nothing to dispatch.</p>
+<p>One more name matters on this page: the <b><a class="gl" href="../glossary.html#associated-query-object-result">associated Query OER</a></b>. Each orchestrator creates a fresh one, separate from the operation&rsquo;s root Query OER, and the Query-rooted inputs of this object&rsquo;s resolvers and checkers get built there. Runtime2 identifies work by where it sits in the result tree, so these inputs belong to this object rather than to the operation&rsquo;s root, and resolvers in this scope that ask for the same Query field with the same arguments share one result (<a class="src" data-src="core/engine/runtime2/impldocs/architecture/principles.md" data-lines="37-39" data-expect="associated Query OER owned by their containing orchestration">occurrence identity</a>). Its fields don&rsquo;t come from any parent&rsquo;s output, so none are passive: every demanded field on it is active and gets its own resolver task.</p>
+<p>Sharing stops at the object. If each of 100 Messages had a resolver whose Query RSS read <code>viewer</code>, each Message&rsquo;s orchestrator would create its own associated Query OER, and the viewer resolver would run 100 times. Each of those Query OERs is a separate <b>root</b>, an object result that paths start from. Other roots include the operation&rsquo;s own Query or Mutation OER and the fresh result of a nested <code>ctx.query()</code> or <code>ctx.mutation()</code>, and root-field references get roots of their own, explained under <a href="#arguments">Arguments</a> (<a class="src" data-src="core/engine/runtime2/impldocs/architecture/principles.md" data-lines="39" data-expect="root-field-reference targets receive fresh Query invocation roots">roots</a>). The repeat is by design: Runtime2 <a class="src" data-src="core/engine/runtime2/impldocs/integration/feature-tests.md" data-lines="35" data-expect="Runtime2 does not memoize declared Query work across independent roots">doesn&rsquo;t memoize</a> declared Query work across roots. The design notes (Runtime2&rsquo;s design docs in its source tree) treat caching, batching and deduplication as <a class="src" data-src="core/engine/runtime2/impldocs/architecture/principles.md" data-lines="41" data-expect="Caching, batching, and request deduplication are separate physical execution layers">separate layers</a> that must not change what counts as one occurrence, and Runtime2 doesn&rsquo;t <a class="src" data-src="core/engine/runtime2/impldocs/integration/engine-api.md" data-lines="134" data-expect="physically batched dispatch">batch dispatch</a> yet. Until it does, bootstrap rejects <code>ENGINE2_BATCHING</code>, the flag reserved for turning on batched dispatch under Runtime2 (<a class="src" data-src="core/service/api/src/main/kotlin/viaduct/service/api/spi/FlagManager.kt" data-lines="74-79" data-expect="Reserved gate for engine2 dispatcher batching||ENGINE2_BATCHING">flag</a> · <a class="src" data-src="core/engine/runtime/src/main/kotlin/viaduct/engine/runtime/tenantloading/DispatcherRegistryFactory.kt" data-lines="56" data-expect="require(!flagManager.isEnabled(FlagManager.Flags.ENGINE2_BATCHING))">check</a>). Bootstrap also refuses any field or node resolver whose executor reports <code>isBatching</code>, as a tenant batch resolver&rsquo;s does, so a schema with batch resolvers can&rsquo;t run on Runtime2 yet (<a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/bootstrap/ExecutorRegistryInputs.kt" data-lines="1153-1158" data-expect="Qplan does not support batching field executor||Qplan does not support batching node executor">refusal</a> · <a class="src" data-src="core/tenant/runtime/src/main/kotlin/viaduct/tenant/runtime/execution/FieldBatchResolverExecutorImpl.kt" data-lines="52" data-expect="override val isBatching = true">batch resolver</a>).</p>
+<aside class="today"><b>In today&rsquo;s engine</b>, in a query operation, a resolver&rsquo;s Query RSS runs against the operation&rsquo;s own root result: <a class="src" data-src="core/engine/runtime/src/main/kotlin/viaduct/engine/runtime/execution/ViaductExecutionStrategy.kt" data-lines="268-275" data-expect="QUERY -> rootEngineResult">createQueryEngineResult</a> reuses the root, and a resolver&rsquo;s <a class="src" data-src="core/engine/runtime/src/main/kotlin/viaduct/engine/runtime/execution/FieldResolver.kt" data-lines="341-344" data-expect="querySelectionSetId -> ChildQueryPlanTarget.CurrentQueryResult">Query RSS plan</a> targets that result, so Query work can be <a class="src" data-src="core/engine/runtime2/impldocs/integration/feature-tests.md" data-lines="35" data-expect="Query work may be reused through materialization and request-cache machinery">reused</a> across objects.</aside>
+<p>Every demand, from the decoded operation to <a class="gl" href="../glossary.html#construction-demand">construction demand</a> and <a class="gl" href="../glossary.html#successor-demand">successor demand</a>, is a <a class="gl" href="../glossary.html#selection-forest">selection forest</a>.</p>
+</div>
+<figure class="cgraph" id="concepts" aria-label="How Runtime2's concepts connect" data-w="960" data-h="680">
+<div class="cg-node" data-id="registry" data-x="520" data-y="160" data-group="1" data-label="Resolver registry" data-sub="ResolverRegistry"><p>The per-schema map from fields and types to their value resolvers and checkers, checked to be acyclic when it is built. <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/model/registry/ResolverRegistry.kt" data-lines="44-75" data-expect="interface ResolverRegistry||fun fieldChecker||fun typeChecker">ResolverRegistry</a></p></div>
+<div class="cg-node" data-id="resolver" data-x="590" data-y="270" data-group="1" data-label="Field resolver" data-sub="FieldValueResolver"><p>The one registered value resolver for a field, which declares its inputs as resolver fragments. <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/model/registry/FieldValueResolver.kt" data-lines="132-194" data-expect="class FieldValueResolver||fun instantiateFragments">FieldValueResolver</a></p></div>
+<div class="cg-node" data-id="fragment" data-x="150" data-y="270" data-group="1" data-label="Resolver fragment" data-sub="ResolverFragments"><p>A resolver&#39;s or checker&#39;s declared input, in the two parts of Viaduct&#39;s RSS: the object fragment (<code>objectValueFragment</code>) and the Query fragment (<code>queryValueFragment</code>). <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/model/registry/FieldValueResolver.kt" data-lines="82-94" data-expect="class ResolverFragment internal constructor||class ResolverFragments||val queryFragment: ResolverFragment">ResolverFragments</a></p></div>
+<div class="cg-node" data-id="forest" data-x="180" data-y="50" data-group="1" data-label="Selection forest" data-sub="SelectionForest"><p>A collection of selections, unordered except for mutations. Every demand is one, including the decoded operation, construction demand and successor demand. <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/model/Selection.kt" data-lines="24-50" data-expect="sealed interface SelectionForest">SelectionForest</a></p></div>
+
+<div class="cg-node" data-id="successor" data-x="810" data-y="160" data-group="3" data-label="Successor demand" data-sub="SuccessorDemand.kt"><p>What a field&rsquo;s resolver is asked to return: the demand below its field, expanded with the inputs of the resolvers and checkers beneath it, plus any demand that <code>@parent</code> selections (a public Viaduct directive) below it lift onto it. <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/SuccessorDemand.kt" data-lines="24-54" data-expect="successorDemandFromConstructionDemand">successorDemandFromConstructionDemand</a></p></div>
+<div class="cg-node" data-id="closure" data-x="190" data-y="160" data-group="3" data-label="Closure" data-sub="ClosedConstructionDemandContext"><p>A synchronous fixed point per orchestrator. Each pass adds the resolver fragments of newly demanded checkers, and of newly demanded resolver fields that the parent resolver&rsquo;s output doesn&rsquo;t already hold, until a pass adds nothing. <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/ConstructionDemandClosure.kt" data-lines="84-159" data-expect="closeOrchestrationConstructionDemand||while (true)">closeOrchestrationConstructionDemand</a></p></div>
+<div class="cg-node" data-id="demand" data-x="480" data-y="50" data-group="3" data-label="Demand" data-sub="Demand"><p>The selection forest an OER must construct, split into checked demand, read through access checks, and unchecked demand, the checker inputs that are read raw. <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/framework/Demand.kt" data-lines="26-35" data-expect="class Demand||val checked||val unchecked||typeCheckDemanded">Demand</a></p></div>
+
+<div class="cg-node" data-id="frt" data-x="680" data-y="380" data-group="4" data-label="Resolver task" data-sub="FieldResolverTask"><p>The task that owns one field&#39;s cell. It computes successor demand, decides activation, grounds arguments and reads inputs, then invokes its resolver, plus the resolver for each node reference it follows (see Arguments), runs passive descent and completes the cell. <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/FieldResolutionLogic.kt" data-lines="111-186" data-expect="successorDemandFromConstructionDemand||activatePublication||resolvePassiveValues||publicationCell.value.complete">publishResult</a></p></div>
+<div class="cg-node" data-id="orch" data-x="340" data-y="380" data-group="4" data-label="Orchestrator" data-sub="OrchestrationTask"><p>The one-shot task that plans one OER and its associated Query OER. It runs closure, declares bindings and prepares checker tasks, then claims cells, dispatches tasks and freezes both OERs, which seals their key sets. <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/OrchestrationTask.kt" data-lines="87-132" data-expect="closeSelectedConstructionDemand||declareBindings||FieldCheckerTask.prepareAll">OrchestrationTask.create</a></p></div>
+
+<div class="cg-node" data-id="promise" data-x="150" data-y="600" data-group="2" data-label="Promise" data-sub="ReservablePromise"><p>A write-once value readers can await. A cell&#39;s value uses the reservable form, which adds claim, set and freeze, so readers may wait before the value&#39;s one writer claims it. <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/model/Promise.kt" data-lines="132-154" data-expect="sealed interface ReservablePromise||fun claim||fun freeze">ReservablePromise</a></p></div>
+<div class="cg-node" data-id="cell" data-x="400" data-y="490" data-group="2" data-label="Cell" data-sub="EngineResultCell"><p>One field or list-element slot with three write-once parts: an activation decision, a value promise and the field-check slot. <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/model/EngineResult.kt" data-lines="62-83" data-expect="sealed interface EngineResultCell||ReservablePromise||fieldCheckerResult">EngineResultCell</a></p></div>
+<div class="cg-node" data-id="oer" data-x="110" data-y="490" data-group="2" data-label="Object result" data-sub="ObjectEngineResult"><p>One object in the response: its field keys mapped to cells, plus the type-check slot. <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/model/EngineResult.kt" data-lines="108-124" data-expect="sealed interface ObjectEngineResult||typeCheckerResult">ObjectEngineResult</a></p></div>
+<div class="cg-node" data-id="materialize" data-x="690" data-y="600" data-group="2" data-label="Materialization" data-sub="materializeResolverInput"><p>Builds a consumer's input object from cells, reserving and awaiting them. Checked reads enforce access checks, and raw reads skip them. <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/MaterializeResolverInput.kt" data-lines="43-50" data-expect="materializeResolverInput||checked: Boolean = true">materializeResolverInput</a></p></div>
+
+<div class="cg-node" data-id="fct" data-x="820" data-y="490" data-group="5" data-label="Field checker task" data-sub="FieldCheckerTask"><p>Runs a field&#39;s checker on raw inputs and completes the cell&#39;s field-check slot. <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/FieldCheckerTask.kt" data-lines="202-236" data-expect="checked = false||fieldCheckerResult.complete">FieldCheckerTask</a></p></div>
+<div class="cg-node" data-id="checked" data-x="420" data-y="600" data-group="5" data-label="Checked read" data-sub="materializeCheckedValue"><p>Checks are enforced where a value is read: the read awaits the field-check slot, then the value, then the type-check slot, and a denial becomes an error value (an ErrorEngineResult). <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/model/CheckedEngineResult.kt" data-lines="29-60" data-expect="fun EngineResultCell.materializeCheckedValue||typeResult.combine(fieldResult)">materializeCheckedValue</a></p></div>
+<div class="cg-node" data-id="tct" data-x="110" data-y="380" data-group="5" data-label="Type checker task" data-sub="TypeCheckerTask"><p>Runs an object&#39;s type checker and completes its type-check slot. <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/TypeCheckerTask.kt" data-lines="55-71" data-expect="fun prepareAll||typeCheckerOccurrence">TypeCheckerTask.prepareAll</a></p></div>
+
+<div class="cg-edge" data-from="registry" data-to="resolver" data-label="maps field to"></div>
+<div class="cg-edge" data-from="resolver" data-to="fragment" data-label="declares inputs as"></div>
+<div class="cg-edge" data-from="forest" data-to="demand" data-label="becomes checked"></div>
+<div class="cg-edge" data-from="demand" data-to="closure" data-label="seeds"></div>
+<div class="cg-edge" data-from="closure" data-to="resolver" data-label="looks up"></div>
+<div class="cg-edge" data-from="closure" data-to="fragment" data-label="adds as demand"></div>
+<div class="cg-edge" data-from="orch" data-to="closure" data-label="runs"></div>
+<div class="cg-edge" data-from="demand" data-to="successor" data-label="projects to"></div>
+<div class="cg-edge" data-from="frt" data-to="successor" data-label="derives"></div>
+<div class="cg-edge" data-from="successor" data-to="resolver" data-label="passed to"></div>
+<div class="cg-edge" data-from="frt" data-to="resolver" data-label="invokes"></div>
+<div class="cg-edge" data-from="orch" data-to="frt" data-label="prepares · dispatches" data-bend="45"></div>
+<div class="cg-edge" data-from="frt" data-to="orch" data-label="spawns child" data-bend="40"></div>
+<div class="cg-edge" data-from="orch" data-to="fct" data-label="dispatches" data-bend="-30"></div>
+<div class="cg-edge" data-from="orch" data-to="tct" data-label="dispatches"></div>
+<div class="cg-edge" data-from="orch" data-to="oer" data-label="freezes"></div>
+<div class="cg-edge" data-from="frt" data-to="cell" data-label="completes value of"></div>
+<div class="cg-edge" data-from="frt" data-to="materialize" data-label="reads inputs via"></div>
+<div class="cg-edge" data-from="oer" data-to="cell" data-label="owns, by key"></div>
+<div class="cg-edge" data-from="cell" data-to="promise" data-label="holds"></div>
+<div class="cg-edge" data-from="materialize" data-to="cell" data-label="reserves · awaits"></div>
+<div class="cg-edge" data-from="materialize" data-to="checked" data-label="enforces via"></div>
+<div class="cg-edge" data-from="fct" data-to="materialize" data-label="reads raw via"></div>
+<div class="cg-edge" data-from="fct" data-to="cell" data-label="completes field-check slot"></div>
+<div class="cg-edge" data-from="tct" data-to="oer" data-label="completes type-check slot"></div>
+<div class="cg-edge" data-from="checked" data-to="cell" data-label="combines checks of"></div>
+<div class="cg-edge" data-from="checked" data-to="oer" data-label="reads type-check slot"></div>
+
+<ol class="cg-tour">
+<li data-focus="forest">A request starts as a selection forest: the decoded operation.</li>
+<li data-focus="demand">It becomes <a class="gl" href="../glossary.html#checked-demand">checked demand</a> on the root Query object.</li>
+<li data-focus="orch">Each <a class="gl" href="../glossary.html#object-occurrence">object occurrence</a> gets one orchestrator, which sets it up.</li>
+<li data-focus="closure">Before its resolvers run, the orchestrator runs closure to a fixed point.</li>
+<li data-focus="resolver">Closure looks up resolvers and their resolver fragments in the registry.</li>
+<li data-focus="frt">Each active field gets one resolver task, which normally invokes its resolver.</li>
+<li data-focus="successor">The resolver receives successor demand: what later readers need from its output.</li>
+<li data-focus="cell">The orchestrator claims each such cell before dispatching its resolver task, and that task <a class="gl" href="../glossary.html#complete">completes</a> the value.</li>
+<li data-focus="oer">Each returned object becomes a child OER with its own orchestrator.</li>
+<li data-focus="promise"><a class="gl" href="../glossary.html#promise">Promises</a> are write-once.</li>
+<li data-focus="fct"><a class="gl" href="../glossary.html#checker-task">Checker tasks</a> run beside resolver tasks on raw inputs and complete the field-check and <a class="gl" href="../glossary.html#type-check-slot">type-check slots</a>.</li>
+<li data-focus="materialize">Consumers await cells; <a class="gl" href="../glossary.html#checked-read">checked reads</a> combine type and field checks.</li>
+</ol>
+</figure>
+<p class="key c3">Demand sets which cells exist, promises say when their values are ready, and checks control who may read them.</p>
+<p class="where">Where in code: <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/OrchestrationTask.kt" data-lines="87-132" data-expect="closeSelectedConstructionDemand||declareBindings||FieldCheckerTask.prepareAll">OrchestrationTask.create</a> · <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/FieldResolutionLogic.kt" data-lines="111-186" data-expect="successorDemandFromConstructionDemand||resolvePassiveValues">FieldResolutionLogic.publishResult</a></p>
+</section>
+
+<!-- ============================== LIFETIMES ============================== -->
+<section id="lifetimes"><h2>What lives how long?</h2>
+<div class="explain">
+<p>The registry serves every request. A <code>firstName</code> cell belongs to one User in one response. Runtime2&rsquo;s state falls into three such lifespans: per schema, per request and per object occurrence, which is one position in the result tree.</p>
+<p>The per-schema bundle is the <a class="gl" href="../glossary.html#world">world</a>, and the per-request bundle is the <a class="gl" href="../glossary.html#operation-context">operation context</a>. Everything short-lived reads the same long-lived registry.</p>
+</div>
+<figure class="scene" data-duration="18">
+<div class="stage"><svg viewBox="0 0 960 470" role="img" aria-label="Three swimlanes: what is built once per schema, once per request, and once per object occurrence">
+<defs>
+<marker id="lt-ah-c3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0L10,5L0,10z" class="ah c3"/></marker>
+<marker id="lt-ah-c2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0,0L10,5L0,10z" class="ah c2"/></marker>
+<marker id="lt-ah-c1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0L10,5L0,10z" class="ah c1"/></marker>
+</defs>
+<!-- lanes -->
+<g data-in="0"><rect class="zone" x="8" y="8" width="944" height="130" rx="12"/><text x="24" y="66" class="title">Once per</text><text x="24" y="86" class="title">schema</text></g>
+<g data-in="3"><rect class="zone" x="8" y="148" width="944" height="128" rx="12"/><text x="24" y="206" class="title">Once per</text><text x="24" y="226" class="title">request</text></g>
+<g data-in="6"><rect class="zone" x="8" y="286" width="944" height="176" rx="12"/><text x="24" y="364" class="title">Once per</text><text x="24" y="384" class="title">object</text><text x="24" y="404" class="title">occurrence</text></g>
+
+<!-- lane 1: static -->
+<g data-in="0.3" data-anim="pop" data-on="15" class="c1"><rect class="box c1" x="190" y="43" width="125" height="62" rx="10"/><text x="252" y="70" text-anchor="middle" class="title">Schema</text><text x="252" y="91" text-anchor="middle" class="mono small muted">ViaductSchema</text></g>
+<g data-in="0.7" data-anim="pop" data-on="6-9,9.6-12,15" class="c1"><rect class="box c1" x="328" y="43" width="170" height="62" rx="10"/><text x="413" y="70" text-anchor="middle" class="title">Resolver registry</text><text x="413" y="91" text-anchor="middle" class="mono small muted">ResolverRegistry</text></g>
+<g data-in="1.1" data-anim="pop" data-on="15" class="c1"><rect class="box c1" x="511" y="43" width="205" height="62" rx="10"/><text x="613" y="70" text-anchor="middle" class="title">Fragment templates</text><text x="613" y="91" text-anchor="middle" class="mono small muted">ResolverFragmentTemplates</text></g>
+<g data-in="1.5" data-anim="pop" data-on="15" class="c1"><rect class="box c1" x="729" y="43" width="215" height="62" rx="10"/><text x="836" y="70" text-anchor="middle" class="title">Successor-demand cache</text><text x="836" y="91" text-anchor="middle" class="mono small muted">FixedSuccessorDemandCache</text></g>
+<g data-in="15.2" class="c1"><text x="511" y="127" class="small muted">shared by every request</text></g>
+
+<!-- lane 2: per request -->
+<g data-in="3" data-anim="slide" data-from="-40,0" class="c1"><rect class="box c1" x="190" y="182" width="175" height="62" rx="10"/><text x="277" y="209" text-anchor="middle" class="title">Selection forest</text><text x="277" y="230" text-anchor="middle" class="mono small muted">SelectionForest</text></g>
+<g data-in="4" data-anim="pop" class="c4"><rect class="box c4" x="560" y="176" width="380" height="74" rx="10"/><text x="750" y="200" text-anchor="middle" class="title">Operation context</text><text x="750" y="219" text-anchor="middle" class="mono small muted">OperationContext</text><text x="750" y="238" text-anchor="middle" class="small">dispatcher · bindings · cycle checker · observers</text></g>
+
+<!-- demand into the root occurrence -->
+<g data-in="6" data-anim="draw"><path id="lt-p-root" class="wire c3 thick" d="M277,246 C277,286 300,290 300,316" marker-end="url(#lt-ah-c3)"/></g>
+<g data-in="6" data-dur="1" data-anim="move" data-path="#lt-p-root" class="c3"><circle class="tok" r="7"/></g>
+<!-- registry reads (blue, dashed) -->
+<g data-in="6.4" data-anim="draw"><path class="wire c1 dash" d="M413,107 C430,200 430,260 402,316" marker-end="url(#lt-ah-c1)"/></g>
+<g data-in="9.8" data-anim="draw"><path class="wire c1 dash" d="M430,107 C450,200 500,270 540,316" marker-end="url(#lt-ah-c1)"/></g>
+<g data-in="10.2" data-anim="draw"><path class="wire c1 dash" d="M460,107 C470,180 540,266 600,266 L712,266 C732,266 740,280 740,314" marker-end="url(#lt-ah-c1)"/></g>
+
+<!-- lane 3: per occurrence -->
+<g data-in="6.4" data-anim="pop" data-on="6.4-9" class="c2"><rect class="box c2" x="190" y="318" width="230" height="132" rx="10"/>
+  <text x="305" y="342" text-anchor="middle" class="title">Root Query</text>
+  <text x="305" y="362" text-anchor="middle" class="mono small ink c4">OER · OrchestrationTask</text></g>
+<rect class="cell" data-in="7" data-add="10:full" x="263" y="394" width="84" height="24" rx="5"/><text data-in="7" x="305" y="410" text-anchor="middle" class="mono" style="font-size:10px">booking</text>
+
+<!-- returned objects become child occurrences -->
+<g data-in="9" data-anim="draw"><path id="lt-p-a" class="wire c2 thick" d="M347,406 C390,406 430,406 468,406" marker-end="url(#lt-ah-c2)"/></g>
+<g data-in="10" data-anim="draw"><path id="lt-p-b" class="wire c2 thick" d="M696,368 L718,368" marker-end="url(#lt-ah-c2)"/></g>
+<g data-in="9" data-dur="0.8" data-anim="move" data-path="#lt-p-a" class="c2"><circle class="tok" r="7"/></g>
+<g data-in="10" data-dur="0.6" data-anim="move" data-path="#lt-p-b" class="c2"><circle class="tok" r="7"/></g>
+
+<g data-in="9.8" data-anim="pop" data-on="9.8-12" class="c2"><rect class="box c2" x="470" y="318" width="225" height="132" rx="10"/>
+  <text x="582" y="342" text-anchor="middle" class="title">Booking</text>
+  <text x="582" y="362" text-anchor="middle" class="mono small ink c4">OER · OrchestrationTask</text></g>
+<g data-in="10.2" data-anim="pop" data-on="10.2-12" class="c2"><rect class="box c2" x="720" y="318" width="225" height="132" rx="10"/>
+  <text x="832" y="342" text-anchor="middle" class="title">User</text>
+  <text x="832" y="362" text-anchor="middle" class="mono small ink c4">OER · OrchestrationTask</text></g>
+<g data-in="9.9"><rect class="cell full" x="478" y="372" width="70" height="22" rx="5"/><text x="513" y="387" text-anchor="middle" class="mono" style="font-size:10px">customerId</text></g>
+<rect class="cell" data-in="9.9" data-add="11.4:full" x="551" y="372" width="58" height="22" rx="5"/><text data-in="9.9" x="580" y="387" text-anchor="middle" class="mono" style="font-size:10px">customer</text>
+<rect class="cell" data-in="9.9" data-add="14:full" x="612" y="372" width="76" height="22" rx="5"/><text data-in="9.9" x="650" y="387" text-anchor="middle" class="mono" style="font-size:10px">unreadCount</text>
+<rect class="cell" data-in="9.9" data-add="13:full" x="480" y="400" width="101" height="22" rx="5"/><text data-in="9.9" x="530" y="415" text-anchor="middle" class="mono" style="font-size:10px">messages(10)</text>
+<rect class="cell" data-in="9.9" data-add="13.4:full" x="585" y="400" width="101" height="22" rx="5"/><text data-in="9.9" x="635" y="415" text-anchor="middle" class="mono" style="font-size:10px">messages($n)</text>
+<g data-in="10.3"><rect class="cell full" x="790" y="394" width="84" height="24" rx="5"/><text x="832" y="410" text-anchor="middle" class="mono" style="font-size:10px">firstName</text></g>
+<g data-in="12"><text x="305" y="440" text-anchor="middle" class="small muted">cells · promises · tasks · ids</text></g>
+<g data-in="12"><text x="582" y="440" text-anchor="middle" class="small muted">cells · promises · tasks · ids</text></g>
+<g data-in="12"><text x="832" y="440" text-anchor="middle" class="small muted">cells · promises · tasks · ids</text></g>
+</svg></div>
+<ol class="beats">
+<li data-at="0" data-title="Built once">Per schema: the schema, the resolver registry and two structures the registry keeps. <b>Fragment templates</b> hold each resolver&rsquo;s resolver fragments, its object and Query fragments, before they&rsquo;re tied to an occurrence. The <b>successor-demand cache</b> maps each field&rsquo;s resolver or checker, and each type&rsquo;s checker, to the <a class="gl" href="../glossary.html#expansion">expansion</a> of its object fragment: the selection forest a producer must supply for it (<a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/SuccessorDemand.kt" data-lines="62-73" data-expect="ConcurrentHashMap<SuccessorBoundary, SelectionForest>">cache</a>). The world itself never changes. Its class is <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/model/registry/Assumptions.kt" data-lines="7-14" data-expect="The schema and field resolvers under which model values and operations are interpreted"><code>Assumptions</code></a>: the schema and resolvers under which every value and operation is interpreted. It holds the schema, the registry, the <a class="gl" href="../glossary.html#selective-policy">selective policy</a>, the setting that picks closure&rsquo;s loop, and the parent-field relation, which records which producer field each <a class="gl" href="../glossary.html#parent-key"><code>@parent</code> field</a> points back across. It also lists the interface fields that some implementation marks <code>@parent</code>.</li>
+<li data-at="3" data-title="Per request">The <a class="gl" href="../glossary.html#execution-strategy">execution strategy</a> <a class="gl" href="../glossary.html#flattening">flattens</a> the operation into a selection forest and creates the operation context, one per request plus a child for each nested <code>ctx.query()</code> or <code>ctx.mutation()</code> call. That context holds the dispatcher that runs dispatched tasks, the <a class="gl" href="../glossary.html#variable">variable</a> <a class="gl" href="../glossary.html#binding">bindings</a>, the <a class="gl" href="../glossary.html#cycle-checker">cycle checker</a>, and observers, which are read-only hooks that record what <a class="gl" href="../glossary.html#resolution">resolution</a> prepares and invokes.</li>
+<li data-at="6" data-title="Root occurrence">Demand reaches the root Query. Its orchestrator runs closure against the registry and reserves the <code>booking</code> cell.</li>
+<li data-at="9" data-title="Values create occurrences">Returned objects become child occurrences: the Booking from <code>booking</code>&rsquo;s resolver, then the User from <code>customer</code>&rsquo;s. A dashed cell has no value yet; it turns solid when its value completes. Each new orchestrator runs closure against the registry too, as the dashed blue lines show. <code>customerId</code> and the User&rsquo;s <code>firstName</code> are already in their parent resolver&rsquo;s output, so they are passive: passive descent fills them from the parent resolver&rsquo;s output before the object&rsquo;s orchestrator is dispatched. Each parent cell, such as <code>customer</code>, completes once its child&rsquo;s orchestrator is dispatched, so the parent can already hold a finished reference to a child OER whose own fields are still pending.</li>
+<li data-at="12" data-title="Per-occurrence state">Each occurrence has its own OER, orchestrator, cells, promises and tasks, filled in no fixed order. The Booking OER has five cells: <code>customerId</code>, <code>customer</code>, <code>unreadCount</code> and two <code>messages</code> cells, <code>messages(last: 10)</code> for the query and <code>messages(last: $n)</code> for unreadCount&rsquo;s input. Each Message in those lists is an occurrence too (not drawn), and two bookings with the same customer would each get their own User OER and <code>firstName</code> cell.</li>
+<li data-at="15" data-title="Shared by every request">Every orchestrator reads the same per-schema registry, built once as part of the world. Building it folds <a class="gl" href="../glossary.html#node-resolver">node resolvers</a> into <code>Query.node</code> and rejects cycles among the declared inputs of resolvers and checkers (<a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/bootstrap/ResolverRegistryImpl.kt" data-lines="909-934" data-expect="Resolver fragments contain a demand cycle">dependencyOrder</a>; see <a href="cycles.html">Cycles</a>).</li>
+</ol>
+</figure>
+<p class="where">Where in code: <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/model/registry/Assumptions.kt" data-lines="14-28" data-expect="val schema: ViaductSchema||val resolverRegistry: ResolverRegistry||val interfaceParentFields||val usePrecomputedConstructionDemand">Assumptions</a> · <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/execution/QPlanExecutionStrategy.kt" data-lines="59-79" data-expect="selectionsFrom||CycleCheckState.create()">QPlanExecutionStrategy.execute</a> · <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/framework/SharedPassiveValueResolutionLogic.kt" data-lines="213-229" data-expect="createOrchestrationTask||dispatchOrchestration">resolvePassiveObjectValues</a></p>
+</section>
+
+<!-- ============================== FAMILIES INTRO ============================== -->
+<section id="families"><h2>Seven families and their shared conventions</h2>
+<div class="explain">
+<p>The seven families are results, <a class="gl" href="../glossary.html#key">keys</a>, cells and promises, tasks, <a class="gl" href="../glossary.html#selection">selections</a>, the registry and <a class="gl" href="../glossary.html#arguments">arguments</a>. Orchestrators and resolver tasks are tasks; the result tree is built from results, keys, cells and promises; the registry is its own family; and selections and arguments describe the demand and the inputs that resolvers are called with. Before the families, two conventions explain most of what you&rsquo;ll see. First, most trees below are a sealed interface over a private <code>…Impl</code> class. The design notes ask this of Runtime2&rsquo;s public types: the implementation stays private, and no code outside Runtime2 can add a variant. Interfaces that code outside Runtime2 may implement, such as the schema&rsquo;s type definitions and the <code>ResolverRegistry</code> interface, follow their owning libraries&rsquo; rules instead (<a class="src" data-src="core/engine/runtime2/impldocs/architecture/model.md" data-lines="192" data-expect="Externally supplied categories such as `ViaductSchema.TypeDef` and `ResolverRegistry`">model.md</a>). The task classes are ordinary classes because they are internal, not public.</p>
+<p>Second, each public type has exactly one equality mode. It decides what you may compare, hash or use as a map key:</p>
+<ul>
+<li><b>Structural:</b> equal when the parts are equal. Keys and arguments work this way.</li>
+<li><b>Reference:</b> equal only to itself. Cells and OERs work this way, because their promises fill over time.</li>
+<li><b>Schema-canonical:</b> for schema definitions, such as the <code>ViaductSchema.Field</code> for <code>Booking.customer</code>. Two definitions may be compared only when they come from the same canonical schema; comparing definitions from two different schemas has no defined meaning.</li>
+<li><b>Undefined:</b> equality has no meaning. Selections, resolvers and <code>Assumptions</code>, the class that holds the per-schema world, are like this.</li>
+</ul>
+</div>
+<p class="where">Where in docs: <a class="src" data-src="core/engine/runtime2/impldocs/architecture/model.md" data-lines="190-198" data-expect="Public Runtime2-owned nominal semantic categories are sealed interfaces||Do not expose public data classes or public sealed classes">model.md · Public Type Forms</a> · <a class="src" data-src="core/engine/runtime2/impldocs/architecture/model.md" data-lines="200-206" data-expect="structural equality, reference equality, schema-canonical equality, or undefined equality">model.md · Equality</a></p>
+</section>
+
+<!-- ============================== 1. RESULTS ============================== -->
+<section id="results"><h2>Results: a union, not a class tree</h2>
+<div class="explain">
+<p>What can a cell hold? Whatever its field produces: a string for <code>firstName</code>, the Booking OER for <code>booking</code>, a list for <code>messages</code>, or an error in <code>customer</code> if the customer resolver threw. Those have nothing in common as Kotlin classes. So an <a class="gl" href="../glossary.html#engine-result">engine result</a> is a union checked at runtime, not a class tree. In the design notes&rsquo; words, it&rsquo;s &ldquo;a carrier representation for a mathematical domain, not a claim that the domain is untyped.&rdquo;</p>
+</div>
+<aside class="today"><b>In today&rsquo;s engine</b> a cell&rsquo;s raw-value slot holds a <a class="src" data-src="core/engine/runtime/src/main/kotlin/viaduct/engine/runtime/FieldResolutionResult.kt" data-lines="14-21" data-expect="val engineResult: Any?">FieldResolutionResult</a> whose <code>engineResult</code> is also <code>Any?</code>: an OER for an object field, a <a class="src" data-src="core/engine/runtime/src/main/kotlin/viaduct/engine/runtime/execution/FieldResolver.kt" data-lines="804-813" data-expect="When it's a list, wrap each item in the list||ObjectEngineResultImpl.newCell">list of item cells</a> for a list field, otherwise a Kotlin scalar or enum value (<a class="src" data-src="core/engine/runtime/src/main/kotlin/viaduct/engine/runtime/result/ObjectEngineResult.kt" data-lines="69-79" data-expect="The value will contain an ObjectEngineResult">fetch</a>). Its errors sit beside the value in an <code>errors</code> list. In Runtime2 a field error is the cell&rsquo;s value.</aside>
+<figure class="scene" data-duration="14">
+  <div class="stage"><svg viewBox="0 0 960 400" role="img" aria-label="EngineResult as a union: eight member kinds around a central typealias, joined by dashed membership lines">
+    <g data-in="0" data-anim="pop" class="c2">
+      <rect class="box c2" x="330" y="165" width="300" height="80" rx="40"/>
+      <text x="480" y="198" text-anchor="middle" class="title">Engine result</text>
+      <text x="480" y="222" text-anchor="middle" class="mono muted">typealias EngineResult = Any</text>
+    </g>
+    <!-- membership lines -->
+    <g data-in="1.8" data-anim="draw" class="c2"><path class="wire c2 dash" d="M120,92 C120,140 400,130 400,165"/><path class="wire c2 dash" d="M360,92 C360,130 450,135 450,165"/></g>
+    <g data-in="4.3" data-anim="draw" class="c2"><path class="wire c2 dash" d="M600,92 C600,130 510,135 510,165"/><path class="wire c2 dash" d="M840,92 C840,140 560,130 560,165"/></g>
+    <g data-in="4.8" data-anim="draw" class="c2"><path class="wire c2 dash" d="M240,310 C240,275 420,275 430,244"/></g>
+    <g data-in="6.8" data-anim="draw" class="c2"><path class="wire c2 dash" d="M220,190 L333,190"/><path class="wire c2 dash" d="M740,190 L627,190"/></g>
+    <g data-in="10.8" data-anim="draw" class="c5"><path class="wire c5 dash" d="M720,310 C720,275 540,275 530,244"/></g>
+    <!-- members -->
+    <g data-in="1.5" data-anim="pop" class="c2"><rect class="box c2" x="20" y="30" width="200" height="62" rx="10"/><text x="120" y="56" text-anchor="middle" class="title">Native scalars</text><text x="120" y="77" text-anchor="middle" class="mono muted">Int · String · Instant …</text></g>
+    <g data-in="2" data-anim="pop" class="c2"><rect class="box c2" x="260" y="30" width="200" height="62" rx="10"/><text x="360" y="56" text-anchor="middle" class="title">Enum value</text><text x="360" y="77" text-anchor="middle" class="mono muted">ViaductSchema.EnumValue</text></g>
+    <g data-in="4" data-anim="pop" class="c2"><rect class="box c2" x="500" y="30" width="200" height="62" rx="10"/><text x="600" y="56" text-anchor="middle" class="title">ID leaf</text><text x="600" y="77" text-anchor="middle" class="mono muted">IDEngineResult</text></g>
+    <g data-in="4.3" data-anim="pop" class="c2"><rect class="box c2" x="740" y="30" width="200" height="62" rx="10"/><text x="840" y="56" text-anchor="middle" class="title">JSON leaf</text><text x="840" y="77" text-anchor="middle" class="mono muted">JSONEngineResult</text></g>
+    <g data-in="4.6" data-anim="pop" class="c2"><rect class="box c2" x="140" y="310" width="200" height="62" rx="10"/><text x="240" y="336" text-anchor="middle" class="title">Opaque leaf</text><text x="240" y="357" text-anchor="middle" class="mono muted">BackingDataEngineResult</text></g>
+    <g data-in="6.5" data-anim="pop" data-on="8.5-10.5" class="c2"><rect class="box c2" x="20" y="174" width="200" height="62" rx="10"/><text x="120" y="200" text-anchor="middle" class="title">Object result</text><text x="120" y="221" text-anchor="middle" class="mono muted">ObjectEngineResult</text></g>
+    <g data-in="6.8" data-anim="pop" data-on="8.5-10.5" class="c2"><rect class="box c2" x="740" y="174" width="200" height="62" rx="10"/><text x="840" y="200" text-anchor="middle" class="title">List result</text><text x="840" y="221" text-anchor="middle" class="mono muted">ListEngineResult</text></g>
+    <g data-in="10.5" data-anim="pop" data-on="10.5" class="c5"><rect class="box c5" x="620" y="310" width="200" height="62" rx="10"/><text x="720" y="336" text-anchor="middle" class="title">Field error</text><text x="720" y="357" text-anchor="middle" class="mono muted">ErrorEngineResult</text></g>
+    <!-- containment: cells hold further results -->
+    <defs><marker id="un-ah-c2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0L10,5L0,10z" class="ah c2"/></marker></defs>
+    <g data-in="8.5" data-anim="draw" class="c2"><path id="un-hold1" class="wire c2 thick" d="M220,212 L327,212" marker-end="url(#un-ah-c2)"/></g>
+    <g data-in="8.5" data-anim="draw" class="c2"><path id="un-hold2" class="wire c2 thick" d="M740,212 L633,212" marker-end="url(#un-ah-c2)"/></g>
+    <g data-in="9" class="c2"><text x="276" y="242" text-anchor="middle" class="small muted">cells hold</text><text x="684" y="242" text-anchor="middle" class="small muted">cells hold</text></g>
+    <g data-in="7" class="c2"><text x="276" y="182" text-anchor="middle" class="small muted">member</text><text x="684" y="182" text-anchor="middle" class="small muted">member</text></g>
+    <g data-in="9" data-dur="1.2" data-anim="move" data-path="#un-hold1" class="c2"><circle class="tok" r="6"/></g>
+    <g data-in="9.2" data-dur="1" data-anim="move" data-path="#un-hold2" class="c2"><circle class="tok" r="6"/></g>
+  </svg></div>
+  <ol class="beats">
+    <li data-at="0" data-title="Union"><code>EngineResult</code> is a typealias for <code>Any</code>. The Kotlin type doesn&rsquo;t restrict its members, so result constructors and cell completion check them instead.</li>
+    <li data-at="1.5" data-title="Native members">Native scalar values, such as <code>firstName</code>&rsquo;s <code>String</code>, are members as they are, and so are schema enum values (<code>ViaductSchema.EnumValue</code>).</li>
+    <li data-at="4" data-title="Leaves">Three leaves wrap values that plain Kotlin types can&rsquo;t tell apart: <code>IDEngineResult</code> for GraphQL IDs such as <code>customerId</code>, <code>JSONEngineResult</code> for JSON and <code>BackingDataEngineResult</code> for the value of a field typed with Viaduct&rsquo;s <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/model/EngineValueData.kt" data-lines="219-228" data-expect="BackingDataEngineResult.of(this)"><code>BackingData</code> scalar</a>. Each is a sealed interface.</li>
+    <li data-at="6.5" data-title="Containers">OERs, like the Booking OER for <code>booking</code>, and <a class="gl" href="../glossary.html#list-result">list results</a>, like the one for <code>messages</code>, are members too.</li>
+    <li data-at="8.5" data-title="Cells">Both containers hold cells, an OER by key and a list result by index, so each Message in <code>messages</code> sits in its own cell. Each cell&rsquo;s value promise holds another <code>EngineResult</code>, or null for GraphQL null, so results nest.</li>
+    <li data-at="10.5" data-title="Field error">A field error is a member as well. If customer&rsquo;s resolver throws, <code>publishFieldError</code> completes customer&rsquo;s cell with an <code>ErrorEngineResult</code> that wraps the cause.</li>
+  </ol>
+</figure>
+<h3>Members and their implementations</h3>
+<div class="htree"><ul>
+  <li data-kind="sealed interface" class="c2"><span class="ht-name">ObjectEngineResult</span><div class="ht-doc">OER; holds the type-check slot. <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/model/EngineResult.kt" data-lines="119-124" data-expect="sealed interface ObjectEngineResult||typeCheckerResult">EngineResult.kt</a></div><ul>
+    <li data-kind="sealed interface" class="c2"><span class="ht-name">MutationObjectEngineResult</span><div class="ht-doc">Result for the Mutation root and each nested mutation namespace; its keys are mutation keys, which also include the response key (see Keys). <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/model/MutationObjectEngineResult.kt" data-lines="3-5" data-expect="sealed interface MutationObjectEngineResult : ObjectEngineResult">MutationObjectEngineResult.kt</a></div></li></ul></li>
+  <li data-kind="sealed interface" class="c2"><span class="ht-name">ListEngineResult</span><div class="ht-doc">A List of cells. <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/model/EngineResult.kt" data-lines="411-411" data-expect="sealed interface ListEngineResult : List&lt;EngineResultCell&gt;">EngineResult.kt</a></div></li>
+  <li data-kind="sealed interface" class="c5"><span class="ht-name">ErrorEngineResult</span><div class="ht-doc">Field error. <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/model/EngineResult.kt" data-lines="85-104" data-expect="sealed interface ErrorEngineResult||private class ErrorEngineResultImpl">EngineResult.kt</a></div></li>
+</ul></div>
+<div class="explain"><p>Three more sealed-interface members are leaves: <code>IDEngineResult</code> for GraphQL IDs (<a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/model/EngineResult.kt" data-lines="20-34" data-expect="typealias EngineResult = Any||sealed interface IDEngineResult">EngineResult.kt</a>), <code>JSONEngineResult</code> for JSON (<a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/model/JSONEngineResult.kt" data-lines="3-15" data-expect="sealed interface JSONEngineResult||private data class JSONEngineResultImpl">JSONEngineResult.kt</a>) and <code>BackingDataEngineResult</code> for opaque backing data (<a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/model/BackingDataEngineResult.kt" data-lines="3-14" data-expect="sealed interface BackingDataEngineResult||private class BackingDataEngineResultImpl">BackingDataEngineResult.kt</a>). Each sealed interface here hides a private implementation class. OERs share one implementation class, <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/model/EngineResult.kt" data-lines="850-855" data-expect="private open class ObjectResultImpl"><code>ObjectResultImpl</code></a>. It has a mutation subclass, <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/model/EngineResult.kt" data-lines="1345-1346" data-expect="ObjectResultImpl(type||MutationObjectEngineResult {"><code>MutationObjectEngineResultImpl</code></a>, which also implements <code>MutationObjectEngineResult</code>.</p></div>
+<p class="where">Where in code: <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/model/EngineResult.kt" data-lines="8-20" data-expect="The semantic union contains||typealias EngineResult = Any">EngineResult</a> · <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/FieldResolutionLogic.kt" data-lines="89-109" data-expect="fun publishFieldError||ErrorEngineResult.of(EngineErrorData.of(cause))">publishFieldError</a></p>
+</section>
+
+<!-- ============================== 2. KEYS ============================== -->
+<section id="keys"><h2>Keys: how much is known about a field coordinate?</h2>
+<div class="explain">
+<p>How does a reader find <code>customer</code>&rsquo;s cell on the Booking OER? By its key, a field coordinate: a field plus its arguments, with no alias. Runtime2 learns more about a coordinate as a request goes on, and each key type records how much it knows. In particular, a key can name its cell before its arguments are settled.</p>
+</div>
+<aside class="today"><b>In today&rsquo;s engine</b> an <a class="src" data-src="core/engine/runtime/src/main/kotlin/viaduct/engine/runtime/result/ObjectEngineResult.kt" data-lines="13-16" data-expect="class Key private constructor("><code>ObjectEngineResult.Key</code></a> holds the field name, the alias and the coerced argument values, and the alias is part of its equality. Runtime2&rsquo;s keys leave the alias out, except for mutation keys.</aside>
+<figure class="scene" data-duration="16">
+  <div class="stage"><svg viewBox="0 0 960 400" role="img" aria-label="Key refinement as nested regions: Key contains ObjectKey contains GroundKey, which contains MutationKey and ParentKey">
+    <g data-in="0" data-anim="fade" class="c1"><rect class="box c1" x="20" y="20" width="920" height="360" rx="18"/>
+      <text x="40" y="48" class="title">Key</text><text x="40" y="68" class="mono muted">ObjectEngineResult.Key</text><text x="40" y="88" class="small muted">field + arguments</text></g>
+    <g data-in="0.8" data-anim="pop" class="c1"><rect class="box" x="35" y="150" width="200" height="40" rx="8"/><text x="135" y="175" text-anchor="middle" class="mono">Node.id</text><text x="135" y="210" text-anchor="middle" class="small muted">interface field</text></g>
+    <g data-in="2.5" data-anim="fade" class="c1"><rect class="box c1" x="250" y="40" width="680" height="330" rx="16"/>
+      <text x="270" y="66" class="title">Object key</text><text x="270" y="86" class="mono muted">ObjectKey</text><text x="270" y="104" class="small muted">object-type field</text></g>
+    <g data-in="5.5" data-anim="fade" class="c1"><rect class="box c1" x="470" y="125" width="450" height="235" rx="14"/>
+      <text x="905" y="150" text-anchor="end" class="title">Ground key</text><text x="905" y="168" text-anchor="end" class="mono muted">GroundKey</text><text x="905" y="186" text-anchor="end" class="small muted">Arguments.Ground</text></g>
+    <g data-in="3" data-anim="pop" class="c1"><rect class="box" x="258" y="125" width="206" height="40" rx="8"/><text x="361" y="150" text-anchor="middle" class="mono">messages(last: $n)</text></g>
+    <g data-in="7" data-anim="pop" class="c2"><rect class="box c2" x="485" y="150" width="210" height="40" rx="8"/><text x="590" y="175" text-anchor="middle" class="mono">messages(last: 10)</text></g>
+    <g data-in="7.4" data-anim="pop" class="c2"><rect class="box c2" x="703" y="150" width="78" height="40" rx="8"/><text x="742" y="175" text-anchor="middle" class="mono">customer</text></g>
+    <g data-in="10" data-anim="pop" class="c1"><rect class="box c1" x="490" y="210" width="200" height="135" rx="12"/><text x="505" y="234" class="title">Mutation key</text><text x="505" y="252" class="mono muted">+ responseKey</text></g>
+    <g data-in="10.6" data-anim="slide" data-from="0,12" class="c1"><rect class="box" x="505" y="264" width="170" height="30" rx="7"/><text x="590" y="284" text-anchor="middle" class="mono">a: markRead(id: "m1")</text></g>
+    <g data-in="11.1" data-anim="slide" data-from="0,12" class="c1"><rect class="box" x="505" y="302" width="170" height="30" rx="7"/><text x="590" y="322" text-anchor="middle" class="mono">b: markRead(id: "m1")</text></g>
+    <g data-in="13" data-anim="pop" class="c1"><rect class="box c1" x="705" y="210" width="200" height="135" rx="12"/><text x="720" y="234" class="title">Parent key</text><text x="720" y="252" class="mono muted">Arguments.Resolved</text>
+      <rect class="box" x="720" y="283" width="170" height="30" rx="7"/><text x="805" y="303" text-anchor="middle" class="mono">@parent field</text></g>
+  </svg></div>
+  <ol class="beats">
+    <li data-at="0" data-title="Key">A <code>Key</code> is a field plus its arguments. A key on an interface field, such as <code>Node.id</code>, stays a plain <code>Key</code> (Runtime2&rsquo;s own <code>ObjectEngineResult.Key</code>, a separate type from today&rsquo;s class of the same name). It can&rsquo;t address a cell, because only a field of a concrete object type can.</li>
+    <li data-at="2.5" data-title="Object key"><code>ObjectKey</code> extends <code>Key</code>. Its field belongs to a concrete object type, so it can address a cell, even while its arguments still hold variables.</li>
+    <li data-at="5.5" data-title="Ground key"><code>GroundKey</code> extends <code>ObjectKey</code>, and its arguments are <code>Arguments.Ground</code>. A <a class="gl" href="../glossary.html#ground-key">ground key</a> has no variables left, which is what calling a resolver needs.</li>
+    <li data-at="7" data-title="Two examples"><code>messages(last: $n)</code>, from <code>unreadCount</code>&rsquo;s RSS, holds a variable. Its key is a <a class="gl" href="../glossary.html#symbolic-key">symbolic key</a>, an object key that already names its cell, and binding <code>$n</code> to 50 later &ldquo;never rekeys the cell.&rdquo; The query&rsquo;s <code>messages(last: 10)</code> and <code>customer</code> are ground, like every key the query selects, since the query declares no variables of its own. The two <code>messages</code> keys differ, so they name two cells and get two resolver calls.</li>
+    <li data-at="10" data-title="Mutation key"><code>MutationKey</code> extends <code>GroundKey</code> and adds the response key. So <code>a: markRead(id: "m1")</code> and <code>b: markRead(id: "m1")</code> in one mutation have different <a class="gl" href="../glossary.html#mutation-key">mutation keys</a> and get separate cells.</li>
+    <li data-at="13" data-title="Parent key"><code>ParentKey</code> extends <code>GroundKey</code>. A parent key names an <code>@parent</code> field, an argumentless field that the engine provides on a child object, whose value is the OER that contains the child. Its arguments are always the empty <code>Arguments.Resolved</code>, because the field <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/model/EngineResult.kt" data-lines="299-308" data-expect="Parent key field must have no arguments">takes none</a>. Creating the child&rsquo;s orchestrator <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/InstallParentBackedgeFields.kt" data-lines="8-20" data-expect="target.setCellValue(key, containing.target)">fills its cell</a> with that containing OER, a <b>parent backedge</b> pointing back up the tree, and no resolver runs.</li>
+  </ol>
+</figure>
+<div class="explain">
+<p>An <code>@parent</code> field lets a child&rsquo;s resolver read the object that contains it. Suppose <code>User</code> also had these two fields, and the query selected <code>greeting</code>:</p>
+<pre class="cmd">booking: Booking <span class="d">@parent</span>
+greeting: String <span class="d">@resolver(objectValueFragment: "booking { id }")</span></pre>
+<p>The User&rsquo;s <code>booking</code> cell holds the Booking OER. The selection <code>booking { id }</code> creates <a class="gl" href="../glossary.html#parent-demand">parent demand</a> for the Booking&rsquo;s <code>id</code>. Closure <a class="gl" href="../glossary.html#lift">lifts</a> it into the Booking&rsquo;s construction demand, and successor demand lifts it onto the resolver of <code>Query.booking</code>, which produces the Booking. Both lifts are <a class="src" data-src="core/engine/runtime2/impldocs/architecture/resolution.md" data-lines="236" data-expect="This static lift ensures a selective producer returns the necessary ancestor coordinates before child identity exists">static</a>: they read the query&rsquo;s selections under the Booking, down to <code>greeting</code>, and the registered input of greeting&rsquo;s resolver. So the Booking&rsquo;s closure adds <code>id</code> <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/ConstructionDemandClosure.kt" data-lines="107" data-expect="initialDemand.withLiftedParentDemand(world)">before it freezes</a>, while the User doesn&rsquo;t exist yet.</p>
+<aside class="today"><b>In today&rsquo;s engine</b> <code>@parent</code> fields exist too: <code>FieldResolver</code> <a class="src" data-src="core/engine/runtime/src/main/kotlin/viaduct/engine/runtime/execution/FieldResolver.kt" data-lines="494-498" data-expect="fetchParentField(field, parameters, dataFetchingEnvironmentProvider)">fetches one</a> with <code>fetchParentField</code> instead of calling a resolver.</aside>
+</div>
+<p class="where">Where in code: <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/model/EngineResult.kt" data-lines="143-155" data-expect="sealed interface Key">Key</a> · <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/model/EngineResult.kt" data-lines="205-212" data-expect="even when its arguments contain||sealed interface ObjectKey : Key, PathComponent">ObjectKey</a> · <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/model/EngineResult.kt" data-lines="240-244" data-expect="whose arguments have resolved||sealed interface GroundKey : ObjectKey">GroundKey</a> · <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/model/EngineResult.kt" data-lines="274-276" data-expect="sealed interface MutationKey : GroundKey">MutationKey</a> · <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/model/EngineResult.kt" data-lines="288-296" data-expect="sealed interface ParentKey : GroundKey">ParentKey</a></p>
+</section>
+
+<!-- ============================== 3. CELLS AND PROMISES ============================== -->
+<section id="promises"><h2>Cells and promises: write-once slots</h2>
+<div class="explain">
+<p>A cell has to meet two needs: a reader may need it before its writer even exists, yet exactly one writer must own it. So each part of a cell is write-once, and the value promise is <i>reservable</i>.</p>
+<p>Four verbs describe its value&rsquo;s life:</p>
+<ul>
+<li>To reserve a cell is to create it with an unclaimed value promise, so readers can wait before any writer exists.</li>
+<li>To <b>claim</b> a reserved value promise is to make one writer responsible for completing it. Registering that writer with the cycle checker is a separate step.</li>
+<li>To <b>complete</b> a claimed value promise is to write its value, once. <code>set()</code> claims and completes in one call, which is how passive descent fills a passive field&rsquo;s reserved cell.</li>
+<li>To freeze, which acts on a whole OER, is to seal its key set and fail every unclaimed reservation. Claimed promises can still complete.</li>
+</ul>
+<p>In the example, the Booking orchestrator reserves and claims <code>customer</code>&rsquo;s cell and registers customer&rsquo;s resolver task with the cycle checker as its writer, all before it dispatches that task.</p>
+</div>
+<aside class="today"><b>In today&rsquo;s engine</b> a <a class="src" data-src="core/engine/runtime/src/main/kotlin/viaduct/engine/runtime/Cell.kt" data-lines="22-36" data-expect="Only one writer can set the value of a cell"><code>Cell</code></a> is a fixed array of slots, <a class="src" data-src="core/engine/runtime/src/main/kotlin/viaduct/engine/runtime/ObjectEngineResultImpl.kt" data-lines="248-250" data-expect="val ACCESS_CHECK_SLOT: Int = 1">a raw-value slot and an access-check slot</a>. One <code>computeIfAbsent</code> call sets every slot, and a later writer does nothing. Runtime2 gives each part its own write-once promise, adds an include-or-skip decision, and names the value promise&rsquo;s one writer when it is claimed.</aside>
+<h3>The cell</h3>
+<div class="htree"><ul>
+  <li data-kind="sealed interface" class="c2"><span class="ht-name">EngineResultCell</span><div class="ht-doc">Cell: an <a class="gl" href="../glossary.html#activation">activation</a> decision, a value promise and the <a class="gl" href="../glossary.html#field-check-slot">field-check slot</a>, implemented by a private class. <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/model/EngineResult.kt" data-lines="62-87" data-expect="sealed interface EngineResultCell||val value: ReservablePromise<EngineResult?>||val fieldCheckerResult: Promise<CheckerResult?>">EngineResult.kt</a></div></li>
+</ul></div>
+<div class="explain"><p>Every cell has the same three parts: an activation decision (include or skip), a value promise, and a field-check slot (<code>fieldCheckerResult</code>) that holds its access check&rsquo;s <a class="gl" href="../glossary.html#checker-result">checker result</a>. A skipped cell counts as absent: <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/model/EngineResult.kt" data-lines="1246-1248" data-expect="cell.awaitActivated()">awaiting its value</a> throws. <code>customerId</code> and <code>customer</code> look exactly alike. What differs is who completes <code>value</code>, and when: the booking resolver&rsquo;s task fills <code>customerId</code> from that resolver&rsquo;s output, while customer&rsquo;s own resolver task fills <code>customer</code>. The interface below highlights the three parts.</p></div>
+<figure class="code" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/model/EngineResult.kt" data-lines="62-83" data-hl="67,79,82" data-expect="sealed interface EngineResultCell||ReservablePromise<EngineResult?>||fieldCheckerResult" data-title="EngineResultCell"><figcaption><span class="path" title="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/model/EngineResult.kt">EngineResultCell — <span>core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/model/EngineResult.kt:62-83</span></span><a>view source ↗</a></figcaption><pre class="src" data-start="62"><code class="language-kotlin">sealed interface EngineResultCell {
+    /** Whether activation and both the value and field-checker-result promises have completed. */
+    val isCompleted: Boolean
+
+    /** Atomically completes this cell&#x27;s activation decision and reports whether this call won. */
+    fun setActivated(activated: Boolean): Boolean
+
+    /** Suspends until activation is decided and throws when this cell is not activated. */
+    suspend fun awaitActivated()
+
+    /** Suspends until activation is decided and returns that decision. */
+    suspend fun fetchActivated(): Boolean
+
+    /** Throws unless this cell has already been activated. */
+    fun checkActivated()
+
+    /** The reservable raw-value promise owned by this cell. */
+    val value: ReservablePromise&lt;EngineResult?&gt;
+
+    /** The field-checker-result promise owned by this cell. */
+    val fieldCheckerResult: Promise&lt;CheckerResult?&gt;
+}</code></pre></figure>
+<h3>Promises</h3>
+<div class="htree"><ul>
+  <li data-kind="sealed interface" class="c2"><span class="ht-name">Promise</span><div class="ht-doc">Write-once value. <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/model/Promise.kt" data-lines="9-13" data-expect="A write-once value||sealed interface Promise">Promise.kt</a></div><ul>
+    <li data-kind="sealed interface" class="c2"><span class="ht-name">ReservablePromise</span><div class="ht-doc">Adds claim, set and freeze. <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/model/Promise.kt" data-lines="132-133" data-expect="sealed interface ReservablePromise">Promise.kt</a></div></li></ul></li>
+</ul></div>
+<div class="explain"><p>Private classes do the work behind these two interfaces. The plain promise is a small state machine that lets readers arrive early and wait. The reservable promise wraps one and adds the rules for its single writer. A cell&rsquo;s value promise fails only when no value can come: its reservation was frozen without a writer, or its task was cancelled. A resolver that throws still completes the value, with an <code>ErrorEngineResult</code>.</p></div>
+<figure class="scene" data-duration="21">
+  <div class="stage"><svg viewBox="0 0 960 490" role="img" aria-label="Two state machines: a deferred promise moving Pending, Waiting, Succeeded or Failed; a reservable promise moving Unclaimed, Claimed, Completed or Failed">
+    <defs>
+      <marker id="pr-ah-c2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0L10,5L0,10z" class="ah c2"/></marker>
+      <marker id="pr-ah-c5" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0L10,5L0,10z" class="ah c5"/></marker>
+      <marker id="pr-ah-c4" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0L10,5L0,10z" class="ah c4"/></marker>
+    </defs>
+    <!-- top lane -->
+    <g data-in="0"><text x="30" y="24" class="title">Deferred promise</text><text x="200" y="24" class="mono muted">DeferredPromiseImpl · PromiseState</text></g>
+    <g data-in="9.5" data-on="9.5-12"><rect class="zone" x="588" y="40" width="204" height="180" rx="14"/></g>
+    <g data-in="9.5"><text x="806" y="134" class="small muted">final states</text></g>
+    <g data-in="0" data-anim="pop" data-on="0-2"><rect class="box" x="40" y="100" width="160" height="60" rx="10"/><text x="120" y="126" text-anchor="middle" class="title">Pending</text><text x="120" y="146" text-anchor="middle" class="mono muted small">PendingPromiseState</text></g>
+    <g data-in="2" data-anim="draw" class="c4"><path id="pr-e1" class="wire c4" d="M200,130 L298,130" marker-end="url(#pr-ah-c4)"/></g>
+    <g data-in="2.2"><text x="249" y="120" text-anchor="middle" class="mono small">await()</text></g>
+    <g data-in="2.4" data-anim="pop" data-on="2.6-4.5" class="c4"><rect class="box c4" x="300" y="100" width="160" height="60" rx="10"/><text x="380" y="126" text-anchor="middle" class="title">Waiting</text><text x="380" y="146" text-anchor="middle" class="mono muted small">WaitingPromiseState</text></g>
+    <g data-in="2" data-dur="0.8" data-anim="move" data-keep="" data-out="5.4" data-path="#pr-e1" class="c4"><circle class="tok" r="7"/></g>
+    <g data-in="4.5" data-anim="draw" class="c2"><path id="pr-e2" class="wire c2" d="M460,120 L598,82" marker-end="url(#pr-ah-c2)"/></g>
+    <g data-in="4.5"><text x="492" y="88" text-anchor="middle" class="mono small">complete()</text></g>
+    <g data-in="4.5" data-anim="draw" class="c5"><path class="wire c5" d="M460,140 L598,178" marker-end="url(#pr-ah-c5)"/></g>
+    <g data-in="4.5"><text x="482" y="182" text-anchor="middle" class="mono small">fail() · cancel()</text></g>
+    <g data-in="4.6" data-anim="pop" data-on="5.2-7" class="c2"><rect class="box c2" x="600" y="50" width="180" height="56" rx="10"/><text x="690" y="74" text-anchor="middle" class="title">Succeeded</text><text x="690" y="94" text-anchor="middle" class="mono muted">SuccessfulPromiseState</text></g>
+    <g data-in="4.6" data-anim="pop" class="c5"><rect class="box c5" x="600" y="154" width="180" height="56" rx="10"/><text x="690" y="178" text-anchor="middle" class="title">Failed</text><text x="690" y="198" text-anchor="middle" class="mono muted">FailedPromiseState</text></g>
+    <g data-in="4.7" data-dur="0.7" data-anim="move" data-path="#pr-e2" class="c2"><circle class="tok" r="7"/></g>
+    <g data-in="7" class="c2"><path class="wire c2 dash" d="M120,100 C140,40 540,40 598,70" marker-end="url(#pr-ah-c2)"/></g>
+    <g data-in="7.2"><text x="420" y="40" text-anchor="middle" class="mono small">complete()</text></g>
+    <g data-in="7" class="c5"><path class="wire c5 dash" d="M120,160 C140,230 540,230 598,195" marker-end="url(#pr-ah-c5)"/></g>
+    <g data-in="7.2"><text x="360" y="236" text-anchor="middle" class="mono small">fail() · cancel()</text></g>
+    <!-- bottom lane -->
+    <g data-in="12"><text x="30" y="262" class="title">Reservable promise</text><text x="215" y="262" class="mono muted">ReservablePromiseImpl</text></g>
+    <g data-in="12" data-anim="pop" data-on="12-15"><rect class="box" x="40" y="340" width="160" height="60" rx="10"/><text x="120" y="376" text-anchor="middle" class="title">Unclaimed</text></g>
+    <g data-in="13" data-anim="draw" class="c4"><path id="pr-claim" class="wire c4" d="M200,370 L298,370" marker-end="url(#pr-ah-c4)"/></g>
+    <g data-in="13.2"><text x="249" y="360" text-anchor="middle" class="mono small">claim()</text></g>
+    <g data-in="13.4" data-anim="pop" data-on="13.8-15" class="c4"><rect class="box c4" x="300" y="340" width="160" height="60" rx="10"/><text x="380" y="376" text-anchor="middle" class="title">Claimed</text></g>
+    <g data-in="13" data-dur="0.8" data-anim="move" data-keep="" data-out="15.6" data-path="#pr-claim" class="c4"><circle class="tok" r="7"/></g>
+    <g data-in="15" data-anim="draw" class="c2"><path id="pr-done" class="wire c2" d="M460,360 L598,322" marker-end="url(#pr-ah-c2)"/></g>
+    <g data-in="15"><text x="492" y="328" text-anchor="middle" class="mono small">complete()</text></g>
+    <g data-in="15.1" data-anim="pop" data-on="15.6-17.5" class="c2"><rect class="box c2" x="600" y="290" width="180" height="56" rx="10"/><text x="690" y="324" text-anchor="middle" class="title">Completed</text></g>
+    <g data-in="15.2" data-dur="0.7" data-anim="move" data-path="#pr-done" class="c2"><circle class="tok" r="7"/></g>
+    <g data-in="15.4" data-anim="draw" class="c5"><path class="wire c5" d="M460,384 L598,414" marker-end="url(#pr-ah-c5)"/></g>
+    <g data-in="15.4"><text x="545" y="388" text-anchor="middle" class="mono small">cancel()</text></g>
+    <g data-in="16" class="c2"><path class="wire c2 dash" d="M120,340 C140,280 540,280 598,310" marker-end="url(#pr-ah-c2)"/></g>
+    <g data-in="16.2"><text x="360" y="282" text-anchor="middle" class="mono small">set()</text></g>
+    <g data-in="17.5" data-anim="draw" class="c5"><path id="pr-frz" class="wire c5" d="M120,400 C140,470 540,470 598,430" marker-end="url(#pr-ah-c5)"/></g>
+    <g data-in="17.7"><text x="360" y="476" text-anchor="middle" class="mono small">freeze()</text></g>
+    <g data-in="15.4" data-anim="pop" data-on="18" class="c5"><rect class="box c5" x="600" y="394" width="180" height="56" rx="10"/><text x="690" y="428" text-anchor="middle" class="title">Failed</text></g>
+    <g data-in="17.7" data-dur="1" data-anim="move" data-path="#pr-frz" class="c5"><circle class="tok" r="7"/></g>
+  </svg></div>
+  <ol class="beats">
+    <li data-at="0" data-title="Pending">The state machine is <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/model/Promise.kt" data-lines="53-130" data-expect="private class DeferredPromiseImpl||private data object PendingPromiseState||private class WaitingPromiseState||private class FailedPromiseState"><code>DeferredPromiseImpl</code></a>, which starts in <code>PendingPromiseState</code>. A value known up front skips it and uses <code>CompletedPromiseImpl</code>, a promise that is already complete.</li>
+    <li data-at="2" data-title="await()">A reader that calls <code>await()</code> before completion moves Pending to Waiting. Only then does the promise allocate coroutine wait state, a <code>CompletableDeferred</code> the reader suspends on.</li>
+    <li data-at="4.5" data-title="Final states">From Waiting, <code>complete()</code> leads to Succeeded and resumes the waiting readers with the value. <code>fail()</code> or <code>cancel()</code> leads to Failed and resumes them with the cause.</li>
+    <li data-at="7" data-title="From Pending">If nobody waited, the same calls lead straight from Pending to a final state, and no wait state is ever allocated.</li>
+    <li data-at="9.5" data-title="Final">Succeeded and Failed are final. A later <code>complete()</code>, <code>fail()</code> or <code>cancel()</code> just returns false, so the first one wins.</li>
+    <li data-at="12" data-title="claim()">A reserved cell&rsquo;s value is backed by a <code>ReservablePromiseImpl</code>, which wraps a deferred promise as its delegate. It starts Unclaimed, so readers can already await it, and <code>claim()</code> moves it to Claimed.</li>
+    <li data-at="15" data-title="complete() and set()">Only a claimed promise accepts <code>complete()</code>, which leads to Completed. <code>set()</code> claims and completes in one call. A claimed promise can still fail: when a resolver task is cancelled, it <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/FieldResolverTask.kt" data-lines="242" data-expect="publicationCell.value.cancel(cause)">cancels its cell&rsquo;s value</a>, which leads to Failed.</li>
+    <li data-at="17.5" data-title="freeze()"><code>freeze()</code> while Unclaimed fails the reservation, so its readers get an error instead of waiting for a writer that will never come. A promise that is already claimed is left alone and can still complete.</li>
+  </ol>
+</figure>
+<div class="explain"><p>One more layer sits on top. A cell wraps its two promises so they respect activation, using <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/model/EngineResult.kt" data-lines="1196-1199" data-expect="private class ActivationAwarePromise"><code>ActivationAwarePromise</code></a> for the field-check slot and <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/model/EngineResult.kt" data-lines="1236-1239" data-expect="private class ActivationAwareReservablePromise"><code>ActivationAwareReservablePromise</code></a> for the value.</p></div>
+<p class="where">Where in code: <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/model/EngineResult.kt" data-lines="51-83" data-expect="one write-once activation decision||sealed interface EngineResultCell">EngineResultCell</a> · <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/model/Promise.kt" data-lines="132-154" data-expect="sealed interface ReservablePromise||fun claim||fun freeze">ReservablePromise</a></p>
+</section>
+
+<!-- ============================== 4. TASKS ============================== -->
+<section id="tasks"><h2>Tasks: two parallel chains</h2>
+<div class="explain">
+<p>Now the actors themselves. Each object occurrence gets one orchestrator, and each cell of an active field gets one resolver task. The root Query&rsquo;s orchestrator dispatches <code>booking</code>&rsquo;s resolver task. The Booking&rsquo;s orchestrator dispatches four resolver tasks, for <code>customer</code>, <code>unreadCount</code> and the two <code>messages</code> cells, plus a checker task for <code>customer</code>. The User and Message orchestrators dispatch none.</p>
+<p>Both kinds sit at the bottom of a short chain: a shared contract, then a coroutine base, then the concrete class. Hollow arrowheads mean &ldquo;extends or implements&rdquo;. Which tasks stay outside both chains?</p>
+</div>
+<figure class="scene" data-duration="16">
+  <div class="stage"><svg viewBox="0 0 960 470" role="img" aria-label="Two inheritance chains of three types each, plus standalone checker tasks and the mutation orchestrator; three tasks implement ResolutionExecutionContext. Hollow arrowheads mean extends or implements">
+    <defs>
+      <marker id="tk-ext" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="11" markerHeight="11" orient="auto"><path d="M0,0L10,5L0,10z" class="ah hollow"/></marker>
+    </defs>
+    <g data-in="0"><text x="160" y="32" text-anchor="middle" class="title">Orchestrator chain</text><text x="470" y="32" text-anchor="middle" class="title">Resolver-task chain</text><text x="795" y="32" text-anchor="middle" class="title">Standalone</text></g>
+    <!-- row 1 -->
+    <g data-in="0.4" data-anim="pop" data-on="0.4-2.5" class="c4"><rect class="box c4" x="30" y="50" width="260" height="64" rx="10"/><text x="160" y="70" text-anchor="middle" class="title">Orchestrator contract</text><text x="160" y="88" text-anchor="middle" class="mono">SharedOrchestrationTask</text><text x="160" y="105" text-anchor="middle" class="small muted">interface</text></g>
+    <g data-in="0.7" data-anim="pop" data-on="0.7-2.5" class="c4"><rect class="box c4" x="340" y="50" width="260" height="64" rx="10"/><text x="470" y="70" text-anchor="middle" class="title">Resolver-task contract</text><text x="470" y="88" text-anchor="middle" class="mono">SharedFieldResolverTask</text><text x="470" y="105" text-anchor="middle" class="small muted">interface</text></g>
+    <!-- row 2 -->
+    <g data-in="2.5" data-anim="pop" data-on="2.5-5" class="c4"><rect class="box c4" x="30" y="160" width="260" height="64" rx="10"/><text x="160" y="180" text-anchor="middle" class="title">Coroutine orchestrator base</text><text x="160" y="198" text-anchor="middle" class="mono">CoroutineOrchestrationTaskBase</text><text x="160" y="215" text-anchor="middle" class="small muted">abstract class</text></g>
+    <g data-in="2.8" data-anim="pop" data-on="2.8-5" class="c4"><rect class="box c4" x="340" y="160" width="260" height="64" rx="10"/><text x="470" y="180" text-anchor="middle" class="title">Coroutine resolver-task base</text><text x="470" y="198" text-anchor="middle" class="mono">CoroutineFieldResolverTaskBase</text><text x="470" y="215" text-anchor="middle" class="small muted">abstract class</text></g>
+    <g data-in="2.6" data-anim="draw"><path class="wire c4" d="M160,160 L160,116" marker-end="url(#tk-ext)"/><path class="wire c4" d="M470,160 L470,116" marker-end="url(#tk-ext)"/></g>
+    <!-- row 3 -->
+    <g data-in="5" data-anim="pop" data-on="5-8" class="c4"><rect class="box c4" x="30" y="270" width="260" height="64" rx="10"/><text x="160" y="290" text-anchor="middle" class="title">Orchestrator</text><text x="160" y="308" text-anchor="middle" class="mono">OrchestrationTask</text><text x="160" y="325" text-anchor="middle" class="small muted">class</text></g>
+    <g data-in="5.3" data-anim="pop" data-on="5.3-8,10-13" class="c4"><rect class="box c4" x="340" y="270" width="260" height="64" rx="10"/><text x="470" y="290" text-anchor="middle" class="title">Resolver task</text><text x="470" y="308" text-anchor="middle" class="mono">FieldResolverTask</text><text x="470" y="325" text-anchor="middle" class="small muted">class</text></g>
+    <g data-in="5.1" data-anim="draw"><path class="wire c4" d="M160,270 L160,226" marker-end="url(#tk-ext)"/><path class="wire c4" d="M470,270 L470,226" marker-end="url(#tk-ext)"/></g>
+    <!-- standalone checkers -->
+    <g data-in="8" data-anim="pop" data-on="8-10,10-13" class="c5"><rect class="box c5" x="650" y="270" width="140" height="64" rx="10"/><text x="720" y="296" text-anchor="middle" class="title">Field checker task</text><text x="720" y="318" text-anchor="middle" class="mono">FieldCheckerTask</text></g>
+    <g data-in="8.3" data-anim="pop" data-on="8.3-10,10-13" class="c5"><rect class="box c5" x="800" y="270" width="140" height="64" rx="10"/><text x="870" y="296" text-anchor="middle" class="title">Type checker task</text><text x="870" y="318" text-anchor="middle" class="mono">TypeCheckerTask</text></g>
+    <!-- execution-context band -->
+    <g data-in="10" data-anim="fade" data-on="10-13" class="c1"><rect class="box c1" x="340" y="385" width="600" height="64" rx="12"/><text x="640" y="410" text-anchor="middle" class="title">Execution context</text><text x="640" y="432" text-anchor="middle" class="mono muted">ResolutionExecutionContext · interface</text></g>
+    <g data-in="10.3" data-anim="draw"><path class="wire c1" d="M470,334 L470,383" marker-end="url(#tk-ext)"/><path class="wire c1" d="M720,334 L720,383" marker-end="url(#tk-ext)"/><path class="wire c1" d="M870,334 L870,383" marker-end="url(#tk-ext)"/></g>
+    <!-- mutation -->
+    <g data-in="13" data-anim="pop" data-on="13" class="c4"><rect class="box c4" x="650" y="50" width="290" height="64" rx="10"/><text x="795" y="70" text-anchor="middle" class="title">Mutation orchestrator</text><text x="795" y="88" text-anchor="middle" class="mono">MutationOrchestrationTask</text><text x="795" y="105" text-anchor="middle" class="small muted">class · no supertype</text></g>
+  </svg></div>
+  <ol class="beats">
+    <li data-at="0" data-title="Contracts">Each chain starts with a contract interface: <code>SharedOrchestrationTask</code> and <code>SharedFieldResolverTask</code>. The contracts are shared with the <a class="gl" href="../glossary.html#reference-resolver-families">reference resolver families</a>, alternate resolution engines that implement the same semantics and live in the repository&rsquo;s unpublished <code>src/testFixtures</code> tree, which is not part of the published library (see <a href="reference-resolver-families.html">Reference resolver families</a>). No caller uses the resolver-task contract polymorphically; in the code&rsquo;s words, &ldquo;enforcing this common structure is intentional.&rdquo;</li>
+    <li data-at="2.5" data-title="Coroutine bases">An abstract coroutine base implements each contract. The orchestrator base owns one-shot dispatch, so a second dispatch throws. The resolver-task base catches an ordinary exception and completes the cell with an error instead, while letting cancellation and JVM <code>Error</code>s through.</li>
+    <li data-at="5" data-title="Tasks">The concrete <code>OrchestrationTask</code> and <code>FieldResolverTask</code> extend those bases, and they are the orchestrator and resolver task that Runtime2&rsquo;s main engine runs, as opposed to the reference resolvers.</li>
+    <li data-at="8" data-title="Checkers">The checker tasks, <code>FieldCheckerTask</code> and <code>TypeCheckerTask</code>, extend no task base. Customer&rsquo;s checker runs in a <code>FieldCheckerTask</code>.</li>
+    <li data-at="10" data-title="Execution context"><code>FieldResolverTask</code> and both checker tasks implement <code>ResolutionExecutionContext</code>, the <b>execution context</b>: the capabilities one invocation gets, such as resolving a selection set from the Query root. Tenant resolvers keep the tenant-API contexts they use today. Underneath, the engine hands each resolver executor an <a class="src" data-src="core/engine/api/src/main/kotlin/viaduct/engine/api/spi/FieldResolverExecutor.kt" data-lines="94-98" data-expect="context: EngineExecutionContext"><code>EngineExecutionContext</code></a>, from which the tenant runtime builds those contexts (<a class="src" data-src="core/tenant/runtime/src/main/kotlin/viaduct/tenant/runtime/context/factory/ResolverExecutionContextFactory.kt" data-lines="95-103" data-expect="EngineExecutionContextWrapperImpl(engineExecutionContext">factory</a>). For each invocation, Runtime2 wraps the request&rsquo;s <code>EngineExecutionContext</code> in <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/bootstrap/ExecutorRegistryInputs.kt" data-lines="137-144" data-expect="QPlanEngineExecutionContext(">an adapter</a>, a <code>QPlanEngineExecutionContext</code> (the <code>QPlan</code> prefix comes from <code>qplan</code>, the development branch Runtime2 was built on; <a class="src" data-src="core/engine/runtime2/impldocs/evidence/profiles/README.md" data-lines="11" data-expect="was the development branch and build layout used before Runtime2 moved into">doc</a>). It implements <code>EngineExecutionContext</code> and forwards most calls to the request&rsquo;s context, but its <a class="src" data-src="core/engine/api/src/main/kotlin/viaduct/engine/api/EngineExecutionContext.kt" data-lines="163-176" data-expect="suspend fun resolveSelectionSet("><code>EngineExecutionContext.resolveSelectionSet</code></a> is <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/execution/QPlanEngineExecutionContext.kt" data-lines="31-57" data-expect="selection execution is owned by the active Resolution field task">routed</a> to the calling task.</li>
+    <li data-at="13" data-title="Mutation orchestrator"><code>MutationOrchestrationTask</code>, the <a class="gl" href="../glossary.html#mutation-orchestrator">mutation orchestrator</a>, runs mutation root fields in order and has no supertype (see <a href="mutations.html">Mutations</a>).</li>
+  </ol>
+</figure>
+<p class="where">Where in code: <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/framework/SharedFieldResolverTask.kt" data-lines="3-17" data-expect="Architectural contract||enforcing this common structure is intentional||interface SharedFieldResolverTask">SharedFieldResolverTask</a> · <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/CoroutineOrchestrationTaskBase.kt" data-lines="10-20" data-expect="one-shot dispatch||abstract class CoroutineOrchestrationTaskBase">CoroutineOrchestrationTaskBase</a> · <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/CoroutineFieldResolverTaskBase.kt" data-lines="10-33" data-expect="exception-to-publication boundary||publishFailure(cause)">CoroutineFieldResolverTaskBase</a> · <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/FieldResolverTask.kt" data-lines="74-78" data-expect="class FieldResolverTask||ResolutionExecutionContext">FieldResolverTask</a></p>
+</section>
+
+<!-- ============================== 5. SELECTIONS ============================== -->
+<section id="selections"><h2>Selections: two families</h2>
+<div class="explain">
+<p>Outside mutations, cells are keyed without aliases, so the query&rsquo;s <code>recent</code> alias isn&rsquo;t part of its <code>messages</code> cell&rsquo;s key. Yet a resolver&rsquo;s input must show the response keys the tenant wrote. Runtime2 solves this with two separate families of selections, one that drops aliases and one that keeps them, and neither extends the other.</p>
+</div>
+<figure class="scene" data-duration="17">
+  <div class="stage"><svg viewBox="0 0 960 420" role="img" aria-label="Left: SelectionForest and Selection hierarchies. Right: separate materialize-selection family. A not-equal barrier between them; arrows show method return types">
+    <defs>
+      <marker id="sl-ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="11" markerHeight="11" orient="auto"><path d="M0,0L10,5L0,10z" class="ah hollow"/></marker>
+      <marker id="sl-ah-c3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0L10,5L0,10z" class="ah c3"/></marker>
+    </defs>
+    <g data-in="0"><rect class="zone" x="20" y="70" width="420" height="340" rx="14"/><text x="36" y="398" class="title">Selections</text></g>
+    <g data-in="0.4" data-anim="pop" class="c1"><rect class="box c1" x="36" y="120" width="190" height="56" rx="10"/><text x="131" y="144" text-anchor="middle" class="title">Forest</text><text x="131" y="164" text-anchor="middle" class="mono muted">SelectionForest</text></g>
+    <g data-in="0.7" data-anim="pop" class="c1"><rect class="box c1" x="246" y="120" width="180" height="56" rx="10"/><text x="336" y="144" text-anchor="middle" class="title">Selection</text><text x="336" y="164" text-anchor="middle" class="mono muted">Selection</text></g>
+    <g data-in="3" data-anim="pop" class="c1"><rect class="box c1" x="36" y="215" width="190" height="56" rx="10"/><text x="131" y="239" text-anchor="middle" class="title">Object forest</text><text x="131" y="259" text-anchor="middle" class="mono muted">ObjectSelectionForest</text></g>
+    <g data-in="3.3" data-anim="pop" class="c1"><rect class="box c1" x="246" y="215" width="180" height="56" rx="10"/><text x="336" y="239" text-anchor="middle" class="title">Object selection</text><text x="336" y="259" text-anchor="middle" class="mono muted">ObjectSelection</text></g>
+    <g data-in="3.1" data-anim="draw"><path class="wire c1" d="M131,215 L131,178" marker-end="url(#sl-ah)"/><path class="wire c1" d="M336,215 L336,178" marker-end="url(#sl-ah)"/></g>
+    <g data-in="6" data-anim="pop" data-on="6-9" class="c1"><rect class="box c1" x="36" y="310" width="190" height="56" rx="10"/><text x="131" y="334" text-anchor="middle" class="title">Mutation forest</text><text x="131" y="354" text-anchor="middle" class="mono muted">MutationSelectionForest</text></g>
+    <g data-in="6.3" data-anim="pop" data-on="6.3-9" class="c1"><rect class="box c1" x="246" y="310" width="180" height="56" rx="10"/><text x="336" y="334" text-anchor="middle" class="title">Mutation selection</text><text x="336" y="354" text-anchor="middle" class="mono muted">MutationSelection</text></g>
+    <g data-in="6.1" data-anim="draw"><path class="wire c1" d="M36,338 H28 V196 H56 V178" marker-end="url(#sl-ah)"/><path class="wire c1" d="M336,310 L336,273" marker-end="url(#sl-ah)"/></g>
+    <!-- right family -->
+    <g data-in="9"><rect class="zone" x="460" y="70" width="480" height="340" rx="14"/><text x="476" y="398" class="title">Materialize selections</text></g>
+    <g data-in="9.3" data-anim="pop" class="c1"><rect class="box c1" x="480" y="120" width="440" height="76" rx="10"/><text x="700" y="144" text-anchor="middle" class="title">Materialize forest</text><text x="700" y="164" text-anchor="middle" class="mono muted">MaterializeSelectionForest</text><text x="700" y="184" text-anchor="middle" class="small muted">contains MaterializeSelection</text></g>
+    <g data-in="13.5" data-anim="pop" class="c1"><rect class="box c1" x="480" y="280" width="440" height="76" rx="10"/><text x="700" y="304" text-anchor="middle" class="title">Object materialize forest</text><text x="700" y="324" text-anchor="middle" class="mono muted">ObjectMaterializeSelectionForest</text><text x="700" y="344" text-anchor="middle" class="small muted">contains ObjectMaterializeSelection</text></g>
+    <!-- barrier -->
+    <g data-in="11.5" data-anim="draw" class="c5"><path class="wire c5 thick" d="M450,80 L450,400"/></g>
+    <g data-in="11.8" data-anim="pop" data-on="11.8-13.5" class="c5"><circle class="box c5" cx="450" cy="225" r="16"/><text x="450" y="231" text-anchor="middle" class="title">≠</text></g>
+    <!-- return types -->
+    <g data-in="13.5" data-anim="draw" class="c3"><path id="sl-col" class="wire c3 thick" d="M700,196 L700,278" marker-end="url(#sl-ah-c3)"/></g>
+    <g data-in="13.7"><text x="712" y="242" class="mono small">collect(type)</text></g>
+    <g data-in="14.5" data-anim="draw" class="c3"><path id="sl-con" class="wire c3 thick" d="M560,120 C540,40 160,40 131,118" marker-end="url(#sl-ah-c3)"/></g>
+    <g data-in="14.7"><text x="345" y="44" text-anchor="middle" class="mono small">constructionSelections()</text></g>
+    <g data-in="13.8" data-dur="0.9" data-anim="move" data-path="#sl-col" class="c3"><circle class="tok" r="6"/></g>
+    <g data-in="15" data-dur="1.3" data-anim="move" data-path="#sl-con" class="c3"><circle class="tok" r="6"/></g>
+  </svg></div>
+  <ol class="beats">
+    <li data-at="0" data-title="Selections"><code>SelectionForest</code> and <code>Selection</code> are sealed interfaces. An ordinary <code>Selection</code>, the member type of every selection forest, omits aliases, response keys, source order, named fragments and raw directives.</li>
+    <li data-at="3" data-title="Object variants"><code>ObjectSelectionForest</code> and <code>ObjectSelection</code> extend them. An <a class="gl" href="../glossary.html#object-selection-forest">object selection forest</a> is a forest <a class="gl" href="../glossary.html#merge">merged</a> at one concrete type, with exactly one selection per key.</li>
+    <li data-at="6" data-title="Mutations"><code>MutationSelectionForest</code> extends <code>SelectionForest</code> rather than <code>ObjectSelectionForest</code>, because two aliases of one mutation field stay <a class="src" data-src="core/engine/runtime2/impldocs/architecture/model.md" data-lines="292" data-expect="Distinct aliases remain separate members even when their ordinary keys are equal">separate members</a>, where an object forest allows one selection per key. <code>MutationSelection</code> extends <code>ObjectSelection</code>. <a class="gl" href="../glossary.html#mutation-forest">Mutation forests</a> are the only ordered ones.</li>
+    <li data-at="9" data-title="Second family"><code>MaterializeSelectionForest</code> contains <code>MaterializeSelection</code>s. A <a class="gl" href="../glossary.html#materialize-selection">materialize selection</a> keeps the response key and field directives, so a resolver&rsquo;s input can carry the names the tenant wrote.</li>
+    <li data-at="11.5" data-title="Separate">Neither family extends the other. The registry stores <code>unreadCount</code>&rsquo;s object fragment as a materialize selection forest, in its <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/model/registry/FieldValueResolver.kt" data-lines="61-66" data-expect="val objectFragmentTemplate: MaterializeSelectionForest">fragment templates</a>, before it&rsquo;s tied to any occurrence.</li>
+    <li data-at="13.5" data-title="Return types"><code>collect(type)</code> filters to one concrete type and groups by response key, returning an <code>ObjectMaterializeSelectionForest</code>. <code>constructionSelections()</code> erases the response keys and returns an ordinary <code>SelectionForest</code>, which is how <code>unreadCount</code>&rsquo;s fragment becomes demand.</li>
+  </ol>
+</figure>
+<h3>Inclusion conditions</h3>
+<div class="explain">
+<p>Every selection also carries an <a class="gl" href="../glossary.html#inclusion-condition">inclusion condition</a>, the symbolic form of its <code>@skip</code> and <code>@include</code>. It&rsquo;s an immutable directed acyclic graph (DAG) built from <code>Always</code>, <code>Never</code> and <code>Requires</code>, joined by internal <code>Conjunction</code> and <code>Disjunction</code> nodes. The <a href="skip-include.html">@skip and @include</a> deep dive shows how they&rsquo;re decided.</p>
+</div>
+<div class="htree"><ul>
+  <li data-kind="sealed interface" class="c1"><span class="ht-name">InclusionCondition</span><div class="ht-doc">Inclusion condition for one selection occurrence. <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/model/InclusionCondition.kt" data-lines="3-4" data-expect="sealed interface InclusionCondition">InclusionCondition.kt</a></div><ul>
+    <li data-kind="data object" class="c1"><span class="ht-name">Always</span><div class="ht-doc">Nested subtype of InclusionCondition; always included.</div></li>
+    <li data-kind="data object" class="c1"><span class="ht-name">Never</span><div class="ht-doc">Nested subtype of InclusionCondition; never included.</div></li>
+    <li data-kind="data class" class="c1"><span class="ht-name">Requires</span><div class="ht-doc">Nested subtype of InclusionCondition; included when each listed variable has its required Boolean value.</div></li></ul></li>
+</ul></div>
+<div class="explain"><p>The internal <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/model/InclusionCondition.kt" data-lines="72-73" data-expect="internal class Conjunction"><code>Conjunction</code></a> and <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/model/InclusionCondition.kt" data-lines="91-92" data-expect="internal class Disjunction"><code>Disjunction</code></a> classes, declared at top level, join these into larger conditions.</p></div>
+<p class="where">Where in code: <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/model/Selection.kt" data-lines="375-402" data-expect="omit aliases, response keys||sealed interface Selection">Selection</a> · <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/model/MaterializeSelection.kt" data-lines="8-20" data-expect="retains the GraphQL [responseKey]||sealed interface MaterializeSelection">MaterializeSelection</a> · <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/model/Selection.kt" data-lines="177-177" data-expect="fun SelectionForest.merge">merge</a> · <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/model/registry/FieldValueResolver.kt" data-lines="151-155" data-expect="objectFragmentTemplate.constructionSelections()">objectFragment</a></p>
+</section>
+
+<!-- ============================== 6. REGISTRY ============================== -->
+<section id="registry"><h2>Registry: targets, resolvers, variables</h2>
+<div class="explain">
+<p>Runtime2 calls checkers resolvers too, as in the class names <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/model/registry/FieldCheckerResolver.kt" data-lines="16-23" data-expect="class FieldCheckerResolver private constructor"><code>FieldCheckerResolver</code></a> and <code>TypeCheckerResolver</code>. <code>Booking.customer</code> has both a resolver and a <a class="gl" href="../glossary.html#field-checker">field checker</a>, and each could declare its own fragments and variables. So a bare schema field can&rsquo;t identify &ldquo;the&rdquo; resolver. Instead, each resolver is owned by an explicit <a class="gl" href="../glossary.html#resolver-target">resolver target</a>, the slot that owns a resolver and its variables, and there are three kinds: field value, field checker and <a class="gl" href="../glossary.html#type-checker">type checker</a>. In the design notes&rsquo; words, &ldquo;A field-value target and field-checker target for the same schema coordinate identify different resolver slots.&rdquo;</p>
+<aside class="today"><b>In today&rsquo;s engine</b> <a class="src" data-src="core/engine/runtime/src/main/kotlin/viaduct/engine/runtime/DispatcherRegistry.kt" data-lines="47-51" data-expect="fieldCheckerDispatchers: Map<Coordinate, CheckerDispatcher>"><code>DispatcherRegistry</code></a> keeps field resolvers and field checkers in separate maps keyed by the same type-and-field coordinate, with more maps for node resolvers and type checkers. Runtime2&rsquo;s registry keeps a separate lookup per kind too, and each resolver carries a target that names its slot.</aside>
+<p>In the example, the customer resolver sits in the field-value slot of <code>Booking.customer</code> and its checker in the field-checker slot. Each declares <code>customerId</code> as its object fragment:</p>
+<pre class="cmd">customer: User
+  <span class="d">@resolver(objectValueFragment: "customerId")
+  @fieldChecker(objectValueFragment: "customerId")</span></pre>
+<p>A <code>FieldValueResolver</code> wraps one of two function types, and it has a <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/model/registry/FieldValueResolver.kt" data-lines="322-365" data-expect="fun of(||fun ofSelective(">factory function</a> for each: <code>FieldValueResolver.of</code> takes a nonselective function and <code>FieldValueResolver.ofSelective</code> a selective one. Both take the object input, the Query input, the arguments, an application value (data that the parent object&rsquo;s data carries to child resolvers without exposing it as a GraphQL field) and an execution context (<a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/model/registry/FieldValueResolver.kt" data-lines="27-34" data-expect="typealias NonselectiveFieldResolverFunction||additionalContextForResolver: Any?">function type</a> · <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/model/QPlanEngineObjectData.kt" data-lines="127-129" data-expect="Carries application data to child resolver callbacks">application value</a>). The function of a <a class="gl" href="../glossary.html#selective-resolver">selective resolver</a>, a <b>selective function</b>, <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/model/registry/FieldValueResolver.kt" data-lines="36-50" data-expect="typealias SelectiveFieldResolverFunction||SelectionForest">also takes</a> the field&rsquo;s successor demand, and a returned field outside that demand is an error (see <a href="selectivity.html">Selectivity</a>). Today&rsquo;s <a class="src" data-src="core/engine/api/src/main/kotlin/viaduct/engine/api/spi/FieldResolverExecutor.kt" data-lines="32-33" data-expect="val isSelective: Boolean"><code>FieldResolverExecutor.isSelective</code></a> marks the same kind of resolver.</p>
+</div>
+<div class="htree"><ul>
+  <li data-kind="sealed interface" class="c1"><span class="ht-name">ResolverTarget</span><div class="ht-doc">Identifies a resolver slot, through two nested groups, FieldTarget and TypeTarget. <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/model/ResolverTarget.kt" data-lines="5-31" data-expect="Identifies the resolver slot||sealed interface ResolverTarget||data class FieldValueResolverTarget||data class TypeCheckerTarget">ResolverTarget.kt</a></div><ul>
+    <li data-kind="data class" class="c1"><span class="ht-name">FieldValueResolverTarget</span><div class="ht-doc">Field-value slot, for the resolver that computes the field&rsquo;s raw value; a FieldTarget.</div></li>
+    <li data-kind="data class" class="c5"><span class="ht-name">FieldCheckerTarget</span><div class="ht-doc">Field-checker slot; a FieldTarget.</div></li>
+    <li data-kind="data class" class="c5"><span class="ht-name">TypeCheckerTarget</span><div class="ht-doc">Type-checker slot; a TypeTarget.</div></li></ul></li>
+  <li data-kind="class" class="c1"><span class="ht-name">FieldValueResolver</span><div class="ht-doc">No supertype; target: FieldValueResolverTarget. <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/model/registry/FieldValueResolver.kt" data-lines="132-133" data-expect="class FieldValueResolver private constructor||FieldValueResolverTarget">FieldValueResolver.kt</a></div></li>
+  <li data-kind="class" class="c5"><span class="ht-name">FieldCheckerResolver</span><div class="ht-doc">Target: FieldCheckerTarget.</div></li>
+  <li data-kind="class" class="c5"><span class="ht-name">TypeCheckerResolver</span><div class="ht-doc">Target: TypeCheckerTarget.</div></li>
+</ul></div>
+<div class="explain"><p>Both checker resolvers extend one abstract base, <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/model/registry/CheckerResolverBase.kt" data-lines="30-37" data-expect="abstract class CheckerResolverBase"><code>CheckerResolverBase</code></a>.</p></div>
+<h3>Variables: declared, then compiled</h3>
+<div class="explain">
+<p>A resolver&rsquo;s variables start as declarations. Registry assembly compiles each one into a canonical definition. Two names appear on both sides, so keep the sides apart: declarations are classes in the registry package, and definitions nest inside <code>VariableDefinition</code>.</p>
+</div>
+<aside class="today"><b>In today&rsquo;s engine</b> <a class="src" data-src="core/engine/api/src/main/kotlin/viaduct/engine/api/spi/FieldResolverExecutor.kt" data-lines="20-30" data-expect="val queryFieldVariables: VariableFromFieldDefinitions"><code>FieldResolverExecutor</code></a> lists a resolver&rsquo;s variables by source: <code>argumentVariables</code>, <code>objectFieldVariables</code>, <code>queryFieldVariables</code> and <code>variablesFromFunctionProvider</code>. Runtime2 merges the object-field and Query-field sources into one <code>FromField</code> form.</aside>
+<figure class="scene" data-duration="15">
+  <div class="stage"><svg viewBox="0 0 960 330" role="img" aria-label="Two FromArgument and two FromField types in different places: source declarations compile into canonical definitions">
+    <defs><marker id="rg-ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0L10,5L0,10z" class="ah c1"/></marker></defs>
+    <g data-in="0"><rect class="zone" x="30" y="40" width="400" height="270" rx="14"/><text x="230" y="66" text-anchor="middle" class="title">Source declarations</text><text x="230" y="86" text-anchor="middle" class="mono muted">VariableDeclaration · sealed interface</text></g>
+    <g data-in="0.4" data-anim="pop" data-on="7-9.5" class="c1"><rect class="box c1" x="50" y="105" width="360" height="62" rx="10"/><text x="230" y="131" text-anchor="middle" class="title">FromArgument</text><text x="230" y="152" text-anchor="middle" class="mono muted">registry.FromArgument · class</text></g>
+    <g data-in="0.7" data-anim="pop" data-on="9.5-12" class="c1"><rect class="box c1" x="50" y="205" width="360" height="62" rx="10"/><text x="230" y="231" text-anchor="middle" class="title">FromField</text><text x="230" y="252" text-anchor="middle" class="mono muted">registry.FromField · class</text></g>
+    <g data-in="2"><rect class="zone" x="530" y="40" width="400" height="270" rx="14"/><text x="730" y="66" text-anchor="middle" class="title">Canonical definitions</text><text x="730" y="86" text-anchor="middle" class="mono muted">VariableDefinition · sealed interface</text></g>
+    <g data-in="2.3" data-anim="pop" data-on="7-9.5" class="c1"><rect class="box c1" x="550" y="100" width="360" height="56" rx="10"/><text x="730" y="123" text-anchor="middle" class="title">FromArgument · sealed interface</text><text x="730" y="143" text-anchor="middle" class="mono muted">VariableDefinition.FromArgument</text></g>
+    <g data-in="2.6" data-anim="pop" data-on="9.5-12" class="c1"><rect class="box c1" x="550" y="168" width="360" height="56" rx="10"/><text x="730" y="191" text-anchor="middle" class="title">FromField · sealed interface</text><text x="730" y="211" text-anchor="middle" class="mono muted">VariableDefinition.FromField</text></g>
+    <g data-in="2.9" data-anim="pop" data-on="12" class="c1"><rect class="box c1" x="550" y="236" width="360" height="56" rx="10"/><text x="730" y="259" text-anchor="middle" class="title">FromProvider · data object</text><text x="730" y="279" text-anchor="middle" class="mono muted">VariableDefinition.FromProvider</text></g>
+    <g data-in="4.5" data-anim="draw"><path id="rg-a" class="wire c1 thick" d="M410,136 C480,136 480,128 548,128" marker-end="url(#rg-ah)"/><path id="rg-f" class="wire c1 thick" d="M410,236 C480,236 480,196 548,196" marker-end="url(#rg-ah)"/></g>
+    <g data-in="4.7"><text x="480" y="118" text-anchor="middle" class="small muted">compiled into</text></g>
+    <g data-in="5" data-dur="1" data-anim="move" data-path="#rg-a" class="c1"><circle class="tok" r="6"/></g>
+    <g data-in="5.2" data-dur="1" data-anim="move" data-path="#rg-f" class="c1"><circle class="tok" r="6"/></g>
+  </svg></div>
+  <ol class="beats">
+    <li data-at="0" data-title="Declarations">A resolver is registered with declarations, <code>registry.FromArgument</code> and <code>registry.FromField</code>. Both implement <code>VariableDeclaration</code>.</li>
+    <li data-at="2" data-title="Definitions"><code>VariableDefinition</code> nests three canonical forms. <code>FromArgument</code> reads a path in a resolver argument. <code>FromField</code> reads a path in the resolver&rsquo;s object or Query fragment, and its <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/model/registry/VariableDefinition.kt" data-lines="12-16" data-expect="enum class ProviderFragment"><code>providerFragment</code></a>, <code>OBJECT</code> or <code>QUERY</code>, says which. Tests call these two cases <code>FromObjectField</code> and <code>FromQueryField</code>, matching the tenant API&rsquo;s <code>fromObjectField</code> and <code>fromQueryField</code>. <code>FromProvider</code> takes its values from the resolver&rsquo;s variables-provider function.</li>
+    <li data-at="4.5" data-title="Compiled into">Each declaration compiles into one canonical definition. <code>unreadCount</code>&rsquo;s <code>n</code>, declared from its <code>window</code> argument, becomes a <code>VariableDefinition.FromArgument</code>.</li>
+    <li data-at="7" data-title="Same name: FromArgument">registry.FromArgument is a class, while VariableDefinition.FromArgument is a sealed interface.</li>
+    <li data-at="9.5" data-title="Same name: FromField">FromField: the same split.</li>
+    <li data-at="12" data-title="FromProvider"><code>FromProvider</code> is the odd one out: a <code>data object</code> with no declaration class. A resolver that has a variables provider lists the provider&rsquo;s variable names, and registry assembly <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/bootstrap/ResolverRegistryImpl.kt" data-lines="414-443" data-expect="variablesProviderTemplates.associateWith { VariableDefinition.FromProvider }">maps each name</a> straight to <code>FromProvider</code>. Through the engine API, those names come from the executor&rsquo;s <code>variablesFromFunctionProvider</code>.</li>
+  </ol>
+</figure>
+<p class="where">Where in code: <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/model/registry/ResolverRegistry.kt" data-lines="44-75" data-expect="interface ResolverRegistry||fun fieldChecker||fun typeChecker">ResolverRegistry</a> · <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/model/ResolverTarget.kt" data-lines="5-31" data-expect="Identifies the resolver slot||data class FieldCheckerTarget">ResolverTarget</a> · <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/model/registry/FieldValueResolver.kt" data-lines="36-50" data-expect="typealias SelectiveFieldResolverFunction||SelectionForest">SelectiveFieldResolverFunction</a> · <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/model/registry/VariableDeclaration.kt" data-lines="5-6" data-expect="A source declaration compiled into one canonical||sealed interface VariableDeclaration">VariableDeclaration</a> · <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/model/registry/FromArgument.kt" data-lines="9-12" data-expect="class FromArgument private constructor||: VariableDeclaration">registry.FromArgument</a> · <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/model/registry/VariableDefinition.kt" data-lines="25-30" data-expect="sealed interface VariableDefinition||data object FromProvider||sealed interface FromArgument : VariableDefinition">VariableDefinition</a></p>
+</section>
+
+<!-- ============================== 7. ARGUMENTS ============================== -->
+<section id="arguments"><h2>Arguments: open, ground, template</h2>
+<div class="explain">
+<p>Arguments split the way keys do. A tuple is <b>open</b> while it holds variable instances, variables already tied to one resolver occurrence (defined below); there is no <code>Open</code> type, so an open tuple is an <code>Arguments</code> that is neither <code>Ground</code> nor <code>Template</code>. It is <b>ground</b> once its variables are resolved, when it is either <code>Resolved</code> or a tuple-level <code>Error</code>. A third form, the registry <b>template</b>, holds variables not yet tied to an occurrence.</p>
+<p>One rule matters most: &ldquo;Equality and hashing never inspect a variable&rsquo;s eventual binding&rdquo;. That&rsquo;s why the <code>messages(last: $n)</code> cell from <code>unreadCount</code>&rsquo;s fragment keeps its identity when <code>$n</code> is bound to 50.</p>
+<p>The rule has a cost. If the query also asked for <code>messages(last: 50)</code>, that ground key and the symbolic <code>messages(last: $n)</code> key would still differ, so the Booking would hold two <code>messages</code> cells and call the messages resolver twice with equal arguments. The design notes <a class="src" data-src="core/engine/runtime2/impldocs/architecture/principles.md" data-lines="55-61" data-expect="Distinct symbolic keys may later ground to equal arguments and invoke the same field resolver more than once">accept this</a> so that closure can name cells before bindings exist. The alternatives were to wait for every binding, which needs cycle rules strong enough to rule out deadlock, or to widen demand for keys that might merge later, which makes the work depend on timing.</p>
+<p>Three related terms:</p>
+<ul>
+<li>A <b>template</b> holds registry-side arguments whose variables aren&rsquo;t yet tied to an occurrence, such as <code>last: $n</code> in <code>unreadCount</code>&rsquo;s registered fragment.</li>
+<li>A <b>variable instance</b> is a template variable tied to one resolver occurrence by its <code>VariableInstanceId</code>, such as <code>$n</code> for <code>unreadCount</code> on booking b1.</li>
+<li>A <b>resolver occurrence ID</b> (<code>ResolverOccurrenceId</code>) is a root plus a path that identifies one resolver call. The resolver&rsquo;s fragments and variables are instantiated from it.</li>
+</ul>
+<p>The root matters for <a class="gl" href="../glossary.html#node-reference">node references</a>. A resolver can return one in place of an object: an instruction to resolve a Query field such as <code>Query.node</code>.</p>
+<ul>
+<li><b>What a hop is.</b> Resolving a node reference calls that Query field&rsquo;s resolver, and each such call is a <a class="gl" href="../glossary.html#hop">hop</a> (see <a href="nested-inputs-and-node-references.html#nodes">Nested inputs and node references</a>). The value goes back to the task that made the hop. That task calls every hop&rsquo;s resolver before <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/FieldResolutionLogic.kt" data-lines="140-184" data-expect="while (fieldValue is RootFieldReferenceData)||resolvePassiveValues">passive descent</a>, so its cell completes, and the returned object&rsquo;s orchestrator starts, only after the last hop returns.</li>
+<li><b>What root it gets.</b> A hop&rsquo;s resolver occurrence ID uses a fresh, empty Query OER, the <a class="gl" href="../glossary.html#invocation-root">invocation root</a>, and a path to <code>node</code> (<a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/FieldResolutionLogic.kt" data-lines="332-342" data-expect="ResolverOccurrenceId.at(invocationRoot, invocationPath)||instantiateFragments(resolverOccurrenceId)">source</a>). That root is immutable: it stores nothing and can&rsquo;t gain cells. It gives the hop its own identity, so the target&rsquo;s fragments and variables are instantiated for that call alone.</li>
+<li><b>Where its Query fragment is built.</b> The invocation root is only an <a class="src" data-src="core/engine/runtime2/impldocs/architecture/model.md" data-lines="39" data-expect="Reference roots are identity witnesses, not query-fragment roots">identity witness</a>, not a Query-fragment root. It can&rsquo;t gain cells, so it can&rsquo;t hold the cells a Query fragment needs. A target&rsquo;s Query fragment is built in <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/FieldResolverTask.kt" data-lines="410-440" data-expect="OrchestrationTask.create(">another fresh Query OER</a> with its own orchestrator.</li>
+</ul>
+<aside class="today"><b>In today&rsquo;s engine</b> a returned node reference <a class="src" data-src="core/engine/runtime/src/main/kotlin/viaduct/engine/runtime/ObjectEngineResultImpl.kt" data-lines="53-59" data-expect="allocate an OER for it to">gets a pending OER</a> in place, holding data already known such as the node ID, and the node resolver runs in parallel with that object&rsquo;s field resolvers. In Runtime2 the object&rsquo;s orchestrator, and so its field resolvers, start only after the last hop returns.</aside>
+</div>
+<div class="htree"><ul>
+  <li data-kind="sealed interface" class="c2"><span class="ht-name">Arguments</span><div class="ht-doc">Argument tuple for an output field. <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/model/Arguments.kt" data-lines="7-29" data-expect="One schema-checked output-field argument tuple||sealed interface Arguments||sealed interface Ground : Arguments||sealed interface Resolved : Ground">Arguments.kt</a></div><ul>
+    <li data-kind="sealed interface" class="c2"><span class="ht-name">Ground</span><div class="ht-doc">Nested subtype of Arguments; no variables left.</div><ul>
+    <li data-kind="sealed interface" class="c2"><span class="ht-name">Resolved</span><div class="ht-doc">Nested in Arguments, subtype of Ground; every value resolved.</div></li>
+    <li data-kind="data object" class="c5"><span class="ht-name">Error</span><div class="ht-doc">Nested in Arguments, subtype of Ground; the whole tuple is an error. <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/model/Arguments.kt" data-lines="52-53" data-expect="data object Error : Ground">Arguments.kt</a></div></li></ul></li>
+    <li data-kind="sealed interface" class="c1"><span class="ht-name">Template</span><div class="ht-doc">Nested subtype of Arguments; registry template. <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/model/Arguments.kt" data-lines="55-70" data-expect="resolver-registry template||sealed interface Template : Arguments">Arguments.kt</a></div></li></ul></li>
+  <li data-kind="sealed interface" class="c1"><span class="ht-name">Arguments.Variable</span><div class="ht-doc">Nested in Arguments; not a subtype. <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/model/Arguments.kt" data-lines="90-90" data-expect="sealed interface Variable {">Arguments.kt</a></div></li>
+</ul></div>
+<div class="explain"><p>Arguments, Resolved and Template are backed by private implementation classes, such as <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/model/ArgumentExpressions.kt" data-lines="14-26" data-expect="private class ArgumentsImpl"><code>ArgumentsImpl</code></a>. <code>Ground</code> only groups <code>Resolved</code> and <code>Error</code>, and <code>Error</code> is a single data object. A variable is either a template variable or an instance variable, and the instance variable class, <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/model/Arguments.kt" data-lines="191-195" data-expect="private data class InstanceVariableImpl||instanceId: VariableInstanceId"><code>InstanceVariableImpl</code></a>, carries its <code>VariableInstanceId</code>.</p></div>
+<p class="where">Where in code: <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/model/Arguments.kt" data-lines="6-19" data-expect="Equality and hashing never inspect a variable's eventual binding||sealed interface Arguments">Arguments</a> · <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/model/Arguments.kt" data-lines="102-116" data-expect="fun instantiate(resolverOccurrenceId: ResolverOccurrenceId): Variable||VariableInstanceId.of">Variable.instantiate</a></p>
+</section>
+
+<section id="recap"><h2>Looking back</h2>
+<div class="explain closing">
+<p>Seen from the code, the engine still works the way its actors suggest. The registry lives for the schema, the operation context for the request, and cells and tasks for one occurrence. Results are a checked union, and keys sharpen from open to ground. Each part of a cell is written once, and each value promise is claimed by one writer. Selections and materialize selections stay apart, and targets own resolvers and their variables. Every actor in a request is one of these families at work.</p>
+</div>
+</section>
+</main>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/kotlin.min.js"></script>
+<script src="../assets/app.js"></script><script src="../assets/motion.js"></script><script src="../assets/graph.js"></script><script src="../assets/tree.js"></script>
+</body></html>

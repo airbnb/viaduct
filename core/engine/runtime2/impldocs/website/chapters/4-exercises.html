@@ -1,0 +1,275 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>4 · Exercises — Viaduct Runtime2</title>
+<script src="../assets/theme.js"></script>
+<link rel="icon" type="image/svg+xml" href="../assets/viaduct-logo.svg">
+<link rel="stylesheet" href="../assets/style.css">
+<style>
+@media (max-width: 600px) {
+  .drill.walk { padding: 10px; }
+  .drill.walk > .drill { padding: 12px; }
+}
+</style></head>
+<body data-layer="4"><main>
+<div class="kicker">Chapter 4</div>
+<h1>Exercises</h1>
+<p class="lede">Six short exercises on the running example and a few small schemas. Every answer follows from chapters 1 to 3.</p>
+<div class="explain">
+<p>Chapter 3 traced the whole request; in this chapter you make the predictions. First, predict what the rules from chapters 1 and 2 say about a few small cases. Then take the running example and make the engine&rsquo;s decisions yourself, one at a time.</p>
+</div>
+
+<section id="predict" class="exercises"><h2>Before the request runs</h2>
+<p>These exercises cover planning. Given a schema and a query, work out what the engine will ask for and which fields will need a <a class="gl" href="../glossary.html#resolver">resolver</a> of their own. They are mostly about what is asked for, and only briefly about what runs when.</p>
+
+<h3 id="ex-p1-closure">What does greeting pull in?</h3>
+<p>Here one resolver reads another resolver&rsquo;s output.</p>
+<div class="code-pair">
+<pre class="cmd"><span class="c"># schema</span>
+<span class="c"># objectValueFragment is shorthand for the resolver&rsquo;s inputs</span>
+type Query {
+  user: User <span class="d">@resolver</span>
+    <span class="c"># returns { first, last }</span>
+}
+
+type User {
+  first: String
+  last: String
+  display: String
+    <span class="d">@resolver(objectValueFragment: "first last")</span>
+  greeting: String
+    <span class="d">@resolver(objectValueFragment: "display")</span>
+}</pre>
+<pre class="cmd"><span class="c"># query</span>
+{
+  user {
+    greeting
+  }
+}</pre>
+</div>
+
+<div class="drill walk">
+<div class="drill choice"><p class="q">After <a class="gl" href="../glossary.html#closure">closure</a>, what is the <a class="gl" href="../glossary.html#construction-demand">construction demand</a> of User&rsquo;s <a class="gl" href="../glossary.html#object-result">object engine result</a> (OER)?</p>
+<button class="opt" data-why="greeting&rsquo;s resolver reads display, so closure adds it."><code>greeting</code></button>
+<button class="opt" data-why="closure keeps going: display&rsquo;s resolver reads first and last."><code>greeting display</code></button>
+<button class="opt" data-correct="true"><code>greeting display first last</code></button>
+<button class="opt" data-why="closure only adds to demand, so the client&rsquo;s greeting stays."><code>first last</code></button>
+<p class="why">All four fields: greeting, display, first and last. greeting&rsquo;s resolver reads display, and display&rsquo;s resolver reads first and last, so closure adds both layers. <a class="src" data-src="core/engine/runtime2/impldocs/architecture/examples.md" data-lines="43-62" data-expect="first, last -&gt; display -&gt; greeting">See the design notes</a>.</p></div>
+<div class="drill choice"><p class="q">How many passes does closure make?</p>
+<button class="opt" data-why="pass 1 adds display, but display&rsquo;s own inputs are found only on the next pass.">One</button>
+<button class="opt" data-why="pass 2 adds first and last, so it found something new. Closure stops only after a pass that adds nothing.">Two</button>
+<button class="opt" data-correct="true">Three</button>
+<button class="opt" data-why="first and last have no resolver, so pass 3 adds nothing and closure stops there.">Four</button>
+<p class="why">Three. Pass 1 adds display, pass 2 adds first and last, and pass 3 adds nothing, which is the fixed point. <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/ConstructionDemandClosure2.kt" data-lines="50-53" data-expect="while (objects.hasPendingDemand || query.hasPendingDemand)">See where the loop stops</a>.</p></div>
+<div class="drill choice"><p class="q">Suppose user also returned display (display is in user&rsquo;s <a class="gl" href="../glossary.html#successor-demand">successor demand</a>, so returning it is allowed). What happens to display&rsquo;s resolver?</p>
+<button class="opt" data-why="display takes no arguments, so a value for it in user&rsquo;s output makes display passive, and its resolver has nothing left to do.">It runs anyway and overwrites the value</button>
+<button class="opt" data-why="user is asked for display, as greeting&rsquo;s input, and display takes no arguments, so returning it is allowed.">Runtime2 rejects user&rsquo;s output</button>
+<button class="opt" data-correct="true">It doesn&rsquo;t run, so closure never adds first and last for it</button>
+<p class="why">display is now a <a class="gl" href="../glossary.html#passive-field">passive field</a>, so closure skips it: its resolver doesn&rsquo;t run, so closure never adds first and last on its behalf. <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/framework/RequiresStandardResolution.kt" data-lines="6-14" data-expect="suppress their standard resolver">See the rule in code</a>.</p></div>
+</div>
+<div class="answer">
+<figure class="scene" data-duration="14">
+  <div class="stage"><svg viewBox="0 0 960 400" role="img" aria-label="Demand closure at the User OER: greeting adds display, display adds first and last, then the loop stops and two resolver tasks start">
+    <defs>
+      <marker id="x8c-ah-c3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0L10,5L0,10z" class="ah c3"/></marker>
+      <marker id="x8c-ah-c4" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0L10,5L0,10z" class="ah c4"/></marker>
+    </defs>
+    <g data-in="0"><rect class="zone" x="20" y="20" width="460" height="250" rx="12"/><text x="40" y="46" class="title">Demand at the User OER</text></g>
+    <g data-in="0" data-anim="pop" data-on="2-5" class="c1"><rect class="box c1" x="600" y="40" width="320" height="64" rx="10"/><text x="760" y="67" text-anchor="middle" class="title">greeting</text><text x="760" y="89" text-anchor="middle" class="mono muted">of: "display"</text></g>
+    <g data-in="0.2" data-anim="pop" data-on="5-8" class="c1"><rect class="box c1" x="600" y="124" width="320" height="64" rx="10"/><text x="760" y="151" text-anchor="middle" class="title">display</text><text x="760" y="173" text-anchor="middle" class="mono muted">of: "first last"</text></g>
+    <g data-in="0.4" data-anim="pop"><rect class="box" x="600" y="208" width="320" height="56" rx="10"/><text x="760" y="232" text-anchor="middle" class="title">first, last</text><text x="760" y="252" text-anchor="middle" class="small muted">no resolver · passive, from user's output</text></g>
+
+    <text x="40" y="94" class="small muted">client</text>
+    <g data-in="0.6" data-anim="pop" class="c3"><rect class="box c3" x="120" y="74" width="130" height="34" rx="8"/><text x="185" y="96" text-anchor="middle" class="mono">greeting</text></g>
+
+    <text x="40" y="150" class="small muted" data-in="2">pass 1</text>
+    <g data-in="2.2" data-anim="draw"><path id="x8c-p1" class="wire c3 dash" d="M600,72 C520,72 400,146 252,146" marker-end="url(#x8c-ah-c3)"/></g>
+    <g data-in="2.4" data-dur="1.4" data-anim="move" data-path="#x8c-p1" class="c3"><circle class="tok" r="7"/></g>
+    <g data-in="3.6" data-anim="pop" class="c3"><rect class="box c3" x="120" y="129" width="130" height="34" rx="8"/><text x="185" y="151" text-anchor="middle" class="mono">display</text></g>
+
+    <text x="40" y="206" class="small muted" data-in="5">pass 2</text>
+    <g data-in="5.2" data-anim="draw"><path id="x8c-p2" class="wire c3 dash" d="M600,156 C520,156 480,202 402,202" marker-end="url(#x8c-ah-c3)"/></g>
+    <g data-in="5.4" data-dur="1.4" data-anim="move" data-path="#x8c-p2" class="c3"><circle class="tok" r="7"/></g>
+    <g data-in="6.6" data-anim="pop" class="c3"><rect class="box c3" x="120" y="185" width="130" height="34" rx="8"/><text x="185" y="207" text-anchor="middle" class="mono">first</text></g>
+    <g data-in="6.7" data-anim="pop" class="c3"><rect class="box c3" x="270" y="185" width="130" height="34" rx="8"/><text x="335" y="207" text-anchor="middle" class="mono">last</text></g>
+
+    <g data-in="8" class="c3"><text x="40" y="252" class="small muted">pass 3</text><text x="120" y="252" class="small">nothing new → fixed point, stop</text></g>
+
+    <g data-in="11" data-anim="pop" class="c4"><rect class="box c4" x="120" y="310" width="220" height="56" rx="10"/><text x="230" y="334" text-anchor="middle" class="title">greeting resolver task</text><text x="230" y="354" text-anchor="middle" class="small muted">waits on display's cell</text></g>
+    <g data-in="11" data-anim="pop" class="c4"><rect class="box c4" x="600" y="310" width="220" height="56" rx="10"/><text x="710" y="334" text-anchor="middle" class="title">display resolver task</text><text x="710" y="354" text-anchor="middle" class="small muted">reads first, last</text></g>
+    <g data-in="11.6" data-anim="draw"><path class="wire c4 dash" d="M340,338 L598,338" marker-end="url(#x8c-ah-c4)"/></g>
+    <g data-in="11.6" class="c4"><text x="470" y="328" text-anchor="middle" class="small">awaits</text></g>
+  </svg></div>
+  <ol class="beats">
+    <li data-at="0" data-title="Client demand">The client asks only for greeting, so that is User&rsquo;s whole <a class="gl" href="../glossary.html#demand">demand</a> before closure.</li>
+    <li data-at="2" data-title="Pass 1">greeting is an <a class="gl" href="../glossary.html#active-field">active field</a>, because it has a resolver and user&rsquo;s output doesn&rsquo;t hold it. Its <a class="gl" href="../glossary.html#resolver-fragment">resolver fragment</a>, display, joins the demand.</li>
+    <li data-at="5" data-title="Pass 2">display is new, so this pass expands it, and display&rsquo;s resolver fragment adds first and last.</li>
+    <li data-at="8" data-title="Pass 3">first and last have no resolver; user&rsquo;s output provides them. Nothing is new, so the loop stops after this third pass, with greeting, display, first and last as the construction demand.</li>
+    <li data-at="11" data-title="Tasks">The User <a class="gl" href="../glossary.html#orchestrator">orchestrator</a> <a class="gl" href="../glossary.html#dispatch">dispatches</a> both <a class="gl" href="../glossary.html#resolver-task">resolver tasks</a>. greeting&rsquo;s input read waits on display&rsquo;s <a class="gl" href="../glossary.html#cell">cell</a> until the display resolver task fills it.</li>
+  </ol>
+</figure>
+</div>
+
+<h3 id="ex-p5-supply">Which fields are passive, and which are active?</h3>
+<p>This exercise uses the running example, with what each resolver returns. Location is not a Node and has no ID: location&rsquo;s resolver computes it by reverse-geocoding the venue&rsquo;s coordinates.</p>
+<div class="code-pair">
+<pre class="cmd"><span class="c"># schema</span>
+type Query {
+  venue(id: ID!): Venue <span class="d">@resolver(isSelective: true)</span>
+    <span class="c"># returns { title, lat, lng }</span>
+}
+
+type Venue implements Node {
+  id: ID!
+  title: String
+  lat: Float
+  lng: Float
+  description: String
+  location: Location
+    <span class="d">@resolver(
+      isSelective: true
+      objectValueFragment: "lat lng"
+    )</span>
+    <span class="c"># returns { city, country }</span>
+}
+
+type Location {
+  city: String
+  country: String
+  timezone: String
+  displayName: String
+    <span class="d">@resolver(
+      isSelective: true
+      objectValueFragment: "city country"
+    )</span>
+}</pre>
+<pre class="cmd"><span class="c"># query</span>
+query {
+  venue(id: "V1") {
+    title
+    location {
+      displayName
+    }
+  }
+}</pre>
+</div>
+<div class="drill sort"><p class="q">Which fields come from their parent&rsquo;s output, and which need a resolver task of their own?</p>
+<div class="bins"><div class="bin" data-bin="s"><h4>Passive: from the parent&rsquo;s output</h4></div><div class="bin" data-bin="n"><h4>Active: needs its own resolver task</h4></div></div>
+<div class="chips"><button class="chip" data-bin="n" data-why="venue has a node resolver, and the root Query OER starts out empty.">venue</button><button class="chip" data-bin="s" data-why="title is in what the Venue node resolver returned.">title</button><button class="chip" data-bin="s" data-why="lat is in what the Venue node resolver returned.">lat</button><button class="chip" data-bin="s" data-why="lng is in what the Venue node resolver returned.">lng</button><button class="chip" data-bin="n" data-why="location has a resolver, and the Venue node resolver didn&rsquo;t return it.">location</button><button class="chip" data-bin="s" data-why="city is in what location&rsquo;s resolver returned.">city</button><button class="chip" data-bin="s" data-why="country is in what location&rsquo;s resolver returned.">country</button><button class="chip" data-bin="n" data-why="displayName has a resolver, and location&rsquo;s resolver didn&rsquo;t return it.">displayName</button></div>
+<p class="why">title, lat, lng, city and country arrive in their parent resolver&rsquo;s output, so they are passive, and <a class="gl" href="../glossary.html#passive-descent">passive descent</a> fills them. venue, location and displayName have resolvers and nobody returned them, so each one is active and needs its resolver to run: it gets a <a class="gl" href="../glossary.html#claim">claimed</a> cell and its own resolver task. <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/framework/SharedPassiveValueResolutionLogic.kt" data-lines="213-229" data-expect="createOrchestrationTask||materializePassiveFields||dispatchOrchestration">See passive descent</a> · <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/FieldResolverTask.kt" data-lines="206-208" data-expect="reserveCell(objectKey)||claim()">see the claim</a>.</p></div>
+
+</section>
+
+<section id="trace" class="exercises"><h2>While the request runs</h2>
+<p>Now follow the running example as it executes. Each question asks you to make one of the engine&rsquo;s decisions yourself, in the order the engine makes them.</p>
+
+<h3 id="ex-t0-walk">Make the engine&rsquo;s decisions for the running query</h3>
+<p>Here is the running query again, with what each resolver reads and returns.</p>
+<pre class="cmd"><span class="c"># query</span>
+query {
+  venue(id: "V1") {
+    title
+    location {
+      displayName
+    }
+  }
+}</pre>
+<div class="tablewrap"><table>
+<tr><th>Resolver</th><th>Reads</th><th>Returns</th></tr>
+<tr><td>Venue node resolver</td><td><code>id</code>, its argument</td><td><code>title</code>, <code>lat</code>, <code>lng</code></td></tr>
+<tr><td><code>location</code></td><td><code>lat</code>, <code>lng</code> from the Venue</td><td><code>city</code>, <code>country</code></td></tr>
+<tr><td><code>displayName</code></td><td><code>city</code>, <code>country</code> from the Location</td><td><code>"Paris, France"</code></td></tr>
+</table></div>
+<div class="drill walk">
+<div class="drill pick"><p class="q">What is the Venue <a class="gl" href="../glossary.html#node-resolver">node resolver</a> asked to produce, its successor demand?</p>
+<label class="item" data-correct="true" data-why="title: the client asked for it.">title</label>
+<label class="item" data-correct="true" data-why="lat and lng: location&rsquo;s resolver will read them, so venue is asked for them too.">lat lng</label>
+<label class="item" data-correct="true" data-why="location: the client asked for it, so venue may supply it, along with everything below it, displayName&rsquo;s inputs included.">location { city country displayName }</label>
+<label class="item" data-why="description: neither the client nor any resolver asks for it.">description</label>
+<label class="item" data-why="timezone: neither the client nor displayName&rsquo;s resolver asks for it.">location&rsquo;s timezone</label>
+<p class="why">The venue call is asked for everything the client wants below it, plus every input the resolvers below will read: location&rsquo;s lat and lng, and displayName&rsquo;s city and country. Nobody asks for description or timezone. <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/SuccessorDemand.kt" data-lines="149-182" data-expect="fusedRequestedSuccessorDemand||fixedSuccessorInputDemand">See successor demand</a>.</p></div>
+<div class="drill choice"><p class="q">Who fills the title, lat and lng cells?</p>
+<button class="opt" data-why="the orchestrator claims location&rsquo;s cell and dispatches its task; it doesn&rsquo;t fill passive fields&rsquo; cells.">The Venue orchestrator, when it runs</button>
+<button class="opt" data-correct="true">The venue resolver task, during passive descent</button>
+<button class="opt" data-why="readers only wait on cells; they never fill them.">Completion, when it reads them</button>
+<p class="why">The venue resolver task&rsquo;s passive descent. It creates the Venue orchestrator, fills title, lat and lng from the resolver&rsquo;s output, and only then dispatches the orchestrator. <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/framework/SharedPassiveValueResolutionLogic.kt" data-lines="213-229" data-expect="createOrchestrationTask||materializePassiveFields||dispatchOrchestration">See passive descent</a>.</p></div>
+<div class="drill choice"><p class="q">Who claims the location cell?</p>
+<button class="opt" data-why="the cell is claimed before location&rsquo;s resolver task is dispatched, so the task starts out as its only writer.">location&rsquo;s own task, when it starts</button>
+<button class="opt" data-why="the venue resolver task only fills the passive fields&rsquo; cells and dispatches the orchestrator; claiming location is the orchestrator&rsquo;s decision.">The venue resolver task, while filling the passive fields</button>
+<button class="opt" data-correct="true">The Venue orchestrator, when it runs</button>
+<p class="why">The Venue orchestrator&rsquo;s run. It claims location&rsquo;s <a class="gl" href="../glossary.html#reserve">reserved</a> cell, <a class="gl" href="../glossary.html#register-as-writer">registers</a> location&rsquo;s resolver task as the cell&rsquo;s writer with the <a class="gl" href="../glossary.html#cycle-checker">cycle checker</a>, and only then dispatches the task. <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/OrchestrationTask.kt" data-lines="149-151" data-expect="FieldResolverTask.prepareAll(this)">See the run</a> · <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/FieldResolverTask.kt" data-lines="206-208" data-expect="reserveCell(objectKey)||claim()">see the claim</a>.</p></div>
+<div class="drill choice"><p class="q">What is location&rsquo;s resolver asked to produce?</p>
+<button class="opt" data-why="that is what location&rsquo;s resolver reads, its input demand, not what it is asked to produce."><code>lat lng</code></button>
+<button class="opt" data-why="displayName&rsquo;s resolver reads city and country, so location is asked for those too."><code>displayName</code></button>
+<button class="opt" data-correct="true"><code>city country displayName</code></button>
+<button class="opt" data-why="nobody asks for timezone.">All three, plus <code>timezone</code></button>
+<p class="why">The client&rsquo;s displayName, plus city and country, which displayName&rsquo;s resolver will read. <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/SuccessorDemand.kt" data-lines="149-182" data-expect="fusedRequestedSuccessorDemand||fixedSuccessorInputDemand">See successor demand</a>.</p></div>
+<div class="drill choice"><p class="q">Does the location cell wait for displayName&rsquo;s value?</p>
+<button class="opt" data-why="location&rsquo;s resolver task waits only for its own passive descent: building the Location OER and running its orchestrator.">Yes, it waits for every task below it</button>
+<button class="opt" data-why="passive descent comes first: the Location OER is built and its orchestrator has run before the cell completes.">No, it completes as soon as the resolver returns</button>
+<button class="opt" data-correct="true">No, it completes once the Location OER is built and its orchestrator has run</button>
+<p class="why">The location cell <a class="gl" href="../glossary.html#complete">completes</a> once the Location OER is built and its orchestrator has run. By then displayName is already claimed and its task dispatched, but its value may still be pending. <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/FieldResolutionLogic.kt" data-lines="175-186" data-expect="publicationCell.value.complete(passiveValue)">See the code</a> · <a class="src" data-src="core/engine/runtime2/impldocs/architecture/resolution.md" data-lines="220" data-expect="Parent publication does not wait">the design notes</a>.</p></div>
+<div class="drill choice"><p class="q">When can completion first read title?</p>
+<button class="opt" data-why="completion starts reading as soon as resolution starts and waits only on cells that are still pending.">Once the whole resolution has finished</button>
+<button class="opt" data-correct="true">Once the venue cell completes, even if location is still pending</button>
+<button class="opt" data-why="title was filled during the venue resolver task&rsquo;s passive descent, before the venue cell completed, so it never waits for location.">Once the location cell completes</button>
+<p class="why">As soon as the venue cell completes. <a class="gl" href="../glossary.html#completion">Completion</a> starts reading when <a class="gl" href="../glossary.html#resolution">resolution</a> starts and waits only on pending cells, and title was filled before the venue cell completed. <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/execution/QPlanExecutionStrategy.kt" data-lines="92-130" data-expect="startResolution(||super.execute(executionContext, completionParameters)">See the execution strategy</a>.</p></div>
+</div>
+
+<h3 id="ex-t2-publish">What does location&rsquo;s resolver task do, and in what order?</h3>
+<p>This exercise looks at location&rsquo;s resolver task, whose steps <a href="1-actors.html#resolver-task">chapter 1</a> walked through.</p>
+<pre class="cmd"><span class="c"># location&rsquo;s resolver task</span>
+reads:      lat 48.86, lng 2.35 from the Venue
+asked for:  displayName city country
+returns:    { city: "Paris", country: "France" }</pre>
+<div class="drill order"><p class="q">Put the task&rsquo;s steps in order.</p>
+<ol class="steps">
+<li data-why="The task first works out what its resolver will be asked for."><span>Compute the successor demand</span></li>
+<li data-why="Activation comes before any tenant code, so a skipped field runs nothing."><span>Decide <a class="gl" href="../glossary.html#activation">activation</a> (stop if skipped)</span></li>
+<li data-why="Arguments are grounded before the inputs are read."><span>Ground the <a class="gl" href="../glossary.html#arguments">arguments</a></span></li>
+<li data-why="The inputs are read just before the call."><span>Read the inputs, lat and lng</span></li>
+<li data-why="With its arguments and inputs in hand, the task calls the resolver once for its whole successor demand."><span>Call the resolver once</span></li>
+<li data-why="Passive descent works on the value the resolver returned."><span>Passive descent: build the Location</span></li>
+<li data-why="The cell completes last, once the Location OER below it is built and its orchestrator has run."><span>Complete the location cell</span></li>
+</ol>
+<p class="why">Everything is gathered before the one call, and the cell completes last, once the Location OER below it is built and its orchestrator has run. <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/FieldResolutionLogic.kt" data-lines="111-186" data-expect="successorDemandFromConstructionDemand||activatePublication()||resolvePassiveValues||publicationCell.value.complete(passiveValue)">See the task</a> · <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/FieldResolutionLogic.kt" data-lines="247-281" data-expect="fetchGroundedArguments||completeVariablesProviderBindings||materializeResolverInput">the resolver call</a>.</p></div>
+<div class="drill order"><p class="q">Now order everything from creating the Location OER to completing location&rsquo;s cell.</p>
+<ol class="steps">
+<li data-why="The OER exists before its orchestrator."><span>Create the Location OER</span></li>
+<li data-why="The orchestrator, and so its closure, comes before any cell is filled."><span>Create the Location orchestrator, which runs closure</span></li>
+<li><span>Fill city and country</span></li>
+<li data-why="Dispatch comes after filling, so the orchestrator&rsquo;s run sees the passive fields already filled."><span>Dispatch the Location orchestrator</span></li>
+<li data-why="The location cell completes only after passive descent returns."><span>Complete the location cell</span></li>
+</ol>
+<p class="why">The Location gets its orchestrator, and with it its closed demand, before any cell is filled. Dispatch comes after filling, and the location cell completes last. <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/framework/SharedPassiveValueResolutionLogic.kt" data-lines="193-202" data-expect="createObjectResult||resolvePassiveObjectValues">See the Location created</a> · <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/framework/SharedPassiveValueResolutionLogic.kt" data-lines="213-229" data-expect="createOrchestrationTask||materializePassiveFields||dispatchOrchestration">passive descent</a> · <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/FieldResolutionLogic.kt" data-lines="175-186" data-expect="publicationCell.value.complete(passiveValue)">the cell completing</a>.</p></div>
+
+<h3 id="ex-t1-loop">Why isn&rsquo;t greeting expanded twice?</h3>
+<p>Back to the User from the first exercise, with its closure written out pass by pass.</p>
+<pre class="cmd"><span class="c"># closure at the User, from the first exercise</span>
+pass 1: greeting   <span class="c"># adds display</span>
+pass 2: display    <span class="c"># adds first last</span>
+pass 3: first last  <span class="c"># adds nothing, stop</span></pre>
+<div class="drill choice"><p class="q">Why doesn&rsquo;t pass 2 expand greeting again?</p>
+<button class="opt" data-why="closure runs when the User orchestrator is created, before any of the User&rsquo;s resolver tasks exists, so greeting&rsquo;s resolver hasn&rsquo;t run.">greeting&rsquo;s resolver has already run</button>
+<button class="opt" data-correct="true">Each pass looks only at what the pass before it added</button>
+<button class="opt" data-why="user&rsquo;s output holds only first and last, so greeting is still active and needs its own resolver task.">greeting is passive: user&rsquo;s output supplies it</button>
+<p class="why">Pass 2 looks only at display, the demand that pass 1 added; greeting was expanded in pass 1, before any task exists. Each pass expands just what is new, so pass 3 looks only at first and last, which have no resolver, and closure stops. <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/ConstructionDemandClosure2.kt" data-lines="85-89" data-expect="val frontier = pending.combine()||pending = mutableListOf()">See the closure loop</a>.</p></div>
+
+<h3 id="ex-t4-freeze">Can a frozen object still fill a cell?</h3>
+<p>The Venue orchestrator&rsquo;s run has just returned.</p>
+<pre class="cmd"><span class="c"># the Venue OER</span>
+Venue:  frozen
+location: claimed, still pending</pre>
+<div class="drill choice"><p class="q">Can location&rsquo;s cell still complete?</p>
+<button class="opt" data-why="a freeze fails only reservations nobody claimed, and location&rsquo;s cell has a writer.">No, the freeze fails it</button>
+<button class="opt" data-correct="true">Yes, its task can still complete it</button>
+<button class="opt" data-why="a freeze never waits for a claimed cell to complete.">The freeze waits for it to complete first</button>
+<p class="why">Yes. <a class="gl" href="../glossary.html#freeze">Freezing</a> fixes which cells Venue has and fails only the reservations that nobody claimed. location&rsquo;s cell is claimed, so its task completes it later. <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/model/Promise.kt" data-lines="228-240" data-expect="!claimed">See freeze</a>.</p></div>
+</section>
+
+<section id="next"><h2>Where to go next</h2>
+<div class="explain closing">
+<p>These exercises cover the core rules: demand flows down, closure adds what resolvers read, and each cell has one writer. The <a href="../deep-dives/index.html">deep dives</a> build on these rules. <a href="../deep-dives/nested-inputs-and-node-references.html">Nested inputs and node references</a> leaves the venue for a new example, a booking with a list of messages. The messages resolver is asked for an input that each message&rsquo;s preview reads. The same page follows a node reference that becomes a Venue. <a href="../deep-dives/into-the-code.html">Into the code</a> finds these rules in the source, and other deep dives cover access checks, cycles, mutations and more.</p>
+</div>
+</section>
+</main>
+<script src="../assets/app.js"></script><script src="../assets/drill.js"></script><script src="../assets/motion.js"></script>
+</body></html>

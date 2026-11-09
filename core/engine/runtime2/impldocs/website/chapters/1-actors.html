@@ -1,0 +1,302 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>1 · The actors — Viaduct Runtime2</title>
+<script src="../assets/theme.js"></script>
+<link rel="icon" type="image/svg+xml" href="../assets/viaduct-logo.svg">
+<link rel="stylesheet" href="../assets/style.css"></head>
+<body data-layer="1"><main>
+<div class="kicker">Chapter 1</div>
+<h1>The actors</h1>
+<p class="lede">How the four actors hand work to each other.</p>
+
+<section id="intro">
+<div class="explain">
+<p>This chapter zooms in on steps 4 to 8 of the <a href="../index.html#picture">overview&rsquo;s diagram</a>, where the request moves from the Query level down to the Venue level and location&rsquo;s resolver runs. It then looks at the cells those steps fill and at the registry they consult. In the running query, the chapter starts where venue has its value and location is next:</p>
+</div>
+<pre class="cmd"><span class="c"># the running query</span>
+query {
+  venue(id: "V1") {   <span class="c"># resolved: returned title, lat and lng</span>
+    title
+    location {          <span class="c"># next: still needs its resolver</span>
+      displayName
+    }
+  }
+}</pre>
+<pre class="cmd"><span class="c"># Venue node resolver, already called</span>
+reads:      the ID "V1", taken from venue(id:)
+asked for:  title lat lng location { displayName city country }
+returns:    { title: "Loft", lat: 48.86, lng: 2.35 }</pre>
+<div class="explain">
+<p>Each <a class="gl" href="../glossary.html#object-result">object engine result</a> (OER) holds one <a class="gl" href="../glossary.html#cell">cell</a> per field: the slot where that field&rsquo;s value will be written. So far, the Query <a class="gl" href="../glossary.html#orchestrator">orchestrator</a> has handed the Query OER&rsquo;s venue cell to venue&rsquo;s <a class="gl" href="../glossary.html#resolver-task">resolver task</a> and <a class="gl" href="../glossary.html#dispatch">dispatched</a> that task, and the Venue <a class="gl" href="../glossary.html#node-resolver">node resolver</a> has been called once. Below venue nothing exists yet: there is no Venue OER, and neither location&rsquo;s nor displayName&rsquo;s <a class="gl" href="../glossary.html#resolver">resolver</a> has run.</p>
+<p>Three jobs remain: build the Venue OER, recognize location as an <a class="gl" href="../glossary.html#active-field">active field</a>, and call its resolver. The hard part is calling it exactly once: if two pieces of code both believed location was theirs, its resolver would run twice and its value would have two writers.</p>
+<p>Runtime2 prevents that by giving each kind of work to one actor, so that each cell value has at most one writer, each <a class="gl" href="../glossary.html#occurrence">occurrence</a> of a resolver-backed field calls its resolver at most once, and each OER is planned once. An occurrence is one position in the response: in a list of venues, each element&rsquo;s location is its own occurrence, with its own cell and its own call. There are four actors:</p>
+<ul>
+<li><b>Orchestrator</b>: plans one OER.</li>
+<li><b>Resolver task</b>: fills one cell, calling its resolver at most once.</li>
+<li><b>Result tree</b>: the shared workspace where tasks write and read values.</li>
+<li><b><a class="gl" href="../glossary.html#registry">Registry</a></b>: the static map of who produces what.</li>
+</ul>
+</div>
+</section>
+
+<!-- ============ orchestrator ============ -->
+<section id="orchestrator">
+<h2>The orchestrator plans one OER</h2>
+<div class="explain">
+<p>The Venue node resolver returned plain object data holding title, lat and lng. That data has no cells, so nothing else can read it or wait on it. Before anything below venue can run, it has to become a Venue OER, with a decision for each field: title, lat and lng are copied straight in, while location, which has its own resolver, needs exactly one resolver task. <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/model/EngineValueData.kt" data-lines="90-104" data-expect="EngineObjectData.Sync||typealias ResolverOutputData = Any">ResolverOutputData</a></p>
+<p>The venue resolver task creates the Venue OER, plus Venue&rsquo;s <b>orchestrator</b>, which exists only to plan this one OER and makes those decisions. The orchestrator doesn&rsquo;t run on its own: the resolver task, which is still running, drives it through three steps that together make up the resolver task&rsquo;s <a class="gl" href="../glossary.html#passive-descent">passive descent</a>. The orchestrator does the first and the last step, and the resolver task does the middle one itself:</p>
+<ol>
+<li><b>Prepare.</b> Creating the orchestrator runs Prepare, which works out everything Venue must contain. It checks the returned value to tell passive fields from active ones: title, lat and lng are in it, but location isn&rsquo;t, so location is active and its resolver must run. Because that resolver will run, the inputs it declares, lat and lng, are added. Last, it reserves an empty cell for each field in its checked demand, the fields read through access checks.</li>
+<li><b>Fill.</b> The venue resolver task sets title, lat and lng from the returned value: each cell is claimed and completed in one step, so these fields need no task. Fill has to come after Prepare, because it uses the demand that Prepare completed, and before Run, because Run&rsquo;s freeze fails every cell that hasn&rsquo;t been set or claimed.</li>
+<li><b>Run.</b> The venue resolver task dispatches the orchestrator, which runs at once and finishes before the venue resolver task continues. Dispatching a resolver task is different: it launches the task to run concurrently. The orchestrator <a class="gl" href="../glossary.html#claim">claims</a> location&rsquo;s cell for a new resolver task, dispatches that task, and <a class="gl" href="../glossary.html#freeze">freezes</a> Venue so that no new cells can appear on it.</li>
+</ol>
+<p>The orchestrator only plans. It never calls a resolver or checker itself and never waits on anything, so by the time the venue resolver task moves on, Venue is frozen and location&rsquo;s resolver task has already been dispatched.</p>
+</div>
+<figure class="scene" data-duration="12">
+  <div class="stage"><svg viewBox="0 0 960 340" role="img" aria-label="The venue resolver task creates the Venue OER and its orchestrator; creating the orchestrator runs Prepare, which closes demand and adds lat and lng; the venue resolver task sets title, lat and lng from the returned value; it then dispatches the orchestrator, which claims the location cell, launches the location resolver task and freezes the Venue OER.">
+    <defs>
+      <marker id="or-ah-c3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0L10,5L0,10z" class="ah c3"/></marker>
+      <marker id="or-ah-c4" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0L10,5L0,10z" class="ah c4"/></marker>
+    </defs>
+    <g data-in="0" data-anim="pop" class="c2"><rect class="box c2" x="20" y="30" width="270" height="206" rx="10"/>
+      <text x="36" y="54" class="title">Venue OER</text>
+      <text x="274" y="54" text-anchor="end" class="small muted" data-out="9.4">mutable</text></g>
+    <g data-in="9.4" data-out="11.4" data-on="9.4-11.4" class="c4 pulse"><rect class="wire c4 thick" x="16" y="26" width="278" height="214" rx="13"/></g>
+    <g data-in="9.4" data-anim="pop" class="c4"><rect class="box c4" x="214" y="40" width="64" height="20" rx="10"/><text x="246" y="54" text-anchor="middle" class="small">frozen</text></g>
+    <g data-in="1.2" data-anim="slide" data-from="-24,0"><rect class="cell" data-add="5:full" x="36" y="70" width="238" height="32" rx="6"/>
+      <text x="48" y="91" class="mono">title</text>
+      <text x="262" y="91" text-anchor="end" class="mono muted" data-text="1.2:demanded|2.4:demanded · passive|5:&quot;Loft&quot;">demanded</text></g>
+    <g data-in="2.4" data-anim="slide" data-from="-24,0"><rect class="cell" data-add="5:full" x="36" y="110" width="238" height="32" rx="6"/>
+      <text x="48" y="131" class="mono">lat</text>
+      <text x="262" y="131" text-anchor="end" class="mono muted" data-text="2.4:+ closure · passive|5:48.86">+ closure</text></g>
+    <g data-in="2.4" data-anim="slide" data-from="-24,0"><rect class="cell" data-add="5:full" x="36" y="150" width="238" height="32" rx="6"/>
+      <text x="48" y="171" class="mono">lng</text>
+      <text x="262" y="171" text-anchor="end" class="mono muted" data-text="2.4:+ closure · passive|5:2.35">+ closure</text></g>
+    <g data-in="1.2" data-anim="slide" data-from="-24,0"><rect class="cell" x="36" y="190" width="238" height="32" rx="6"/>
+      <text x="48" y="211" class="mono">location</text>
+      <text x="262" y="211" text-anchor="end" class="mono muted" data-text="1.2:demanded|2.4:demanded · active|7:claimed">demanded</text></g>
+    <g data-in="0.2" data-anim="pop" class="c3"><rect class="box c3" x="20" y="256" width="270" height="56" rx="10"/>
+      <text x="36" y="278" class="small title">demand from venue&rsquo;s resolver task</text>
+      <text x="36" y="300" class="mono small">title  location { displayName }</text></g>
+
+    <!-- creating task -->
+    <g data-in="0" data-anim="pop" data-on="0-1.4,4.4-6.4" class="c4"><rect class="box c4 dash" x="700" y="30" width="240" height="128" rx="10"/>
+      <text x="716" y="56" class="title">Resolver task · venue</text>
+      <text x="716" y="80" class="mono small">creates OER + orchestrator</text>
+      <text x="716" y="104" class="small muted">returned value</text>
+      <text x="716" y="124" class="mono small">{ title: "Loft",</text>
+      <text x="716" y="142" class="mono small">  lat: 48.86, lng: 2.35 }</text></g>
+    <g data-in="0" data-dur=".4" data-anim="draw"><path class="wire c4 thick" d="M820,30 C820,10 155,10 155,27" marker-end="url(#or-ah-c4)"/></g>
+    <g data-in="1" data-dur=".4" data-anim="draw"><path class="wire c4 thick" d="M700,64 L644,64" marker-end="url(#or-ah-c4)"/></g>
+    <g data-in="0"><text x="480" y="13" text-anchor="middle" class="small muted">creates</text></g>
+    <g data-in="1"><text x="672" y="56" text-anchor="middle" class="small muted">creates</text></g>
+    <!-- fill -->
+    <g data-in="4.4" data-out="6.2" data-dur=".4" data-anim="draw"><path class="wire c4 thick" d="M700,133 C668,133 672,182 644,182" marker-end="url(#or-ah-c4)"/></g>
+    <g data-in="4.6" data-out="6.2" data-dur=".4" data-anim="draw"><path class="wire c4" d="M338,172 C310,172 306,88 278,88" marker-end="url(#or-ah-c4)"/><path class="wire c4" d="M338,182 C312,182 306,128 278,128" marker-end="url(#or-ah-c4)"/><path class="wire c4" d="M338,192 C314,192 306,168 278,168" marker-end="url(#or-ah-c4)"/><text x="298" y="222" class="small muted">sets</text></g>
+    <!-- dispatch the orchestrator -->
+    <g data-in="6.2" data-dur=".4" data-anim="draw"><path class="wire c4 thick" d="M780,158 C780,232 700,232 644,232" marker-end="url(#or-ah-c4)"/><text x="788" y="200" class="small muted">dispatches</text></g>
+    <!-- phases -->
+    <g data-in="1" data-anim="pop" data-on="1-4.4" class="c4"><rect class="box c4" x="340" y="30" width="300" height="118" rx="10"/>
+      <text x="356" y="54" class="title">1 · Prepare</text>
+      <text x="624" y="54" text-anchor="end" class="small muted">orchestrator</text>
+      <text x="356" y="80" class="small">close demand: + lat, lng</text>
+      <text x="356" y="104" class="small">declare variable bindings</text>
+      <text x="356" y="128" class="small">reserve a cell per checked field</text></g>
+    <g data-in="2" data-out="4.4" data-dur=".4" data-anim="draw"><path class="wire c3" d="M338,76 C308,76 308,126 276,126" marker-end="url(#or-ah-c3)"/><path class="wire c3" d="M338,82 C312,82 308,166 276,166" marker-end="url(#or-ah-c3)"/></g>
+    <g data-in="4.4" data-anim="pop" data-on="4.4-6.2" class="c4"><rect class="box c4 dash" x="340" y="154" width="300" height="56" rx="10"/>
+      <text x="356" y="176" class="title">2 · Fill</text><text x="624" y="176" text-anchor="end" class="small muted">venue resolver task</text>
+      <text x="356" y="198" class="small">set title, lat, lng from the returned value</text></g>
+    <g data-in="6.2" data-anim="pop" data-on="6.2-10" class="c4"><rect class="box c4" x="340" y="216" width="300" height="110" rx="10"/>
+      <text x="356" y="240" class="title">3 · Run</text>
+      <text x="624" y="240" text-anchor="end" class="small muted">orchestrator</text>
+      <text x="356" y="266" class="small">claim location · register its writer</text>
+      <text x="356" y="290" class="small">dispatch location's resolver task</text>
+      <text x="356" y="314" class="small">freeze the object</text></g>
+    <g data-in="7" data-dur=".4" data-anim="draw"><path class="wire c4 dash" d="M338,262 C300,262 314,206 276,206" marker-end="url(#or-ah-c4)"/></g>
+
+    <!-- launched task -->
+    <g data-in="8" data-dur=".4" data-anim="draw"><path id="or-p-l" class="wire c4 thick" d="M640,286 L698,286" marker-end="url(#or-ah-c4)"/></g>
+    <g data-in="8" data-dur=".5" data-anim="move" data-path="#or-p-l" class="c4"><circle class="tok" r="6"/></g>
+    <g data-in="8.5" data-anim="pop" class="c4"><rect class="box c4 dash" x="700" y="252" width="240" height="70" rx="10"/>
+      <text x="716" y="278" class="title">Resolver task · location</text>
+      <text x="716" y="300" class="mono small muted">FieldResolverTask</text></g>
+  </svg></div>
+  <ol class="beats">
+    <li data-at="0" data-title="Demand arrives"><p>The venue resolver task creates the Venue OER and Venue&rsquo;s orchestrator (<code>OrchestrationTask</code>), which receives the <a class="gl" href="../glossary.html#demand">demand</a> below venue:</p><pre><code><span class="c"># demand below venue, as the client wrote it</span>
+title
+location {
+  displayName
+}</code></pre></li>
+    <li data-at="1" data-title="Prepare: close demand"><p>Creating the orchestrator is the Prepare phase (in code, <code>create</code>). Prepare <a class="gl" href="../glossary.html#closure">closes</a> the demand: it keeps adding the inputs that demanded resolvers and access checkers declare, until nothing new appears. title, lat and lng are in the returned value, so they are passive. location isn&rsquo;t, so it is active and its resolver must run, and the inputs it declares, lat and lng, join.</p><p>Prepare also declares the <a class="gl" href="../glossary.html#binding">variable bindings</a> its resolvers read: this request&rsquo;s values for any variables a resolver declares. It declares them before any task runs because a task that reads a variable waits on its binding, and reading one that was never declared is an error. This example has none (<a href="../deep-dives/arguments-and-aliases.html">Arguments and aliases</a>). Last, it <a class="gl" href="../glossary.html#reserve">reserves</a> an empty cell for every field in its <a class="gl" href="../glossary.html#checked-demand">checked demand</a>, so that readers can start waiting on it right away (<a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/FieldCheckerTask.kt" data-lines="85-106" data-expect="Claims all checked slots before passive descent can expose cells to readers||constructionDemand.checked.byKey()||reserveCell(key)">FieldCheckerTask</a>). Checked demand is demand whose values are read through access checks; here it is every field the client asked for or a resolver reads. A field outside it gets its cell from its writer (<a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/FieldResolverTask.kt" data-lines="206-207" data-expect="reserveCell(objectKey)||publicationCell.value.claim()">FieldResolverTask</a>). <a href="../deep-dives/access-checks.html">Access checks</a> covers checked and unchecked demand in full.</p></li>
+    <li data-at="4.4" data-title="Fill the passive fields">The venue resolver task, not the orchestrator, fills the cells of the <a class="gl" href="../glossary.html#passive-field">passive fields</a>, title, lat and lng, from the value the Venue node resolver returned. Each cell is set: claimed and completed in one step, so no task is needed. Fill comes after Prepare, because it uses the demand that Prepare closed, and before Run, because Run&rsquo;s freeze would fail any cell not yet set or claimed.</li>
+    <li data-at="6.2" data-title="Run: claim">The venue resolver task dispatches the orchestrator, which runs at once and never suspends, so it finishes before the venue resolver task continues. Because location has a resolver and isn&rsquo;t in the returned value, the run claims location&rsquo;s reserved cell for location&rsquo;s resolver task, making that task the cell&rsquo;s only writer. The run also <a class="gl" href="../glossary.html#register-as-writer">registers</a> that writer with the <a class="gl" href="../glossary.html#cycle-checker">cycle checker</a>, which turns a would-be deadlock into an error (<a href="../deep-dives/cycles.html">Cycles</a>).</li>
+    <li data-at="8" data-title="Run: dispatch">The run dispatches location&rsquo;s resolver task, which launches it as a coroutine. Each claimed cell gets one resolver task, a <code>FieldResolverTask</code>, which runs concurrently.</li>
+    <li data-at="9.4" data-title="Run: freeze">Last, the run freezes Venue: its set of cells is now fixed, so no new cell can appear on it, though location&rsquo;s claimed cell can still be filled later. Because the run never suspends and never calls a resolver or checker itself, all of this is done by the time dispatch returns.</li>
+  </ol>
+</figure>
+<p class="where">Where in code: <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/OrchestrationTask.kt" data-lines="87-132" data-expect="closeSelectedConstructionDemand||declareBindings()||FieldCheckerTask.prepareAll">prepare (create)</a> · <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/framework/SharedPassiveValueResolutionLogic.kt" data-lines="213-229" data-expect="createOrchestrationTask||materializePassiveFields||dispatchOrchestration">passive descent</a> · <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/CoroutineOrchestrationTaskBase.kt" data-lines="40-45" data-expect="prepareAndDispatchFieldWork()||freeze()">run</a> · <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/OrchestrationTask.kt" data-lines="21-26" data-expect="The current orchestration body does not suspend">does not suspend</a></p>
+</section>
+
+<!-- ============ resolver task ============ -->
+<section id="resolver-task">
+<h2>The resolver task fills one cell, calling its resolver at most once</h2>
+<div class="explain">
+<p>The orchestrator has claimed location&rsquo;s cell and dispatched a resolver task to fill it, and that task is where tenant code runs. location&rsquo;s <b>resolver task</b> has one job: to call location&rsquo;s resolver once, asking that one call for everything the fields below location will read.</p>
+<p>Location is not a Node and has no ID, so there is nothing to look it up by. Its value comes from location&rsquo;s resolver, which reverse-geocodes the venue&rsquo;s coordinates, lat and lng, read from the Venue OER.</p>
+<p>The task works through a fixed order of steps: everything is gathered before the call, and the cell is <a class="gl" href="../glossary.html#complete">completed</a> last, once the object below it is ready. Completing a cell means writing its value; it is separate from <a class="gl" href="../glossary.html#completion">completion</a>, which reads the cells to build the response.</p>
+</div>
+<figure class="scene" data-duration="12">
+  <div class="stage"><svg viewBox="0 0 960 350" role="img" aria-label="The location resolver task moves through six stages: successor demand, activation, arguments, input reads, one call, and passive descent. It reads lat and lng from the Venue OER, calls the location resolver once, builds the Location OER from the output, and then completes the location cell.">
+    <defs>
+      <marker id="rt-ah-c2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0L10,5L0,10z" class="ah c2"/></marker>
+      <marker id="rt-ah-c3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0L10,5L0,10z" class="ah c3"/></marker>
+    </defs>
+    <!-- stages -->
+    <g data-in="0" data-on="0.8-2" class="c4"><rect class="box c4" x="20" y="16" width="146" height="40" rx="20"/><text x="93" y="41" text-anchor="middle" class="small title">successor demand</text></g>
+    <g data-in="0" data-on="2-4" class="c4"><rect class="box c4" x="176" y="16" width="146" height="40" rx="20"/><text x="249" y="41" text-anchor="middle" class="small title">activation</text></g>
+    <g data-in="0" data-on="3-4" class="c4"><rect class="box c4" x="332" y="16" width="146" height="40" rx="20"/><text x="405" y="41" text-anchor="middle" class="small title">arguments</text></g>
+    <g data-in="0" data-on="4-5.4" class="c4"><rect class="box c4" x="488" y="16" width="146" height="40" rx="20"/><text x="561" y="41" text-anchor="middle" class="small title">input reads</text></g>
+    <g data-in="0" data-on="5.4-7.6" class="c4"><rect class="box c4" x="644" y="16" width="146" height="40" rx="20"/><text x="717" y="41" text-anchor="middle" class="small title">one call</text></g>
+    <g data-in="0" data-on="7.6-10" class="c4"><rect class="box c4" x="800" y="16" width="140" height="40" rx="20"/><text x="870" y="41" text-anchor="middle" class="small title">passive descent</text></g>
+
+    <!-- Venue OER -->
+    <g data-in="0" class="c2"><rect class="box c2" x="20" y="90" width="260" height="170" rx="10"/>
+      <text x="36" y="114" class="title">Venue OER</text></g>
+    <g data-in="0"><rect class="cell full" x="36" y="130" width="228" height="32" rx="6"/>
+      <text x="48" y="151" class="mono">lat</text><text x="252" y="151" text-anchor="end" class="mono">48.86</text></g>
+    <g data-in="0"><rect class="cell full" x="36" y="170" width="228" height="32" rx="6"/>
+      <text x="48" y="191" class="mono">lng</text><text x="252" y="191" text-anchor="end" class="mono">2.35</text></g>
+    <g data-in="0"><rect class="cell" data-add="10.4:full" x="36" y="210" width="228" height="32" rx="6"/>
+      <text x="48" y="231" class="mono">location</text>
+      <text x="252" y="231" text-anchor="end" class="mono muted" data-text="0:claimed|10.4:→ Location">claimed</text></g>
+
+    <!-- demand -->
+    <g data-in="0.8" data-anim="pop" class="c3"><rect class="box c3" x="330" y="90" width="300" height="60" rx="10"/>
+      <text x="346" y="112" class="small title">asked for</text>
+      <text x="346" y="136" class="mono small">displayName city country</text></g>
+    <g data-in="2"><text x="346" y="172" class="small muted" data-text="2:activated: included, no @skip / @include|3:activated: included · arguments: none|4:input: { lat: 48.86, lng: 2.35 }">activated: included, no @skip / @include</text></g>
+
+    <!-- tenant resolver -->
+    <g data-in="0.1" data-anim="pop" data-on="5.4-7.6" class="c1"><rect class="box c1" x="330" y="190" width="300" height="80" rx="10"/>
+      <text x="346" y="214" class="title">location resolver</text>
+      <text x="614" y="214" text-anchor="end" class="mono small muted">tenant code</text>
+      <text x="346" y="242" class="mono small" data-text="0.2:calls: 0|5.6:calls: 1">calls: 0</text>
+      <text x="346" y="260" class="mono small" data-text="0.2: |7:→ { city, country }"> </text></g>
+    <g data-in="4" data-dur=".4" data-anim="draw"><path id="rt-p-in" class="wire c3" d="M266,166 C302,166 292,230 328,230" marker-end="url(#rt-ah-c3)"/></g>
+    <g data-in="4.1" data-dur=".7" data-anim="move" data-path="#rt-p-in" class="c2"><circle class="tok" r="6"/></g>
+
+    <!-- Location OER -->
+    <g data-in="7.6" data-dur=".4" data-anim="draw"><path id="rt-p-out" class="wire c2 thick" d="M632,230 L688,230" marker-end="url(#rt-ah-c2)"/></g>
+    <g data-in="7.6" data-dur=".5" data-anim="move" data-path="#rt-p-out" class="c2"><circle class="tok" r="6"/></g>
+    <g data-in="8" data-anim="pop" class="c2"><rect class="box c2" x="690" y="90" width="250" height="170" rx="10"/>
+      <text x="706" y="114" class="title">Location OER</text></g>
+    <g data-in="8.4"><rect class="cell full" x="706" y="130" width="218" height="32" rx="6"/>
+      <text x="718" y="151" class="mono">city</text><text x="912" y="151" text-anchor="end" class="mono">"Paris"</text></g>
+    <g data-in="8.4"><rect class="cell full" x="706" y="170" width="218" height="32" rx="6"/>
+      <text x="718" y="191" class="mono">country</text><text x="912" y="191" text-anchor="end" class="mono">"France"</text></g>
+    <g data-in="8.8"><rect class="cell" x="706" y="210" width="218" height="32" rx="6"/>
+      <text x="718" y="231" class="mono">displayName</text><text x="912" y="231" text-anchor="end" class="mono muted">own task</text></g>
+    <g data-in="10" data-dur=".5" data-anim="draw"><path id="rt-p-done" class="wire c2" d="M780,262 C740,340 180,340 150,246" marker-end="url(#rt-ah-c2)"/></g>
+    <g data-in="10" data-dur=".6" data-anim="move" data-path="#rt-p-done" class="c2"><circle class="tok" r="6"/></g>
+  </svg></div>
+  <ol class="beats">
+    <li data-at="0" data-title="One task, one cell">location&rsquo;s resolver task (<code>FieldResolverTask</code>) owns the location cell its orchestrator claimed and is that cell&rsquo;s only writer.</li>
+    <li data-at="0.8" data-title="Successor demand">First it computes its <a class="gl" href="../glossary.html#successor-demand">successor demand</a>, which is what location&rsquo;s resolver is asked for: displayName, plus the city and country that displayName&rsquo;s resolver reads. The resolver may supply displayName, which makes displayName passive; if it doesn&rsquo;t, displayName is active and falls to its own resolver.</li>
+    <li data-at="2" data-title="Activation, arguments">Next it decides <a class="gl" href="../glossary.html#activation">activation</a>: the cell&rsquo;s write-once include-or-skip decision, taken from the field&rsquo;s <code>@skip</code>/<code>@include</code> condition. A skipped cell stops the task here, before any tenant code runs. Then the task grounds the <a class="gl" href="../glossary.html#arguments">arguments</a>, replacing any <a class="gl" href="../glossary.html#variable">variables</a> with their values, and fills in the resolver&rsquo;s variable bindings. location takes no arguments.</li>
+    <li data-at="4" data-title="Input reads">The task reads the two input fields location&rsquo;s resolver declared, lat and lng, from the Venue OER: <code>{ lat: 48.86, lng: 2.35 }</code>.</li>
+    <li data-at="5.4" data-title="One call">It calls location&rsquo;s resolver once. The tenant code returns <code>{ city: "Paris", country: "France" }</code>, not displayName.</li>
+    <li data-at="7.6" data-title="Passive descent">Its passive descent builds the Location OER in the same three steps as before: it creates the Location orchestrator, fills city and country, and dispatches. The Location orchestrator claims displayName for its own resolver task.</li>
+    <li data-at="10" data-title="Then the cell completes">Only then does the task complete location&rsquo;s cell. The Location orchestrator has already claimed displayName and frozen the Location OER, so its cells exist before anyone reads location.</li>
+  </ol>
+</figure>
+<aside class="today"><b>In today&rsquo;s engine</b> A skipped field is dropped while the engine collects fields, so it never gets a cell: <code>CollectFields</code> applies <code>@skip</code> and <code>@include</code> at that point. Runtime2 also decides a client&rsquo;s <code>@skip</code>/<code>@include</code> while decoding, but it keeps a skipped field in the demand, marked never-included. A skipped resolver-backed location still gets its cell and task, and the task marks the cell skipped. Conditions inside a resolver&rsquo;s RSS work differently (see <a href="../deep-dives/skip-include.html">@skip and @include</a>). <a class="src" data-src="core/engine/runtime/src/main/kotlin/viaduct/engine/runtime/execution/CollectFields.kt" data-lines="185-188" data-expect="Resolution.Drop -&gt; continue">CollectFields</a></aside>
+<p class="where">Where in code: <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/FieldResolutionLogic.kt" data-lines="111-187" data-expect="successorDemandFromConstructionDemand||activatePublication()||resolvePassiveValues||publicationCell.value.complete(passiveValue)">publishResult</a> · <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/FieldResolutionLogic.kt" data-lines="241-305" data-expect="fetchGroundedArguments||materializeResolverInput||selections = invocationDemand">runFieldResolver</a> · <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/SuccessorDemand.kt" data-lines="220-302" data-expect="hasRegisteredResolver">registered fields stay in successor demand</a> · <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/bootstrap/ResolverRegistryImpl.kt" data-lines="268-288" data-expect="withNodeDispatch||loadNode">Query.node dispatch</a></p>
+</section>
+
+<!-- ============ result tree ============ -->
+<section id="result-tree">
+<h2>The result tree is the shared workspace</h2>
+<div class="explain">
+<p>The venue resolver task wrote lat and lng and the location resolver task read them, yet neither task called the other, because tasks share values through the <b>result tree</b>. Each OER maps <a class="gl" href="../glossary.html#key">keys</a> to <b>cells</b>, where a <b>key</b> is a field plus its argument values, with no alias.</p>
+<p>A cell holds one field&rsquo;s result at one place. It has three parts, each written once: the activation decision, a value <a class="gl" href="../glossary.html#promise">promise</a> that readers can wait on, and a <a class="gl" href="../glossary.html#field-check-slot">field-check slot</a> for the access check. A cell&rsquo;s value only moves forward, from reserved to claimed to completed, and freezing fixes which cells an object has.</p>
+</div>
+<figure class="scene" data-duration="11">
+  <div class="stage"><svg viewBox="0 0 960 290" role="img" aria-label="In the Venue OER, title is set in one step. location is claimed for its resolver task, its one writer; the object freezes while location is still pending; a reader waits on location and wakes when the location resolver task completes it.">
+    <defs>
+      <marker id="ce-ah-c2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0L10,5L0,10z" class="ah c2"/></marker>
+      <marker id="ce-ah-c3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0L10,5L0,10z" class="ah c3"/></marker>
+      <marker id="ce-ah-c4" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0L10,5L0,10z" class="ah c4"/></marker>
+    </defs>
+    <g data-in="0" class="c2"><rect class="box c2" x="20" y="20" width="420" height="180" rx="10"/>
+      <text x="36" y="44" class="title">Venue OER</text>
+      <text x="424" y="44" text-anchor="end" class="small muted" data-text="0:mutable|6:frozen">mutable</text></g>
+    <g data-in="0"><rect class="cell" data-add="1.4:full" x="36" y="62" width="388" height="40" rx="6"/>
+      <text x="50" y="87" class="mono">title</text>
+      <text x="410" y="87" text-anchor="end" class="mono muted" data-text="0:absent|0.8:reserved|1.4:set at once: &quot;Loft&quot;">absent</text></g>
+    <g data-in="0"><rect class="cell" data-add="8.4:full" x="36" y="120" width="388" height="56" rx="6"/>
+      <text x="50" y="153" class="mono">location</text>
+      <text x="410" y="153" text-anchor="end" class="mono muted" data-text="0:absent|0.8:reserved|3.2:claimed for location resolver task|8.4:→ Location">absent</text></g>
+
+    <g data-in="3.2" data-anim="pop" data-on="7.8" class="c4"><rect class="box c4 dash" x="620" y="110" width="320" height="56" rx="10"/>
+      <text x="636" y="136" class="title">Resolver task · location</text>
+      <text x="636" y="156" class="mono small muted">the one writer</text></g>
+    <g data-in="3.2" data-dur=".3" data-anim="draw"><path id="ce-p-cl" class="wire c4 dash" d="M618,138 L426,138" marker-end="url(#ce-ah-c4)"/></g>
+
+    <g data-in="6" data-dur=".5" data-anim="pop" class="c4"><rect class="box c4" x="20" y="214" width="420" height="34" rx="17"/>
+      <text x="230" y="236" text-anchor="middle" class="small">frozen: no new cells · claimed location may still complete</text></g>
+
+    <g data-in="6.6" data-anim="pop" data-on="8.8" class="c3"><rect class="box c3" x="620" y="196" width="320" height="64" rx="10"/>
+      <text x="636" y="220" class="title">Reader</text>
+      <text x="636" y="244" class="mono small" data-text="6.6:await location…|8.8:location → Location">await location…</text></g>
+    <g data-in="6.8" data-dur=".3" data-anim="draw"><path class="wire c3 dash" d="M618,214 C540,214 500,166 426,166" marker-end="url(#ce-ah-c3)"/></g>
+    <g data-in="7.8" data-dur=".5" data-anim="move" data-path="#ce-p-cl" class="c2"><circle class="tok" r="7"/></g>
+    <g data-in="8.6" data-dur=".3" data-anim="draw"><path id="ce-p-wk" class="wire c2" d="M426,172 C500,172 540,236 618,236" marker-end="url(#ce-ah-c2)"/></g>
+    <g data-in="8.6" data-dur=".4" data-anim="move" data-path="#ce-p-wk" class="c2"><circle class="tok" r="6"/></g>
+  </svg></div>
+  <ol class="beats">
+    <li data-at="0" data-title="Absent">Before the Venue orchestrator prepares, the Venue OER (an <code>ObjectEngineResult</code>) has no cell for title or location.</li>
+    <li data-at="0.8" data-title="Reserved">Preparation reserves both cells (each an <code>EngineResultCell</code>) and creates them empty, so readers can wait on them before any value arrives.</li>
+    <li data-at="1.4" data-title="Set in one step">title came from the Venue node resolver, so its cell is claimed and completed in one step (<code>set</code>).</li>
+    <li data-at="3.2" data-title="Claim">location&rsquo;s cell is claimed for its task before the task runs, so that task is the cell&rsquo;s one writer. Its writer is registered as a separate step.</li>
+    <li data-at="6" data-title="Freeze">Freezing seals the object&rsquo;s key set. Any reservation that nobody claimed would now fail with &ldquo;Missing engine-result cell&rdquo;, so its readers fail instead of waiting forever. location is claimed, so it can still complete.</li>
+    <li data-at="6.6" data-title="Readers wait">A reader of location, such as completion, waits on the cell&rsquo;s value promise (a <code>ReservablePromise</code>), and readers can start waiting even before any writer claims the cell.</li>
+    <li data-at="7.8" data-title="Completed once">The location resolver task completes the cell, writing its value at most once, and the waiting reader wakes.</li>
+  </ol>
+</figure>
+<p class="where">Where in code: <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/model/EngineResult.kt" data-lines="62-83" data-expect="sealed interface EngineResultCell||ReservablePromise||fieldCheckerResult">EngineResultCell</a> · <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/model/EngineResult.kt" data-lines="326-343" data-expect="fun reserveCell||Seals this object's cell-key set">reserveCell · freeze</a> · <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/model/Promise.kt" data-lines="132-154" data-expect="sealed interface ReservablePromise||fun claim()||fails an existing unclaimed reservation">ReservablePromise</a> · <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/model/Promise.kt" data-lines="197-210" data-expect="override fun claim(): ReservablePromise&lt;T&gt;||fun set(value: T)">claim · set</a> · <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/FieldResolverTask.kt" data-lines="197-221" data-expect="reserveCell(objectKey)||value.claim()||registerWriter">claim before dispatch</a></p>
+</section>
+
+<!-- ============ registry ============ -->
+<section id="registry">
+<h2>The registry is the static map of who produces what</h2>
+<div class="explain">
+<p>Closure, claims and successor demand all ask the same question: does this field have a resolver, and what does it need? The <b>resolver registry</b> answers it; it is built once per schema, before any request starts, and by default every request shares it. It also keeps each resolver&rsquo;s inputs prepared ahead of time, so closure can reuse them instead of working them out again for every object. <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/bootstrap/ResolverRegistryImpl.kt" data-lines="678-690" data-expect="override fun precomputedConstructionDemand||private fun precomputeConstructionDemand">precomputeConstructionDemand</a></p>
+<p>A resolver declares its inputs as its <a class="gl" href="../glossary.html#resolver-fragment">required selection set</a> (RSS), which has two parts, also called resolver fragments. The <b>object RSS</b> (<code>objectValueFragment</code>) is read from the field&rsquo;s parent object, and the <b>Query RSS</b> (<code>queryValueFragment</code>) is read from Query. A field with no resolver can only be passive: its parent resolver&rsquo;s output is the only place its value can come from. Checkers are registered too; see <a href="../deep-dives/access-checks.html#checkers">Access checks</a>.</p>
+</div>
+<div class="tablewrap"><table>
+<thead><tr><th>Registry entry (example)</th><th>Kind</th><th>Declared inputs</th></tr></thead>
+<tbody>
+<tr><td><code>Query.venue</code></td><td>Venue node resolver, registered as a field resolver (tour simplification) · <code>FieldValueResolver</code></td><td>none (takes argument <code>id</code>)</td></tr>
+<tr><td><code>Venue.location</code></td><td>field resolver</td><td><code>lat</code>, <code>lng</code></td></tr>
+<tr><td><code>Location.displayName</code></td><td>field resolver</td><td><code>city</code>, <code>country</code></td></tr>
+<tr><td><code>Query.node</code></td><td>built-in field resolver that passes each node ID to the node resolver of its type (deep dive: <a href="../deep-dives/nested-inputs-and-node-references.html#nodes">Nested inputs and node references</a>)</td><td>none (takes argument <code>id</code>)</td></tr>
+<tr><td><code>title</code>, <code>lat</code>, <code>city</code>, …</td><td>not registered: always passive</td><td>—</td></tr>
+</tbody></table></div>
+<p>The two <code>id</code> rows are linked. As the <a href="../index.html#intro">overview</a> says, this tour treats the Venue node resolver as <code>Query.venue</code>&rsquo;s resolver; a real tenant gives <code>Query.venue</code> its own field resolver that returns a node reference, and Runtime2 resolves that reference through <code>Query.node</code>, whose built-in resolver calls the Venue node resolver.</p>
+<p class="where">Where in code: <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/model/registry/ResolverRegistry.kt" data-lines="44-75" data-expect="interface ResolverRegistry||fun fieldChecker||fun typeChecker">ResolverRegistry</a> · <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/model/registry/ResolverRegistry.kt" data-lines="8-20" data-expect="acyclicity">acyclicity</a> · <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/model/registry/NodeResolverFunction.kt" data-lines="6-16" data-expect="exposes a field-only [ResolverRegistry]">node resolvers become field resolvers</a> · <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/model/registry/Assumptions.kt" data-lines="14-25" data-expect="val resolverRegistry: ResolverRegistry">Assumptions</a></p>
+</section>
+
+<div class="key multi"><ul>
+<li>The orchestrator picks which cells get a resolver task but never writes resolver values.</li>
+<li>location's resolver task computes its successor demand first, calls its resolver once, and completes its cell last.</li>
+<li>Each value has one known writer, and readers wait on its promise, not on another task.</li>
+</ul></div>
+
+<section id="closing">
+<div class="explain">
+<p>This chapter took some of the actors&rsquo; choices as given: title needed no task but location did, and lat and lng joined although nobody asked for them. Chapter 2 explains the rules behind those choices: what each object must build, and where each value comes from.</p>
+</div>
+</section>
+
+</main>
+<script src="../assets/app.js"></script><script src="../assets/motion.js"></script>
+</body></html>

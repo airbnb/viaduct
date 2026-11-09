@@ -1,0 +1,280 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Access checks — Viaduct Runtime2</title>
+<script src="../assets/theme.js"></script>
+<link rel="icon" type="image/svg+xml" href="../assets/viaduct-logo.svg">
+<link rel="stylesheet" href="../assets/style.css"></head>
+<body data-layer="-1"><main>
+<div class="kicker">Deep dive</div>
+<h1>Access checks</h1>
+<p class="lede"><a class="gl" href="../glossary.html#field-checker">Field</a> and <a class="gl" href="../glossary.html#type-checker">type checkers</a> run beside <a class="gl" href="../glossary.html#resolver">resolvers</a>, in their own tasks. Their verdicts are applied later, at the moment someone reads the value.</p>
+<div class="explain">
+<p>This query asks for a payment&rsquo;s amount and the last four digits of the bank account it goes to. A payment is private financial data, so a checker guards every step of the request.</p>
+<p>Runtime2 holds each object it builds in an <a class="gl" href="../glossary.html#object-result">object engine result</a> (OER), like today&rsquo;s <code>ObjectEngineResult</code>. An OER has one <a class="gl" href="../glossary.html#cell">cell</a> per field, which holds the field&rsquo;s value and, separately, its field check&rsquo;s verdict. The OER also has one slot for its type check&rsquo;s verdict.</p>
+<p>In the example schema, <code>@fieldChecker</code> and <code>@typeChecker</code> are shorthand for checker registrations, and their arguments declare each checker&rsquo;s inputs. In public Viaduct, a service attaches checkers through a <code>CheckerExecutorFactory</code>, which returns the checker, if any, for each field and type. It may decide by reading a policy-check directive in the schema. Each checker declares its inputs as required selection sets (<a class="src" data-src="core/engine/api/src/main/kotlin/viaduct/engine/api/spi/CheckerExecutorFactory.kt" data-lines="14-32" data-expect="fun checkerExecutorForField||fun checkerExecutorForType">factory</a> · <a class="src" data-src="core/engine/api/src/main/kotlin/viaduct/engine/api/spi/CheckerExecutor.kt" data-lines="18-21" data-expect="val requiredSelectionSets: Map&lt;String, RequiredSelectionSet?&gt;">inputs</a> · <a class="src" data-src="core/tenant/runtime/src/test/kotlin/viaduct/tenant/runtime/execution/policycheck/PolicyCheckFeatureAppTest.kt" data-lines="80-86" data-expect="hasAppliedDirective(&quot;policyCheck&quot;)">policy-check directive</a>).</p>
+</div>
+<div class="code-pair">
+<pre class="cmd"><span class="c"># schema</span>
+type Query {
+  viewerId: ID <span class="d">@resolver</span>
+  payment(id: ID!): Payment
+    <span class="d">@resolver</span>
+    <span class="d">@fieldChecker</span>
+}
+
+type Payment
+  <span class="d">@typeChecker(
+    objectValueFragment: "ownerId"
+    queryValueFragment: "viewerId"
+  )</span> {
+  id: ID!
+  ownerId: ID
+  status: String
+  amount: Int
+  bankAccount: BankAccount
+    <span class="d">@resolver(objectValueFragment: "ownerId")</span>
+    <span class="d">@fieldChecker(objectValueFragment: "status")</span>
+}
+
+type BankAccount <span class="d">@typeChecker</span> {
+  id: ID!
+  last4: String
+}</pre>
+<pre class="cmd"><span class="c"># query</span>
+query {
+  payment(id: "p1") {
+    amount
+    bankAccount {
+      last4
+    }
+  }
+}</pre>
+</div>
+<div class="explain">
+<p>On <code>@resolver</code>, <code>objectValueFragment</code> is shorthand for the <a class="gl" href="../glossary.html#rss">required selection set</a> (RSS) that the field&rsquo;s <code>@Resolver</code> class declares in Kotlin. Public Viaduct&rsquo;s <code>@resolver</code> directive takes only <code>isSelective</code> and <code>isBatching</code> (<a class="src" data-src="docs/docs/docs/developers/schema_reference/index.md" data-lines="21-22" data-expect="isSelective: Boolean! = false||isBatching: Boolean! = false">schema reference</a>). On the checkers, <code>objectValueFragment</code> names inputs on the object the same way, and <code>queryValueFragment</code> names inputs rooted at <code>Query</code>.</p>
+<p>Four checkers guard this data. The field checker on <code>Query.payment</code> receives the field&rsquo;s <code>id</code> argument and decides whether the viewer may look up payments. The Payment type checker admits only the payment&rsquo;s owner, by comparing ownerId with viewerId. The field checker on bankAccount hides the account while the payment&rsquo;s status says it is under review, and the BankAccount type checker guards every bank account, wherever it appears.</p>
+<p>That raises two questions. When does a check run, and who makes sure its verdict is respected? In Runtime2 a check runs beside the resolver, and whoever reads the value applies its verdict, including <a class="gl" href="../glossary.html#completion">completion</a> when it reads the response data.</p>
+</div>
+
+<section id="checkers">
+<h2>Checkers decide who may see a value</h2>
+<div class="explain">
+<p>Start with bankAccount, which has a <b>field checker</b>, and BankAccount, which has a <b>type checker</b>. A field checker guards one field, and a type checker guards every object of its type. Both are registered next to the resolvers, and both can declare inputs, just like a resolver: bankAccount&rsquo;s checker reads status.</p>
+<p>Checks run beside the resolvers they guard, in their own <b><a class="gl" href="../glossary.html#checker-task">checker tasks</a></b>, and each verdict waits in a slot of its own. Whoever reads the value applies the verdict through a <b><a class="gl" href="../glossary.html#checked-read">checked read</a></b>, while a <a class="gl" href="../glossary.html#raw-read">raw read</a> skips it.</p>
+<aside class="today"><b>In today&rsquo;s engine</b> Today, bankAccount&rsquo;s field checker also runs beside its resolver, and BankAccount&rsquo;s type check is folded into bankAccount&rsquo;s access-check slot. In Runtime2 the type check is stored once, in the <a class="gl" href="../glossary.html#type-check-slot">type-check slot</a> of the BankAccount OER. Both engines apply verdicts when the value is read: today completion and resolver input reads check the access-check slot too (<a class="src" data-src="core/engine/runtime/src/main/kotlin/viaduct/engine/runtime/ObjectEngineResultImpl.kt" data-lines="285-302" data-expect="Raw resolution errors take precedence over checker errors">resolver reads</a>). They differ when a field both fails and is denied. Either way the field fails with one error at its path, but today that error is the resolver&rsquo;s own (<a class="src" data-src="core/engine/runtime/src/main/kotlin/viaduct/engine/runtime/execution/FieldCompleter.kt" data-lines="252-255" data-expect="if (frr.errors.isNotEmpty()) return@outer fieldResolutionResultValue">FieldCompleter</a>), while in Runtime2 it is the checker&rsquo;s denial (<a class="src" data-src="core/engine/runtime2/impldocs/architecture/access-checks.md" data-lines="144" data-expect="Applicable checker denial takes precedence over a raw-value error at a checked consumer">doc</a>).</aside>
+<aside class="today"><b>In today&rsquo;s engine</b> Today&rsquo;s engine runs a checker on a top-level mutation or subscription field before its resolver (<a class="src" data-src="core/engine/runtime/src/main/kotlin/viaduct/engine/runtime/execution/FieldResolver.kt" data-lines="1389-1390" data-expect="execute the access check in parallel with the data fetcher">fetchField</a>). Runtime2 has no such checker-first rule (<a class="src" data-src="core/engine/runtime2/impldocs/architecture/access-checks.md" data-lines="142" data-expect="checker-first invocation policy for top-level mutation and subscription fields is outside the current Runtime2 surface">doc</a>). Instead, Runtime2 fails a request that selects a mutation field with a field checker, or whose Mutation type, or a namespace type under it (a <code>@namespaceType</code> type that groups mutation fields), has a type checker. Checkers on the payload still run (see <a href="mutations.html#rejects">Mutations</a>).</aside>
+<p>A checker runs only when some reader will apply its verdict. A client selection or a resolver input is a checked read, so it makes the field&rsquo;s field checker run and, for an object value, that object&rsquo;s type checker too. A checker&rsquo;s raw read doesn&rsquo;t. Suppose the Payment type checker also read bankAccount, so its object input were this, and the client didn&rsquo;t select bankAccount:</p>
+<pre class="cmd"><span class="c"># Payment type checker&rsquo;s objectValueFragment</span>
+ownerId
+bankAccount { id }</pre>
+<p>bankAccount&rsquo;s resolver would still run, because the checker needs the raw value, but neither bankAccount&rsquo;s field checker nor the BankAccount type checker would. The BankAccount OER&rsquo;s orchestrator would set its type-check slot to null, which means no type check is needed, because no reader applies one (<a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/TypeCheckerTask.kt" data-lines="56-60" data-expect="typeCheckerResult.complete(null)">TypeCheckerTask</a>, <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/framework/Demand.kt" data-lines="59-65" data-expect="Raw demand neither enforces field checks nor requires the rooted occurrence">Demand.unchecked</a>, <a class="src" data-src="core/engine/runtime2/impldocs/architecture/access-checks.md" data-lines="150" data-expect="does not require checker execution for coordinates selected only on behalf of that checker">doc</a>).</p>
+</div>
+<figure class="scene" data-duration="8">
+  <div class="stage"><svg viewBox="0 -34 960 304" role="img" aria-label="The bankAccount cell has a value slot and a field-check slot; the BankAccount OER has a type-check slot. A field checker task and a type checker task write the two check slots; a checked read combines both check slots with the value.">
+    <defs>
+      <marker id="ck-ah-c2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0L10,5L0,10z" class="ah c2"/></marker>
+      <marker id="ck-ah-c4" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0L10,5L0,10z" class="ah c4"/></marker>
+      <marker id="ck-ah-c5" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0L10,5L0,10z" class="ah c5"/></marker>
+    </defs>
+    <g data-in="0" class="c2"><rect class="box c2" x="20" y="20" width="300" height="140" rx="10"/>
+      <text x="36" y="44" class="title">bankAccount cell</text><text x="304" y="44" text-anchor="end" class="small muted">on Payment</text></g>
+    <g data-in="0"><rect class="cell" data-add="3:full" x="36" y="60" width="268" height="34" rx="6"/>
+      <text x="48" y="82" class="mono">value</text>
+      <text x="292" y="82" text-anchor="end" class="mono muted" data-text="0:pending|3:→ BankAccount">pending</text></g>
+    <g data-in="0"><rect class="cell" data-add="3.8:check" x="36" y="104" width="268" height="34" rx="6"/>
+      <text x="48" y="126" class="mono">field-check slot</text>
+      <text x="292" y="126" text-anchor="end" class="mono muted" data-text="0:pending|3.8:Success">pending</text></g>
+    <g data-in="1" data-anim="pop" class="c5"><rect class="box c5" x="20" y="196" width="300" height="56" rx="10"/>
+      <text x="36" y="220" class="title">Field checker task · bankAccount</text>
+      <text x="36" y="240" class="small muted">reads status raw</text></g>
+    <g data-in="3.5" data-dur=".3" data-anim="draw"><path class="wire c5" d="M170,194 L170,140" marker-end="url(#ck-ah-c5)"/></g>
+    <g data-in="1" data-anim="pop" class="c4"><rect class="box c4" x="680" y="196" width="260" height="56" rx="10"/>
+      <text x="696" y="220" class="title">Resolver task · bankAccount</text>
+      <text x="696" y="240" class="small muted">its output becomes the result</text></g>
+    <g data-in="2.1" data-dur=".3" data-anim="draw" class="c4"><path class="wire c4" d="M680,214 C650,214 652,40 624,40" marker-end="url(#ck-ah-c4)"/></g>
+
+    <g data-in="2" data-anim="pop" class="c2"><rect class="box c2" x="360" y="20" width="260" height="96" rx="10"/>
+      <text x="376" y="44" class="title">BankAccount OER</text></g>
+    <g data-in="2"><rect class="cell" data-add="5:check" x="376" y="62" width="228" height="34" rx="6"/>
+      <text x="388" y="84" class="mono">type-check slot</text>
+      <text x="592" y="84" text-anchor="end" class="mono muted" data-text="2:pending|5:Success">pending</text></g>
+    <g data-in="2.3" data-anim="pop" class="c5"><rect class="box c5" x="360" y="196" width="260" height="56" rx="10"/>
+      <text x="376" y="220" class="title">Type checker · BankAccount</text>
+      <text x="376" y="240" class="small muted">dispatched by its orchestrator</text></g>
+    <g data-in="4.6" data-dur=".3" data-anim="draw"><path class="wire c5" d="M490,194 L490,98" marker-end="url(#ck-ah-c5)"/></g>
+
+    <g data-in="5.6" data-dur=".4" data-anim="draw"><path class="wire c2 dash" d="M306,70 C326,-36 770,-60 770,16" marker-end="url(#ck-ah-c2)"/></g>
+    <g data-in="5.6" data-anim="pop" class="c5"><rect class="box" x="680" y="20" width="260" height="140" rx="10"/>
+      <text x="696" y="44" class="title">Checked read</text>
+      <text x="696" y="72" class="mono small">type ⊕ field → Success</text>
+      <text x="696" y="98" class="small" data-text="5.6:combining…|6.4:value delivered">combining…</text>
+      <text x="696" y="126" class="small muted">a denial would become</text>
+      <text x="696" y="144" class="small muted">an error value here</text></g>
+  </svg></div>
+  <ol class="beats">
+    <li data-at="0" data-title="Value and check, apart"><p>The bankAccount cell on the Payment OER holds its value and, separately, its <a class="gl" href="../glossary.html#field-check-slot">field-check slot</a>, which will receive bankAccount&rsquo;s <a class="gl" href="../glossary.html#checker-result">checker result</a>: Success or Error.</p></li>
+    <li data-at="1" data-title="Checkers beside resolvers"><p>The field checker declares status as its input, so status joins the Payment&rsquo;s <a class="gl" href="../glossary.html#demand">demand</a>, the set of values that the Payment OER must obtain. The checker&rsquo;s task is <a class="gl" href="../glossary.html#dispatch">dispatched</a> right next to bankAccount&rsquo;s <a class="gl" href="../glossary.html#resolver-task">resolver task</a>, not before it, so a field checker never holds back its field&rsquo;s resolver.</p></li>
+    <li data-at="2" data-title="Type check on the object"><p>bankAccount&rsquo;s resolver returns, and its output becomes the BankAccount OER, which gets an <a class="gl" href="../glossary.html#orchestrator">orchestrator</a> of its own, the task that plans and starts the work for that object. Before the bankAccount cell&rsquo;s value <a class="gl" href="../glossary.html#complete">completes</a>, that orchestrator dispatches the BankAccount <code>TypeCheckerTask</code>. That task writes to the BankAccount OER&rsquo;s type-check slot, so the type check is stored once, on the object.</p></li>
+    <li data-at="3" data-title="No fixed order"><p>Checker tasks read their own inputs raw, without checks, so bankAccount&rsquo;s checker gets status as payment&rsquo;s resolver returned it. The value, the field-check slot and the BankAccount type-check slot then complete independently, in any order.</p></li>
+    <li data-at="5.6" data-title="Combined when read"><p>Resolver tasks read their inputs checked, and so does completion when it reads client data. A checked read waits for three things, in order:</p>
+<ol><li>the cell&rsquo;s field-check slot;</li><li>the cell&rsquo;s value;</li><li>if the value is an object, its type-check slot.</li></ol>
+<p>It then combines the type result with the field result. An Error turns the read into an error value, and because the field-check slot comes first, a field Error can fail the read before the value is ready.</p></li>
+  </ol>
+</figure>
+<p class="where">Where in code: <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/OrchestrationTask.kt" data-lines="149-156" data-expect="dispatchFieldResolver||dispatchFieldChecker||dispatchTypeChecker">dispatched as peers</a> · <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/FieldCheckerTask.kt" data-lines="202-236" data-expect="checked = false||fieldCheckerResult.complete">FieldCheckerTask</a> · <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/TypeCheckerTask.kt" data-lines="55-71" data-expect="fun prepareAll">TypeCheckerTask</a> · <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/model/CheckedEngineResult.kt" data-lines="29-60" data-expect="fun EngineResultCell.materializeCheckedValue||typeResult.combine(fieldResult)">materializeCheckedValue</a></p>
+<div class="explain">
+<p>A denied input doesn&rsquo;t stop a resolver. The resolver still runs, but its input holds an error at the denied field, and reading that field throws the checker&rsquo;s error. A resolver that never reads the field can still return a value (<a class="src" data-src="core/engine/runtime2/impldocs/architecture/access-checks.md" data-lines="146" data-expect="does not suppress the resolver invocation">doc</a>). If the resolver lets the error escape, its own field fails with it (<a class="src" data-src="core/engine/api/src/testFixtures/kotlin/viaduct/engine/runtime/execution/AccessCheckExecutionContract.kt" data-lines="610-637" data-expect="objectValueFragment field - field successful, checker throws||assertEquals(listOf(&quot;string1&quot;), error.path)">contract test</a>).</p>
+<aside class="today"><b>In today&rsquo;s engine</b> Resolvers see the same thing today: the engine stores the checker&rsquo;s error in the resolver&rsquo;s input and throws it when the resolver reads that field (<a class="src" data-src="core/engine/runtime/src/main/kotlin/viaduct/engine/runtime/SyncEngineObjectDataFactory.kt" data-lines="254-268" data-expect="It will be thrown when the field is accessed">SyncEngineObjectDataFactory</a>).</aside>
+</div>
+</section>
+
+<section id="access-checks"><h2>What if payment has access checks?</h2>
+<div class="explain">
+<p>Now follow the request one level up, at the payment itself: the field checker on <code>Query.payment</code> and the type checker on the Payment object. The request runs twice, once with every check passing and once with the field checker denying. The question is where the denial takes effect.</p>
+</div>
+<figure class="scene" data-duration="18.5">
+<div class="stage"><svg viewBox="0 0 960 370" role="img" aria-label="A field checker and a type checker run beside the resolvers; completion combines their results when it reads payment.">
+<defs>
+<marker id="ac-ah-c2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0L10,5L0,10z" class="ah c2"/></marker>
+<marker id="ac-ah-c4" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0L10,5L0,10z" class="ah c4"/></marker>
+<marker id="ac-ah-c5" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0L10,5L0,10z" class="ah c5"/></marker>
+</defs>
+<g data-in="0" data-out="15"><text x="105" y="24" text-anchor="middle" class="small muted">reads</text><text x="430" y="24" text-anchor="middle" class="small muted">result tree</text><text x="810" y="24" text-anchor="middle" class="small muted">tasks</text></g>
+<g data-in="15" class="c5"><text x="480" y="24" text-anchor="middle" class="title ink">Another run · the field checker denies</text></g>
+
+<g data-in="0" data-anim="pop" class="c2"><rect class="box c2" x="230" y="40" width="400" height="92" rx="10"/><text x="250" y="66" class="title">Query OER</text><text x="250" y="100" class="mono">payment</text>
+<rect class="cell" data-add="8:full,15:-full" x="364" y="50" width="256" height="32" rx="6"/><text x="492" y="71" text-anchor="middle" class="mono" data-text="0:value: pending|8:value: Payment OER|15:value: pending">value: pending</text>
+<rect class="cell" data-add="11:check,15:-check,15.4:denied" x="364" y="90" width="256" height="32" rx="6"/><text x="492" y="111" text-anchor="middle" class="mono" data-text="0:field-check slot: pending|11:field-check slot: Success|15:field-check slot: pending|15.4:field-check slot: Error">field-check slot: pending</text></g>
+
+<g data-in="3"><rect class="box" x="20" y="40" width="170" height="56" rx="10"/><text x="105" y="64" text-anchor="middle" class="title">Completion</text><text x="105" y="82" text-anchor="middle" class="mono muted small">reads payment</text></g>
+<g data-in="3" class="c2"><rect class="box c2" x="20" y="110" width="170" height="40" rx="8"/><text x="105" y="135" text-anchor="middle" class="mono" data-text="3:payment: waiting|12.9:payment: result|15:payment: waiting|15.8: ">payment: waiting</text></g>
+<g data-in="15.8" class="c5"><rect class="box c5" x="20" y="110" width="170" height="40" rx="8"/><text x="105" y="135" text-anchor="middle" class="mono title err">payment: error</text></g>
+<g data-in="3" data-anim="draw"><path class="wire c2 dash" d="M190,128 C210,128 212,112 228,108" marker-end="url(#ac-ah-c2)"/></g>
+
+<g data-in="2" data-anim="draw"><path id="ac-p1" class="wire c4" d="M620,66 L688,66" marker-end="url(#ac-ah-c4)"/><path id="ac-p2" class="wire c5" d="M620,106 C655,106 655,145 688,145" marker-end="url(#ac-ah-c5)"/></g>
+<g data-in="2" data-dur="1" data-anim="move" data-path="#ac-p1" class="c4"><circle class="tok" r="7"/></g>
+<g data-in="2" data-dur="1" data-anim="move" data-path="#ac-p2" class="c4"><circle class="tok" r="7"/></g>
+
+<g data-in="2.4" data-anim="pop" data-on="3.2-8,15" class="c4"><rect class="box c4" x="690" y="42" width="240" height="50" rx="10"/><text x="810" y="64" text-anchor="middle" class="title">payment resolver task</text><text x="810" y="82" text-anchor="middle" class="small muted">writes payment&#8217;s value</text></g>
+<g data-in="2.4" data-anim="pop" data-on="4.6-10.5,15" class="c5"><rect class="box c5" x="690" y="120" width="240" height="50" rx="10"/><text x="810" y="142" text-anchor="middle" class="title">payment field checker task</text><text x="810" y="160" text-anchor="middle" class="small muted">writes the field-check slot</text></g>
+<g data-in="4" data-anim="draw" class="c4"><path class="wire c4" d="M760,92 L760,118" marker-end="url(#ac-ah-c4)"/><text x="772" y="110" class="small muted">activation</text></g>
+
+<path id="ac-g0" class="route" d="M690,66 L622,66"/>
+<g data-in="7.4" data-dur=".6" data-anim="move" data-path="#ac-g0" class="c2"><circle class="tok" r="7"/></g>
+
+<g data-in="8" data-dur=".45" data-anim="draw" data-out="15"><path class="wire c2 thick" d="M300,132 L300,188" marker-end="url(#ac-ah-c2)"/></g>
+<g data-in="6" data-anim="pop" data-out="15" class="c2"><rect class="box c2" x="230" y="190" width="400" height="160" rx="10"/><text x="250" y="214" class="title">Payment OER</text><text x="612" y="214" text-anchor="end" class="small muted" data-text="0: |6:its orchestrator dispatches →|8.5: "> </text>
+<rect class="cell full" x="250" y="226" width="110" height="30" rx="6"/><text x="305" y="246" text-anchor="middle" class="mono">amount: 120</text>
+<rect class="cell full" x="370" y="226" width="110" height="30" rx="6"/><text x="425" y="246" text-anchor="middle" class="mono">ownerId: 7</text>
+<rect class="cell" x="490" y="226" width="120" height="30" rx="6"/><text x="550" y="246" text-anchor="middle" class="mono">bankAccount: …</text>
+<rect class="cell" data-add="11:check" x="250" y="304" width="360" height="30" rx="6"/><text x="430" y="324" text-anchor="middle" class="mono" data-text="0:type-check slot: pending|11:type-check slot: Success">type-check slot: pending</text></g>
+
+<path id="ac-g1" class="route" d="M630,206 L690,211"/><path id="ac-g2" class="route" d="M630,300 L690,287"/>
+<g data-in="6.4" data-dur=".6" data-anim="move" data-path="#ac-g1" class="c4"><circle class="tok" r="6"/></g>
+<g data-in="6.4" data-dur=".6" data-anim="move" data-path="#ac-g2" class="c4"><circle class="tok" r="6"/></g>
+<g data-in="6.7" data-anim="pop" data-out="15" data-on="8.5-10.5" class="c4"><rect class="box c4" x="690" y="186" width="240" height="50" rx="10"/><text x="810" y="208" text-anchor="middle" class="title">bankAccount resolver task</text><text x="810" y="226" text-anchor="middle" class="small muted">reads ownerId checked</text></g>
+<g data-in="6.7" data-anim="pop" data-out="15" data-on="8.5-10.5" class="c5"><rect class="box c5" x="690" y="262" width="240" height="50" rx="10"/><text x="810" y="284" text-anchor="middle" class="title">Payment type checker task</text><text x="810" y="302" text-anchor="middle" class="small muted">reads ownerId and viewerId raw</text></g>
+
+<g data-in="8.5" data-anim="draw" data-out="15" class="c4"><path class="wire c4 thick" d="M690,200 C600,166 462,166 428,222" marker-end="url(#ac-ah-c4)"/><text x="560" y="160" class="small ink">checked read</text></g>
+<g data-in="8.5" data-anim="draw" data-out="15" class="c5"><path class="wire c5 thick dash" d="M690,282 C560,282 430,294 430,280 L430,260" marker-end="url(#ac-ah-c5)"/><text x="560" y="298" class="small ink">raw read</text></g>
+
+<path id="ac-g3" class="route" d="M690,145 C655,145 655,106 622,106"/><path id="ac-g4" class="route" d="M690,292 C660,318 640,319 612,319"/>
+<g data-in="10.5" data-dur=".6" data-anim="move" data-path="#ac-g3" class="c5"><circle class="tok" r="6"/></g>
+<g data-in="10.5" data-dur=".6" data-anim="move" data-path="#ac-g4" class="c5"><circle class="tok" r="6"/></g>
+
+<g data-in="12.5" data-anim="draw" class="c5"><path class="wire c5" d="M230,124 C206,134 208,192 192,204" marker-end="url(#ac-ah-c5)"/></g>
+<g data-in="12.5" data-anim="draw" data-out="15" class="c5"><path class="wire c5" d="M230,319 C206,316 208,284 192,276" marker-end="url(#ac-ah-c5)"/></g>
+<g data-in="12.5" data-anim="pop" data-on="12.5-15,15.4" class="c5"><rect class="box c5" x="20" y="196" width="170" height="96" rx="10"/><text x="105" y="220" text-anchor="middle" class="title">check at read</text>
+<text x="105" y="246" text-anchor="middle" class="mono small" data-text="12.5:type.combine(field)|15:awaits field-check slot|15.4:field Error first">type.combine(field)</text>
+<text x="105" y="274" text-anchor="middle" class="mono" data-text="12.5:→ Success|15:→ …|15.4:→ short-circuit">→ Success</text></g>
+
+<g data-in="15" data-dur=".4" data-anim="move" data-path="#ac-g3" class="c5"><circle class="tok" r="6"/></g>
+</svg></div>
+<ol class="beats">
+<li data-at="0" data-title="The field-check slot has its own writer"><p>In this trace <code>Query.payment</code> has a field checker, and <code>Payment</code> has a type checker that reads <code>ownerId</code>. The payment cell on the Query OER starts with a pending value and a pending field-check slot. Each part has its own writer: the resolver task writes the value, and the field checker task writes the slot.</p></li>
+<li data-at="2" data-title="Side by side"><p>The orchestrator of the Query OER, the root of the result, dispatches the payment resolver task and the field checker task together, as peers. The checker doesn&rsquo;t hold the resolver back.</p></li>
+<li data-at="4" data-title="Activation, then raw inputs"><p>The resolver task decides the cell&rsquo;s <a class="gl" href="../glossary.html#activation">activation</a>, its include-or-skip decision. The checker first awaits that decision, not the value. Then it reads its inputs raw.</p></li>
+<li data-at="6" data-title="The Payment OER brings a type-check slot"><p>The resolver&rsquo;s output becomes the Payment OER, an OER with a pending type-check slot, and amount and ownerId arrive in it as <a class="gl" href="../glossary.html#passive-field">passive fields</a>. Among its tasks, the Payment OER&rsquo;s orchestrator dispatches bankAccount&rsquo;s resolver task and the Payment type checker task, and then the payment cell&rsquo;s value becomes the Payment OER.</p></li>
+<li data-at="8.5" data-title="Two kinds of reads"><p>Two readers want <code>ownerId</code>. The bankAccount resolver task reads it checked, because resolver inputs honor checks. The type checker reads it raw, together with viewerId from <code>Query</code>, because a checker&rsquo;s own inputs never go through checks. The checked read looks only at ownerId&rsquo;s own cell, not at the Payment type check, so a Payment denial wouldn&rsquo;t stop bankAccount&rsquo;s resolver. It would turn completion&rsquo;s read of payment into an error, and nothing under payment would reach the client. That is the scope of what checks guarantee in Runtime2. A checked read never gets a value that its own checks deny. A field check guards reads of its field, and a type check guards reads of its object through the field that holds it, as in completion&rsquo;s read of payment. A read of one of the object&rsquo;s fields, such as the bankAccount resolver&rsquo;s read of ownerId, is guarded only by that field&rsquo;s own check. And a check doesn&rsquo;t stop resolvers from running (<a class="src" data-src="core/engine/runtime2/impldocs/architecture/access-checks.md" data-lines="142-146" data-expect="The field checker does not gate whether the value resolver starts||The denied raw value is never exposed">access-checks.md</a>).</p></li>
+<li data-at="10.5" data-title="Results land apart"><p>Each checker completes its own slot: the field checker writes the payment cell&rsquo;s field-check slot, and the type checker writes the Payment OER&rsquo;s type-check slot. Nothing is combined yet.</p></li>
+<li data-at="12.5" data-title="Allow: combined at read time"><p>Completion&rsquo;s read of payment is a checked read. Once both slots and the value are complete it computes</p>
+<pre><code>typeResult.combine(fieldResult)</code></pre>
+<p>Success with Success passes, so the read returns the Payment OER.</p></li>
+<li data-at="15" data-title="Deny: short-circuit"><p>In another run, the field checker returns Error while the payment value is still pending. Because the field-check slot is read first, the read returns an error value right away, without waiting for the value, and payment becomes an error. Nothing cancels payment&rsquo;s resolver or the tasks beneath it; they keep running, and the request waits for them to finish. That is the cost of never holding resolvers back for checks: Runtime2 doesn&rsquo;t cancel work that a denial makes unneeded (<a class="src" data-src="core/engine/runtime2/impldocs/architecture/resolution.md" data-lines="256" data-expect="They do not retract input demand or cancel otherwise running producers because their output is no longer needed">resolution.md</a>).</p></li>
+</ol>
+</figure>
+<p class="where">Where in code: <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/model/CheckedEngineResult.kt" data-lines="29-60" data-expect="typeResult.combine(fieldResult)||fieldError != null">materializeCheckedValue</a> · <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/FieldCheckerTask.kt" data-lines="153-236" data-expect="fetchActivated()||checked = false||fieldCheckerResult.complete(result)">FieldCheckerTask</a></p>
+<div class="explain">
+<aside class="today"><b>In today&rsquo;s engine</b> A check on payment doesn&rsquo;t hold back the resolvers beneath it today either: they start once payment&rsquo;s raw value arrives (<a class="src" data-src="core/engine/runtime/src/main/kotlin/viaduct/engine/runtime/execution/FieldResolver.kt" data-lines="510-522" data-expect="proceed with nested object resolution">FieldResolver</a>). In both engines, completion turns a denied payment into an error and never reads the Payment&rsquo;s fields, so no data below the denial reaches the client (<a class="src" data-src="core/engine/runtime/src/main/kotlin/viaduct/engine/runtime/execution/FieldCompleter.kt" data-lines="253-268" data-expect="Value.fromThrowable(checkerResult.asError!!.error)">FieldCompleter</a>, <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/execution/QPlanWiringFactory.kt" data-lines="150-177" data-expect="materializeCheckedValue { true }||is ErrorEngineResult -> {||errorResult(errorData, source.exceptionHandler, environment, path)">QPlanWiringFactory</a>).</aside>
+</div>
+<div class="explain closing">
+<p>So checks run without holding back the resolvers they guard, and a denial takes effect where the value is read, as an error at that field.</p>
+</div>
+</section>
+
+<section id="try-it" class="exercises"><h2>Try it</h2>
+<h3 id="ex-p2-denial">A field checker denies</h3>
+<p>The payment is under review, so bankAccount&rsquo;s field checker returns Error. Every other check passes.</p>
+<div class="code-pair">
+<pre class="cmd"><span class="c"># schema</span>
+type Payment {
+  status: String
+    <span class="c"># "under_review"</span>
+  amount: Int
+    <span class="c"># 120</span>
+  bankAccount: BankAccount
+    <span class="d">@resolver(objectValueFragment: "ownerId")</span>
+    <span class="d">@fieldChecker(objectValueFragment: "status")</span>
+}</pre>
+<pre class="cmd"><span class="c"># query</span>
+query {
+  payment(id: "p1") {
+    amount
+    bankAccount {
+      last4
+    }
+  }
+}</pre>
+</div>
+<div class="drill choice"><p class="q">Does bankAccount&rsquo;s resolver still run?</p>
+<button class="opt" data-correct="true">Yes</button>
+<button class="opt" data-why="the denial only completes bankAccount&rsquo;s field-check slot. It doesn&rsquo;t reach the resolver task or cancel it.">No: the denial cancels it</button>
+<button class="opt" data-why="the Payment orchestrator dispatches bankAccount&rsquo;s resolver task and its field checker task together, as peers, so the checker can&rsquo;t hold the resolver back.">No: it waits for the check to pass</button>
+<p class="why">Yes. A field checker task never gates the resolver that produces its field&rsquo;s value: the two tasks run side by side, and the denial takes effect only when the value is read (<a class="src" data-src="core/engine/runtime2/impldocs/architecture/access-checks.md" data-lines="142" data-expect="does not gate whether the value resolver starts">doc</a>). The BankAccount type checker still runs too. Its task starts once the resolver&rsquo;s value becomes a BankAccount OER, as part of that OER&rsquo;s orchestration, and the field denial doesn&rsquo;t stop it (<a class="src" data-src="core/engine/runtime2/impldocs/architecture/access-checks.md" data-lines="142" data-expect="Type-checker resolution begins once the value produces a concrete OER and belongs to that OER's orchestration">doc</a> · <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/TypeCheckerTask.kt" data-lines="55-71" data-expect="fun prepareAll(orchestrationTask: OrchestrationTask)">TypeCheckerTask</a>).</p></div>
+<div class="drill choice"><p class="q">What is the response?</p>
+<button class="opt" data-why="completion reads checked, so the denial turns bankAccount into an error."><code>{payment: {amount: 120, bankAccount: {last4: &quot;4242&quot;}}}</code></button>
+<button class="opt" data-why="that&rsquo;s what a denial by the checker on Query.payment or by the Payment type checker would give. This checker guards only bankAccount, so only bankAccount fails."><code>{payment: null}</code>, one error at <code>[payment]</code></button>
+<button class="opt" data-correct="true"><code>{payment: {amount: 120, bankAccount: null}}</code>, one error at <code>[payment, bankAccount]</code></button>
+<p class="why"><code>{payment: {amount: 120, bankAccount: null}}</code>, one error at <code>[payment, bankAccount]</code>. The denial fails only the guarded field, and its parent keeps its other fields (<a class="src" data-src="core/engine/api/src/testFixtures/kotlin/viaduct/engine/runtime/execution/AccessCheckExecutionContract.kt" data-lines="471-478" data-expect="mapOf(&quot;boo&quot; to mapOf(&quot;value&quot; to null))||listOf(&quot;boo&quot;, &quot;value&quot;)">contract test</a>; compare a checker on a root field: <a class="src" data-src="core/engine/api/src/testFixtures/kotlin/viaduct/engine/runtime/execution/AccessCheckExecutionContract.kt" data-lines="462-469" data-expect="parent checker denial nulls parent field||mapOf(&quot;boo&quot; to null)">contract test</a>).</p></div>
+<div class="drill choice"><p class="q">Which reader ignores access checks?</p>
+<button class="opt" data-why="completion reads checked, so it enforces checks.">GraphQL response completion</button>
+<button class="opt" data-why="resolvers read their inputs checked.">A resolver&#39;s input</button>
+<button class="opt" data-correct="true">A checker&#39;s input</button>
+<p class="why">A checker&rsquo;s input. Checkers read their inputs raw, without checks (<a class="src" data-src="core/engine/runtime2/impldocs/architecture/access-checks.md" data-lines="138-140" data-expect="Checker input materialization | No">doc</a>).</p></div>
+<h3 id="ex-t2-checked">What does a checked read await?</h3>
+<p>Completion reads <code>bankAccount</code> while everything about it is still pending: its field check, its value, and the BankAccount&rsquo;s type check.</p>
+<div class="code-pair">
+<pre class="cmd"><span class="c"># schema</span>
+type Payment {
+  bankAccount: BankAccount <span class="d">@resolver @fieldChecker</span>
+}
+type BankAccount <span class="d">@typeChecker</span> {
+  last4: String
+}</pre>
+<pre class="cmd"><span class="c"># query</span>
+{
+  payment(id: "p1") {
+    bankAccount { last4 }
+  }
+}</pre>
+</div>
+<div class="drill order"><p class="q">In what order does the checked read of <code>bankAccount</code> await these?</p>
+<ol class="steps">
+<li data-why="The field-check slot comes first, so a denial can return without waiting for the value.">The cell&rsquo;s field-check slot</li>
+<li>The cell&rsquo;s value <a class="gl" href="../glossary.html#promise">promise</a></li>
+<li data-why="The type-check slot comes last, and only once the value turns out to be an object.">The object&rsquo;s type-check slot</li>
+</ol>
+<p class="why">Field-check slot, value, then the object&rsquo;s type-check slot, so a field denial returns before the value is awaited. The last await happens only because the value is an object (<a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/model/CheckedEngineResult.kt" data-lines="69-84" data-expect="fun EngineResultCell.awaitCheckedValue">awaitCheckedValue</a>).</p></div>
+</section>
+</main>
+<script src="../assets/app.js"></script><script src="../assets/motion.js"></script><script src="../assets/drill.js"></script>
+</body></html>

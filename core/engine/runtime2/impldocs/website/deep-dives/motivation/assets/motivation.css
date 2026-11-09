@@ -1,0 +1,42 @@
+/* Scoped styles for the Motivation deep dive, ported from the guide's consolidated page and mapped onto the tour's theme tokens. */
+.mo .code-pair.even > * { flex: 1 1 0; }
+@media (max-width: 760px) { .mo .code-pair.even { flex-direction: column; } .mo .code-pair.even > * { flex: none; } }
+
+.mo ol.flow.history > li b.era { display: block; font-size: .78rem; letter-spacing: .06em; text-transform: uppercase; color: var(--c4); }
+.mo ol.flow.history > li b.era + b { display: block; }
+
+.mo .inshort { margin: 1.2em 0; padding: 12px 18px 12px 16px; border-left: 3px solid var(--c5); background: var(--c5-soft); border-radius: 0 10px 10px 0; }
+.mo .inshort > b { display: block; margin-bottom: 4px; }
+.mo .inshort ul { margin: 0; padding-left: 1.2em; }
+.mo .inshort li { margin: 4px 0; }
+
+.mo table.compare th[scope=row] { text-transform: none; letter-spacing: 0; font-size: .88rem; color: var(--fg); white-space: nowrap; }
+.mo table.compare td:nth-child(3) { background: var(--c4-soft); }
+@media (max-width: 760px) { .mo table.compare th[scope=row] { white-space: normal; } }
+
+.mo table.features td:first-child { min-width: 11em; border-left: 3px solid var(--c, var(--border)); }
+.mo table.features td:nth-child(2) { min-width: 14em; }
+.mo table.features td:nth-child(3) { min-width: 20em; }
+.mo table.features td:last-child { width: 1%; min-width: 7em; font-size: .82rem; color: var(--fg-muted); }
+.mo .fam { display: inline-block; font: 600 .74rem var(--mono); padding: 1px 7px; border-radius: 999px; border: 1px solid var(--border); background: var(--bg-elev); color: var(--fg); white-space: nowrap; }
+@media (max-width: 600px) {
+  .mo table.features thead { display: none; }
+  .mo table.features tr { display: block; padding: 8px 0; border-bottom: 1px solid var(--border); }
+  .mo table.features td { display: block; border-bottom: 0; padding: 3px 8px; min-width: 0 !important; width: auto; }
+  .mo table.features td:first-child { font-size: 1rem; }
+  .mo table.features td:last-child { width: auto; min-width: 0; }
+  .mo table.features td:nth-child(n+2) { border-left: 3px solid var(--c, var(--border)); }
+  .mo table.features td:nth-child(n+2)::before { display: block; font-size: .72rem; text-transform: uppercase; letter-spacing: .05em; color: var(--fg-muted); }
+  .mo table.features td:nth-child(2)::before { content: "What tenants can express"; }
+  .mo table.features td:nth-child(3)::before { content: "What the engine must solve"; }
+  .mo table.features td:nth-child(4)::before { content: "Earliest support"; }
+  .mo .tablewrap table.features td code { white-space: normal; }
+}
+
+.mo .grid.three { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+.mo .grid.three .card p { font-size: .9rem; }
+
+.mo table.legend caption { caption-side: top; text-align: left; padding: 0 0 6px; font-size: .88rem; color: var(--fg-muted); }
+.mo table.legend th[scope=row] { text-transform: none; letter-spacing: 0; font-size: .86rem; color: var(--fg); }
+.mo table.legend td { font-size: .86rem; }
+.mo table.features .notyet { display: inline-block; margin-top: 4px; font-size: .74rem; font-weight: 600; padding: 2px 7px; border-radius: 6px; border: 1px dashed var(--fg-muted); color: var(--fg-muted); }

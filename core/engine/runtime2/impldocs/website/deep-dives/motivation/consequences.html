@@ -1,0 +1,19 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Three consequences — Viaduct Runtime2</title>
+<script src="../../assets/theme.js"></script>
+<link rel="icon" type="image/svg+xml" href="../../assets/viaduct-logo.svg">
+<link rel="stylesheet" href="../../assets/style.css">
+<link rel="stylesheet" href="assets/motivation.css"></head>
+<body data-layer="-1"><main class="mo">
+<div class="kicker">Deep dive · Motivation</div>
+<h1>Three consequences</h1>
+<div class="grid three">
+<div class="card c3" id="demand"><h4>Demand is not the client&rsquo;s selection</h4><p><a class="gl" href="../../glossary.html#resolver">Resolvers</a> and checkers add inputs the client never wrote, and those inputs add more. The engine must reach a fixed point, called <a class="gl" href="../../glossary.html#closure">closure</a>, before it knows what an object must contain. Hidden inputs still never appear in the response.</p></div>
+<div class="card c5" id="checks"><h4>A value and its check are separate</h4><p>A value can be ready while its access decision is still pending, and the reverse. Checked and raw readers of the same value need different things.</p></div>
+<div class="card c4" id="order"><h4>No fixed traversal order</h4><p>Dependencies cross fields, objects, separate Query results and ancestors. So Runtime2 plans each object before it runs anything there, and every task waits on the exact values it reads.</p></div>
+</div>
+<p class="key c5">Viaduct turns &ldquo;fetch what the client selected&rdquo; into &ldquo;find and schedule everything that <a class="gl" href="../../glossary.html#selection">selection</a> depends on, then show the client only what it asked for&rdquo;.</p>
+<p class="small">Runtime2 implements the same <a class="src" data-src="core/engine/api/src/main/kotlin/viaduct/engine/api/Engine.kt" data-lines="9" data-expect="interface Engine {"><code>Engine</code> interface</a> as today&rsquo;s engine: its <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/Engine2.kt" data-lines="73-86" data-expect="class Engine2(||) : Engine, EngineGraphQLJavaCompat {"><code>Engine2</code></a> and today&rsquo;s <a class="src" data-src="core/engine/wiring/src/main/kotlin/viaduct/engine/EngineImpl.kt" data-lines="65-72" data-expect="class EngineImpl(||) : Engine,"><code>EngineImpl</code></a> both implement <code>viaduct.engine.api.Engine</code>. Runtime2 is designed so that its behavior can be reasoned about precisely. Its central habit is to plan before it runs.</p>
+</main>
+<script src="../../assets/app.js"></script>
+</body></html>

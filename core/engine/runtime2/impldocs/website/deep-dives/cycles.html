@@ -1,0 +1,130 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Cycles — Viaduct Runtime2</title>
+<script src="../assets/theme.js"></script>
+<link rel="icon" type="image/svg+xml" href="../assets/viaduct-logo.svg">
+<link rel="stylesheet" href="../assets/style.css"></head>
+<body data-layer="-1"><main>
+<div class="kicker">Deep dive</div>
+<h1>Cycles</h1>
+<p class="lede">What happens when two fields need each other. Runtime2&rsquo;s <a class="gl" href="../glossary.html#registry">registry</a> assembly rejects cycles among <a class="gl" href="../glossary.html#resolver">resolvers</a> and checkers. Anything that still reaches a request meets the <a class="gl" href="../glossary.html#cycle-checker">cycle checker</a>, which turns a would-be deadlock into an error.</p>
+<div class="explain">
+<p>The query asks for a booking&rsquo;s customerPhone. Two rules on the Booking type read each other: status&rsquo;s resolver reads customerPhone to mark bookings that have no contact phone, and customerPhone&rsquo;s <a class="gl" href="../glossary.html#field-checker">field checker</a> reads status so that the phone is shown only on confirmed bookings. Each rule makes sense alone, but together they form a cycle.</p>
+</div>
+<div class="code-pair">
+<pre class="cmd"><span class="c"># schema</span>
+type Query {
+  booking(id: ID!): Booking <span class="d">@resolver</span>
+}
+
+type Booking {
+  id: ID!
+  status: String
+    <span class="d">@resolver(
+      objectValueFragment: "customerPhone"
+    )</span>
+  customerPhone: String
+    <span class="d">@resolver</span>
+    <span class="d">@fieldChecker(
+      objectValueFragment: "status"
+    )</span>
+}</pre>
+<pre class="cmd"><span class="c"># query</span>
+query {
+  booking(id: "b1") {
+    customerPhone
+  }
+}</pre>
+</div>
+<div class="explain">
+<p>In this schema, <code>objectValueFragment</code> inside <code>@resolver(...)</code> is shorthand for what status&rsquo;s <code>@Resolver</code> class declares: the resolver&rsquo;s <a class="gl" href="../glossary.html#rss">required selection set</a> (RSS). Public Viaduct&rsquo;s <code>@resolver</code> directive takes only <code>isSelective</code> and <code>isBatching</code> (<a class="src" data-src="core/shared/graphql/src/main/kotlin/viaduct/graphql/utils/DefaultSchemaFactory.kt" data-lines="57-86" data-expect="name(&quot;isSelective&quot;)||name(&quot;isBatching&quot;)">directive definition</a>). <code>@fieldChecker(...)</code> is shorthand too, for a field checker with that RSS. Public Viaduct has no such directive: a <code>CheckerExecutorFactory</code> turns schema directives, such as a policy-check directive, into checkers, each with its own RSS (<a class="src" data-src="impldocs/modern-access-check.md" data-lines="87" data-expect="Engineers implement the `CheckerExecutorFactory` SPI">registration</a> · <a class="src" data-src="core/engine/api/src/main/kotlin/viaduct/engine/api/spi/CheckerExecutor.kt" data-lines="18-22" data-expect="val requiredSelectionSets">checker RSS</a>).</p>
+<p>The client never asks for status, but status&rsquo;s resolver would run anyway: <a class="gl" href="../glossary.html#closure">closure</a>, which works out every field an object must produce, adds a checker&rsquo;s inputs to the object&rsquo;s <a class="gl" href="../glossary.html#demand">demand</a> (<a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/ConstructionDemandClosure.kt" data-lines="166-173" data-expect="unchecked = objectCheckerInputs.objectFragment">closure round</a>). A resolver&rsquo;s inputs are <a class="gl" href="../glossary.html#checked-read">checked reads</a>: status&rsquo;s resolver sees customerPhone only after customerPhone&rsquo;s check has finished (<a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/framework/MaterializeResult.kt" data-lines="203-210" data-expect="materializeCheckedValueForResolver||fieldCheckerResult.await()">checked read</a>). That check can&rsquo;t run until it has read status. Neither side can go first, so left alone the request would wait forever.</p>
+<p>Runtime2 has two guards of its own. Registry assembly stops this cycle before any request runs: it puts checkers in the same dependency graph as resolvers, and a checked read of customerPhone depends on customerPhone&rsquo;s checker as well as its resolver (<a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/bootstrap/ResolverRegistryImpl.kt" data-lines="888-907" data-expect="fieldCheckers[field]?.let { add(DependencyVertex.Checker(it.target)) }">checked inputs</a> · <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/bootstrap/ResolverRegistryImpl.kt" data-lines="583-589" data-expect="DependencyVertex.Checker(checker.target)">checker inputs</a> · <a class="src" data-src="core/engine/runtime2/src/test/kotlin/viaduct/engine/runtime2/contract/GroundedFieldCheckerObjectFragmentContract.kt" data-lines="40-86" data-expect="value and checker dependency cycles are rejected during registry construction">test</a>). The second guard, the cycle checker, works inside the request, on waits that registry assembly can&rsquo;t see.</p>
+<p>The <a href="access-checks.html">Access checks</a> deep dive explains how checkers run.</p>
+</div>
+
+<section id="cycles"><h2>What if two fields need each other?</h2>
+<div class="explain">
+<p>If customerPhone&rsquo;s resolver read status itself, the two resolvers would each read the other, and neither could ever be called. Runtime2&rsquo;s registry assembly looks for such cycles once per schema, through checker inputs as well as resolver inputs. Inside the request, the <b>cycle checker</b> then turns any would-be deadlock that got past assembly into an error.</p>
+<aside class="today"><b>In today&rsquo;s engine</b> Today, a schema is rejected at bootstrap when status&rsquo;s resolver reads customerPhone and customerPhone&rsquo;s checker reads status, and it still is when Runtime2 is enabled. Today&rsquo;s bootstrap validation, <code>RequiredSelectionsAreAcyclic</code>, rejects it because it follows checker RSSs as well as resolver RSSs, and Runtime2&rsquo;s registry assembly now rejects it too. Today&rsquo;s request runtime has no detector for wait cycles between fields. <a class="src" data-src="core/engine/runtime/src/main/kotlin/viaduct/engine/runtime/tenantloading/RequiredSelectionsAreAcyclic.kt" data-lines="48-57" data-expect="getFieldCheckerRequiredSelectionSets||getTypeCheckerRequiredSelectionSets">RequiredSelectionsAreAcyclic</a> · <a class="src" data-src="core/engine/runtime/src/main/kotlin/viaduct/engine/runtime/tenantloading/DispatcherRegistryFactory.kt" data-lines="152-160" data-expect="validator.validate(">bootstrap validation</a> · <a class="src" data-src="core/engine/wiring/src/main/kotlin/viaduct/engine/EngineFactory.kt" data-lines="41-60" data-expect="EngineKind.ENGINE2 -&gt; Engine2(||dispatcherRegistry = dispatcherRegistry">Runtime2 receives the validated registry</a></aside>
+<p>So in a running service, the cycle checker is left with waits that no RSS declares, such as reads a resolver makes through <code>ctx.query()</code>, the tenant API&rsquo;s nested query call (<a class="src" data-src="core/tenant/api/src/main/kotlin/viaduct/api/context/ResolverExecutionContext.kt" data-lines="28-32" data-expect="suspend fun query(">query</a>). The resolver makes those reads while it runs, and they appear in no RSS, so no check before the request can see them or the waits they create. That nested query runs in a child scope that shares the request&rsquo;s cycle checker, and the caller&rsquo;s reads of its result are recorded with the calling resolver&rsquo;s task as the reader (<a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/FieldResolverTask.kt" data-lines="311-319" data-expect="forChildScope(fieldTaskScope)||reader = publicationCycleTask">nested query</a> · <a class="src" data-src="core/engine/runtime2/impldocs/architecture/resolution.md" data-lines="90" data-expect="participate in runtime cycle rejection">doc</a> · <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/OperationContext.kt" data-lines="17" data-expect="create(this, requestScope, cycleChecker, bindingsState)">shared checker</a>). Runtime2&rsquo;s tests also put declared cycles in front of it, by swapping in resolvers that skipped assembly, as in the scene below.</p>
+</div>
+<figure class="scene" data-duration="14">
+<div class="stage"><svg viewBox="0 0 960 310" role="img" aria-label="Registry assembly rejects a cycle between the status and customerPhone resolvers, and also the cycle through customerPhone's field checker; a self-read swapped in past assembly reaches runtime, where its closing read becomes an error.">
+<defs>
+<marker id="cy-ah-c1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0L10,5L0,10z" class="ah c1"/></marker>
+<marker id="cy-ah-c5" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0,0L10,5L0,10z" class="ah c5"/></marker>
+<marker id="cy-ah-c4" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0L10,5L0,10z" class="ah c4"/></marker>
+</defs>
+<g data-in="0"><rect class="zone" x="20" y="16" width="430" height="280" rx="12"/><text x="40" y="42" class="title">Registry assembly</text></g>
+<g data-in="0" data-anim="pop" data-on="2-4,4.6-6" class="c1"><rect class="box c1" x="34" y="100" width="196" height="48" rx="10"/><text x="132" y="122" text-anchor="middle" class="mono title">status</text><text x="132" y="139" text-anchor="middle" class="small muted">resolver RSS: customerPhone</text></g>
+<g data-in="0" data-anim="pop" data-on="2-4,4.6-6" class="c1"><rect class="box c1" x="244" y="100" width="196" height="48" rx="10"/><text x="342" y="122" text-anchor="middle" class="mono title">customerPhone</text><text x="342" y="139" text-anchor="middle" class="small muted" data-text="0:resolver RSS: status|4:checker RSS: status">resolver RSS: status</text></g>
+<g data-in=".5" data-anim="draw" class="c1"><path class="wire c1" d="M160,100 C170,62 320,62 320,78 L320,96" marker-end="url(#cy-ah-c1)"/></g>
+<g data-in=".5" data-anim="draw" class="c1"><path class="wire c1" d="M310,148 C300,186 170,186 160,150" marker-end="url(#cy-ah-c1)"/></g>
+<g data-in="2"><text x="235" y="206" text-anchor="middle" class="small" data-text="0:order by dependencies: no field is ready|4:a checked read also waits on the checker">order by dependencies: no field is ready</text></g>
+<g data-in="2.6" data-anim="pop" class="c5"><rect class="box c5" x="60" y="226" width="350" height="64" rx="10"/><text x="235" y="252" text-anchor="middle" class="title" data-text="0:World rejected|4:Still rejected">World rejected</text><text x="235" y="274" text-anchor="middle" class="mono small">"…contain a demand cycle"</text></g>
+
+<g data-in="6.5"><rect class="zone" x="470" y="16" width="470" height="280" rx="12"/><text x="490" y="42" class="title">Cycles that reach runtime</text><text x="490" y="62" class="small muted">a test swaps in a resolver that skipped assembly</text></g>
+<g data-in="6.5" data-anim="pop" class="c2"><rect class="box c2" x="486" y="80" width="200" height="126" rx="10"/><text x="502" y="104" class="title">Query OER</text>
+<rect class="cell" data-add="11:denied" x="496" y="118" width="180" height="30" rx="6"/><text x="586" y="138" text-anchor="middle" class="mono" data-text="0:second: pending|11:second: cycle error">second: pending</text>
+<rect class="cell" x="496" y="160" width="180" height="30" rx="6"/><text x="586" y="180" text-anchor="middle" class="mono" data-text="0:first: pending|11.9:first">first: pending</text></g>
+<g data-in="6.7" data-anim="pop" data-on="9-11" class="c4"><rect class="box c4" x="730" y="88" width="190" height="44" rx="10"/><text x="825" y="115" text-anchor="middle" class="title" style="font-size:13px">second&#8217;s resolver task</text></g>
+<g data-in="6.7" data-anim="pop" data-on="7-9,11.3" class="c4"><rect class="box c4" x="730" y="156" width="190" height="44" rx="10"/><text x="825" y="183" text-anchor="middle" class="title" style="font-size:13px">first&#8217;s resolver task</text></g>
+<g data-in="7" data-anim="draw" class="c4"><path class="wire c4" d="M920,178 C952,178 952,110 922,110" marker-end="url(#cy-ah-c4)"/><text x="920" y="226" text-anchor="end" class="small ink">first reads second: edge first → second</text></g>
+<g data-in="9" data-anim="draw" class="c5"><path class="wire c5 thick" d="M744,88 C744,62 692,66 692,98 C692,112 706,118 726,118" marker-end="url(#cy-ah-c5)"/><text x="920" y="246" text-anchor="end" class="small ink">second reads second: this edge would close a loop</text></g>
+
+</svg></div>
+<ol class="beats">
+<li data-at="0" data-title="A mutual dependency">Suppose customerPhone&rsquo;s resolver read status itself, so its resolver RSS included <code>status</code> while status&rsquo;s resolver RSS includes <code>customerPhone</code>.</li>
+<li data-at="2" data-title="Rejected at assembly">Runtime2&rsquo;s registry assembly orders resolver fields by their fragment dependencies. No field is ever ready, so assembly fails with &ldquo;Resolver fragments contain a demand cycle&rdquo;. The schema never gets a <a class="gl" href="../glossary.html#world">world</a>, so the cycle never reaches a request.</li>
+<li data-at="4" data-title="Through a checker: still rejected">Now move the read of status into customerPhone&rsquo;s field checker, as in the schema. Assembly orders checkers in the same graph. status&rsquo;s resolver reads customerPhone as a checked read, so it depends on customerPhone&rsquo;s checker, and that checker reads status. Neither status nor that checker ever becomes ready, so assembly fails the same way.</li>
+<li data-at="6.5" data-title="Runtime: a test&rsquo;s self-wait">A test can still put a declared cycle in front of the cycle checker. It leaves the Booking and uses two test fields on Query, first and second. It builds a valid world in which first&rsquo;s resolver reads second, then swaps in a resolver for second that reads second itself, a self-wait that assembly never checked (<a class="src" data-src="core/engine/runtime2/src/test/kotlin/viaduct/engine/runtime2/contract/CoroutineResolverContract.kt" data-lines="246-311" data-expect="resolver read cycles become field errors before timeout||Bypass registry cycle validation">test</a>). The cycle checker knows each slot&rsquo;s <a class="gl" href="../glossary.html#register-as-writer">registered writer</a>, so every input read records a reader &rarr; writer edge. first&rsquo;s task reads second and waits.</li>
+<li data-at="9" data-title="The closing read throws">second&rsquo;s task then reads its own cell. That task is the cell&rsquo;s registered writer, so the edge would close a loop, and the read throws <code>ResolverReadCycleException</code> instead of waiting.</li>
+<li data-at="11" data-title="Error, not deadlock">The throw happens while second&rsquo;s <a class="gl" href="../glossary.html#resolver-task">resolver task</a> builds its input, so second&rsquo;s resolver never runs, and the task <a class="gl" href="../glossary.html#complete">completes</a> second&rsquo;s <a class="gl" href="../glossary.html#cell">cell</a> with the error. Resolution finishes instead of hanging. The test checks both: <code>resolve</code> returns, and second&rsquo;s cell holds a <code>ResolverReadCycleException</code> whose cycle starts and ends at the same read.</li>
+</ol>
+</figure>
+<p class="where">Where in code: <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/bootstrap/ResolverRegistryImpl.kt" data-lines="909-934" data-expect="Resolver fragments contain a demand cycle">dependencyOrder</a> · <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/framework/CycleCheckState.kt" data-lines="116-132" data-expect="pathFrom(writer, reader)||throw ResolverReadCycleException">CycleCheckState</a> · <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/framework/MaterializeResult.kt" data-lines="204-219" data-expect="cycleChecker.cycleCheck(reader, this, CycleSlotKind.FIELD_CHECKER)||cycleChecker.cycleCheck(reader, this, CycleSlotKind.VALUE)">a checked read checks the check slot, then the value</a> · <a class="src" data-src="core/engine/runtime2/src/test/kotlin/viaduct/engine/runtime2/contract/CoroutineResolverContract.kt" data-lines="305-310" data-expect="assertIs&lt;ResolverReadCycleException&gt;(error.errorData.cause)">the runtime cycle as a test</a></p>
+<div class="explain">
+<p>A read can also come before its slot has a writer, because building a resolver&rsquo;s input, such as its declared Query fragment, can reserve a cell before that cell&rsquo;s producer is set up (<a class="src" data-src="core/engine/runtime2/impldocs/architecture/resolution.md" data-lines="90" data-expect="can reserve symbolic cells and value promises before their producers install them">doc</a>). The cycle checker keeps such a read as a pending read and adds its edge when the writer registers. If that edge would close a loop, the registration throws instead (<a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/framework/AbstractCycleCheckState.kt" data-lines="20-45" data-expect="readersByKind[kind.ordinal][owner]?.forEach||readersByKind[kind.ordinal].getOrPut(owner)">AbstractCycleCheckState</a>).</p>
+</div>
+<div class="explain closing">
+<p>So a cycle can&rsquo;t leave a request stuck: it is either turned away before any request runs or turned into an error, never a hang.</p>
+</div>
+</section>
+
+<section id="try-it" class="exercises"><h2>Try it</h2>
+<p>Predict what fails when one line changes.</p>
+
+<h3 id="ex-b2-cycles">Turn off cycle detection</h3>
+<p>A test resolver waits on its own cell, and the request runs with a cycle checker that does nothing. Normally the <a class="gl" href="../glossary.html#execution-strategy">execution strategy</a>, <code>QPlanExecutionStrategy</code> (the <code>QPlan</code> prefix comes from <code>qplan</code>, the development branch Runtime2 was built on; <a class="src" data-src="core/engine/runtime2/impldocs/evidence/profiles/README.md" data-lines="11" data-expect="was the development branch and build layout used before Runtime2 moved into">doc</a>), builds each request&rsquo;s real checker with <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/execution/QPlanExecutionStrategy.kt" data-lines="75-76" data-expect="?: CycleCheckState.create()"><code>CycleCheckState.create()</code></a>.</p>
+<div class="code-pair">
+<pre class="cmd"><span class="c"># QPlanRequestLifetimeTest schema</span>
+type Query { value: Int }
+type Mutation { value: Int }
+<span class="c"># value&rsquo;s resolver is test code below the</span>
+<span class="c"># tenant API. Its RSS is empty, so registry</span>
+<span class="c"># assembly sees no cycle. It asks the cycle</span>
+<span class="c"># checker about a read of its own cell,</span>
+<span class="c"># then waits on that cell.</span>
+<span class="c"># The test runs Query, then Mutation.</span></pre>
+<pre class="cmd"><span class="c"># QPlanExecutionStrategy.kt, line 76</span>
+<span class="c"># create(): the real checker, which throws</span>
+<span class="c">#   on the read that would close a wait cycle</span>
+<span class="c"># createNOP(): records nothing, never throws</span>
+- ?: CycleCheckState.create()
++ ?: CycleCheckState.createNOP()</pre>
+</div>
+<div class="drill choice"><p class="q">What happens when the test runs?</p>
+<button class="opt" data-why="the NOP cycle checker does nothing on a read, so nobody notices the self-wait.">The read still throws a cycle error</button>
+<button class="opt" data-why="Runtime2&rsquo;s main execution strategy sets no request deadline of its own.">The request hits a deadline and reports the cycle</button>
+<button class="opt" data-why="the resolver&rsquo;s RSS is empty, so Runtime2&rsquo;s registry assembly finds no cycle to reject.">Runtime2&rsquo;s registry assembly rejects the resolver</button>
+<button class="opt" data-correct="true">One test fails: the self-wait never ends</button>
+<p class="why">One test fails, on its Query run, at its check that the response finished (<a class="src" data-src="core/engine/runtime2/src/test/kotlin/viaduct/engine/runtime2/execution/QPlanRequestLifetimeTest.kt" data-lines="106" data-expect="assertTrue(response.isDone)">assertion</a>). The test doesn&rsquo;t wait for the response. It runs the request on a coroutine test dispatcher, and <code>runCurrent()</code> runs only the work that is ready, returning once the resolver is suspended on its own cell (<a class="src" data-src="core/engine/runtime2/src/test/kotlin/viaduct/engine/runtime2/execution/QPlanRequestLifetimeTest.kt" data-lines="102-106" data-expect="runCurrent()">test</a>). With the no-op cycle checker that suspension never ends, and nothing else ends it: Runtime2&rsquo;s main execution strategy sets no deadline of its own (<a class="src" data-src="core/engine/runtime2/impldocs/architecture/resolution.md" data-lines="200" data-expect="The production strategy has no built-in request deadline">doc</a>). So the response is still unfinished when the test checks it. The failed assertion ends the test, so its Mutation run never starts. The resolver&rsquo;s RSS is empty, so Runtime2&rsquo;s registry assembly has nothing to reject (<a class="src" data-src="core/engine/runtime2/src/test/kotlin/viaduct/engine/runtime2/execution/QPlanRequestLifetimeTest.kt" data-lines="85-86" data-expect="emptyFragmentOf(type)||bypass registry validation">test</a>). See <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/framework/CycleCheckState.kt" data-lines="102-114" data-expect="private object NOPCycleCheckState">NOPCycleCheckState</a>.</p></div>
+<details><summary>Run it yourself</summary>
+<pre class="cmd">./gradlew :core:engine:runtime2:test \
+  --tests 'viaduct.engine.runtime2.execution.QPlanRequestLifetimeTest'</pre>
+<pre class="cmd">git restore core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/execution/QPlanExecutionStrategy.kt</pre>
+</details>
+</section>
+</main>
+<script src="../assets/app.js"></script><script src="../assets/motion.js"></script><script src="../assets/drill.js"></script>
+</body></html>

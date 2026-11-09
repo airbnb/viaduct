@@ -1,0 +1,1040 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Scale and difficulty — Viaduct Runtime2</title>
+<script src="../../assets/theme.js"></script>
+<link rel="icon" type="image/svg+xml" href="../../assets/viaduct-logo.svg">
+<link rel="stylesheet" href="../../assets/style.css"><link rel="stylesheet" href="assets/dc.css"></head>
+<body class="dd-dc" data-layer="-1"><main>
+<div class="kicker">Deep dive · Demand closure</div>
+<h1>Scale and difficulty</h1>
+<aside class="note"><b>Reading the step diagrams</b>In each step diagram, every <a class="gl" href="../../glossary.html#object-result">object engine result</a> (OER) except an associated Query gets an <a class="gl" href="../../glossary.html#orchestrator">orchestrator</a>. Creating the orchestrator closes the object&rsquo;s <a class="gl" href="../../glossary.html#demand">demand</a>, working out every field the object needs, and the orchestrator then <a class="gl" href="../../glossary.html#launch">launches</a> a task for each field that needs its own resolver and for each checker. In between, the <a class="gl" href="../../glossary.html#resolver-task">resolver task</a> that returned the object copies in the <a class="gl" href="../../glossary.html#passive-value">passive values</a> its resolver already returned. A resolver task reads its inputs and calls one resolver. <a href="index.html#steps">Reading the step diagrams</a> explains the labels.</aside>
+
+
+            <section class="chapter-section" id="growth" aria-labelledby="growth-title">
+              <h2 id="growth-title">9. Many dependency paths can describe little distinct work</h2>
+              <h3>9a. A dependency diamond shares ancestor and checker inputs</h3>
+              <p>Start with the concrete depth-5 <a class="gl" href="../../glossary.html#world">world</a>. The tests also generate depths 10, 20, and 40 by adding fields through that depth. Every depth uses the same operation. The views below split demand into two access components: the checked part, read with access checks enforced, and the unchecked part, read raw by checkers.</p>
+              <div class="example-inputs">              <div class="snippet"><div class="snippet-header">Annotated schema<span>SDL + contracts</span></div><pre tabindex="0" role="region" aria-label="GraphQL schema for example 09"><code><span class="gql-keyword">type</span> <span class="gql-type">Query</span> {
+  <span class="gql-name">root</span>: <span class="gql-type">Parent</span>
+    <span class="gql-directive">@resolver</span>(<span class="gql-name">result</span>: {<span class="gql-name">seed</span>: {<span class="gql-name">value</span>: <span class="gql-literal">7</span>, <span class="gql-name">other</span>: <span class="gql-literal">8</span>}, <span class="gql-name">child</span>: {}})
+}
+
+<span class="gql-keyword">type</span> <span class="gql-type">Parent</span> {
+  <span class="gql-name">seed</span>: <span class="gql-type">Seed</span>
+  <span class="gql-name">child</span>: <span class="gql-type">Child</span>
+}
+
+<span class="gql-keyword">type</span> <span class="gql-type">Seed</span> {
+  <span class="gql-name">value</span>: <span class="gql-type">Int</span>
+  <span class="gql-name">other</span>: <span class="gql-type">Int</span>
+}
+
+<span class="gql-keyword">type</span> <span class="gql-type">Child</span>
+  <span class="gql-directive">@typeChecker</span>(
+    <span class="gql-name">inputs</span>: [
+      {
+        <span class="gql-name">name</span>: <span class="gql-string">"input"</span>
+        <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"field0 field1 parent { seed { value other } }"</span>
+      }
+    ]
+  )
+{
+  <span class="gql-name">parent</span>: <span class="gql-type">Parent</span>
+    <span class="gql-directive">@parent</span>
+  <span class="gql-name">field0</span>: <span class="gql-type">Int</span>
+    <span class="gql-directive">@resolver</span>(
+      <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"field1 field2"</span>
+      <span class="gql-name">result</span>: <span class="gql-literal">1</span>
+    )
+    <span class="gql-directive">@fieldChecker</span>(
+      <span class="gql-name">inputs</span>: [{<span class="gql-name">name</span>: <span class="gql-string">"input"</span>, <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"parent { seed { value other } }"</span>}]
+    )
+  <span class="gql-name">field1</span>: <span class="gql-type">Int</span>
+    <span class="gql-directive">@resolver</span>(
+      <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"field2 field3"</span>
+      <span class="gql-name">result</span>: <span class="gql-literal">1</span>
+    )
+    <span class="gql-directive">@fieldChecker</span>(
+      <span class="gql-name">inputs</span>: [{<span class="gql-name">name</span>: <span class="gql-string">"input"</span>, <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"parent { seed { value other } }"</span>}]
+    )
+  <span class="gql-name">field2</span>: <span class="gql-type">Int</span>
+    <span class="gql-directive">@resolver</span>(
+      <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"field3 field4"</span>
+      <span class="gql-name">result</span>: <span class="gql-literal">1</span>
+    )
+    <span class="gql-directive">@fieldChecker</span>(
+      <span class="gql-name">inputs</span>: [{<span class="gql-name">name</span>: <span class="gql-string">"input"</span>, <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"parent { seed { value other } }"</span>}]
+    )
+  <span class="gql-name">field3</span>: <span class="gql-type">Int</span>
+    <span class="gql-directive">@resolver</span>(
+      <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"field4 field5"</span>
+      <span class="gql-name">result</span>: <span class="gql-literal">1</span>
+    )
+    <span class="gql-directive">@fieldChecker</span>(
+      <span class="gql-name">inputs</span>: [{<span class="gql-name">name</span>: <span class="gql-string">"input"</span>, <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"parent { seed { value other } }"</span>}]
+    )
+  <span class="gql-name">field4</span>: <span class="gql-type">Int</span>
+    <span class="gql-directive">@resolver</span>(
+      <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"field5"</span>
+      <span class="gql-name">result</span>: <span class="gql-literal">1</span>
+    )
+    <span class="gql-directive">@fieldChecker</span>(
+      <span class="gql-name">inputs</span>: [{<span class="gql-name">name</span>: <span class="gql-string">"input"</span>, <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"parent { seed { value other } }"</span>}]
+    )
+  <span class="gql-name">field5</span>: <span class="gql-type">Int</span>
+    <span class="gql-directive">@resolver</span>(
+      <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"parent { seed { value other } }"</span>
+      <span class="gql-name">result</span>: <span class="gql-literal">1</span>
+    )
+    <span class="gql-directive">@fieldChecker</span>(
+      <span class="gql-name">inputs</span>: [{<span class="gql-name">name</span>: <span class="gql-string">"input"</span>, <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"parent { seed { value other } }"</span>}]
+    )
+}</code></pre></div><div class="snippet"><div class="snippet-header">Client operation<span>GraphQL</span></div><pre tabindex="0" role="region" aria-label="GraphQL operation for example 09"><code>{
+  <span class="gql-name">root</span> {
+    <span class="gql-name">child</span> {
+      <span class="gql-name">field0</span>
+    }
+  }
+}</code></pre></div></div><p>The step diagram shows resolver work only and leaves out the field and type checker tasks.</p><div class="dd-scene-block"><h3 class="dd-steps-title">Step by step</h3><figure class="scene dd-scene" data-duration="23.0"><div class="stage"><svg viewBox="0 0 1020 806" role="img" aria-label="Step-by-step execution of this example in Runtime2"><defs><marker id="s09-ah4" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0,0L10,5L0,10z" class="ah c4"/></marker><marker id="s09-ah2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0L10,5L0,10z" class="ah c2"/></marker></defs><text x="165.0" y="16" text-anchor="middle" class="small muted">OER tree</text><text x="495.0" y="16" text-anchor="middle" class="small muted">orchestrators</text><text x="847.5" y="16" text-anchor="middle" class="small muted">resolver tasks</text><g data-in="0.4" data-anim="pop" class="c2"><rect class="box c2" x="20" y="30" width="290" height="64" rx="10"/><text x="34" y="50" class="title">Query</text></g><g data-in="0.4"><rect class="cell" data-add="3.4:full" x="32" y="60" width="266" height="24" rx="6"/><text x="42" y="76" class="mono">root</text><text x="290" y="76" text-anchor="end" class="mono muted" data-text="0.4:requested|3.4:→ Parent">requested</text></g><g data-in="0.4" data-anim="pop" data-on="0.4-2.4" class="c4"><rect class="box c4" x="345" y="30" width="300" height="66" rx="10"/><text x="359" y="50" class="title">Orchestrator · Query</text><text x="359" y="69" class="mono small">close: root</text><text x="359" y="86" class="mono small">launch: root</text></g><g data-in="2.4" data-anim="pop" data-on="2.4-4.4" class="c4"><rect class="box c4 dash" x="690" y="30" width="315" height="62" rx="10"/><text x="704" y="50" class="title">Resolver task · root</text><text x="704" y="68" class="mono small">reads nothing</text><text x="704" y="84" class="mono small" data-text="2.4:calls resolver…|3.4:returns → Parent">calls resolver…</text></g><g data-in="2.4" data-dur=".4" data-anim="draw"><path class="wire c4" d="M645,63 C675,63 660,61 686,61" marker-end="url(#s09-ah4)"/></g><g data-in="3.2" data-dur=".4" data-anim="draw" data-out="4.2"><path class="wire c2 dash" d="M690,76 C570,76 400,72 312,72" marker-end="url(#s09-ah2)"/></g><g data-in="4.4" data-anim="pop" class="c2"><rect class="box c2" x="20" y="124" width="290" height="92" rx="10"/><text x="34" y="144" class="title">Parent · root</text></g><g data-in="4.4"><rect class="cell" data-add="5.3:full" x="32" y="154" width="266" height="24" rx="6"/><text x="42" y="170" class="mono">child</text><text x="290" y="170" text-anchor="end" class="mono muted" data-text="4.4:requested|5.3:→ Child">requested</text></g><g data-in="4.4"><rect class="cell" data-add="5.3:full" x="32" y="182" width="266" height="24" rx="6"/><text x="42" y="198" class="mono">seed</text><text x="290" y="198" text-anchor="end" class="mono muted" data-text="4.4:+ closure|5.3:→ Seed">+ closure</text></g><g data-in="4.4" data-anim="pop" data-on="4.4-6.4" class="c4"><rect class="box c4" x="345" y="124" width="300" height="66" rx="10"/><text x="359" y="144" class="title">Orchestrator · Parent</text><text x="359" y="163" class="mono small">close: child seed</text><text x="359" y="180" class="mono small">no resolver tasks</text></g><g data-in="6.4" data-anim="pop" class="c2"><rect class="box c2" x="20" y="240" width="290" height="92" rx="10"/><text x="34" y="260" class="title">Seed · root.seed</text></g><g data-in="6.4"><rect class="cell" data-add="7.3:full" x="32" y="270" width="266" height="24" rx="6"/><text x="42" y="286" class="mono">value</text><text x="290" y="286" text-anchor="end" class="mono muted" data-text="6.4:+ closure|7.3:7">+ closure</text></g><g data-in="6.4"><rect class="cell" data-add="7.3:full" x="32" y="298" width="266" height="24" rx="6"/><text x="42" y="314" class="mono">other</text><text x="290" y="314" text-anchor="end" class="mono muted" data-text="6.4:+ closure|7.3:8">+ closure</text></g><g data-in="6.4" data-anim="pop" data-on="6.4-8.4" class="c4"><rect class="box c4" x="345" y="240" width="300" height="66" rx="10"/><text x="359" y="260" class="title">Orchestrator · Seed</text><text x="359" y="279" class="mono small">close: value other</text><text x="359" y="296" class="mono small">no resolver tasks</text></g><g data-in="8.4" data-anim="pop" class="c2"><rect class="box c2" x="20" y="356" width="290" height="232" rx="10"/><text x="34" y="376" class="title">Child · root.child</text></g><g data-in="8.4"><rect class="cell" data-add="8.4:full" x="32" y="386" width="266" height="24" rx="6"/><text x="42" y="402" class="mono">parent</text><text x="290" y="402" text-anchor="end" class="mono muted" data-text="8.4:+ closure|8.4:↑ Parent">+ closure</text></g><g data-in="8.4"><rect class="cell" data-add="21.4:full" x="32" y="414" width="266" height="24" rx="6"/><text x="42" y="430" class="mono">field0</text><text x="290" y="430" text-anchor="end" class="mono muted" data-text="8.4:requested|21.4:1">requested</text></g><g data-in="8.4"><rect class="cell" data-add="19.4:full" x="32" y="442" width="266" height="24" rx="6"/><text x="42" y="458" class="mono">field1</text><text x="290" y="458" text-anchor="end" class="mono muted" data-text="8.4:+ closure|19.4:1">+ closure</text></g><g data-in="8.4"><rect class="cell" data-add="17.4:full" x="32" y="470" width="266" height="24" rx="6"/><text x="42" y="486" class="mono">field2</text><text x="290" y="486" text-anchor="end" class="mono muted" data-text="8.4:+ closure|17.4:1">+ closure</text></g><g data-in="8.4"><rect class="cell" data-add="15.4:full" x="32" y="498" width="266" height="24" rx="6"/><text x="42" y="514" class="mono">field3</text><text x="290" y="514" text-anchor="end" class="mono muted" data-text="8.4:+ closure|15.4:1">+ closure</text></g><g data-in="8.4"><rect class="cell" data-add="13.4:full" x="32" y="526" width="266" height="24" rx="6"/><text x="42" y="542" class="mono">field4</text><text x="290" y="542" text-anchor="end" class="mono muted" data-text="8.4:+ closure|13.4:1">+ closure</text></g><g data-in="8.4"><rect class="cell" data-add="11.4:full" x="32" y="554" width="266" height="24" rx="6"/><text x="42" y="570" class="mono">field5</text><text x="290" y="570" text-anchor="end" class="mono muted" data-text="8.4:+ closure|11.4:1">+ closure</text></g><g data-in="8.4" data-anim="pop" data-on="8.4-10.4" class="c4"><rect class="box c4" x="345" y="356" width="300" height="66" rx="10"/><text x="359" y="376" class="title">Orchestrator · Child</text><text x="359" y="395" class="mono small">close: parent field0 field1 field2 f…</text><text x="359" y="412" class="mono small">launch: field0 field1 field2 field3 …</text></g><g data-in="10.4" data-anim="pop" data-on="10.4-12.4" class="c4"><rect class="box c4 dash" x="690" y="356" width="315" height="62" rx="10"/><text x="704" y="376" class="title">Resolver task · field5</text><text x="704" y="394" class="mono small">reads parent.seed.other, parent.seed.v…</text><text x="704" y="410" class="mono small" data-text="10.4:calls resolver…|11.4:returns 1">calls resolver…</text></g><g data-in="10.4" data-dur=".4" data-anim="draw"><path class="wire c4" d="M645,389 C675,389 660,387 686,387" marker-end="url(#s09-ah4)"/></g><g data-in="11.2" data-dur=".4" data-anim="draw" data-out="12.2"><path class="wire c2 dash" d="M690,402 C570,402 400,566 312,566" marker-end="url(#s09-ah2)"/></g><g data-in="12.4" data-anim="pop" data-on="12.4-14.4" class="c4"><rect class="box c4 dash" x="690" y="426" width="315" height="62" rx="10"/><text x="704" y="446" class="title">Resolver task · field4</text><text x="704" y="464" class="mono small">reads field5</text><text x="704" y="480" class="mono small" data-text="12.4:calls resolver…|13.4:returns 1">calls resolver…</text></g><g data-in="12.4" data-dur=".4" data-anim="draw"><path class="wire c4" d="M645,389 C675,389 660,457 686,457" marker-end="url(#s09-ah4)"/></g><g data-in="13.2" data-dur=".4" data-anim="draw" data-out="14.2"><path class="wire c2 dash" d="M690,472 C570,472 400,538 312,538" marker-end="url(#s09-ah2)"/></g><g data-in="14.4" data-anim="pop" data-on="14.4-16.4" class="c4"><rect class="box c4 dash" x="690" y="496" width="315" height="62" rx="10"/><text x="704" y="516" class="title">Resolver task · field3</text><text x="704" y="534" class="mono small">reads field4, field5</text><text x="704" y="550" class="mono small" data-text="14.4:calls resolver…|15.4:returns 1">calls resolver…</text></g><g data-in="14.4" data-dur=".4" data-anim="draw"><path class="wire c4" d="M645,389 C675,389 660,527 686,527" marker-end="url(#s09-ah4)"/></g><g data-in="15.2" data-dur=".4" data-anim="draw" data-out="16.2"><path class="wire c2 dash" d="M690,542 C570,542 400,510 312,510" marker-end="url(#s09-ah2)"/></g><g data-in="16.4" data-anim="pop" data-on="16.4-18.4" class="c4"><rect class="box c4 dash" x="690" y="566" width="315" height="62" rx="10"/><text x="704" y="586" class="title">Resolver task · field2</text><text x="704" y="604" class="mono small">reads field3, field4</text><text x="704" y="620" class="mono small" data-text="16.4:calls resolver…|17.4:returns 1">calls resolver…</text></g><g data-in="16.4" data-dur=".4" data-anim="draw"><path class="wire c4" d="M645,389 C675,389 660,597 686,597" marker-end="url(#s09-ah4)"/></g><g data-in="17.2" data-dur=".4" data-anim="draw" data-out="18.2"><path class="wire c2 dash" d="M690,612 C570,612 400,482 312,482" marker-end="url(#s09-ah2)"/></g><g data-in="18.4" data-anim="pop" data-on="18.4-20.4" class="c4"><rect class="box c4 dash" x="690" y="636" width="315" height="62" rx="10"/><text x="704" y="656" class="title">Resolver task · field1</text><text x="704" y="674" class="mono small">reads field2, field3</text><text x="704" y="690" class="mono small" data-text="18.4:calls resolver…|19.4:returns 1">calls resolver…</text></g><g data-in="18.4" data-dur=".4" data-anim="draw"><path class="wire c4" d="M645,389 C675,389 660,667 686,667" marker-end="url(#s09-ah4)"/></g><g data-in="19.2" data-dur=".4" data-anim="draw" data-out="20.2"><path class="wire c2 dash" d="M690,682 C570,682 400,454 312,454" marker-end="url(#s09-ah2)"/></g><g data-in="20.4" data-anim="pop" data-on="20.4-23.0" class="c4"><rect class="box c4 dash" x="690" y="706" width="315" height="62" rx="10"/><text x="704" y="726" class="title">Resolver task · field0</text><text x="704" y="744" class="mono small">reads field1, field2</text><text x="704" y="760" class="mono small" data-text="20.4:calls resolver…|21.4:returns 1">calls resolver…</text></g><g data-in="20.4" data-dur=".4" data-anim="draw"><path class="wire c4" d="M645,389 C675,389 660,737 686,737" marker-end="url(#s09-ah4)"/></g><g data-in="21.2" data-dur=".4" data-anim="draw"><path class="wire c2 dash" d="M690,752 C570,752 400,426 312,426" marker-end="url(#s09-ah2)"/></g><g class="stepbadge" data-in="0.4" data-dur=".4" data-anim="pop" data-on="0.4-2.4"><circle cx="641" cy="34" r="12"/><text x="641" y="38.5" text-anchor="middle">1</text></g><g class="stepbadge" data-in="2.4" data-dur=".4" data-anim="pop" data-on="2.4-4.4"><circle cx="694" cy="34" r="12"/><text x="694" y="38.5" text-anchor="middle">2</text></g><g class="stepbadge" data-in="4.4" data-dur=".4" data-anim="pop" data-on="4.4-6.4"><circle cx="641" cy="128" r="12"/><text x="641" y="132.5" text-anchor="middle">3</text></g><g class="stepbadge" data-in="6.4" data-dur=".4" data-anim="pop" data-on="6.4-8.4"><circle cx="641" cy="244" r="12"/><text x="641" y="248.5" text-anchor="middle">4</text></g><g class="stepbadge" data-in="8.4" data-dur=".4" data-anim="pop" data-on="8.4-10.4"><circle cx="641" cy="360" r="12"/><text x="641" y="364.5" text-anchor="middle">5</text></g><g class="stepbadge" data-in="10.4" data-dur=".4" data-anim="pop" data-on="10.4-12.4"><circle cx="694" cy="360" r="12"/><text x="694" y="364.5" text-anchor="middle">6</text></g><g class="stepbadge" data-in="12.4" data-dur=".4" data-anim="pop" data-on="12.4-14.4"><circle cx="694" cy="430" r="12"/><text x="694" y="434.5" text-anchor="middle">7</text></g><g class="stepbadge" data-in="14.4" data-dur=".4" data-anim="pop" data-on="14.4-16.4"><circle cx="694" cy="500" r="12"/><text x="694" y="504.5" text-anchor="middle">8</text></g><g class="stepbadge" data-in="16.4" data-dur=".4" data-anim="pop" data-on="16.4-18.4"><circle cx="694" cy="570" r="12"/><text x="694" y="574.5" text-anchor="middle">9</text></g><g class="stepbadge" data-in="18.4" data-dur=".4" data-anim="pop" data-on="18.4-20.4"><circle cx="694" cy="640" r="12"/><text x="694" y="644.5" text-anchor="middle">10</text></g><g class="stepbadge" data-in="20.4" data-dur=".4" data-anim="pop" data-on="20.4-23.0"><circle cx="694" cy="710" r="12"/><text x="694" y="714.5" text-anchor="middle">11</text></g></svg></div><ol class="beats"><li data-at="0.4" data-title="Orchestrator · Query">The Query orchestrator closes its demand: <code>root</code>. It launches resolver tasks for <code>root</code>.</li><li data-at="2.4" data-title="Resolver task · root">The resolver task for <code>Query.root</code> calls its resolver once and reads no inputs. It is asked to return <code>child seed</code> and 12 nested paths below them. It returns a Parent object, which becomes a new OER.</li><li data-at="4.4" data-title="Orchestrator · Parent">The Parent orchestrator at <code>root</code> closes its demand: <code>child seed</code>. <a class="gl" href="../../glossary.html#closure">Closure</a> adds <code>seed</code> (read through <code>@parent</code> by <code>Child.field5</code>, every Child field checker and the Child type checker). The resolver task that returned this object then copies in its passive values: <code>child → Child</code>, <code>seed → Seed</code>. No field here needs a resolver task.</li><li data-at="6.4" data-title="Orchestrator · Seed">The Seed orchestrator at <code>root.seed</code> closes its demand: <code>value other</code>. Closure adds <code>value</code> (read through <code>@parent</code> by <code>Child.field5</code>, every Child field checker and the Child type checker), <code>other</code> (read through <code>@parent</code> by <code>Child.field5</code>, every Child field checker and the Child type checker). The resolver task that returned this object then copies in its passive values: <code>value = 7</code>, <code>other = 8</code>. No field here needs a resolver task.</li><li data-at="8.4" data-title="Orchestrator · Child">The Child orchestrator at <code>root.child</code> closes its demand: <code>parent field0 field1 field2 field3 field4 field5</code>. Closure adds <code>field1</code> (read by <code>Child.field0</code>), <code>field2</code> (read by <code>Child.field0</code>, <code>Child.field1</code>), <code>field3</code> (read by <code>Child.field1</code>, <code>Child.field2</code>), <code>field4</code> (read by <code>Child.field2</code>, <code>Child.field3</code>), <code>field5</code> (read by <code>Child.field3</code>, <code>Child.field4</code>). <code>parent</code> links back to the existing Parent OER. It launches resolver tasks for <code>field0</code>, <code>field1</code>, <code>field2</code>, <code>field3</code>, <code>field4</code>, <code>field5</code>.</li><li data-at="10.4" data-title="Resolver task · field5">The resolver task for <code>Child.field5</code> at <code>root.child</code> calls its resolver once and reads <code>parent.seed.other = 8, parent.seed.value = 7</code>. It returns <code>1</code>.</li><li data-at="12.4" data-title="Resolver task · field4">The resolver task for <code>Child.field4</code> at <code>root.child</code> calls its resolver once and reads <code>field5 = 1</code>. It returns <code>1</code>.</li><li data-at="14.4" data-title="Resolver task · field3">The resolver task for <code>Child.field3</code> at <code>root.child</code> calls its resolver once and reads <code>field4 = 1, field5 = 1</code>. It returns <code>1</code>.</li><li data-at="16.4" data-title="Resolver task · field2">The resolver task for <code>Child.field2</code> at <code>root.child</code> calls its resolver once and reads <code>field3 = 1, field4 = 1</code>. It returns <code>1</code>.</li><li data-at="18.4" data-title="Resolver task · field1">The resolver task for <code>Child.field1</code> at <code>root.child</code> calls its resolver once and reads <code>field2 = 1, field3 = 1</code>. It returns <code>1</code>.</li><li data-at="20.4" data-title="Resolver task · field0">The resolver task for <code>Child.field0</code> at <code>root.child</code> calls its resolver once and reads <code>field1 = 1, field2 = 1</code>. It returns <code>1</code>.</li></ol></figure></div><figure class="demand-visual"><figcaption><span class="visual-eyebrow">Requirements and execution</span><strong>Depth 5: many dependency paths share one ancestor seed subtree</strong></figcaption><p class="flow-title">Declared inputs, read from the registry</p><ul class="rss-facts"><li><code>Child.field0</code> objectValueFragment: <code>field1 field2</code></li><li><code>Child.field1</code> objectValueFragment: <code>field2 field3</code></li><li><code>Child.field2</code> objectValueFragment: <code>field3 field4</code></li><li><code>Child.field3</code> objectValueFragment: <code>field4 field5</code></li><li><code>Child.field4</code> objectValueFragment: <code>field5</code></li><li><code>Child.field5</code> objectValueFragment: <code>parent parent.seed parent.seed.value parent.seed.other</code></li></ul><p class="rss-note">Closure follows these declarations until nothing new is added. The trees below show the fixed point the test observed.</p><p class="view-explanation">The tree shows the additional ancestor paths at depth 5. Both checked and unchecked components contain this same shape: one seed with value and other. These are two read requirements on the same data. The separate expandable list shows the 6 Child fields actually resolved; it is not another ancestor-demand tree.</p><div class="scope-grid"><div class="scope-card mode-ancestor"><h4>Shared ancestor requirements, located from the operation Query</h4><p class="scope-mode">Added demand on existing ancestors</p><div class="observed-tree"><ul class="demand-tree"><li><div class="demand-node"><code>root</code><span class="node-description">path to the existing Parent</span></div><ul class="demand-tree"><li><div class="demand-node"><code>seed</code><span class="node-description">one seed subtree; the checked and unchecked components each hold one like it</span></div><ul class="demand-tree"><li><div class="demand-node"><code>other</code><span class="node-description">shared passive input</span></div></li><li><div class="demand-node"><code>value</code><span class="node-description">shared passive input</span></div></li></ul></li></ul></li></ul></div></div></div><details class="resolved-fields"><summary>Inspect the 6 resolved Child fields</summary><div class="scope-card mode-completed"><h4>Child · completed value fields</h4><p class="scope-mode">Fields present in the internal result after execution</p><div class="observed-tree"><ul class="demand-tree"><li><div class="demand-node kind-client"><code>field0</code><span class="node-description">selected by the operation</span></div></li><li><div class="demand-node"><code>field1</code></div></li><li><div class="demand-node"><code>field2</code></div></li><li><div class="demand-node"><code>field3</code></div></li><li><div class="demand-node"><code>field4</code></div></li><li><div class="demand-node"><code>field5</code></div></li></ul></div></div></details><div class="table-wrap execution-outcomes"><table><caption>What execution confirms</caption><thead><tr><th scope="col">Observation</th><th scope="col">Value</th><th scope="col">What it means</th></tr></thead><tbody><tr><th scope="row">Total value-resolver calls</th><td><code>7</code></td><td>One <code>Query.root</code> call + 6 Child calls, field0 through field5. Checkers are counted separately from value resolvers.</td></tr></tbody></table></div><p class="demand-note"><strong>Why this matters.</strong> Repeated dependency paths can share a small set of required data. Representing one seed subtree per access component avoids copying that subtree once for every path.</p></figure><details class="schema-variants"><summary>Larger examples · schema and results</summary><p class="variant-label">Depth 10</p><div class="example-inputs"><div class="snippet"><div class="snippet-header">Annotated schema<span>SDL + contracts</span></div><pre tabindex="0" role="region" aria-label="GraphQL schema for example 09 at depth 10"><code><span class="gql-keyword">type</span> <span class="gql-type">Query</span> {
+  <span class="gql-name">root</span>: <span class="gql-type">Parent</span>
+    <span class="gql-directive">@resolver</span>(<span class="gql-name">result</span>: {<span class="gql-name">seed</span>: {<span class="gql-name">value</span>: <span class="gql-literal">7</span>, <span class="gql-name">other</span>: <span class="gql-literal">8</span>}, <span class="gql-name">child</span>: {}})
+}
+
+<span class="gql-keyword">type</span> <span class="gql-type">Parent</span> {
+  <span class="gql-name">seed</span>: <span class="gql-type">Seed</span>
+  <span class="gql-name">child</span>: <span class="gql-type">Child</span>
+}
+
+<span class="gql-keyword">type</span> <span class="gql-type">Seed</span> {
+  <span class="gql-name">value</span>: <span class="gql-type">Int</span>
+  <span class="gql-name">other</span>: <span class="gql-type">Int</span>
+}
+
+<span class="gql-keyword">type</span> <span class="gql-type">Child</span>
+  <span class="gql-directive">@typeChecker</span>(
+    <span class="gql-name">inputs</span>: [
+      {
+        <span class="gql-name">name</span>: <span class="gql-string">"input"</span>
+        <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"field0 field1 parent { seed { value other } }"</span>
+      }
+    ]
+  )
+{
+  <span class="gql-name">parent</span>: <span class="gql-type">Parent</span>
+    <span class="gql-directive">@parent</span>
+  <span class="gql-name">field0</span>: <span class="gql-type">Int</span>
+    <span class="gql-directive">@resolver</span>(
+      <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"field1 field2"</span>
+      <span class="gql-name">result</span>: <span class="gql-literal">1</span>
+    )
+    <span class="gql-directive">@fieldChecker</span>(
+      <span class="gql-name">inputs</span>: [{<span class="gql-name">name</span>: <span class="gql-string">"input"</span>, <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"parent { seed { value other } }"</span>}]
+    )
+  <span class="gql-name">field1</span>: <span class="gql-type">Int</span>
+    <span class="gql-directive">@resolver</span>(
+      <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"field2 field3"</span>
+      <span class="gql-name">result</span>: <span class="gql-literal">1</span>
+    )
+    <span class="gql-directive">@fieldChecker</span>(
+      <span class="gql-name">inputs</span>: [{<span class="gql-name">name</span>: <span class="gql-string">"input"</span>, <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"parent { seed { value other } }"</span>}]
+    )
+  <span class="gql-name">field2</span>: <span class="gql-type">Int</span>
+    <span class="gql-directive">@resolver</span>(
+      <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"field3 field4"</span>
+      <span class="gql-name">result</span>: <span class="gql-literal">1</span>
+    )
+    <span class="gql-directive">@fieldChecker</span>(
+      <span class="gql-name">inputs</span>: [{<span class="gql-name">name</span>: <span class="gql-string">"input"</span>, <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"parent { seed { value other } }"</span>}]
+    )
+  <span class="gql-name">field3</span>: <span class="gql-type">Int</span>
+    <span class="gql-directive">@resolver</span>(
+      <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"field4 field5"</span>
+      <span class="gql-name">result</span>: <span class="gql-literal">1</span>
+    )
+    <span class="gql-directive">@fieldChecker</span>(
+      <span class="gql-name">inputs</span>: [{<span class="gql-name">name</span>: <span class="gql-string">"input"</span>, <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"parent { seed { value other } }"</span>}]
+    )
+  <span class="gql-name">field4</span>: <span class="gql-type">Int</span>
+    <span class="gql-directive">@resolver</span>(
+      <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"field5 field6"</span>
+      <span class="gql-name">result</span>: <span class="gql-literal">1</span>
+    )
+    <span class="gql-directive">@fieldChecker</span>(
+      <span class="gql-name">inputs</span>: [{<span class="gql-name">name</span>: <span class="gql-string">"input"</span>, <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"parent { seed { value other } }"</span>}]
+    )
+  <span class="gql-name">field5</span>: <span class="gql-type">Int</span>
+    <span class="gql-directive">@resolver</span>(
+      <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"field6 field7"</span>
+      <span class="gql-name">result</span>: <span class="gql-literal">1</span>
+    )
+    <span class="gql-directive">@fieldChecker</span>(
+      <span class="gql-name">inputs</span>: [{<span class="gql-name">name</span>: <span class="gql-string">"input"</span>, <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"parent { seed { value other } }"</span>}]
+    )
+  <span class="gql-name">field6</span>: <span class="gql-type">Int</span>
+    <span class="gql-directive">@resolver</span>(
+      <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"field7 field8"</span>
+      <span class="gql-name">result</span>: <span class="gql-literal">1</span>
+    )
+    <span class="gql-directive">@fieldChecker</span>(
+      <span class="gql-name">inputs</span>: [{<span class="gql-name">name</span>: <span class="gql-string">"input"</span>, <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"parent { seed { value other } }"</span>}]
+    )
+  <span class="gql-name">field7</span>: <span class="gql-type">Int</span>
+    <span class="gql-directive">@resolver</span>(
+      <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"field8 field9"</span>
+      <span class="gql-name">result</span>: <span class="gql-literal">1</span>
+    )
+    <span class="gql-directive">@fieldChecker</span>(
+      <span class="gql-name">inputs</span>: [{<span class="gql-name">name</span>: <span class="gql-string">"input"</span>, <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"parent { seed { value other } }"</span>}]
+    )
+  <span class="gql-name">field8</span>: <span class="gql-type">Int</span>
+    <span class="gql-directive">@resolver</span>(
+      <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"field9 field10"</span>
+      <span class="gql-name">result</span>: <span class="gql-literal">1</span>
+    )
+    <span class="gql-directive">@fieldChecker</span>(
+      <span class="gql-name">inputs</span>: [{<span class="gql-name">name</span>: <span class="gql-string">"input"</span>, <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"parent { seed { value other } }"</span>}]
+    )
+  <span class="gql-name">field9</span>: <span class="gql-type">Int</span>
+    <span class="gql-directive">@resolver</span>(
+      <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"field10"</span>
+      <span class="gql-name">result</span>: <span class="gql-literal">1</span>
+    )
+    <span class="gql-directive">@fieldChecker</span>(
+      <span class="gql-name">inputs</span>: [{<span class="gql-name">name</span>: <span class="gql-string">"input"</span>, <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"parent { seed { value other } }"</span>}]
+    )
+  <span class="gql-name">field10</span>: <span class="gql-type">Int</span>
+    <span class="gql-directive">@resolver</span>(
+      <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"parent { seed { value other } }"</span>
+      <span class="gql-name">result</span>: <span class="gql-literal">1</span>
+    )
+    <span class="gql-directive">@fieldChecker</span>(
+      <span class="gql-name">inputs</span>: [{<span class="gql-name">name</span>: <span class="gql-string">"input"</span>, <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"parent { seed { value other } }"</span>}]
+    )
+}</code></pre></div><div class="snippet"><div class="snippet-header">Client operation<span>GraphQL</span></div><pre tabindex="0" role="region" aria-label="GraphQL operation for example 09 at depth 10"><code>{
+  <span class="gql-name">root</span> {
+    <span class="gql-name">child</span> {
+      <span class="gql-name">field0</span>
+    }
+  }
+}</code></pre></div></div><figure class="demand-visual"><figcaption><span class="visual-eyebrow">Requirements and execution</span><strong>Depth 10: many dependency paths share one ancestor seed subtree</strong></figcaption><p class="flow-title">How the requirements arise</p><ol class="demand-flow" aria-label="How the requirements arise; dependency steps, not execution order"><li class="flow-client"><span class="flow-label">The operation selects</span><code>Child.field0</code></li><li><span class="flow-label">Overlapping resolver inputs</span><code>each field needs the next two that exist</code></li><li class="flow-ancestor"><span class="flow-label">The final resolver and checkers read</span><code>parent.seed { value other }</code></li></ol><p class="view-explanation">The tree shows the additional ancestor paths at depth 10. Both checked and unchecked components contain this same shape: one seed with value and other. These are two read requirements on the same data. The separate expandable list shows the 11 Child fields actually resolved; it is not another ancestor-demand tree.</p><div class="scope-grid"><div class="scope-card mode-ancestor"><h4>Shared ancestor requirements, located from the operation Query</h4><p class="scope-mode">Added demand on existing ancestors</p><div class="observed-tree"><ul class="demand-tree"><li><div class="demand-node"><code>root</code><span class="node-description">path to the existing Parent</span></div><ul class="demand-tree"><li><div class="demand-node"><code>seed</code><span class="node-description">one seed subtree; the checked and unchecked components each hold one like it</span></div><ul class="demand-tree"><li><div class="demand-node"><code>other</code><span class="node-description">shared passive input</span></div></li><li><div class="demand-node"><code>value</code><span class="node-description">shared passive input</span></div></li></ul></li></ul></li></ul></div></div></div><details class="resolved-fields"><summary>Inspect the 11 resolved Child fields</summary><div class="scope-card mode-completed"><h4>Child · completed value fields</h4><p class="scope-mode">Fields present in the internal result after execution</p><div class="observed-tree"><ul class="demand-tree"><li><div class="demand-node kind-client"><code>field0</code><span class="node-description">selected by the operation</span></div></li><li><div class="demand-node"><code>field1</code></div></li><li><div class="demand-node"><code>field2</code></div></li><li><div class="demand-node"><code>field3</code></div></li><li><div class="demand-node"><code>field4</code></div></li><li><div class="demand-node"><code>field5</code></div></li><li><div class="demand-node"><code>field6</code></div></li><li><div class="demand-node"><code>field7</code></div></li><li><div class="demand-node"><code>field8</code></div></li><li><div class="demand-node"><code>field9</code></div></li><li><div class="demand-node"><code>field10</code></div></li></ul></div></div></details><div class="table-wrap execution-outcomes"><table><caption>What execution confirms</caption><thead><tr><th scope="col">Observation</th><th scope="col">Value</th><th scope="col">What it means</th></tr></thead><tbody><tr><th scope="row">Total value-resolver calls</th><td><code>12</code></td><td>One <code>Query.root</code> call + 11 Child calls, field0 through field10. Checkers are counted separately from value resolvers.</td></tr></tbody></table></div><p class="demand-note"><strong>Why this matters.</strong> Repeated dependency paths can share a small set of required data. Representing one seed subtree per access component avoids copying that subtree once for every path.</p></figure><p class="variant-label">Depth 20</p><div class="example-inputs"><div class="snippet"><div class="snippet-header">Annotated schema<span>SDL + contracts</span></div><pre tabindex="0" role="region" aria-label="GraphQL schema for example 09 at depth 20"><code><span class="gql-keyword">type</span> <span class="gql-type">Query</span> {
+  <span class="gql-name">root</span>: <span class="gql-type">Parent</span>
+    <span class="gql-directive">@resolver</span>(<span class="gql-name">result</span>: {<span class="gql-name">seed</span>: {<span class="gql-name">value</span>: <span class="gql-literal">7</span>, <span class="gql-name">other</span>: <span class="gql-literal">8</span>}, <span class="gql-name">child</span>: {}})
+}
+
+<span class="gql-keyword">type</span> <span class="gql-type">Parent</span> {
+  <span class="gql-name">seed</span>: <span class="gql-type">Seed</span>
+  <span class="gql-name">child</span>: <span class="gql-type">Child</span>
+}
+
+<span class="gql-keyword">type</span> <span class="gql-type">Seed</span> {
+  <span class="gql-name">value</span>: <span class="gql-type">Int</span>
+  <span class="gql-name">other</span>: <span class="gql-type">Int</span>
+}
+
+<span class="gql-keyword">type</span> <span class="gql-type">Child</span>
+  <span class="gql-directive">@typeChecker</span>(
+    <span class="gql-name">inputs</span>: [
+      {
+        <span class="gql-name">name</span>: <span class="gql-string">"input"</span>
+        <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"field0 field1 parent { seed { value other } }"</span>
+      }
+    ]
+  )
+{
+  <span class="gql-name">parent</span>: <span class="gql-type">Parent</span>
+    <span class="gql-directive">@parent</span>
+  <span class="gql-name">field0</span>: <span class="gql-type">Int</span>
+    <span class="gql-directive">@resolver</span>(
+      <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"field1 field2"</span>
+      <span class="gql-name">result</span>: <span class="gql-literal">1</span>
+    )
+    <span class="gql-directive">@fieldChecker</span>(
+      <span class="gql-name">inputs</span>: [{<span class="gql-name">name</span>: <span class="gql-string">"input"</span>, <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"parent { seed { value other } }"</span>}]
+    )
+  <span class="gql-name">field1</span>: <span class="gql-type">Int</span>
+    <span class="gql-directive">@resolver</span>(
+      <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"field2 field3"</span>
+      <span class="gql-name">result</span>: <span class="gql-literal">1</span>
+    )
+    <span class="gql-directive">@fieldChecker</span>(
+      <span class="gql-name">inputs</span>: [{<span class="gql-name">name</span>: <span class="gql-string">"input"</span>, <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"parent { seed { value other } }"</span>}]
+    )
+  <span class="gql-name">field2</span>: <span class="gql-type">Int</span>
+    <span class="gql-directive">@resolver</span>(
+      <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"field3 field4"</span>
+      <span class="gql-name">result</span>: <span class="gql-literal">1</span>
+    )
+    <span class="gql-directive">@fieldChecker</span>(
+      <span class="gql-name">inputs</span>: [{<span class="gql-name">name</span>: <span class="gql-string">"input"</span>, <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"parent { seed { value other } }"</span>}]
+    )
+  <span class="gql-name">field3</span>: <span class="gql-type">Int</span>
+    <span class="gql-directive">@resolver</span>(
+      <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"field4 field5"</span>
+      <span class="gql-name">result</span>: <span class="gql-literal">1</span>
+    )
+    <span class="gql-directive">@fieldChecker</span>(
+      <span class="gql-name">inputs</span>: [{<span class="gql-name">name</span>: <span class="gql-string">"input"</span>, <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"parent { seed { value other } }"</span>}]
+    )
+  <span class="gql-name">field4</span>: <span class="gql-type">Int</span>
+    <span class="gql-directive">@resolver</span>(
+      <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"field5 field6"</span>
+      <span class="gql-name">result</span>: <span class="gql-literal">1</span>
+    )
+    <span class="gql-directive">@fieldChecker</span>(
+      <span class="gql-name">inputs</span>: [{<span class="gql-name">name</span>: <span class="gql-string">"input"</span>, <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"parent { seed { value other } }"</span>}]
+    )
+  <span class="gql-name">field5</span>: <span class="gql-type">Int</span>
+    <span class="gql-directive">@resolver</span>(
+      <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"field6 field7"</span>
+      <span class="gql-name">result</span>: <span class="gql-literal">1</span>
+    )
+    <span class="gql-directive">@fieldChecker</span>(
+      <span class="gql-name">inputs</span>: [{<span class="gql-name">name</span>: <span class="gql-string">"input"</span>, <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"parent { seed { value other } }"</span>}]
+    )
+  <span class="gql-name">field6</span>: <span class="gql-type">Int</span>
+    <span class="gql-directive">@resolver</span>(
+      <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"field7 field8"</span>
+      <span class="gql-name">result</span>: <span class="gql-literal">1</span>
+    )
+    <span class="gql-directive">@fieldChecker</span>(
+      <span class="gql-name">inputs</span>: [{<span class="gql-name">name</span>: <span class="gql-string">"input"</span>, <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"parent { seed { value other } }"</span>}]
+    )
+  <span class="gql-name">field7</span>: <span class="gql-type">Int</span>
+    <span class="gql-directive">@resolver</span>(
+      <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"field8 field9"</span>
+      <span class="gql-name">result</span>: <span class="gql-literal">1</span>
+    )
+    <span class="gql-directive">@fieldChecker</span>(
+      <span class="gql-name">inputs</span>: [{<span class="gql-name">name</span>: <span class="gql-string">"input"</span>, <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"parent { seed { value other } }"</span>}]
+    )
+  <span class="gql-name">field8</span>: <span class="gql-type">Int</span>
+    <span class="gql-directive">@resolver</span>(
+      <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"field9 field10"</span>
+      <span class="gql-name">result</span>: <span class="gql-literal">1</span>
+    )
+    <span class="gql-directive">@fieldChecker</span>(
+      <span class="gql-name">inputs</span>: [{<span class="gql-name">name</span>: <span class="gql-string">"input"</span>, <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"parent { seed { value other } }"</span>}]
+    )
+  <span class="gql-name">field9</span>: <span class="gql-type">Int</span>
+    <span class="gql-directive">@resolver</span>(
+      <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"field10 field11"</span>
+      <span class="gql-name">result</span>: <span class="gql-literal">1</span>
+    )
+    <span class="gql-directive">@fieldChecker</span>(
+      <span class="gql-name">inputs</span>: [{<span class="gql-name">name</span>: <span class="gql-string">"input"</span>, <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"parent { seed { value other } }"</span>}]
+    )
+  <span class="gql-name">field10</span>: <span class="gql-type">Int</span>
+    <span class="gql-directive">@resolver</span>(
+      <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"field11 field12"</span>
+      <span class="gql-name">result</span>: <span class="gql-literal">1</span>
+    )
+    <span class="gql-directive">@fieldChecker</span>(
+      <span class="gql-name">inputs</span>: [{<span class="gql-name">name</span>: <span class="gql-string">"input"</span>, <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"parent { seed { value other } }"</span>}]
+    )
+  <span class="gql-name">field11</span>: <span class="gql-type">Int</span>
+    <span class="gql-directive">@resolver</span>(
+      <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"field12 field13"</span>
+      <span class="gql-name">result</span>: <span class="gql-literal">1</span>
+    )
+    <span class="gql-directive">@fieldChecker</span>(
+      <span class="gql-name">inputs</span>: [{<span class="gql-name">name</span>: <span class="gql-string">"input"</span>, <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"parent { seed { value other } }"</span>}]
+    )
+  <span class="gql-name">field12</span>: <span class="gql-type">Int</span>
+    <span class="gql-directive">@resolver</span>(
+      <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"field13 field14"</span>
+      <span class="gql-name">result</span>: <span class="gql-literal">1</span>
+    )
+    <span class="gql-directive">@fieldChecker</span>(
+      <span class="gql-name">inputs</span>: [{<span class="gql-name">name</span>: <span class="gql-string">"input"</span>, <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"parent { seed { value other } }"</span>}]
+    )
+  <span class="gql-name">field13</span>: <span class="gql-type">Int</span>
+    <span class="gql-directive">@resolver</span>(
+      <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"field14 field15"</span>
+      <span class="gql-name">result</span>: <span class="gql-literal">1</span>
+    )
+    <span class="gql-directive">@fieldChecker</span>(
+      <span class="gql-name">inputs</span>: [{<span class="gql-name">name</span>: <span class="gql-string">"input"</span>, <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"parent { seed { value other } }"</span>}]
+    )
+  <span class="gql-name">field14</span>: <span class="gql-type">Int</span>
+    <span class="gql-directive">@resolver</span>(
+      <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"field15 field16"</span>
+      <span class="gql-name">result</span>: <span class="gql-literal">1</span>
+    )
+    <span class="gql-directive">@fieldChecker</span>(
+      <span class="gql-name">inputs</span>: [{<span class="gql-name">name</span>: <span class="gql-string">"input"</span>, <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"parent { seed { value other } }"</span>}]
+    )
+  <span class="gql-name">field15</span>: <span class="gql-type">Int</span>
+    <span class="gql-directive">@resolver</span>(
+      <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"field16 field17"</span>
+      <span class="gql-name">result</span>: <span class="gql-literal">1</span>
+    )
+    <span class="gql-directive">@fieldChecker</span>(
+      <span class="gql-name">inputs</span>: [{<span class="gql-name">name</span>: <span class="gql-string">"input"</span>, <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"parent { seed { value other } }"</span>}]
+    )
+  <span class="gql-name">field16</span>: <span class="gql-type">Int</span>
+    <span class="gql-directive">@resolver</span>(
+      <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"field17 field18"</span>
+      <span class="gql-name">result</span>: <span class="gql-literal">1</span>
+    )
+    <span class="gql-directive">@fieldChecker</span>(
+      <span class="gql-name">inputs</span>: [{<span class="gql-name">name</span>: <span class="gql-string">"input"</span>, <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"parent { seed { value other } }"</span>}]
+    )
+  <span class="gql-name">field17</span>: <span class="gql-type">Int</span>
+    <span class="gql-directive">@resolver</span>(
+      <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"field18 field19"</span>
+      <span class="gql-name">result</span>: <span class="gql-literal">1</span>
+    )
+    <span class="gql-directive">@fieldChecker</span>(
+      <span class="gql-name">inputs</span>: [{<span class="gql-name">name</span>: <span class="gql-string">"input"</span>, <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"parent { seed { value other } }"</span>}]
+    )
+  <span class="gql-name">field18</span>: <span class="gql-type">Int</span>
+    <span class="gql-directive">@resolver</span>(
+      <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"field19 field20"</span>
+      <span class="gql-name">result</span>: <span class="gql-literal">1</span>
+    )
+    <span class="gql-directive">@fieldChecker</span>(
+      <span class="gql-name">inputs</span>: [{<span class="gql-name">name</span>: <span class="gql-string">"input"</span>, <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"parent { seed { value other } }"</span>}]
+    )
+  <span class="gql-name">field19</span>: <span class="gql-type">Int</span>
+    <span class="gql-directive">@resolver</span>(
+      <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"field20"</span>
+      <span class="gql-name">result</span>: <span class="gql-literal">1</span>
+    )
+    <span class="gql-directive">@fieldChecker</span>(
+      <span class="gql-name">inputs</span>: [{<span class="gql-name">name</span>: <span class="gql-string">"input"</span>, <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"parent { seed { value other } }"</span>}]
+    )
+  <span class="gql-name">field20</span>: <span class="gql-type">Int</span>
+    <span class="gql-directive">@resolver</span>(
+      <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"parent { seed { value other } }"</span>
+      <span class="gql-name">result</span>: <span class="gql-literal">1</span>
+    )
+    <span class="gql-directive">@fieldChecker</span>(
+      <span class="gql-name">inputs</span>: [{<span class="gql-name">name</span>: <span class="gql-string">"input"</span>, <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"parent { seed { value other } }"</span>}]
+    )
+}</code></pre></div><div class="snippet"><div class="snippet-header">Client operation<span>GraphQL</span></div><pre tabindex="0" role="region" aria-label="GraphQL operation for example 09 at depth 20"><code>{
+  <span class="gql-name">root</span> {
+    <span class="gql-name">child</span> {
+      <span class="gql-name">field0</span>
+    }
+  }
+}</code></pre></div></div><figure class="demand-visual"><figcaption><span class="visual-eyebrow">Requirements and execution</span><strong>Depth 20: many dependency paths share one ancestor seed subtree</strong></figcaption><p class="flow-title">How the requirements arise</p><ol class="demand-flow" aria-label="How the requirements arise; dependency steps, not execution order"><li class="flow-client"><span class="flow-label">The operation selects</span><code>Child.field0</code></li><li><span class="flow-label">Overlapping resolver inputs</span><code>each field needs the next two that exist</code></li><li class="flow-ancestor"><span class="flow-label">The final resolver and checkers read</span><code>parent.seed { value other }</code></li></ol><p class="view-explanation">The tree shows the additional ancestor paths at depth 20. Both checked and unchecked components contain this same shape: one seed with value and other. These are two read requirements on the same data. The separate expandable list shows the 21 Child fields actually resolved; it is not another ancestor-demand tree.</p><div class="scope-grid"><div class="scope-card mode-ancestor"><h4>Shared ancestor requirements, located from the operation Query</h4><p class="scope-mode">Added demand on existing ancestors</p><div class="observed-tree"><ul class="demand-tree"><li><div class="demand-node"><code>root</code><span class="node-description">path to the existing Parent</span></div><ul class="demand-tree"><li><div class="demand-node"><code>seed</code><span class="node-description">one seed subtree; the checked and unchecked components each hold one like it</span></div><ul class="demand-tree"><li><div class="demand-node"><code>other</code><span class="node-description">shared passive input</span></div></li><li><div class="demand-node"><code>value</code><span class="node-description">shared passive input</span></div></li></ul></li></ul></li></ul></div></div></div><details class="resolved-fields"><summary>Inspect the 21 resolved Child fields</summary><div class="scope-card mode-completed"><h4>Child · completed value fields</h4><p class="scope-mode">Fields present in the internal result after execution</p><div class="observed-tree"><ul class="demand-tree"><li><div class="demand-node kind-client"><code>field0</code><span class="node-description">selected by the operation</span></div></li><li><div class="demand-node"><code>field1</code></div></li><li><div class="demand-node"><code>field2</code></div></li><li><div class="demand-node"><code>field3</code></div></li><li><div class="demand-node"><code>field4</code></div></li><li><div class="demand-node"><code>field5</code></div></li><li><div class="demand-node"><code>field6</code></div></li><li><div class="demand-node"><code>field7</code></div></li><li><div class="demand-node"><code>field8</code></div></li><li><div class="demand-node"><code>field9</code></div></li><li><div class="demand-node"><code>field10</code></div></li><li><div class="demand-node"><code>field11</code></div></li><li><div class="demand-node"><code>field12</code></div></li><li><div class="demand-node"><code>field13</code></div></li><li><div class="demand-node"><code>field14</code></div></li><li><div class="demand-node"><code>field15</code></div></li><li><div class="demand-node"><code>field16</code></div></li><li><div class="demand-node"><code>field17</code></div></li><li><div class="demand-node"><code>field18</code></div></li><li><div class="demand-node"><code>field19</code></div></li><li><div class="demand-node"><code>field20</code></div></li></ul></div></div></details><div class="table-wrap execution-outcomes"><table><caption>What execution confirms</caption><thead><tr><th scope="col">Observation</th><th scope="col">Value</th><th scope="col">What it means</th></tr></thead><tbody><tr><th scope="row">Total value-resolver calls</th><td><code>22</code></td><td>One <code>Query.root</code> call + 21 Child calls, field0 through field20. Checkers are counted separately from value resolvers.</td></tr></tbody></table></div><p class="demand-note"><strong>Why this matters.</strong> Repeated dependency paths can share a small set of required data. Representing one seed subtree per access component avoids copying that subtree once for every path.</p></figure><p class="variant-label">Depth 40</p><div class="example-inputs"><div class="snippet"><div class="snippet-header">Annotated schema<span>SDL + contracts</span></div><pre tabindex="0" role="region" aria-label="GraphQL schema for example 09 at depth 40"><code><span class="gql-keyword">type</span> <span class="gql-type">Query</span> {
+  <span class="gql-name">root</span>: <span class="gql-type">Parent</span>
+    <span class="gql-directive">@resolver</span>(<span class="gql-name">result</span>: {<span class="gql-name">seed</span>: {<span class="gql-name">value</span>: <span class="gql-literal">7</span>, <span class="gql-name">other</span>: <span class="gql-literal">8</span>}, <span class="gql-name">child</span>: {}})
+}
+
+<span class="gql-keyword">type</span> <span class="gql-type">Parent</span> {
+  <span class="gql-name">seed</span>: <span class="gql-type">Seed</span>
+  <span class="gql-name">child</span>: <span class="gql-type">Child</span>
+}
+
+<span class="gql-keyword">type</span> <span class="gql-type">Seed</span> {
+  <span class="gql-name">value</span>: <span class="gql-type">Int</span>
+  <span class="gql-name">other</span>: <span class="gql-type">Int</span>
+}
+
+<span class="gql-keyword">type</span> <span class="gql-type">Child</span>
+  <span class="gql-directive">@typeChecker</span>(
+    <span class="gql-name">inputs</span>: [
+      {
+        <span class="gql-name">name</span>: <span class="gql-string">"input"</span>
+        <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"field0 field1 parent { seed { value other } }"</span>
+      }
+    ]
+  )
+{
+  <span class="gql-name">parent</span>: <span class="gql-type">Parent</span>
+    <span class="gql-directive">@parent</span>
+  <span class="gql-name">field0</span>: <span class="gql-type">Int</span>
+    <span class="gql-directive">@resolver</span>(
+      <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"field1 field2"</span>
+      <span class="gql-name">result</span>: <span class="gql-literal">1</span>
+    )
+    <span class="gql-directive">@fieldChecker</span>(
+      <span class="gql-name">inputs</span>: [{<span class="gql-name">name</span>: <span class="gql-string">"input"</span>, <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"parent { seed { value other } }"</span>}]
+    )
+  <span class="gql-name">field1</span>: <span class="gql-type">Int</span>
+    <span class="gql-directive">@resolver</span>(
+      <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"field2 field3"</span>
+      <span class="gql-name">result</span>: <span class="gql-literal">1</span>
+    )
+    <span class="gql-directive">@fieldChecker</span>(
+      <span class="gql-name">inputs</span>: [{<span class="gql-name">name</span>: <span class="gql-string">"input"</span>, <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"parent { seed { value other } }"</span>}]
+    )
+  <span class="gql-name">field2</span>: <span class="gql-type">Int</span>
+    <span class="gql-directive">@resolver</span>(
+      <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"field3 field4"</span>
+      <span class="gql-name">result</span>: <span class="gql-literal">1</span>
+    )
+    <span class="gql-directive">@fieldChecker</span>(
+      <span class="gql-name">inputs</span>: [{<span class="gql-name">name</span>: <span class="gql-string">"input"</span>, <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"parent { seed { value other } }"</span>}]
+    )
+  <span class="gql-name">field3</span>: <span class="gql-type">Int</span>
+    <span class="gql-directive">@resolver</span>(
+      <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"field4 field5"</span>
+      <span class="gql-name">result</span>: <span class="gql-literal">1</span>
+    )
+    <span class="gql-directive">@fieldChecker</span>(
+      <span class="gql-name">inputs</span>: [{<span class="gql-name">name</span>: <span class="gql-string">"input"</span>, <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"parent { seed { value other } }"</span>}]
+    )
+  <span class="gql-name">field4</span>: <span class="gql-type">Int</span>
+    <span class="gql-directive">@resolver</span>(
+      <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"field5 field6"</span>
+      <span class="gql-name">result</span>: <span class="gql-literal">1</span>
+    )
+    <span class="gql-directive">@fieldChecker</span>(
+      <span class="gql-name">inputs</span>: [{<span class="gql-name">name</span>: <span class="gql-string">"input"</span>, <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"parent { seed { value other } }"</span>}]
+    )
+  <span class="gql-name">field5</span>: <span class="gql-type">Int</span>
+    <span class="gql-directive">@resolver</span>(
+      <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"field6 field7"</span>
+      <span class="gql-name">result</span>: <span class="gql-literal">1</span>
+    )
+    <span class="gql-directive">@fieldChecker</span>(
+      <span class="gql-name">inputs</span>: [{<span class="gql-name">name</span>: <span class="gql-string">"input"</span>, <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"parent { seed { value other } }"</span>}]
+    )
+  <span class="gql-name">field6</span>: <span class="gql-type">Int</span>
+    <span class="gql-directive">@resolver</span>(
+      <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"field7 field8"</span>
+      <span class="gql-name">result</span>: <span class="gql-literal">1</span>
+    )
+    <span class="gql-directive">@fieldChecker</span>(
+      <span class="gql-name">inputs</span>: [{<span class="gql-name">name</span>: <span class="gql-string">"input"</span>, <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"parent { seed { value other } }"</span>}]
+    )
+  <span class="gql-name">field7</span>: <span class="gql-type">Int</span>
+    <span class="gql-directive">@resolver</span>(
+      <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"field8 field9"</span>
+      <span class="gql-name">result</span>: <span class="gql-literal">1</span>
+    )
+    <span class="gql-directive">@fieldChecker</span>(
+      <span class="gql-name">inputs</span>: [{<span class="gql-name">name</span>: <span class="gql-string">"input"</span>, <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"parent { seed { value other } }"</span>}]
+    )
+  <span class="gql-name">field8</span>: <span class="gql-type">Int</span>
+    <span class="gql-directive">@resolver</span>(
+      <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"field9 field10"</span>
+      <span class="gql-name">result</span>: <span class="gql-literal">1</span>
+    )
+    <span class="gql-directive">@fieldChecker</span>(
+      <span class="gql-name">inputs</span>: [{<span class="gql-name">name</span>: <span class="gql-string">"input"</span>, <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"parent { seed { value other } }"</span>}]
+    )
+  <span class="gql-name">field9</span>: <span class="gql-type">Int</span>
+    <span class="gql-directive">@resolver</span>(
+      <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"field10 field11"</span>
+      <span class="gql-name">result</span>: <span class="gql-literal">1</span>
+    )
+    <span class="gql-directive">@fieldChecker</span>(
+      <span class="gql-name">inputs</span>: [{<span class="gql-name">name</span>: <span class="gql-string">"input"</span>, <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"parent { seed { value other } }"</span>}]
+    )
+  <span class="gql-name">field10</span>: <span class="gql-type">Int</span>
+    <span class="gql-directive">@resolver</span>(
+      <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"field11 field12"</span>
+      <span class="gql-name">result</span>: <span class="gql-literal">1</span>
+    )
+    <span class="gql-directive">@fieldChecker</span>(
+      <span class="gql-name">inputs</span>: [{<span class="gql-name">name</span>: <span class="gql-string">"input"</span>, <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"parent { seed { value other } }"</span>}]
+    )
+  <span class="gql-name">field11</span>: <span class="gql-type">Int</span>
+    <span class="gql-directive">@resolver</span>(
+      <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"field12 field13"</span>
+      <span class="gql-name">result</span>: <span class="gql-literal">1</span>
+    )
+    <span class="gql-directive">@fieldChecker</span>(
+      <span class="gql-name">inputs</span>: [{<span class="gql-name">name</span>: <span class="gql-string">"input"</span>, <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"parent { seed { value other } }"</span>}]
+    )
+  <span class="gql-name">field12</span>: <span class="gql-type">Int</span>
+    <span class="gql-directive">@resolver</span>(
+      <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"field13 field14"</span>
+      <span class="gql-name">result</span>: <span class="gql-literal">1</span>
+    )
+    <span class="gql-directive">@fieldChecker</span>(
+      <span class="gql-name">inputs</span>: [{<span class="gql-name">name</span>: <span class="gql-string">"input"</span>, <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"parent { seed { value other } }"</span>}]
+    )
+  <span class="gql-name">field13</span>: <span class="gql-type">Int</span>
+    <span class="gql-directive">@resolver</span>(
+      <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"field14 field15"</span>
+      <span class="gql-name">result</span>: <span class="gql-literal">1</span>
+    )
+    <span class="gql-directive">@fieldChecker</span>(
+      <span class="gql-name">inputs</span>: [{<span class="gql-name">name</span>: <span class="gql-string">"input"</span>, <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"parent { seed { value other } }"</span>}]
+    )
+  <span class="gql-name">field14</span>: <span class="gql-type">Int</span>
+    <span class="gql-directive">@resolver</span>(
+      <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"field15 field16"</span>
+      <span class="gql-name">result</span>: <span class="gql-literal">1</span>
+    )
+    <span class="gql-directive">@fieldChecker</span>(
+      <span class="gql-name">inputs</span>: [{<span class="gql-name">name</span>: <span class="gql-string">"input"</span>, <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"parent { seed { value other } }"</span>}]
+    )
+  <span class="gql-name">field15</span>: <span class="gql-type">Int</span>
+    <span class="gql-directive">@resolver</span>(
+      <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"field16 field17"</span>
+      <span class="gql-name">result</span>: <span class="gql-literal">1</span>
+    )
+    <span class="gql-directive">@fieldChecker</span>(
+      <span class="gql-name">inputs</span>: [{<span class="gql-name">name</span>: <span class="gql-string">"input"</span>, <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"parent { seed { value other } }"</span>}]
+    )
+  <span class="gql-name">field16</span>: <span class="gql-type">Int</span>
+    <span class="gql-directive">@resolver</span>(
+      <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"field17 field18"</span>
+      <span class="gql-name">result</span>: <span class="gql-literal">1</span>
+    )
+    <span class="gql-directive">@fieldChecker</span>(
+      <span class="gql-name">inputs</span>: [{<span class="gql-name">name</span>: <span class="gql-string">"input"</span>, <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"parent { seed { value other } }"</span>}]
+    )
+  <span class="gql-name">field17</span>: <span class="gql-type">Int</span>
+    <span class="gql-directive">@resolver</span>(
+      <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"field18 field19"</span>
+      <span class="gql-name">result</span>: <span class="gql-literal">1</span>
+    )
+    <span class="gql-directive">@fieldChecker</span>(
+      <span class="gql-name">inputs</span>: [{<span class="gql-name">name</span>: <span class="gql-string">"input"</span>, <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"parent { seed { value other } }"</span>}]
+    )
+  <span class="gql-name">field18</span>: <span class="gql-type">Int</span>
+    <span class="gql-directive">@resolver</span>(
+      <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"field19 field20"</span>
+      <span class="gql-name">result</span>: <span class="gql-literal">1</span>
+    )
+    <span class="gql-directive">@fieldChecker</span>(
+      <span class="gql-name">inputs</span>: [{<span class="gql-name">name</span>: <span class="gql-string">"input"</span>, <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"parent { seed { value other } }"</span>}]
+    )
+  <span class="gql-name">field19</span>: <span class="gql-type">Int</span>
+    <span class="gql-directive">@resolver</span>(
+      <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"field20 field21"</span>
+      <span class="gql-name">result</span>: <span class="gql-literal">1</span>
+    )
+    <span class="gql-directive">@fieldChecker</span>(
+      <span class="gql-name">inputs</span>: [{<span class="gql-name">name</span>: <span class="gql-string">"input"</span>, <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"parent { seed { value other } }"</span>}]
+    )
+  <span class="gql-name">field20</span>: <span class="gql-type">Int</span>
+    <span class="gql-directive">@resolver</span>(
+      <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"field21 field22"</span>
+      <span class="gql-name">result</span>: <span class="gql-literal">1</span>
+    )
+    <span class="gql-directive">@fieldChecker</span>(
+      <span class="gql-name">inputs</span>: [{<span class="gql-name">name</span>: <span class="gql-string">"input"</span>, <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"parent { seed { value other } }"</span>}]
+    )
+  <span class="gql-name">field21</span>: <span class="gql-type">Int</span>
+    <span class="gql-directive">@resolver</span>(
+      <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"field22 field23"</span>
+      <span class="gql-name">result</span>: <span class="gql-literal">1</span>
+    )
+    <span class="gql-directive">@fieldChecker</span>(
+      <span class="gql-name">inputs</span>: [{<span class="gql-name">name</span>: <span class="gql-string">"input"</span>, <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"parent { seed { value other } }"</span>}]
+    )
+  <span class="gql-name">field22</span>: <span class="gql-type">Int</span>
+    <span class="gql-directive">@resolver</span>(
+      <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"field23 field24"</span>
+      <span class="gql-name">result</span>: <span class="gql-literal">1</span>
+    )
+    <span class="gql-directive">@fieldChecker</span>(
+      <span class="gql-name">inputs</span>: [{<span class="gql-name">name</span>: <span class="gql-string">"input"</span>, <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"parent { seed { value other } }"</span>}]
+    )
+  <span class="gql-name">field23</span>: <span class="gql-type">Int</span>
+    <span class="gql-directive">@resolver</span>(
+      <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"field24 field25"</span>
+      <span class="gql-name">result</span>: <span class="gql-literal">1</span>
+    )
+    <span class="gql-directive">@fieldChecker</span>(
+      <span class="gql-name">inputs</span>: [{<span class="gql-name">name</span>: <span class="gql-string">"input"</span>, <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"parent { seed { value other } }"</span>}]
+    )
+  <span class="gql-name">field24</span>: <span class="gql-type">Int</span>
+    <span class="gql-directive">@resolver</span>(
+      <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"field25 field26"</span>
+      <span class="gql-name">result</span>: <span class="gql-literal">1</span>
+    )
+    <span class="gql-directive">@fieldChecker</span>(
+      <span class="gql-name">inputs</span>: [{<span class="gql-name">name</span>: <span class="gql-string">"input"</span>, <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"parent { seed { value other } }"</span>}]
+    )
+  <span class="gql-name">field25</span>: <span class="gql-type">Int</span>
+    <span class="gql-directive">@resolver</span>(
+      <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"field26 field27"</span>
+      <span class="gql-name">result</span>: <span class="gql-literal">1</span>
+    )
+    <span class="gql-directive">@fieldChecker</span>(
+      <span class="gql-name">inputs</span>: [{<span class="gql-name">name</span>: <span class="gql-string">"input"</span>, <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"parent { seed { value other } }"</span>}]
+    )
+  <span class="gql-name">field26</span>: <span class="gql-type">Int</span>
+    <span class="gql-directive">@resolver</span>(
+      <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"field27 field28"</span>
+      <span class="gql-name">result</span>: <span class="gql-literal">1</span>
+    )
+    <span class="gql-directive">@fieldChecker</span>(
+      <span class="gql-name">inputs</span>: [{<span class="gql-name">name</span>: <span class="gql-string">"input"</span>, <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"parent { seed { value other } }"</span>}]
+    )
+  <span class="gql-name">field27</span>: <span class="gql-type">Int</span>
+    <span class="gql-directive">@resolver</span>(
+      <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"field28 field29"</span>
+      <span class="gql-name">result</span>: <span class="gql-literal">1</span>
+    )
+    <span class="gql-directive">@fieldChecker</span>(
+      <span class="gql-name">inputs</span>: [{<span class="gql-name">name</span>: <span class="gql-string">"input"</span>, <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"parent { seed { value other } }"</span>}]
+    )
+  <span class="gql-name">field28</span>: <span class="gql-type">Int</span>
+    <span class="gql-directive">@resolver</span>(
+      <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"field29 field30"</span>
+      <span class="gql-name">result</span>: <span class="gql-literal">1</span>
+    )
+    <span class="gql-directive">@fieldChecker</span>(
+      <span class="gql-name">inputs</span>: [{<span class="gql-name">name</span>: <span class="gql-string">"input"</span>, <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"parent { seed { value other } }"</span>}]
+    )
+  <span class="gql-name">field29</span>: <span class="gql-type">Int</span>
+    <span class="gql-directive">@resolver</span>(
+      <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"field30 field31"</span>
+      <span class="gql-name">result</span>: <span class="gql-literal">1</span>
+    )
+    <span class="gql-directive">@fieldChecker</span>(
+      <span class="gql-name">inputs</span>: [{<span class="gql-name">name</span>: <span class="gql-string">"input"</span>, <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"parent { seed { value other } }"</span>}]
+    )
+  <span class="gql-name">field30</span>: <span class="gql-type">Int</span>
+    <span class="gql-directive">@resolver</span>(
+      <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"field31 field32"</span>
+      <span class="gql-name">result</span>: <span class="gql-literal">1</span>
+    )
+    <span class="gql-directive">@fieldChecker</span>(
+      <span class="gql-name">inputs</span>: [{<span class="gql-name">name</span>: <span class="gql-string">"input"</span>, <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"parent { seed { value other } }"</span>}]
+    )
+  <span class="gql-name">field31</span>: <span class="gql-type">Int</span>
+    <span class="gql-directive">@resolver</span>(
+      <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"field32 field33"</span>
+      <span class="gql-name">result</span>: <span class="gql-literal">1</span>
+    )
+    <span class="gql-directive">@fieldChecker</span>(
+      <span class="gql-name">inputs</span>: [{<span class="gql-name">name</span>: <span class="gql-string">"input"</span>, <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"parent { seed { value other } }"</span>}]
+    )
+  <span class="gql-name">field32</span>: <span class="gql-type">Int</span>
+    <span class="gql-directive">@resolver</span>(
+      <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"field33 field34"</span>
+      <span class="gql-name">result</span>: <span class="gql-literal">1</span>
+    )
+    <span class="gql-directive">@fieldChecker</span>(
+      <span class="gql-name">inputs</span>: [{<span class="gql-name">name</span>: <span class="gql-string">"input"</span>, <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"parent { seed { value other } }"</span>}]
+    )
+  <span class="gql-name">field33</span>: <span class="gql-type">Int</span>
+    <span class="gql-directive">@resolver</span>(
+      <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"field34 field35"</span>
+      <span class="gql-name">result</span>: <span class="gql-literal">1</span>
+    )
+    <span class="gql-directive">@fieldChecker</span>(
+      <span class="gql-name">inputs</span>: [{<span class="gql-name">name</span>: <span class="gql-string">"input"</span>, <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"parent { seed { value other } }"</span>}]
+    )
+  <span class="gql-name">field34</span>: <span class="gql-type">Int</span>
+    <span class="gql-directive">@resolver</span>(
+      <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"field35 field36"</span>
+      <span class="gql-name">result</span>: <span class="gql-literal">1</span>
+    )
+    <span class="gql-directive">@fieldChecker</span>(
+      <span class="gql-name">inputs</span>: [{<span class="gql-name">name</span>: <span class="gql-string">"input"</span>, <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"parent { seed { value other } }"</span>}]
+    )
+  <span class="gql-name">field35</span>: <span class="gql-type">Int</span>
+    <span class="gql-directive">@resolver</span>(
+      <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"field36 field37"</span>
+      <span class="gql-name">result</span>: <span class="gql-literal">1</span>
+    )
+    <span class="gql-directive">@fieldChecker</span>(
+      <span class="gql-name">inputs</span>: [{<span class="gql-name">name</span>: <span class="gql-string">"input"</span>, <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"parent { seed { value other } }"</span>}]
+    )
+  <span class="gql-name">field36</span>: <span class="gql-type">Int</span>
+    <span class="gql-directive">@resolver</span>(
+      <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"field37 field38"</span>
+      <span class="gql-name">result</span>: <span class="gql-literal">1</span>
+    )
+    <span class="gql-directive">@fieldChecker</span>(
+      <span class="gql-name">inputs</span>: [{<span class="gql-name">name</span>: <span class="gql-string">"input"</span>, <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"parent { seed { value other } }"</span>}]
+    )
+  <span class="gql-name">field37</span>: <span class="gql-type">Int</span>
+    <span class="gql-directive">@resolver</span>(
+      <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"field38 field39"</span>
+      <span class="gql-name">result</span>: <span class="gql-literal">1</span>
+    )
+    <span class="gql-directive">@fieldChecker</span>(
+      <span class="gql-name">inputs</span>: [{<span class="gql-name">name</span>: <span class="gql-string">"input"</span>, <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"parent { seed { value other } }"</span>}]
+    )
+  <span class="gql-name">field38</span>: <span class="gql-type">Int</span>
+    <span class="gql-directive">@resolver</span>(
+      <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"field39 field40"</span>
+      <span class="gql-name">result</span>: <span class="gql-literal">1</span>
+    )
+    <span class="gql-directive">@fieldChecker</span>(
+      <span class="gql-name">inputs</span>: [{<span class="gql-name">name</span>: <span class="gql-string">"input"</span>, <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"parent { seed { value other } }"</span>}]
+    )
+  <span class="gql-name">field39</span>: <span class="gql-type">Int</span>
+    <span class="gql-directive">@resolver</span>(
+      <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"field40"</span>
+      <span class="gql-name">result</span>: <span class="gql-literal">1</span>
+    )
+    <span class="gql-directive">@fieldChecker</span>(
+      <span class="gql-name">inputs</span>: [{<span class="gql-name">name</span>: <span class="gql-string">"input"</span>, <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"parent { seed { value other } }"</span>}]
+    )
+  <span class="gql-name">field40</span>: <span class="gql-type">Int</span>
+    <span class="gql-directive">@resolver</span>(
+      <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"parent { seed { value other } }"</span>
+      <span class="gql-name">result</span>: <span class="gql-literal">1</span>
+    )
+    <span class="gql-directive">@fieldChecker</span>(
+      <span class="gql-name">inputs</span>: [{<span class="gql-name">name</span>: <span class="gql-string">"input"</span>, <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"parent { seed { value other } }"</span>}]
+    )
+}</code></pre></div><div class="snippet"><div class="snippet-header">Client operation<span>GraphQL</span></div><pre tabindex="0" role="region" aria-label="GraphQL operation for example 09 at depth 40"><code>{
+  <span class="gql-name">root</span> {
+    <span class="gql-name">child</span> {
+      <span class="gql-name">field0</span>
+    }
+  }
+}</code></pre></div></div><figure class="demand-visual"><figcaption><span class="visual-eyebrow">Requirements and execution</span><strong>Depth 40: many dependency paths share one ancestor seed subtree</strong></figcaption><p class="flow-title">How the requirements arise</p><ol class="demand-flow" aria-label="How the requirements arise; dependency steps, not execution order"><li class="flow-client"><span class="flow-label">The operation selects</span><code>Child.field0</code></li><li><span class="flow-label">Overlapping resolver inputs</span><code>each field needs the next two that exist</code></li><li class="flow-ancestor"><span class="flow-label">The final resolver and checkers read</span><code>parent.seed { value other }</code></li></ol><p class="view-explanation">The tree shows the additional ancestor paths at depth 40. Both checked and unchecked components contain this same shape: one seed with value and other. These are two read requirements on the same data. The separate expandable list shows the 41 Child fields actually resolved; it is not another ancestor-demand tree.</p><div class="scope-grid"><div class="scope-card mode-ancestor"><h4>Shared ancestor requirements, located from the operation Query</h4><p class="scope-mode">Added demand on existing ancestors</p><div class="observed-tree"><ul class="demand-tree"><li><div class="demand-node"><code>root</code><span class="node-description">path to the existing Parent</span></div><ul class="demand-tree"><li><div class="demand-node"><code>seed</code><span class="node-description">one seed subtree; the checked and unchecked components each hold one like it</span></div><ul class="demand-tree"><li><div class="demand-node"><code>other</code><span class="node-description">shared passive input</span></div></li><li><div class="demand-node"><code>value</code><span class="node-description">shared passive input</span></div></li></ul></li></ul></li></ul></div></div></div><details class="resolved-fields"><summary>Inspect the 41 resolved Child fields</summary><div class="scope-card mode-completed"><h4>Child · completed value fields</h4><p class="scope-mode">Fields present in the internal result after execution</p><div class="observed-tree"><ul class="demand-tree"><li><div class="demand-node kind-client"><code>field0</code><span class="node-description">selected by the operation</span></div></li><li><div class="demand-node"><code>field1</code></div></li><li><div class="demand-node"><code>field2</code></div></li><li><div class="demand-node"><code>field3</code></div></li><li><div class="demand-node"><code>field4</code></div></li><li><div class="demand-node"><code>field5</code></div></li><li><div class="demand-node"><code>field6</code></div></li><li><div class="demand-node"><code>field7</code></div></li><li><div class="demand-node"><code>field8</code></div></li><li><div class="demand-node"><code>field9</code></div></li><li><div class="demand-node"><code>field10</code></div></li><li><div class="demand-node"><code>field11</code></div></li><li><div class="demand-node"><code>field12</code></div></li><li><div class="demand-node"><code>field13</code></div></li><li><div class="demand-node"><code>field14</code></div></li><li><div class="demand-node"><code>field15</code></div></li><li><div class="demand-node"><code>field16</code></div></li><li><div class="demand-node"><code>field17</code></div></li><li><div class="demand-node"><code>field18</code></div></li><li><div class="demand-node"><code>field19</code></div></li><li><div class="demand-node"><code>field20</code></div></li><li><div class="demand-node"><code>field21</code></div></li><li><div class="demand-node"><code>field22</code></div></li><li><div class="demand-node"><code>field23</code></div></li><li><div class="demand-node"><code>field24</code></div></li><li><div class="demand-node"><code>field25</code></div></li><li><div class="demand-node"><code>field26</code></div></li><li><div class="demand-node"><code>field27</code></div></li><li><div class="demand-node"><code>field28</code></div></li><li><div class="demand-node"><code>field29</code></div></li><li><div class="demand-node"><code>field30</code></div></li><li><div class="demand-node"><code>field31</code></div></li><li><div class="demand-node"><code>field32</code></div></li><li><div class="demand-node"><code>field33</code></div></li><li><div class="demand-node"><code>field34</code></div></li><li><div class="demand-node"><code>field35</code></div></li><li><div class="demand-node"><code>field36</code></div></li><li><div class="demand-node"><code>field37</code></div></li><li><div class="demand-node"><code>field38</code></div></li><li><div class="demand-node"><code>field39</code></div></li><li><div class="demand-node"><code>field40</code></div></li></ul></div></div></details><div class="table-wrap execution-outcomes"><table><caption>What execution confirms</caption><thead><tr><th scope="col">Observation</th><th scope="col">Value</th><th scope="col">What it means</th></tr></thead><tbody><tr><th scope="row">Total value-resolver calls</th><td><code>42</code></td><td>One <code>Query.root</code> call + 41 Child calls, field0 through field40. Checkers are counted separately from value resolvers.</td></tr></tbody></table></div><p class="demand-note"><strong>Why this matters.</strong> Repeated dependency paths can share a small set of required data. Representing one seed subtree per access component avoids copying that subtree once for every path.</p></figure></details>
+              <p><code>Query.root</code> returns <code>{ seed: { value: 7, other: 8 }, child: {} }</code>. <code>Child.parent</code> is a <a class="gl" href="../../glossary.html#parent-field">backedge</a> to that existing Parent. Every active Child field returns 1 after its inputs are ready. The depth-5 schema above shows every resolver and checker contract.</p>
+
+              <p>The graph has many paths to the same fields. At larger depths, each non-leaf field requires the next two fields that exist, and the last field reads the parent seed. Recursively copying each dependency path can grow much faster than the actual required work.</p>
+              <p>This fixture comes from <code>SuperlinearGrowthTest</code>, in Runtime2&rsquo;s tests under <code>core/engine/runtime2/src/test</code>. It uses the Runtime2 test world&rsquo;s default closure loop, which is the dynamic one unless a system property selects the precomputed one (<a href="index.html#meaning">two closure loops</a>). For both checked and unchecked reads, the lifted <a class="gl" href="../../glossary.html#parent-demand">parent demand</a> <a class="src" data-src="core/engine/runtime2/src/test/kotlin/viaduct/engine/runtime2/resolution/SuperlinearGrowthTest.kt" data-lines="225-230" data-expect="Each provenance has one seed key, whose descendants are normalized as well.||assertEquals(2, seeds.single().subselections.size">holds one <code>seed</code> key</a>, with just its two children, <code>value</code> and <code>other</code>. When the examples were run at depths 5, 10, 20, and 40, they recorded 7, 12, 22, and 42 value-resolver calls respectively: depth + 2, including the root producer, with every demanded field value correct. The test checks the same count at depth 20. The paths grow much faster. Following resolver inputs alone, <code>field0</code> reaches the parent seed along F(n + 1) distinct paths at depth n, where F is the Fibonacci sequence (F(1) = F(2) = 1): 8, 89, 10,946, and 165,580,141 paths at those four depths.</p>
+              <h3 id="example-9b">9b. Alternative guards must stay compact</h3>
+              <p>This is a separate Query-only world, shown at depth 3. The other tested depths are 6, 9, and 12; the operation stays the same.</p>
+              <div class="example-inputs">              <div class="snippet"><div class="snippet-header">Annotated schema<span>SDL + contracts</span></div><pre tabindex="0" role="region" aria-label="GraphQL schema for example 09b"><code><span class="gql-keyword">type</span> <span class="gql-type">Query</span> {
+  <span class="gql-name">audit</span>: <span class="gql-type">Int</span>
+    <span class="gql-comment"># The test registers none; this is the test world&rsquo;s fallback resolver.</span>
+    <span class="gql-directive">@resolver</span>(<span class="gql-name">result</span>: <span class="gql-literal">null</span>)
+  <span class="gql-name">field0</span>: <span class="gql-type">Int</span>
+    <span class="gql-directive">@resolver</span>(
+      <span class="gql-name">queryValueFragment</span>: <span class="gql-string">"left: field1 @include(if: $a) right: field1 @include(if: $b)"</span>
+      <span class="gql-name">providerVars</span>: {<span class="gql-name">a</span>: <span class="gql-literal">true</span>, <span class="gql-name">b</span>: <span class="gql-literal">true</span>}
+      <span class="gql-name">result</span>: <span class="gql-literal">1</span>
+    )
+  <span class="gql-name">field1</span>: <span class="gql-type">Int</span>
+    <span class="gql-directive">@resolver</span>(
+      <span class="gql-name">queryValueFragment</span>: <span class="gql-string">"left: field2 @include(if: $a) right: field2 @include(if: $b)"</span>
+      <span class="gql-name">providerVars</span>: {<span class="gql-name">a</span>: <span class="gql-literal">true</span>, <span class="gql-name">b</span>: <span class="gql-literal">true</span>}
+      <span class="gql-name">result</span>: <span class="gql-literal">1</span>
+    )
+  <span class="gql-name">field2</span>: <span class="gql-type">Int</span>
+    <span class="gql-directive">@resolver</span>(
+      <span class="gql-name">queryValueFragment</span>: <span class="gql-string">"left: field3 @include(if: $a) right: field3 @include(if: $b)"</span>
+      <span class="gql-name">providerVars</span>: {<span class="gql-name">a</span>: <span class="gql-literal">true</span>, <span class="gql-name">b</span>: <span class="gql-literal">true</span>}
+      <span class="gql-name">result</span>: <span class="gql-literal">1</span>
+    )
+  <span class="gql-name">field3</span>: <span class="gql-type">Int</span>
+    <span class="gql-directive">@resolver</span>(<span class="gql-name">result</span>: <span class="gql-literal">1</span>)
+    <span class="gql-directive">@fieldChecker</span>(<span class="gql-name">inputs</span>: [{<span class="gql-name">name</span>: <span class="gql-string">"input"</span>, <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"audit"</span>}])
+}</code></pre></div><div class="snippet"><div class="snippet-header">Client operation<span>GraphQL</span></div><pre tabindex="0" role="region" aria-label="GraphQL operation for example 09b"><code>{
+  <span class="gql-name">field0</span>
+}</code></pre></div></div><div class="dd-scene-block"><h3 class="dd-steps-title">Step by step</h3><figure class="scene dd-scene" data-duration="15.0"><div class="stage"><svg viewBox="0 0 1020 474" role="img" aria-label="Step-by-step execution of this example in Runtime2"><defs><marker id="s09b-ah4" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0,0L10,5L0,10z" class="ah c4"/></marker><marker id="s09b-ah2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0L10,5L0,10z" class="ah c2"/></marker></defs><text x="165.0" y="16" text-anchor="middle" class="small muted">OER tree</text><text x="495.0" y="16" text-anchor="middle" class="small muted">orchestrators</text><text x="847.5" y="16" text-anchor="middle" class="small muted">resolver tasks</text><g data-in="0.4" data-anim="pop" class="c2"><rect class="box c2" x="20" y="30" width="290" height="64" rx="10"/><text x="34" y="50" class="title">Query</text></g><g data-in="0.4"><rect class="cell" data-add="11.4:full" x="32" y="60" width="266" height="24" rx="6"/><text x="42" y="76" class="mono">field0</text><text x="290" y="76" text-anchor="end" class="mono muted" data-text="0.4:requested|11.4:1">requested</text></g><g data-in="0.4" data-anim="pop" class="c2"><rect class="box c2 dash" x="20" y="104" width="290" height="148" rx="10"/><text x="34" y="124" class="title">associated Query</text></g><g data-in="0.4"><rect class="cell" data-add="9.4:full" x="32" y="134" width="266" height="24" rx="6"/><text x="42" y="150" class="mono">field1</text><text x="290" y="150" text-anchor="end" class="mono muted" data-text="0.4:+ closure|9.4:1">+ closure</text></g><g data-in="0.4"><rect class="cell" data-add="7.4:full" x="32" y="162" width="266" height="24" rx="6"/><text x="42" y="178" class="mono">field2</text><text x="290" y="178" text-anchor="end" class="mono muted" data-text="0.4:+ closure|7.4:1">+ closure</text></g><g data-in="0.4"><rect class="cell" data-add="3.4:full" x="32" y="190" width="266" height="24" rx="6"/><text x="42" y="206" class="mono">field3</text><text x="290" y="206" text-anchor="end" class="mono muted" data-text="0.4:+ closure|3.4:1">+ closure</text></g><g data-in="0.4"><rect class="cell" data-add="5.4:full" x="32" y="218" width="266" height="24" rx="6"/><text x="42" y="234" class="mono">audit</text><text x="290" y="234" text-anchor="end" class="mono muted" data-text="0.4:+ closure|5.4:null">+ closure</text></g><g data-in="0.4" data-anim="pop" data-on="0.4-2.4" class="c4"><rect class="box c4" x="345" y="30" width="300" height="66" rx="10"/><text x="359" y="50" class="title">Orchestrator · Query</text><text x="359" y="69" class="mono small">close: field0</text><text x="359" y="86" class="mono small">launch: field0 field1 field2 field3 …</text></g><g data-in="2.4" data-anim="pop" data-on="2.4-4.4" class="c4"><rect class="box c4 dash" x="690" y="30" width="315" height="62" rx="10"/><text x="704" y="50" class="title">Resolver task · field3</text><text x="704" y="68" class="mono small">reads nothing</text><text x="704" y="84" class="mono small" data-text="2.4:calls resolver…|3.4:returns 1">calls resolver…</text></g><g data-in="2.4" data-dur=".4" data-anim="draw"><path class="wire c4" d="M645,63 C675,63 660,61 686,61" marker-end="url(#s09b-ah4)"/></g><g data-in="3.2" data-dur=".4" data-anim="draw" data-out="4.2"><path class="wire c2 dash" d="M690,76 C570,76 400,202 312,202" marker-end="url(#s09b-ah2)"/></g><g data-in="4.4" data-anim="pop" data-on="4.4-6.4" class="c4"><rect class="box c4 dash" x="690" y="100" width="315" height="62" rx="10"/><text x="704" y="120" class="title">Resolver task · audit</text><text x="704" y="138" class="mono small">reads nothing</text><text x="704" y="154" class="mono small" data-text="4.4:calls resolver…|5.4:returns null">calls resolver…</text></g><g data-in="4.4" data-dur=".4" data-anim="draw"><path class="wire c4" d="M645,63 C675,63 660,131 686,131" marker-end="url(#s09b-ah4)"/></g><g data-in="5.2" data-dur=".4" data-anim="draw" data-out="6.2"><path class="wire c2 dash" d="M690,146 C570,146 400,230 312,230" marker-end="url(#s09b-ah2)"/></g><g data-in="6.4" data-anim="pop" data-on="6.4-8.4" class="c4"><rect class="box c4 dash" x="690" y="170" width="315" height="62" rx="10"/><text x="704" y="190" class="title">Resolver task · field2</text><text x="704" y="208" class="mono small">reads Query: left, right</text><text x="704" y="224" class="mono small" data-text="6.4:calls resolver…|7.4:returns 1">calls resolver…</text></g><g data-in="6.4" data-dur=".4" data-anim="draw"><path class="wire c4" d="M645,63 C675,63 660,201 686,201" marker-end="url(#s09b-ah4)"/></g><g data-in="7.2" data-dur=".4" data-anim="draw" data-out="8.2"><path class="wire c2 dash" d="M690,216 C570,216 400,174 312,174" marker-end="url(#s09b-ah2)"/></g><g data-in="8.4" data-anim="pop" data-on="8.4-10.4" class="c4"><rect class="box c4 dash" x="690" y="240" width="315" height="62" rx="10"/><text x="704" y="260" class="title">Resolver task · field1</text><text x="704" y="278" class="mono small">reads Query: left, right</text><text x="704" y="294" class="mono small" data-text="8.4:calls resolver…|9.4:returns 1">calls resolver…</text></g><g data-in="8.4" data-dur=".4" data-anim="draw"><path class="wire c4" d="M645,63 C675,63 660,271 686,271" marker-end="url(#s09b-ah4)"/></g><g data-in="9.2" data-dur=".4" data-anim="draw" data-out="10.2"><path class="wire c2 dash" d="M690,286 C570,286 400,146 312,146" marker-end="url(#s09b-ah2)"/></g><g data-in="10.4" data-anim="pop" data-on="10.4-12.4" class="c4"><rect class="box c4 dash" x="690" y="310" width="315" height="62" rx="10"/><text x="704" y="330" class="title">Resolver task · field0</text><text x="704" y="348" class="mono small">reads Query: left, right</text><text x="704" y="364" class="mono small" data-text="10.4:calls resolver…|11.4:returns 1">calls resolver…</text></g><g data-in="10.4" data-dur=".4" data-anim="draw"><path class="wire c4" d="M645,63 C675,63 660,341 686,341" marker-end="url(#s09b-ah4)"/></g><g data-in="11.2" data-dur=".4" data-anim="draw" data-out="12.2"><path class="wire c2 dash" d="M690,356 C570,356 400,72 312,72" marker-end="url(#s09b-ah2)"/></g><g data-in="12.4" data-anim="pop" data-on="12.4-15.0" class="c5"><rect class="box c5" x="345" y="404" width="660" height="44" rx="10"/><text x="359" y="422" class="title">Checker tasks</text><text x="359" y="439" class="mono small">field checker Query.field3 at field3.</text></g><g class="stepbadge" data-in="0.4" data-dur=".4" data-anim="pop" data-on="0.4-2.4"><circle cx="641" cy="34" r="12"/><text x="641" y="38.5" text-anchor="middle">1</text></g><g class="stepbadge" data-in="2.4" data-dur=".4" data-anim="pop" data-on="2.4-4.4"><circle cx="694" cy="34" r="12"/><text x="694" y="38.5" text-anchor="middle">2</text></g><g class="stepbadge" data-in="4.4" data-dur=".4" data-anim="pop" data-on="4.4-6.4"><circle cx="694" cy="104" r="12"/><text x="694" y="108.5" text-anchor="middle">3</text></g><g class="stepbadge" data-in="6.4" data-dur=".4" data-anim="pop" data-on="6.4-8.4"><circle cx="694" cy="174" r="12"/><text x="694" y="178.5" text-anchor="middle">4</text></g><g class="stepbadge" data-in="8.4" data-dur=".4" data-anim="pop" data-on="8.4-10.4"><circle cx="694" cy="244" r="12"/><text x="694" y="248.5" text-anchor="middle">5</text></g><g class="stepbadge" data-in="10.4" data-dur=".4" data-anim="pop" data-on="10.4-12.4"><circle cx="694" cy="314" r="12"/><text x="694" y="318.5" text-anchor="middle">6</text></g><g class="stepbadge" data-in="12.4" data-dur=".4" data-anim="pop" data-on="12.4-15.0"><circle cx="349" cy="408" r="12"/><text x="349" y="412.5" text-anchor="middle">7</text></g></svg></div><ol class="beats"><li data-at="0.4" data-title="Orchestrator · Query">The Query orchestrator closes its demand: <code>field0</code>. Its <a class="gl" href="../../glossary.html#associated-query-object-result">associated Query OER</a> must hold <code>field1 field2 field3 audit</code>. It launches resolver tasks for <code>field0</code>, <code>field1 (Query)</code>, <code>field2 (Query)</code>, <code>field3 (Query)</code>, <code>audit (Query)</code>.</li><li data-at="2.4" data-title="Resolver task · field3">The resolver task for <code>Query.field3</code> on the associated Query of the Query calls its resolver once and reads no inputs. It returns <code>1</code>.</li><li data-at="4.4" data-title="Resolver task · audit">The resolver task for <code>Query.audit</code> on the associated Query of the Query calls its resolver once and reads no inputs. It returns <code>null</code>.</li><li data-at="6.4" data-title="Resolver task · field2">The resolver task for <code>Query.field2</code> on the associated Query of the Query calls its resolver once and reads from that same associated Query <code>left = 1, right = 1</code>. It returns <code>1</code>.</li><li data-at="8.4" data-title="Resolver task · field1">The resolver task for <code>Query.field1</code> on the associated Query of the Query calls its resolver once and reads from that same associated Query <code>left = 1, right = 1</code>. It returns <code>1</code>.</li><li data-at="10.4" data-title="Resolver task · field0">The resolver task for <code>Query.field0</code> calls its resolver once and reads from its associated Query <code>left = 1, right = 1</code>. It returns <code>1</code>.</li><li data-at="12.4" data-title="Checker tasks"><a class="gl" href="../../glossary.html#checker-task">Checker tasks</a> ran beside the resolver tasks: <a class="gl" href="../../glossary.html#field-checker">field checker</a> Query.field3 at <code>field3</code>.</li></ol></figure></div><figure class="demand-visual"><figcaption><span class="visual-eyebrow">Requirements and execution</span><strong>Depth 3: guarded aliases share the next field in the associated Query</strong></figcaption><p class="flow-title">Declared inputs, read from the registry</p><ul class="rss-facts"><li><code>Query.field0</code> queryValueFragment: <code>field1 if ($a or $b)</code></li><li><code>Query.field1</code> queryValueFragment: <code>field2 if ($a or $b)</code></li><li><code>Query.field2</code> queryValueFragment: <code>field3 if ($a or $b)</code></li><li>field checker Query.field3, input <code>input</code> object input: <code>audit</code></li></ul><p class="rss-note">Closure follows these declarations until nothing new is added. The trees below show the fixed point the test observed.</p><p class="view-explanation">Both resolver-owned <a class="gl" href="../../glossary.html#variable">variables</a> a and b are true in every step of this fixture. The tree lists the active associated Query fields, field1 through field3 plus audit. field0 belongs to the primary operation Query and is outside this tree. This simplified view does not display aliases, variable <a class="gl" href="../../glossary.html#owner">owners</a>, or the condition expression’s size.</p><div class="scope-grid"><div class="scope-card"><h4>Associated Query · active field-name view</h4><p class="scope-mode">Fields activated in this associated Query</p><div class="observed-tree"><ul class="demand-tree"><li><div class="demand-node"><code>audit</code><span class="node-description">raw input to the checker for field3</span></div></li><li><div class="demand-node"><code>field1</code></div></li><li><div class="demand-node"><code>field2</code></div></li><li><div class="demand-node"><code>field3</code></div></li></ul></div></div></div><div class="table-wrap execution-outcomes"><table><caption>What execution confirms</caption><thead><tr><th scope="col">Observation</th><th scope="col">Value</th><th scope="col">What it means</th></tr></thead><tbody><tr><th scope="row">Total value-resolver calls</th><td><code>5</code></td><td>One field0 call on the operation root + 3 calls for field1 through field3 in the associated Query + one audit call returning null.</td></tr></tbody></table></div><p class="demand-note"><strong>Why this matters.</strong> Two guarded aliases can contribute to one field without duplicating all paths through the chain. Each <a class="gl" href="../../glossary.html#field-contribution">contribution</a> still carries its <a class="gl" href="../../glossary.html#guard">guards</a>, and distinct variable <a class="gl" href="../../glossary.html#binding">bindings</a> stay distinct even when this field-name view combines aliases.</p></figure><details class="schema-variants"><summary>Larger examples · schema and results</summary><p class="variant-label">Depth 6</p><div class="example-inputs"><div class="snippet"><div class="snippet-header">Annotated schema<span>SDL + contracts</span></div><pre tabindex="0" role="region" aria-label="GraphQL schema for example 09b at depth 6"><code><span class="gql-keyword">type</span> <span class="gql-type">Query</span> {
+  <span class="gql-name">audit</span>: <span class="gql-type">Int</span>
+    <span class="gql-comment"># The test registers none; this is the test world&rsquo;s fallback resolver.</span>
+    <span class="gql-directive">@resolver</span>(<span class="gql-name">result</span>: <span class="gql-literal">null</span>)
+  <span class="gql-name">field0</span>: <span class="gql-type">Int</span>
+    <span class="gql-directive">@resolver</span>(
+      <span class="gql-name">queryValueFragment</span>: <span class="gql-string">"left: field1 @include(if: $a) right: field1 @include(if: $b)"</span>
+      <span class="gql-name">providerVars</span>: {<span class="gql-name">a</span>: <span class="gql-literal">true</span>, <span class="gql-name">b</span>: <span class="gql-literal">true</span>}
+      <span class="gql-name">result</span>: <span class="gql-literal">1</span>
+    )
+  <span class="gql-name">field1</span>: <span class="gql-type">Int</span>
+    <span class="gql-directive">@resolver</span>(
+      <span class="gql-name">queryValueFragment</span>: <span class="gql-string">"left: field2 @include(if: $a) right: field2 @include(if: $b)"</span>
+      <span class="gql-name">providerVars</span>: {<span class="gql-name">a</span>: <span class="gql-literal">true</span>, <span class="gql-name">b</span>: <span class="gql-literal">true</span>}
+      <span class="gql-name">result</span>: <span class="gql-literal">1</span>
+    )
+  <span class="gql-name">field2</span>: <span class="gql-type">Int</span>
+    <span class="gql-directive">@resolver</span>(
+      <span class="gql-name">queryValueFragment</span>: <span class="gql-string">"left: field3 @include(if: $a) right: field3 @include(if: $b)"</span>
+      <span class="gql-name">providerVars</span>: {<span class="gql-name">a</span>: <span class="gql-literal">true</span>, <span class="gql-name">b</span>: <span class="gql-literal">true</span>}
+      <span class="gql-name">result</span>: <span class="gql-literal">1</span>
+    )
+  <span class="gql-name">field3</span>: <span class="gql-type">Int</span>
+    <span class="gql-directive">@resolver</span>(
+      <span class="gql-name">queryValueFragment</span>: <span class="gql-string">"left: field4 @include(if: $a) right: field4 @include(if: $b)"</span>
+      <span class="gql-name">providerVars</span>: {<span class="gql-name">a</span>: <span class="gql-literal">true</span>, <span class="gql-name">b</span>: <span class="gql-literal">true</span>}
+      <span class="gql-name">result</span>: <span class="gql-literal">1</span>
+    )
+  <span class="gql-name">field4</span>: <span class="gql-type">Int</span>
+    <span class="gql-directive">@resolver</span>(
+      <span class="gql-name">queryValueFragment</span>: <span class="gql-string">"left: field5 @include(if: $a) right: field5 @include(if: $b)"</span>
+      <span class="gql-name">providerVars</span>: {<span class="gql-name">a</span>: <span class="gql-literal">true</span>, <span class="gql-name">b</span>: <span class="gql-literal">true</span>}
+      <span class="gql-name">result</span>: <span class="gql-literal">1</span>
+    )
+  <span class="gql-name">field5</span>: <span class="gql-type">Int</span>
+    <span class="gql-directive">@resolver</span>(
+      <span class="gql-name">queryValueFragment</span>: <span class="gql-string">"left: field6 @include(if: $a) right: field6 @include(if: $b)"</span>
+      <span class="gql-name">providerVars</span>: {<span class="gql-name">a</span>: <span class="gql-literal">true</span>, <span class="gql-name">b</span>: <span class="gql-literal">true</span>}
+      <span class="gql-name">result</span>: <span class="gql-literal">1</span>
+    )
+  <span class="gql-name">field6</span>: <span class="gql-type">Int</span>
+    <span class="gql-directive">@resolver</span>(<span class="gql-name">result</span>: <span class="gql-literal">1</span>)
+    <span class="gql-directive">@fieldChecker</span>(<span class="gql-name">inputs</span>: [{<span class="gql-name">name</span>: <span class="gql-string">"input"</span>, <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"audit"</span>}])
+}</code></pre></div><div class="snippet"><div class="snippet-header">Client operation<span>GraphQL</span></div><pre tabindex="0" role="region" aria-label="GraphQL operation for example 09b at depth 6"><code>{
+  <span class="gql-name">field0</span>
+}</code></pre></div></div><figure class="demand-visual"><figcaption><span class="visual-eyebrow">Requirements and execution</span><strong>Depth 6: guarded aliases share the next field in the associated Query</strong></figcaption><p class="flow-title">How the requirements arise</p><ol class="demand-flow" aria-label="How the requirements arise; dependency steps, not execution order"><li class="flow-client"><span class="flow-label">The operation selects</span><code>Query.field0</code></li><li><span class="flow-label">Each resolver’s Query RSS has</span><code>left: next @include(a), right: next @include(b)</code></li><li class="flow-raw"><span class="flow-label">The final field’s checker reads</span><code>Query.audit</code></li></ol><p class="view-explanation">Both resolver-owned variables a and b are true in every step of this fixture. The tree lists the active associated Query fields, field1 through field6 plus audit. field0 belongs to the primary operation Query and is outside this tree. This simplified view does not display aliases, variable owners, or the condition expression’s size.</p><div class="scope-grid"><div class="scope-card"><h4>Associated Query · active field-name view</h4><p class="scope-mode">Fields activated in this associated Query</p><div class="observed-tree"><ul class="demand-tree"><li><div class="demand-node"><code>audit</code><span class="node-description">raw input to the checker for field6</span></div></li><li><div class="demand-node"><code>field1</code></div></li><li><div class="demand-node"><code>field2</code></div></li><li><div class="demand-node"><code>field3</code></div></li><li><div class="demand-node"><code>field4</code></div></li><li><div class="demand-node"><code>field5</code></div></li><li><div class="demand-node"><code>field6</code></div></li></ul></div></div></div><div class="table-wrap execution-outcomes"><table><caption>What execution confirms</caption><thead><tr><th scope="col">Observation</th><th scope="col">Value</th><th scope="col">What it means</th></tr></thead><tbody><tr><th scope="row">Total value-resolver calls</th><td><code>8</code></td><td>One field0 call on the operation root + 6 calls for field1 through field6 in the associated Query + one audit call returning null.</td></tr></tbody></table></div><p class="demand-note"><strong>Why this matters.</strong> Two guarded aliases can contribute to one field without duplicating all paths through the chain. Each contribution still carries its guards, and distinct variable bindings stay distinct even when this field-name view combines aliases.</p></figure><p class="variant-label">Depth 9</p><div class="example-inputs"><div class="snippet"><div class="snippet-header">Annotated schema<span>SDL + contracts</span></div><pre tabindex="0" role="region" aria-label="GraphQL schema for example 09b at depth 9"><code><span class="gql-keyword">type</span> <span class="gql-type">Query</span> {
+  <span class="gql-name">audit</span>: <span class="gql-type">Int</span>
+    <span class="gql-comment"># The test registers none; this is the test world&rsquo;s fallback resolver.</span>
+    <span class="gql-directive">@resolver</span>(<span class="gql-name">result</span>: <span class="gql-literal">null</span>)
+  <span class="gql-name">field0</span>: <span class="gql-type">Int</span>
+    <span class="gql-directive">@resolver</span>(
+      <span class="gql-name">queryValueFragment</span>: <span class="gql-string">"left: field1 @include(if: $a) right: field1 @include(if: $b)"</span>
+      <span class="gql-name">providerVars</span>: {<span class="gql-name">a</span>: <span class="gql-literal">true</span>, <span class="gql-name">b</span>: <span class="gql-literal">true</span>}
+      <span class="gql-name">result</span>: <span class="gql-literal">1</span>
+    )
+  <span class="gql-name">field1</span>: <span class="gql-type">Int</span>
+    <span class="gql-directive">@resolver</span>(
+      <span class="gql-name">queryValueFragment</span>: <span class="gql-string">"left: field2 @include(if: $a) right: field2 @include(if: $b)"</span>
+      <span class="gql-name">providerVars</span>: {<span class="gql-name">a</span>: <span class="gql-literal">true</span>, <span class="gql-name">b</span>: <span class="gql-literal">true</span>}
+      <span class="gql-name">result</span>: <span class="gql-literal">1</span>
+    )
+  <span class="gql-name">field2</span>: <span class="gql-type">Int</span>
+    <span class="gql-directive">@resolver</span>(
+      <span class="gql-name">queryValueFragment</span>: <span class="gql-string">"left: field3 @include(if: $a) right: field3 @include(if: $b)"</span>
+      <span class="gql-name">providerVars</span>: {<span class="gql-name">a</span>: <span class="gql-literal">true</span>, <span class="gql-name">b</span>: <span class="gql-literal">true</span>}
+      <span class="gql-name">result</span>: <span class="gql-literal">1</span>
+    )
+  <span class="gql-name">field3</span>: <span class="gql-type">Int</span>
+    <span class="gql-directive">@resolver</span>(
+      <span class="gql-name">queryValueFragment</span>: <span class="gql-string">"left: field4 @include(if: $a) right: field4 @include(if: $b)"</span>
+      <span class="gql-name">providerVars</span>: {<span class="gql-name">a</span>: <span class="gql-literal">true</span>, <span class="gql-name">b</span>: <span class="gql-literal">true</span>}
+      <span class="gql-name">result</span>: <span class="gql-literal">1</span>
+    )
+  <span class="gql-name">field4</span>: <span class="gql-type">Int</span>
+    <span class="gql-directive">@resolver</span>(
+      <span class="gql-name">queryValueFragment</span>: <span class="gql-string">"left: field5 @include(if: $a) right: field5 @include(if: $b)"</span>
+      <span class="gql-name">providerVars</span>: {<span class="gql-name">a</span>: <span class="gql-literal">true</span>, <span class="gql-name">b</span>: <span class="gql-literal">true</span>}
+      <span class="gql-name">result</span>: <span class="gql-literal">1</span>
+    )
+  <span class="gql-name">field5</span>: <span class="gql-type">Int</span>
+    <span class="gql-directive">@resolver</span>(
+      <span class="gql-name">queryValueFragment</span>: <span class="gql-string">"left: field6 @include(if: $a) right: field6 @include(if: $b)"</span>
+      <span class="gql-name">providerVars</span>: {<span class="gql-name">a</span>: <span class="gql-literal">true</span>, <span class="gql-name">b</span>: <span class="gql-literal">true</span>}
+      <span class="gql-name">result</span>: <span class="gql-literal">1</span>
+    )
+  <span class="gql-name">field6</span>: <span class="gql-type">Int</span>
+    <span class="gql-directive">@resolver</span>(
+      <span class="gql-name">queryValueFragment</span>: <span class="gql-string">"left: field7 @include(if: $a) right: field7 @include(if: $b)"</span>
+      <span class="gql-name">providerVars</span>: {<span class="gql-name">a</span>: <span class="gql-literal">true</span>, <span class="gql-name">b</span>: <span class="gql-literal">true</span>}
+      <span class="gql-name">result</span>: <span class="gql-literal">1</span>
+    )
+  <span class="gql-name">field7</span>: <span class="gql-type">Int</span>
+    <span class="gql-directive">@resolver</span>(
+      <span class="gql-name">queryValueFragment</span>: <span class="gql-string">"left: field8 @include(if: $a) right: field8 @include(if: $b)"</span>
+      <span class="gql-name">providerVars</span>: {<span class="gql-name">a</span>: <span class="gql-literal">true</span>, <span class="gql-name">b</span>: <span class="gql-literal">true</span>}
+      <span class="gql-name">result</span>: <span class="gql-literal">1</span>
+    )
+  <span class="gql-name">field8</span>: <span class="gql-type">Int</span>
+    <span class="gql-directive">@resolver</span>(
+      <span class="gql-name">queryValueFragment</span>: <span class="gql-string">"left: field9 @include(if: $a) right: field9 @include(if: $b)"</span>
+      <span class="gql-name">providerVars</span>: {<span class="gql-name">a</span>: <span class="gql-literal">true</span>, <span class="gql-name">b</span>: <span class="gql-literal">true</span>}
+      <span class="gql-name">result</span>: <span class="gql-literal">1</span>
+    )
+  <span class="gql-name">field9</span>: <span class="gql-type">Int</span>
+    <span class="gql-directive">@resolver</span>(<span class="gql-name">result</span>: <span class="gql-literal">1</span>)
+    <span class="gql-directive">@fieldChecker</span>(<span class="gql-name">inputs</span>: [{<span class="gql-name">name</span>: <span class="gql-string">"input"</span>, <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"audit"</span>}])
+}</code></pre></div><div class="snippet"><div class="snippet-header">Client operation<span>GraphQL</span></div><pre tabindex="0" role="region" aria-label="GraphQL operation for example 09b at depth 9"><code>{
+  <span class="gql-name">field0</span>
+}</code></pre></div></div><figure class="demand-visual"><figcaption><span class="visual-eyebrow">Requirements and execution</span><strong>Depth 9: guarded aliases share the next field in the associated Query</strong></figcaption><p class="flow-title">How the requirements arise</p><ol class="demand-flow" aria-label="How the requirements arise; dependency steps, not execution order"><li class="flow-client"><span class="flow-label">The operation selects</span><code>Query.field0</code></li><li><span class="flow-label">Each resolver’s Query RSS has</span><code>left: next @include(a), right: next @include(b)</code></li><li class="flow-raw"><span class="flow-label">The final field’s checker reads</span><code>Query.audit</code></li></ol><p class="view-explanation">Both resolver-owned variables a and b are true in every step of this fixture. The tree lists the active associated Query fields, field1 through field9 plus audit. field0 belongs to the primary operation Query and is outside this tree. This simplified view does not display aliases, variable owners, or the condition expression’s size.</p><div class="scope-grid"><div class="scope-card"><h4>Associated Query · active field-name view</h4><p class="scope-mode">Fields activated in this associated Query</p><div class="observed-tree"><ul class="demand-tree"><li><div class="demand-node"><code>audit</code><span class="node-description">raw input to the checker for field9</span></div></li><li><div class="demand-node"><code>field1</code></div></li><li><div class="demand-node"><code>field2</code></div></li><li><div class="demand-node"><code>field3</code></div></li><li><div class="demand-node"><code>field4</code></div></li><li><div class="demand-node"><code>field5</code></div></li><li><div class="demand-node"><code>field6</code></div></li><li><div class="demand-node"><code>field7</code></div></li><li><div class="demand-node"><code>field8</code></div></li><li><div class="demand-node"><code>field9</code></div></li></ul></div></div></div><div class="table-wrap execution-outcomes"><table><caption>What execution confirms</caption><thead><tr><th scope="col">Observation</th><th scope="col">Value</th><th scope="col">What it means</th></tr></thead><tbody><tr><th scope="row">Total value-resolver calls</th><td><code>11</code></td><td>One field0 call on the operation root + 9 calls for field1 through field9 in the associated Query + one audit call returning null.</td></tr></tbody></table></div><p class="demand-note"><strong>Why this matters.</strong> Two guarded aliases can contribute to one field without duplicating all paths through the chain. Each contribution still carries its guards, and distinct variable bindings stay distinct even when this field-name view combines aliases.</p></figure><p class="variant-label">Depth 12</p><div class="example-inputs"><div class="snippet"><div class="snippet-header">Annotated schema<span>SDL + contracts</span></div><pre tabindex="0" role="region" aria-label="GraphQL schema for example 09b at depth 12"><code><span class="gql-keyword">type</span> <span class="gql-type">Query</span> {
+  <span class="gql-name">audit</span>: <span class="gql-type">Int</span>
+    <span class="gql-comment"># The test registers none; this is the test world&rsquo;s fallback resolver.</span>
+    <span class="gql-directive">@resolver</span>(<span class="gql-name">result</span>: <span class="gql-literal">null</span>)
+  <span class="gql-name">field0</span>: <span class="gql-type">Int</span>
+    <span class="gql-directive">@resolver</span>(
+      <span class="gql-name">queryValueFragment</span>: <span class="gql-string">"left: field1 @include(if: $a) right: field1 @include(if: $b)"</span>
+      <span class="gql-name">providerVars</span>: {<span class="gql-name">a</span>: <span class="gql-literal">true</span>, <span class="gql-name">b</span>: <span class="gql-literal">true</span>}
+      <span class="gql-name">result</span>: <span class="gql-literal">1</span>
+    )
+  <span class="gql-name">field1</span>: <span class="gql-type">Int</span>
+    <span class="gql-directive">@resolver</span>(
+      <span class="gql-name">queryValueFragment</span>: <span class="gql-string">"left: field2 @include(if: $a) right: field2 @include(if: $b)"</span>
+      <span class="gql-name">providerVars</span>: {<span class="gql-name">a</span>: <span class="gql-literal">true</span>, <span class="gql-name">b</span>: <span class="gql-literal">true</span>}
+      <span class="gql-name">result</span>: <span class="gql-literal">1</span>
+    )
+  <span class="gql-name">field2</span>: <span class="gql-type">Int</span>
+    <span class="gql-directive">@resolver</span>(
+      <span class="gql-name">queryValueFragment</span>: <span class="gql-string">"left: field3 @include(if: $a) right: field3 @include(if: $b)"</span>
+      <span class="gql-name">providerVars</span>: {<span class="gql-name">a</span>: <span class="gql-literal">true</span>, <span class="gql-name">b</span>: <span class="gql-literal">true</span>}
+      <span class="gql-name">result</span>: <span class="gql-literal">1</span>
+    )
+  <span class="gql-name">field3</span>: <span class="gql-type">Int</span>
+    <span class="gql-directive">@resolver</span>(
+      <span class="gql-name">queryValueFragment</span>: <span class="gql-string">"left: field4 @include(if: $a) right: field4 @include(if: $b)"</span>
+      <span class="gql-name">providerVars</span>: {<span class="gql-name">a</span>: <span class="gql-literal">true</span>, <span class="gql-name">b</span>: <span class="gql-literal">true</span>}
+      <span class="gql-name">result</span>: <span class="gql-literal">1</span>
+    )
+  <span class="gql-name">field4</span>: <span class="gql-type">Int</span>
+    <span class="gql-directive">@resolver</span>(
+      <span class="gql-name">queryValueFragment</span>: <span class="gql-string">"left: field5 @include(if: $a) right: field5 @include(if: $b)"</span>
+      <span class="gql-name">providerVars</span>: {<span class="gql-name">a</span>: <span class="gql-literal">true</span>, <span class="gql-name">b</span>: <span class="gql-literal">true</span>}
+      <span class="gql-name">result</span>: <span class="gql-literal">1</span>
+    )
+  <span class="gql-name">field5</span>: <span class="gql-type">Int</span>
+    <span class="gql-directive">@resolver</span>(
+      <span class="gql-name">queryValueFragment</span>: <span class="gql-string">"left: field6 @include(if: $a) right: field6 @include(if: $b)"</span>
+      <span class="gql-name">providerVars</span>: {<span class="gql-name">a</span>: <span class="gql-literal">true</span>, <span class="gql-name">b</span>: <span class="gql-literal">true</span>}
+      <span class="gql-name">result</span>: <span class="gql-literal">1</span>
+    )
+  <span class="gql-name">field6</span>: <span class="gql-type">Int</span>
+    <span class="gql-directive">@resolver</span>(
+      <span class="gql-name">queryValueFragment</span>: <span class="gql-string">"left: field7 @include(if: $a) right: field7 @include(if: $b)"</span>
+      <span class="gql-name">providerVars</span>: {<span class="gql-name">a</span>: <span class="gql-literal">true</span>, <span class="gql-name">b</span>: <span class="gql-literal">true</span>}
+      <span class="gql-name">result</span>: <span class="gql-literal">1</span>
+    )
+  <span class="gql-name">field7</span>: <span class="gql-type">Int</span>
+    <span class="gql-directive">@resolver</span>(
+      <span class="gql-name">queryValueFragment</span>: <span class="gql-string">"left: field8 @include(if: $a) right: field8 @include(if: $b)"</span>
+      <span class="gql-name">providerVars</span>: {<span class="gql-name">a</span>: <span class="gql-literal">true</span>, <span class="gql-name">b</span>: <span class="gql-literal">true</span>}
+      <span class="gql-name">result</span>: <span class="gql-literal">1</span>
+    )
+  <span class="gql-name">field8</span>: <span class="gql-type">Int</span>
+    <span class="gql-directive">@resolver</span>(
+      <span class="gql-name">queryValueFragment</span>: <span class="gql-string">"left: field9 @include(if: $a) right: field9 @include(if: $b)"</span>
+      <span class="gql-name">providerVars</span>: {<span class="gql-name">a</span>: <span class="gql-literal">true</span>, <span class="gql-name">b</span>: <span class="gql-literal">true</span>}
+      <span class="gql-name">result</span>: <span class="gql-literal">1</span>
+    )
+  <span class="gql-name">field9</span>: <span class="gql-type">Int</span>
+    <span class="gql-directive">@resolver</span>(
+      <span class="gql-name">queryValueFragment</span>: <span class="gql-string">"left: field10 @include(if: $a) right: field10 @include(if: $b)"</span>
+      <span class="gql-name">providerVars</span>: {<span class="gql-name">a</span>: <span class="gql-literal">true</span>, <span class="gql-name">b</span>: <span class="gql-literal">true</span>}
+      <span class="gql-name">result</span>: <span class="gql-literal">1</span>
+    )
+  <span class="gql-name">field10</span>: <span class="gql-type">Int</span>
+    <span class="gql-directive">@resolver</span>(
+      <span class="gql-name">queryValueFragment</span>: <span class="gql-string">"left: field11 @include(if: $a) right: field11 @include(if: $b)"</span>
+      <span class="gql-name">providerVars</span>: {<span class="gql-name">a</span>: <span class="gql-literal">true</span>, <span class="gql-name">b</span>: <span class="gql-literal">true</span>}
+      <span class="gql-name">result</span>: <span class="gql-literal">1</span>
+    )
+  <span class="gql-name">field11</span>: <span class="gql-type">Int</span>
+    <span class="gql-directive">@resolver</span>(
+      <span class="gql-name">queryValueFragment</span>: <span class="gql-string">"left: field12 @include(if: $a) right: field12 @include(if: $b)"</span>
+      <span class="gql-name">providerVars</span>: {<span class="gql-name">a</span>: <span class="gql-literal">true</span>, <span class="gql-name">b</span>: <span class="gql-literal">true</span>}
+      <span class="gql-name">result</span>: <span class="gql-literal">1</span>
+    )
+  <span class="gql-name">field12</span>: <span class="gql-type">Int</span>
+    <span class="gql-directive">@resolver</span>(<span class="gql-name">result</span>: <span class="gql-literal">1</span>)
+    <span class="gql-directive">@fieldChecker</span>(<span class="gql-name">inputs</span>: [{<span class="gql-name">name</span>: <span class="gql-string">"input"</span>, <span class="gql-name">objectValueFragment</span>: <span class="gql-string">"audit"</span>}])
+}</code></pre></div><div class="snippet"><div class="snippet-header">Client operation<span>GraphQL</span></div><pre tabindex="0" role="region" aria-label="GraphQL operation for example 09b at depth 12"><code>{
+  <span class="gql-name">field0</span>
+}</code></pre></div></div><figure class="demand-visual"><figcaption><span class="visual-eyebrow">Requirements and execution</span><strong>Depth 12: guarded aliases share the next field in the associated Query</strong></figcaption><p class="flow-title">How the requirements arise</p><ol class="demand-flow" aria-label="How the requirements arise; dependency steps, not execution order"><li class="flow-client"><span class="flow-label">The operation selects</span><code>Query.field0</code></li><li><span class="flow-label">Each resolver’s Query RSS has</span><code>left: next @include(a), right: next @include(b)</code></li><li class="flow-raw"><span class="flow-label">The final field’s checker reads</span><code>Query.audit</code></li></ol><p class="view-explanation">Both resolver-owned variables a and b are true in every step of this fixture. The tree lists the active associated Query fields, field1 through field12 plus audit. field0 belongs to the primary operation Query and is outside this tree. This simplified view does not display aliases, variable owners, or the condition expression’s size.</p><div class="scope-grid"><div class="scope-card"><h4>Associated Query · active field-name view</h4><p class="scope-mode">Fields activated in this associated Query</p><div class="observed-tree"><ul class="demand-tree"><li><div class="demand-node"><code>audit</code><span class="node-description">raw input to the checker for field12</span></div></li><li><div class="demand-node"><code>field1</code></div></li><li><div class="demand-node"><code>field2</code></div></li><li><div class="demand-node"><code>field3</code></div></li><li><div class="demand-node"><code>field4</code></div></li><li><div class="demand-node"><code>field5</code></div></li><li><div class="demand-node"><code>field6</code></div></li><li><div class="demand-node"><code>field7</code></div></li><li><div class="demand-node"><code>field8</code></div></li><li><div class="demand-node"><code>field9</code></div></li><li><div class="demand-node"><code>field10</code></div></li><li><div class="demand-node"><code>field11</code></div></li><li><div class="demand-node"><code>field12</code></div></li></ul></div></div></div><div class="table-wrap execution-outcomes"><table><caption>What execution confirms</caption><thead><tr><th scope="col">Observation</th><th scope="col">Value</th><th scope="col">What it means</th></tr></thead><tbody><tr><th scope="row">Total value-resolver calls</th><td><code>14</code></td><td>One field0 call on the operation root + 12 calls for field1 through field12 in the associated Query + one audit call returning null.</td></tr></tbody></table></div><p class="demand-note"><strong>Why this matters.</strong> Two guarded aliases can contribute to one field without duplicating all paths through the chain. Each contribution still carries its guards, and distinct variable bindings stay distinct even when this field-name view combines aliases.</p></figure></details>
+
+              <p>Each non-leaf resolver owns separate bindings for <code>$a</code> and <code>$b</code>, both bound to true by its annotated providerVars. Query.audit has no resolver of its own in the test. The Runtime2 test world gives every Query field that lacks one a fallback resolver with an empty <a class="gl" href="../../glossary.html#resolver-fragment">required selection set</a> (RSS), which returns null for a nullable field such as audit (<a class="src" data-src="core/engine/runtime2/src/testFixtures/kotlin/viaduct/engine/runtime2/model/testing/TestWorld.kt" data-lines="246-260" data-expect="if (field.type.isNullable) null else EngineErrorData.of()">fallback resolvers</a>). Its call is included in the resolver counts. The client operation has no variables. At larger depths the chain continues to <code>fieldDepth</code>, and the checker is attached to that final field.</p>
+              <p>Guards create a second source of growth. Each non-leaf resolver’s Query RSS selects the next field twice, with separate <code>a</code> and <code>b</code> guards, as shown in the schemas above.</p>
+
+              <p>At depth n, the audit input&rsquo;s condition is a product of n two-way choices, one <code>a</code>-or-<code>b</code> choice per guarded level. Distributing it into every possible conjunction creates up to <code>2^n</code> terms, even though the factored expression is linear in depth. This second fixture runs at depths 3, 6, 9, and 12 with both alternative guards true. The test checks that the checker&rsquo;s audit-input condition has at most <code>8 × (depth + 1)</code> nodes. When the examples were run, the associated Query held exactly <code>field1</code> through <code>fieldDepth</code> plus <code>audit</code>, and total resolver calls were 5, 8, 11, and 14. These are structural bounds for this fixture, not timings. Another regression test adds a <code>@parent</code> field that the request never uses, and checks that it does not make closure of a similar diamond grow exponentially.</p>
+              <p><strong>The new obligation:</strong> combine overlapping dependencies without changing what they require or copying every dependency path. Sharing cannot collapse genuinely distinct object/list positions or owner-specific variable instances. Conversely, distinct paths are not automatically distinct work. A finite closed demand can still be very large when unfolding fragments or runtime fanout creates genuinely different <a class="gl" href="../../glossary.html#occurrence">occurrences</a>; these tests do not prove a universal linear bound.</p>
+              <p>The current suite disables two additional complexity assertions. Their recorded reasons are that occurrence-owned <a class="gl" href="../../glossary.html#arguments">arguments</a> can still permit exponential symbolic-key multiplicity (as in <a href="inputs.html#example-5b">Example 5b</a>, each resolver occurrence owns its variables, so equal-valued arguments still make distinct keys, and in a diamond those keys can multiply with depth; <a class="src" data-src="core/engine/runtime2/src/test/kotlin/viaduct/engine/runtime2/resolution/SuperlinearGrowthTest.kt" data-lines="534-535" data-expect="Exact occurrence-owned arguments still permit exponential symbolic-key multiplicity||fun `equal valued diamond arguments do not multiply symbolic keys`()">disabled test</a>), and cycle detection still performs a fresh reachability search for every dependency edge. Those skipped assertions leave real limits on the claims we can make about general growth; the passing compact-demand fixtures do not establish those stronger bounds.</p>
+
+              <p class="source-note"><a class="src" data-src="core/engine/runtime2/src/test/kotlin/viaduct/engine/runtime2/resolution/SuperlinearGrowthTest.kt" data-lines="185-313" data-expect="fun `nested parent requirements stay compact with resolver field and type checkers`()||fun `shared query closure keeps guarded alternatives compact`()">Combined parent/checker diamond and guarded Query closure</a>; <a class="src" data-src="core/engine/runtime2/src/test/kotlin/viaduct/engine/runtime2/resolution/ParentConstructionDemandComplexityRegressionTest.kt" data-expect="class ParentConstructionDemandComplexityRegressionTest">unused-parent regression</a>; <a class="src" data-src="core/engine/runtime2/src/test/kotlin/viaduct/engine/runtime2/resolution/SuccessorDemandRegressionTest.kt" data-expect="class SuccessorDemandRegressionTest">shared resolver/checker diamond</a>.</p>
+            </section>
+
+            <section class="chapter-section" id="requirements" aria-labelledby="requirements-title">
+              <h2 id="requirements-title">What makes closure difficult in general?</h2>
+              <p>The first example is ordinary reachability. The later ones change what a node or edge means. A useful description of a demand obligation needs the following context:</p>
+              <div class="table-wrap" tabindex="0" role="region" aria-label="Dimensions of a complete demand obligation"><table>
+                <thead><tr><th scope="col">Dimension</th><th scope="col">What it prevents us from confusing</th></tr></thead>
+                <tbody><tr><th scope="row">Object occurrence and root</th><td>Equal-looking values at different list positions, independent Query scopes, and a parent backedge to an existing object.</td></tr>
+                <tr><th scope="row">Field and arguments</th><td>Different invocations of one schema coordinate.</td></tr>
+                <tr><th scope="row">Variable owner and source path</th><td>Runtime bindings with equal values but distinct symbolic identity, aliases, or exclusions.</td></tr>
+                <tr><th scope="row">Types and conditions</th><td>Possible demand and applicable demand (<a href="hidden-chains.html#conditions">Example 3</a>), and a failed or pending alternative (<a class="src" data-src="core/engine/runtime2/src/test/kotlin/viaduct/engine/runtime2/resolution/SingularQueryGuardIsolationTest.kt" data-lines="37-110" data-expect="fun `failed alternative cannot poison transitive shared input`()||fun `ready owner completes before unrelated suspended guard is released`()">SingularQueryGuardIsolationTest</a>).</td></tr>
+                <tr><th scope="row">Consumer and access provenance</th><td>A raw value read, a checked field read, and a <a class="gl" href="../../glossary.html#checked-read">checked incoming read</a> of an object.</td></tr>
+                <tr><th scope="row">Input versus output needs</th><td>Constructing a current resolver’s inputs versus returning passive values for descendants.</td></tr></tbody>
+              </table></div>
+              <p>Completeness means following every applicable contract until no new obligation appears, including contracts introduced by access checks and parent demand. Correct sharing means combining equivalent work without losing each consumer’s projection. Correct exclusion means an excluded path stays absent and a failed read stays failed even if another consumer can use the same physical value.</p>
+              <p>These obligations explain why “collect all required field names” is insufficient. They do not prescribe tasks, coroutines, <a class="gl" href="../../glossary.html#promise">promises</a>, caches, or a particular fixed-point algorithm. Runtime2 provides concrete evidence of the interactions; the problem remains whichever execution design is used to solve it.</p>
+            </section>
+
+            <section class="chapter-section" id="sources" aria-labelledby="sources-title"><h2 id="sources-title">Source references</h2><p class="source-note">Adapted from Andy Marek&rsquo;s Viaduct guide. These claims were checked against the code the source links point to. The recorded results, such as call counts, step diagrams, and the &ldquo;What execution confirms&rdquo; tables, came from runs at an earlier revision. They weren&rsquo;t re-run here.</p><p>These examples describe Runtime2 <a class="gl" href="../../glossary.html#resolution">resolution</a>. The visual trees show observed demand at the layer named in each caption. The finite examples illustrate the obligations; they do not establish a general complexity bound or universally minimal demand.</p><p>The schema annotations combine the resolver and checker registrations each example used. Their extensions are explained in the <a href="index.html#notation">notation key</a>.</p><ul class="source-list">
+                <li><a class="src" data-src="core/engine/runtime2/impldocs/architecture/examples.md" data-expect="# Resolution Algorithms By Example">Worked dependency worlds</a><span>Transitive closure, selective output, concrete types, Query scope sharing, and ancestor re-entry.</span></li>
+                <li><a class="src" data-src="core/engine/runtime2/impldocs/architecture/access-checks.md" data-expect="# Access-Check Semantics">Access-check semantics</a><span><a class="gl" href="../../glossary.html#raw-read">Raw reads</a>, field and type checks, demand provenance, and root identity.</span></li>
+                <li><a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/ConstructionDemandClosure.kt" data-expect="fun EngineObjectData.Sync.closeOrchestrationConstructionDemand(">ConstructionDemandClosure.kt</a><span>Runtime2’s dynamic joint object/Query symbolic closure: resolver, field-checker, type-checker, and from-field variable contributions.</span></li>
+                <li><a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/ConstructionDemandClosure2.kt" data-expect="fun EngineObjectData.Sync.closePrecomputedConstructionDemand(">ConstructionDemandClosure2.kt</a><span>The precomputed closure loop that Engine2 uses by default, and the setting that picks between the two loops.</span></li>
+                <li><a class="src" data-src="core/engine/runtime2/impldocs/testing/guide.md" data-expect="# Testing Guide">Runtime2 testing guide</a><span>Limits of result correctness, tests that record exactly which resolvers and checkers ran, and finite regression evidence.</span></li>
+              </ul></section>
+</main>
+<script src="../../assets/app.js"></script><script src="../../assets/demand-contexts.js"></script><script src="assets/dc.js"></script><script src="../../assets/motion.js"></script>
+</body></html>

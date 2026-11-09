@@ -1,0 +1,126 @@
+/* Field selection forests: Andy's deep-dive styles, scoped to body.dd-fs and mapped to the tour's theme tokens. */
+body.dd-fs {
+  --accent: var(--c2); --accent-soft: var(--c2-soft);
+  --client: var(--c1); --client-soft: var(--c1-soft);
+  --raw: var(--c4); --raw-soft: var(--c4-soft);
+  --ancestor: var(--c3); --ancestor-soft: var(--c3-soft);
+}
+
+.dd-fs .dd-meta { margin: .2em 0 1em; font-size: .84rem; color: var(--fg-muted); }
+
+.dd-fs ol.pipeline { list-style: none; display: flex; gap: 22px; padding: 0; margin: 1.2em 0 1.6em; }
+.dd-fs ol.pipeline li { position: relative; flex: 1; min-width: 0; padding: 10px 12px; border: 1px solid var(--c); border-top-width: 3px; border-radius: 10px; background: var(--cs); }
+.dd-fs ol.pipeline li + li::before { content: "\2192"; position: absolute; left: -18px; top: 38%; color: var(--fg-muted); }
+.dd-fs ol.pipeline small { display: block; font-size: .72rem; color: var(--fg-muted); text-transform: uppercase; letter-spacing: .04em; }
+.dd-fs ol.pipeline b { display: block; font-size: .98rem; }
+
+.dd-fs nav.jump { display: flex; flex-wrap: wrap; gap: 6px 8px; margin: 1em 0; }
+.dd-fs nav.jump a { font-size: .85rem; padding: 4px 10px; border: 1px solid var(--border); border-radius: 999px; background: var(--bg-elev); color: var(--fg); text-decoration: none; }
+.dd-fs nav.jump a:hover { border-color: var(--c4); }
+.dd-fs nav.jump a[aria-current] { border-color: var(--c4); background: var(--c4-soft); }
+
+.dd-fs main > section.chapter-section { margin-top: 2.6em; padding-top: 1.4em; border-top: 1px solid var(--border); }
+.dd-fs section.chapter-section > h2 { margin-top: .1em; }
+.dd-fs .chapter-section h3 { margin: 1.6em 0 .4em; }
+.dd-fs .chapter-section h4 { margin: 1.2em 0 .3em; font-size: 1rem; }
+.dd-fs .chapter-section p, .dd-fs .chapter-section li { font-size: 1.02rem; }
+
+.dd-fs .example-label, .dd-fs .visual-eyebrow { display: block; margin: 0 0 6px; font-size: .74rem; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; color: var(--accent); }
+.dd-fs .example-title { margin-bottom: .3em; }
+.dd-fs .example-intro { color: var(--fg-muted); font-size: 1.05rem; margin: 0 0 1em; }
+.dd-fs .example-inputs { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 12px; align-items: start; margin: 1em 0; }
+
+.dd-fs .snippet { min-width: 0; margin: .8em 0; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; background: var(--code-bg); }
+.dd-fs .example-inputs .snippet { margin: 0; }
+.dd-fs .snippet-header, .dd-fs .chapter-section p.snippet-header { display: flex; justify-content: space-between; gap: 12px; margin: 0; padding: 6px 12px; border-bottom: 1px solid var(--border); background: var(--bg-sunk); color: var(--fg-muted); font-size: .72rem; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; }
+.dd-fs .snippet-header span { font-weight: 400; color: var(--fg-muted); }
+.dd-fs .snippet pre, .dd-fs .chapter-section pre { margin: 0; padding: 12px 16px; overflow-x: auto; background: var(--code-bg); color: var(--fg); font: .8rem/1.6 var(--mono); }
+.dd-fs .chapter-section > pre { border: 1px solid var(--border); border-radius: 10px; margin: .8em 0; }
+.dd-fs .snippet pre { border: 0; border-radius: 0; }
+.dd-fs .snippet pre code { font-size: 1em; }
+.dd-fs .gql-keyword, .dd-fs .kt-keyword { color: var(--c1); font-weight: 600; }
+.dd-fs .gql-type, .dd-fs .kt-type { color: var(--c2); }
+.dd-fs .gql-directive { color: var(--c4); }
+.dd-fs .gql-variable { color: var(--c5); font-style: italic; }
+.dd-fs .gql-string { color: var(--c3); }
+.dd-fs .gql-literal, .dd-fs .kt-literal { color: var(--c5); }
+.dd-fs .gql-name, .dd-fs .kt-name { color: var(--fg); }
+.dd-fs .kt-function { color: var(--c4); }
+
+.dd-fs .callout { margin: 1em 0; padding: 10px 14px; border-left: 3px solid var(--accent); background: var(--accent-soft); border-radius: 0 10px 10px 0; }
+.dd-fs .callout p { margin: 6px 0 0; }
+.dd-fs .callout > strong:first-child { display: block; }
+
+.dd-fs .table-wrap { margin: 1em 0; border: 1px solid var(--border); border-radius: 12px; overflow-x: auto; background: var(--bg-elev); }
+.dd-fs .table-wrap table { margin: 0; }
+.dd-fs .table-wrap tr:last-child > * { border-bottom: 0; }
+.dd-fs .stage-table { min-width: 580px; }
+
+.dd-fs .source-note { color: var(--fg-muted); font-size: .84rem; }
+.dd-fs .source-note a { color: var(--fg-muted); }
+.dd-fs .source-list { padding: 0; list-style: none; }
+.dd-fs .source-list li { padding: 10px 0; border-top: 1px solid var(--border); }
+.dd-fs .source-list span { display: block; color: var(--fg-muted); font-size: .88rem; }
+
+.dd-fs .feature-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 12px; margin: 1em 0; }
+.dd-fs .feature-card { min-width: 0; padding: 12px 16px; border: 1px solid var(--border); border-top: 3px solid var(--accent); border-radius: 12px; background: var(--bg-elev); box-shadow: var(--shadow); }
+.dd-fs .feature-card h3 { margin: 0 0 .4em; font-size: 1rem; }
+.dd-fs .feature-card p { margin: .4em 0 0; font-size: .92rem; }
+.dd-fs .feature-card .feature-examples { color: var(--fg-muted); font-size: .84rem; }
+
+.dd-fs details.context-result { margin: 1em 0; padding: 10px 14px; border: 1px solid var(--border); border-radius: 12px; background: var(--bg-elev); }
+.dd-fs .context-control { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: .6em 0 1em; font-size: .9rem; }
+.dd-fs .context-control[hidden] { display: none; }
+.dd-fs .context-control label { font-weight: 650; }
+.dd-fs .context-control select { max-width: 100%; font: .85rem var(--mono); padding: 5px 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-elev); color: var(--fg); }
+.dd-fs .context-result > summary { font: .8rem var(--mono); color: var(--fg-muted); cursor: pointer; }
+
+.dd-fs .demand-visual { margin: 1em 0 1.6em; padding: 16px 18px; border: 1px solid var(--border); border-radius: 16px; background: var(--bg-elev); box-shadow: var(--shadow); }
+.dd-fs .demand-visual figcaption { margin-bottom: 1em; }
+.dd-fs .demand-visual figcaption > strong { display: block; font-size: 1.02rem; }
+.dd-fs .demand-note { margin: 1em 0 0; padding: 8px 12px; border-left: 3px solid var(--accent); background: var(--accent-soft); border-radius: 0 8px 8px 0; font-size: .88rem; }
+.dd-fs .empty-demand { margin: 0; color: var(--fg-muted); font: 1.2rem var(--mono); }
+.dd-fs .empty-demand span { font: .8rem var(--sans); }
+
+.dd-fs .forest-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); gap: 12px; align-items: start; }
+.dd-fs .forest-card { min-width: 0; padding: 12px 14px; border: 1px solid var(--border); border-top: 3px solid var(--client); border-radius: 12px; background: var(--bg-elev); }
+.dd-fs .forest-card.merged { border-top-color: var(--accent); }
+.dd-fs .forest-card.response { border-top-color: var(--raw); }
+.dd-fs .forest-card.ordered { border-top-color: var(--ancestor); }
+.dd-fs .forest-card h4 { margin: 0 0 4px; font-size: .95rem; }
+.dd-fs .forest-context { color: var(--fg-muted); margin: 0 0 12px; font-size: .8rem !important; }
+.dd-fs .observed-forest { min-width: 0; }
+.dd-fs .forest-tree { list-style: none; margin: 0; padding: 0; }
+.dd-fs .forest-tree > li { margin: 7px 0; min-width: 0; }
+.dd-fs .forest-tree .forest-tree { margin: 6px 0 10px 6px; padding-left: 12px; border-left: 1.5px solid var(--border); }
+.dd-fs .field-node { padding: 6px 9px; border: 1px solid var(--client); border-left-width: 3px; border-radius: 6px; background: var(--client-soft); }
+.dd-fs .merged .field-node { border-color: var(--accent); background: var(--accent-soft); }
+.dd-fs .response .field-node { border-color: var(--raw); background: var(--raw-soft); }
+.dd-fs .ordered .field-node { border-color: var(--ancestor); background: var(--ancestor-soft); }
+.dd-fs .field-node > code { padding: 0; border: 0; background: transparent; display: block; font-size: .78rem; line-height: 1.6; white-space: normal; }
+.dd-fs .field-meta { display: flex; flex-wrap: wrap; gap: 2px 10px; color: var(--fg-muted); font-size: .7rem; line-height: 1.7; margin-top: 3px; }
+.dd-fs .field-meta code { font-size: .7rem; padding: 0; border: 0; background: transparent; }
+.dd-fs .field-node.inactive, .dd-fs .merged .field-node.inactive, .dd-fs .response .field-node.inactive, .dd-fs .ordered .field-node.inactive { border-style: dashed; border-color: var(--fg-muted); background: var(--bg-sunk); color: var(--fg-muted); }
+.dd-fs .field-node.impossible { border-color: var(--c5); background: var(--c5-soft); }
+.dd-fs .ordered-list { list-style: decimal; padding-left: 22px; }
+.dd-fs .ordered-list > li::marker { color: var(--ancestor); font: 700 .8rem var(--mono); }
+.dd-fs .active-view { margin: 1em 0 0; padding: 8px 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg-elev); font-size: .86rem; }
+.dd-fs .active-view strong { display: block; font-size: .8rem; margin-bottom: 2px; }
+.dd-fs .stage-note { font-size: .86rem !important; color: var(--fg-muted); }
+
+.dd-fs .diagram-legend { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: .82rem; color: var(--fg-muted); margin: .6em 0; }
+.dd-fs .diagram-legend span::before { content: ""; display: inline-block; width: 12px; height: 12px; margin-right: 6px; vertical-align: -2px; border-radius: 3px; border: 2px solid var(--client); background: var(--client-soft); }
+.dd-fs .diagram-legend .legend-merged::before { border-color: var(--accent); background: var(--accent-soft); }
+.dd-fs .diagram-legend .legend-response::before { border-color: var(--raw); background: var(--raw-soft); }
+.dd-fs .diagram-legend .legend-inactive::before { border: 2px dashed var(--fg-muted); background: var(--bg-sunk); }
+
+@media (max-width: 900px) {
+  .dd-fs .example-inputs { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 760px) {
+  .dd-fs ol.pipeline { flex-direction: column; gap: 18px; }
+  .dd-fs ol.pipeline li + li::before { content: "\2193"; left: 14px; top: -19px; }
+}
+.dd-fs .gql-comment { color: var(--fg-muted); font-style: italic; }
+.dd-fs .field-meta .from-alias { font-style: italic; color: var(--fg); }
+.dd-fs .field-meta .from-alias code { font-style: normal; font-weight: 600; }

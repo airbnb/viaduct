@@ -1,0 +1,390 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Into the code — Viaduct Runtime2</title>
+<script src="../assets/theme.js"></script>
+<link rel="icon" type="image/svg+xml" href="../assets/viaduct-logo.svg">
+<link rel="stylesheet" href="../assets/style.css"></head>
+<body data-layer="-1"><main>
+<div class="kicker">Deep dive</div>
+<h1>Into the code</h1>
+<p class="lede">Where each concept lives, the few lines where each idea becomes code, and how the packages stack up.</p>
+<div class="explain">
+<p>The query below asks for a booking&rsquo;s confirmation code and its customer&rsquo;s first name. It has one parent resolver, for <code>booking</code>, and one child resolver, for <code>customer</code>, whose <a class="gl" href="../glossary.html#object-fragment">object fragment</a> reads a field the client never selected. Assume the booking resolver returns only confirmationCode and customerId; if it returned customer too, customer&rsquo;s own resolver wouldn&rsquo;t run.</p>
+</div>
+<div class="code-pair">
+<pre class="cmd"><span class="c"># schema</span>
+type Query {
+  booking(id: ID!): Booking <span class="d">@resolver(isSelective: true)</span>
+}
+
+type Booking {
+  id: ID!
+  confirmationCode: String
+  customerId: ID
+  customer: User
+    <span class="d">@resolver(
+      isSelective: true
+      objectValueFragment: "customerId"
+    )</span>
+}
+
+type User {
+  id: ID!
+  firstName: String
+  lastName: String
+}</pre>
+<pre class="cmd"><span class="c"># query</span>
+query {
+  booking(id: "b1") {
+    confirmationCode
+    customer {
+      firstName
+    }
+  }
+}</pre>
+</div>
+<div class="explain">
+<p>In this schema, <code>objectValueFragment</code> inside <code>@resolver(...)</code> is shorthand for what customer&rsquo;s <code>@Resolver</code> class declares: the <a class="gl" href="../glossary.html#resolver">resolver</a>&rsquo;s <a class="gl" href="../glossary.html#rss">required selection set</a> (RSS). Public Viaduct&rsquo;s <code>@resolver</code> directive takes only <code>isSelective</code> and <code>isBatching</code> (<a class="src" data-src="core/shared/graphql/src/main/kotlin/viaduct/graphql/utils/DefaultSchemaFactory.kt" data-lines="57-86" data-expect="name(&quot;isSelective&quot;)||name(&quot;isBatching&quot;)">directive definition</a>).</p>
+<p>Runtime2 holds each object in the result as an <a class="gl" href="../glossary.html#object-result">object engine result</a> (OER), with one <a class="gl" href="../glossary.html#cell">cell</a> per field to hold that field&rsquo;s value. Each object also gets an <a class="gl" href="../glossary.html#orchestrator">orchestrator</a>, a task that sets up the object&rsquo;s work. For the Booking, <a class="gl" href="../glossary.html#closure">closure</a> adds <code>customerId</code> to the fields Runtime2 must produce, because customer&rsquo;s resolver reads it. The orchestrator then <a class="gl" href="../glossary.html#claim">claims</a> the customer cell for customer&rsquo;s resolver task. Where does each idea live in Runtime2&rsquo;s source?</p>
+<aside class="today"><b>In today&rsquo;s engine</b> Today&rsquo;s OER is <code>ObjectEngineResultImpl</code> in <code>core/engine/runtime</code>, which keeps its cells in a map. Runtime2&rsquo;s <code>ObjectEngineResult</code> is a separate type in its own <code>model</code> package, and no Runtime2 source file imports today&rsquo;s. <a class="src" data-src="core/engine/runtime/src/main/kotlin/viaduct/engine/runtime/ObjectEngineResultImpl.kt" data-lines="46-51" data-expect="private val storage = ConcurrentHashMap">ObjectEngineResultImpl</a> · <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/model/EngineResult.kt" data-lines="119" data-expect="sealed interface ObjectEngineResult">Runtime2&rsquo;s ObjectEngineResult</a></aside>
+<p>Each concept has one type to start from, a few excerpts carry the Booking from <a class="gl" href="../glossary.html#demand">demand</a> to the User, and the packages are layered so you know which way to read.</p>
+</div>
+
+
+<section id="concept-map"><h2>One entry type per concept</h2>
+<div class="explain">
+<p>Start with a map, with one row per concept giving its main types and the lines where its code starts. Every source reference on this page points to the code in this repository. Several entry classes carry a <code>QPlan</code> prefix. It comes from <code>qplan</code>, the development branch Runtime2 was built on before it moved into <code>core/engine/runtime2</code>, and the names still mark current code (<a class="src" data-src="core/engine/runtime2/impldocs/evidence/profiles/README.md" data-lines="11" data-expect="was the development branch and build layout used before Runtime2 moved into">doc</a> · <a class="src" data-src="core/engine/runtime2/impldocs/integration/engine-api.md" data-lines="7" data-expect="The `QPlan` prefix is inherited from the upstream `qplan` development branch">names</a>).</p>
+</div>
+<div class="tablewrap"><table>
+<thead><tr><th>Concept</th><th>Main types</th><th>Start reading</th></tr></thead>
+<tbody>
+<tr><td>Request entry</td><td><code>QPlanExecutionStrategy</code></td><td><a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/execution/QPlanExecutionStrategy.kt" data-lines="54-122" data-expect="selectionsFrom||startResolution||QPlanExecutionSource">execution/QPlanExecutionStrategy.kt</a></td></tr>
+<tr><td><a class="gl" href="../glossary.html#registry">Registry</a> and <a class="gl" href="../glossary.html#world">world</a> (the world, of type <code>Assumptions</code>, is the fixed per-schema configuration that holds the registry)</td><td><code>ResolverRegistry</code>, <code>Assumptions</code>, <code>FieldValueResolver</code></td><td><a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/model/registry/ResolverRegistry.kt" data-lines="44-75" data-expect="interface ResolverRegistry||mayDemandFrom">model/registry/ResolverRegistry.kt</a></td></tr>
+<tr><td><a class="gl" href="../glossary.html#selection">Selection</a> and <a class="gl" href="../glossary.html#selection-forest">selection forest</a></td><td><code>Selection</code>, <code>SelectionForest</code>, <code>ObjectSelectionForest</code></td><td><a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/model/Selection.kt" data-lines="24-69" data-expect="sealed interface SelectionForest||sealed interface ObjectSelectionForest">model/Selection.kt</a></td></tr>
+<tr><td>Demand (checked / unchecked)</td><td><code>Demand</code>, <code>OrchestrationConstructionDemand</code></td><td><a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/framework/Demand.kt" data-lines="26-66" data-expect="class Demand">resolution/framework/Demand.kt</a></td></tr>
+<tr><td>Closure (<a class="gl" href="../glossary.html#construction-demand">construction-demand</a> closure)</td><td><code>closeSelectedConstructionDemand</code>, <code>closeOrchestrationConstructionDemand</code>, <code>ClosedConstructionDemandContext</code></td><td><a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/ConstructionDemandClosure2.kt" data-lines="23-33" data-expect="closeSelectedConstructionDemand||closePrecomputedConstructionDemand||closeOrchestrationConstructionDemand">resolution/ConstructionDemandClosure2.kt</a> (switch, precomputed loop) · <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/ConstructionDemandClosure.kt" data-lines="84-217" data-expect="closeOrchestrationConstructionDemand||ClosedConstructionDemandContext">resolution/ConstructionDemandClosure.kt</a> (dynamic loop)</td></tr>
+<tr><td><a class="gl" href="../glossary.html#successor-demand">Successor demand</a></td><td><code>successorDemandFromConstructionDemand</code>, <code>FixedSuccessorDemandCache</code></td><td><a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/SuccessorDemand.kt" data-lines="32-73" data-expect="successorDemandFromConstructionDemand||class FixedSuccessorDemandCache">resolution/SuccessorDemand.kt</a></td></tr>
+<tr><td>OER, <a class="gl" href="../glossary.html#key">keys</a>, cells</td><td><code>ObjectEngineResult</code>, <code>EngineResultCell</code>, <code>ListEngineResult</code></td><td><a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/model/EngineResult.kt" data-lines="62-370" data-expect="sealed interface EngineResultCell||sealed interface ObjectEngineResult||fun reserveCell||fun freeze">model/EngineResult.kt</a></td></tr>
+<tr><td><a class="gl" href="../glossary.html#promise">Promise</a> / ReservablePromise</td><td><code>Promise</code>, <code>ReservablePromise</code></td><td><a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/model/Promise.kt" data-lines="13-154" data-expect="sealed interface Promise||sealed interface ReservablePromise">model/Promise.kt</a></td></tr>
+<tr><td>Orchestrator</td><td><code>OrchestrationTask</code>, <code>CoroutineTaskDispatcher</code></td><td><a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/OrchestrationTask.kt" data-lines="27-172" data-expect="class OrchestrationTask||prepareAndDispatchFieldWork">resolution/OrchestrationTask.kt</a></td></tr>
+<tr><td><a class="gl" href="../glossary.html#resolver-task">Resolver task</a></td><td><code>FieldResolverTask</code>, <code>FieldResolutionLogic</code></td><td><a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/FieldResolutionLogic.kt" data-lines="111-187" data-expect="suspend fun publishResult">resolution/FieldResolutionLogic.kt</a></td></tr>
+<tr><td><a class="gl" href="../glossary.html#variable">Variables</a> and <a class="gl" href="../glossary.html#binding">bindings</a></td><td><code>VariableDefinition</code>, <code>VariableInstanceId</code>, <code>VariableBindingsState</code></td><td><a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/framework/VariableBindingsState.kt" data-lines="11-69" data-expect="class VariableBindingsState">resolution/framework/VariableBindingsState.kt</a></td></tr>
+<tr><td><a href="access-checks.html">Checker tasks and checked reads</a></td><td><code>FieldCheckerTask</code>, <code>TypeCheckerTask</code>, <code>materializeCheckedValue</code></td><td><a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/model/CheckedEngineResult.kt" data-lines="29-60" data-expect="materializeCheckedValue||combine">model/CheckedEngineResult.kt</a></td></tr>
+<tr><td><a class="gl" href="../glossary.html#materialization">Materialization</a> (building a consumer&rsquo;s input from cells)</td><td><code>materializeResolverInput</code>, <code>materializeResult</code></td><td><a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/MaterializeResolverInput.kt" data-lines="43-50" data-expect="materializeResolverInput">resolution/MaterializeResolverInput.kt</a></td></tr>
+<tr><td><a href="skip-include.html">Inclusion conditions</a></td><td><code>InclusionCondition</code></td><td><a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/model/InclusionCondition.kt" data-lines="4-70" data-expect="sealed interface InclusionCondition">model/InclusionCondition.kt</a></td></tr>
+<tr><td><a class="gl" href="../glossary.html#node-reference">Node references</a> (root-field references)</td><td><code>RootFieldReferenceData</code></td><td><a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/model/RootFieldReferenceData.kt" data-lines="26-93" data-expect="sealed interface RootFieldReferenceData">model/RootFieldReferenceData.kt</a></td></tr>
+<tr><td><a href="cycles.html">Cycle checker</a></td><td><code>CycleCheckState</code>, <code>DeferredCycleCheckState</code></td><td><a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/framework/CycleCheckState.kt" data-lines="74-94" data-expect="interface CycleCheckState||createDeferred">resolution/framework/CycleCheckState.kt</a></td></tr>
+</tbody></table></div>
+<p class="key c1">Each concept has one entry type, and its callers lead to the rest.</p>
+</section>
+
+<section id="excerpts"><h2>Six steps, one Booking</h2>
+<div class="explain">
+<p>A map shows where to start, not how the pieces hand off. The excerpts follow the customer field in the order things happen to it, from the Booking&rsquo;s orchestrator to the customer&rsquo;s User. Step 4 also looks back at the booking resolver task, which ran before all of them:</p>
+<ol class="flow">
+<li><b>Orchestrator ordering:</b> creating the Booking&rsquo;s orchestrator prepares its work before any task is <a class="gl" href="../glossary.html#dispatch">dispatched</a>.</li>
+<li><b>Closure:</b> one pass adds customerId to the demand.</li>
+<li><b>One writer per cell:</b> the customer cell is claimed for customer&rsquo;s resolver task.</li>
+<li><b>Successor demand, a look back:</b> before any of this, the booking resolver task worked out what to ask its resolver for, and customer&rsquo;s task does the same.</li>
+<li><b>Invoke once:</b> the task calls customer&rsquo;s resolver.</li>
+<li><b>New <a class="gl" href="../glossary.html#occurrence">occurrence</a>:</b> <a class="gl" href="../glossary.html#passive-descent">passive descent</a> builds the customer&rsquo;s User.</li>
+</ol>
+</div>
+
+<div class="explain"><p><b>Orchestrator ordering.</b> The booking resolver returns a Booking, which gets an OER and an orchestrator. The orchestrator works on two OERs: the Booking&rsquo;s own, and its <a class="gl" href="../glossary.html#associated-query-object-result">associated Query OER</a>, a fresh OER for the Query type that it creates to hold the Query fields its object&rsquo;s resolvers and checkers read (<a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/OrchestrationTask.kt" data-lines="93-96" data-expect="ObjectEngineResult.of(queryType, mutable = true)">fresh Query OER</a>). Creating the Booking&rsquo;s orchestrator does four things synchronously, before any resolver or <a class="gl" href="../glossary.html#checker-task">checker task</a> is dispatched:</p>
+<ol class="flow">
+<li><b>Closure</b> closes the Booking&rsquo;s demand.</li>
+<li>Bindings are <a class="gl" href="../glossary.html#binding-declaration">declared</a>.</li>
+<li><a class="gl" href="../glossary.html#parent-field">Parent fields</a> get their values. A field marked <code>@parent</code>, a public Viaduct directive, is one the engine provides itself, whose value is the object one level up, and each demanded <code>@parent</code> field gets its cell set to that OER now.</li>
+<li>Checker tasks are prepared. A checker is an access check: a <b><a class="gl" href="../glossary.html#field-checker">field checker</a></b> guards one field, and a <b><a class="gl" href="../glossary.html#type-checker">type checker</a></b> guards every object of one type. In public Viaduct, a <code>CheckerExecutorFactory</code> supplies checkers, turning schema directives such as a policy-check directive into them (<a class="src" data-src="impldocs/modern-access-check.md" data-lines="87" data-expect="Engineers implement the `CheckerExecutorFactory` SPI">registration</a>). None of the Booking&rsquo;s fields has a checker, but in general the cell of each key in <a class="gl" href="../glossary.html#checked-demand">checked demand</a> (client selections and resolver inputs, whether or not the field has a checker) is <a class="gl" href="../glossary.html#reserve">reserved</a>, and when the field has a checker, its <a class="gl" href="../glossary.html#field-check-slot">field-check slot</a> also gets a writer.</li>
+</ol>
+<p>The first excerpt runs closure, producing <code>closedConstructionDemand</code>, and wraps each OER with its closed demand. Here <code>source</code> is the data the booking resolver returned, and the Query-rooted half of the starting demand is <code>Demand.EMPTY</code>, so the Query OER&rsquo;s demand holds only what closure adds. The second does the other three steps. Its last call, <code>observeQueryOER()</code>, only reports the prepared Query OER and its declared Query fragments to the request&rsquo;s resolver observer, whose default does nothing (<a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/execution/QPlanExecutionStrategy.kt" data-lines="97-100" data-expect="ResolverObserver.NOP">default</a>).</p></div>
+
+<figure class="code" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/OrchestrationTask.kt" data-lines="97-115" data-hl="98" data-expect="closeSelectedConstructionDemand" data-title="OrchestrationTask.create, closure"><figcaption><span class="path" title="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/OrchestrationTask.kt">OrchestrationTask.create, closure — <span>core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/OrchestrationTask.kt:97-115</span></span><a>view source ↗</a></figcaption><pre class="src" data-start="97"><code class="language-kotlin">            val closedConstructionDemand =
+                source.closeSelectedConstructionDemand(
+                    world = operation.world,
+                    objectOccurrence = occurrence,
+                    queryOccurrence = queryOccurrence,
+                    initialDemand = OrchestrationConstructionDemand(constructionDemand, Demand.EMPTY),
+                )
+            val objectOER =
+                SharedOERContext(
+                    occurrence = occurrence,
+                    source = source,
+                    closedValueSelections = closedConstructionDemand.objectRooted.closedValueSelections,
+                )
+            val queryOER =
+                SharedOERContext(
+                    occurrence = queryOccurrence,
+                    source = emptyQuerySource,
+                    closedValueSelections = closedConstructionDemand.queryRooted.closedValueSelections,
+                )</code></pre></figure>
+
+<figure class="code" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/OrchestrationTask.kt" data-lines="116-131" data-hl="117,119,128,129" data-expect="declareBindings()||installParentBackedgeFields||FieldCheckerTask.prepareAll||TypeCheckerTask.prepareAll" data-title="OrchestrationTask.create, setup"><figcaption><span class="path" title="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/OrchestrationTask.kt">OrchestrationTask.create, setup — <span>core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/OrchestrationTask.kt:116-131</span></span><a>view source ↗</a></figcaption><pre class="src" data-start="116"><code class="language-kotlin">            return OrchestrationTask(operation, objectOER, queryOER, closedConstructionDemand).apply {
+                declareBindings()
+                listOf(this.objectOER, this.queryOER).forEach { oer -&gt;
+                    oer.occurrence.installParentBackedgeFields(
+                        operation,
+                        oer.closedValueSelections
+                            .byKey()
+                            .keys
+                            .filterIsInstance&lt;ObjectEngineResult.ParentKey&gt;(),
+                    )
+                    operation.bindingsState.markBindingsDeclared(oer.occurrence.target)
+                }
+                checkerPreparation = FieldCheckerTask.prepareAll(this)
+                typeCheckerPublications = TypeCheckerTask.prepareAll(this)
+                observeQueryOER()
+            }</code></pre></figure>
+
+<div class="explain"><p><b>Closure.</b> Closure has two loops, and <code>closeSelectedConstructionDemand</code> picks one from the world&rsquo;s <code>usePrecomputedConstructionDemand</code> setting (<a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/ConstructionDemandClosure2.kt" data-lines="23-33" data-expect="if (world.usePrecomputedConstructionDemand)">switch</a>). <code>Engine2</code>, Runtime2&rsquo;s implementation of the engine API (<a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/Engine2.kt" data-lines="72" data-expect="Dispatcher-backed implementation of the Engine API">Engine2</a>), turns the precomputed loop on by default (<a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/Engine2.kt" data-lines="85" data-expect="usePrecomputedConstructionDemand: Boolean = true">default</a>). That loop reuses input demand the registry prepared once per schema, and both loops produce the same <code>ClosedConstructionDemandContext</code> (<a class="src" data-src="core/engine/runtime2/impldocs/architecture/resolution.md" data-lines="114" data-expect="Both produce the same `ClosedConstructionDemandContext`">doc</a>). The excerpt below is a round of the dynamic loop, in <code>ConstructionDemandClosure.kt</code>, which spells out each step. Each pass turns newly found keys into <a class="gl" href="../glossary.html#input-demand">input demand</a>, the resolver fragments that the keys&rsquo; resolvers and checkers read. The loop <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/ConstructionDemandClosure.kt" data-lines="150-158" data-expect="break">breaks</a> once a pass finds nothing new. Each round covers both OERs, the object&rsquo;s own and its Query OER, with one context per field key found so far. In the highlighted lines:</p>
+<ul>
+<li><code>objectResolverInputs</code> holds the inputs of the object&rsquo;s own resolver fields (line 160). Their object fragments become the object&rsquo;s checked demand (line 170).</li>
+<li>The inputs of field checkers and type checkers become <code>unchecked</code> demand (line 171).</li>
+<li>The Query OER&rsquo;s checked demand, <code>queryInputSelections</code>, gets the Query fragments of the object&rsquo;s resolvers and both fragments of the resolvers demanded on the Query OER (line 175).</li>
+<li><code>pendingDemand</code> is the round&rsquo;s new demand, which the next pass expands (line 181).</li>
+</ul>
+<p>customer is one of the Booking&rsquo;s own resolver fields, so its object fragment, its RSS, goes into <code>objectResolverInputs.objectFragment</code> and becomes the Booking&rsquo;s checked demand. That is how closure adds <code>customerId</code>.</p>
+<aside class="today"><b>In today&rsquo;s engine</b> Each resolver&rsquo;s and checker&rsquo;s RSS becomes a separate child query plan, and a plan launches its child plans before its own selections. Runtime2 has no child plans: closure merges those inputs into the demand of the object, or of its Query OER for Query-rooted inputs, before any task is dispatched. <a class="src" data-src="core/engine/runtime/src/main/kotlin/viaduct/engine/runtime/execution/QueryPlan.kt" data-lines="38" data-expect="RequiredSelectionSet plans resolved before any selections in this plan">childPlanIds</a> · <a class="src" data-src="core/engine/runtime/src/main/kotlin/viaduct/engine/runtime/execution/QueryPlanFactory.kt" data-lines="618-626" data-expect="buildChildPlansFromRequiredSelectionSets(resolverRsses||buildChildPlansFromRequiredSelectionSets(checkerRsses">resolver and checker RSS plans</a></aside></div>
+
+<figure class="code" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/ConstructionDemandClosure.kt" data-lines="159-186" data-hl="160,170,171,175,181" data-expect="checked = queryInputSelections||unchecked = objectCheckerInputs.objectFragment||withLiftedParentDemand" data-title="closure round"><figcaption><span class="path" title="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/ConstructionDemandClosure.kt">closure round — <span>core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/ConstructionDemandClosure.kt:159-186</span></span><a>view source ↗</a></figcaption><pre class="src" data-start="159"><code class="language-kotlin">        val queryType = queryOccurrence.target.type
+        val objectResolverInputs = newObjectResolverKeyInclusions.resolverInputDemand(objectResolverContexts, objectOccurrence.target.type, queryType)
+        val queryResolverInputs = newQueryResolverKeyInclusions.resolverInputDemand(queryResolverContexts, queryType, queryType)
+        val queryInputSelections =
+            objectResolverInputs.queryFragment +
+                queryResolverInputs.objectFragment +
+                queryResolverInputs.queryFragment
+        val objectCheckerInputs = newObjectCheckerKeyInclusions.checkerInputDemand(objectCheckerContexts, objectOccurrence.target.type, queryType)
+        val queryCheckerInputs = newQueryCheckerKeyInclusions.checkerInputDemand(queryCheckerContexts, queryType, queryType)
+        val objectTypeInputs = objectTypeChecker.inputDemand(newObjectTypeInclusion, objectOccurrence.target.type, queryType)
+        val objectInputs = Demand(
+            checked = objectResolverInputs.objectFragment,
+            unchecked = objectCheckerInputs.objectFragment + objectTypeInputs.objectFragment,
+            typeCheckDemanded = false,
+        )
+        val queryInputs = Demand(
+            checked = queryInputSelections,
+            unchecked = objectCheckerInputs.queryFragment +
+                queryCheckerInputs.objectFragment + queryCheckerInputs.queryFragment +
+                objectTypeInputs.queryFragment,
+            typeCheckDemanded = false,
+        )
+        pendingDemand = OrchestrationConstructionDemand(
+            objectRooted = objectInputs,
+            queryRooted = queryInputs,
+        ).withLiftedParentDemand(world)
+        demandContributions += pendingDemand
+    }</code></pre></figure>
+
+<div class="explain"><p><b>One writer per cell.</b> The orchestrator&rsquo;s run calls <code>FieldResolverTask.prepareAll</code>, whose <code>prepare</code> makes each resolver task its cell&rsquo;s one writer before that task is dispatched. For the Booking, that task is customer&rsquo;s:</p>
+<ol class="flow">
+<li>It reserves the task&rsquo;s cell, or gets the one checker preparation already reserved.</li>
+<li>It claims the cell&rsquo;s value promise.</li>
+<li>It <a class="gl" href="../glossary.html#register-as-writer">registers the task as the writer</a> of the cell&rsquo;s value slot, named by the cell and <code>CycleSlotKind.VALUE</code>, with the <a class="gl" href="../glossary.html#cycle-checker">cycle checker</a>, which uses these writers to turn a wait cycle into an error.</li>
+</ol></div>
+
+<figure class="code" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/FieldResolverTask.kt" data-lines="197-222" data-hl="206,207,208,209,210,211" data-expect="reserveCell(objectKey)||value.claim()||registerWriter||CycleSlotKind.VALUE" data-title="FieldResolverTask.prepare"><figcaption><span class="path" title="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/FieldResolverTask.kt">FieldResolverTask.prepare — <span>core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/FieldResolverTask.kt:197-222</span></span><a>view source ↗</a></figcaption><pre class="src" data-start="197"><code class="language-kotlin">        private fun prepare(
+            operation: OperationContext,
+            oerOccurrence: OEROccurrence,
+            sourceOccurrence: ValueSourceOccurrence,
+            queryOER: SharedOERContext? = null,
+            providerReads: List&lt;VariableProviderReadOccurrence&gt;,
+            checkerScheduled: Boolean = false,
+        ): SymbolicFieldPublicationOccurrence {
+            val objectKey = sourceOccurrence.selection.key
+            val publicationCell = oerOccurrence.target.reserveCell(objectKey)
+            publicationCell.value.claim()
+            operation.cycleChecker.registerWriter(
+                owner = publicationCell,
+                kind = CycleSlotKind.VALUE,
+                writer = oerOccurrence.fieldResolverCycleTask(objectKey),
+            )
+            return SymbolicFieldPublicationOccurrence(
+                operation,
+                oerOccurrence,
+                sourceOccurrence,
+                publicationCell,
+                queryOER,
+                providerReads,
+                checkerScheduled,
+            )
+        }</code></pre></figure>
+
+<div class="explain"><p>What if a reserved cell never gets a writer? If the booking resolver leaves <code>customerId</code> out, nothing writes its cell. Checker preparation already reserved that cell, as it does for every key in checked demand (<a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/FieldCheckerTask.kt" data-lines="92-106" data-expect="reserveCell(key)">reserve</a>). When the orchestrator freezes the Booking OER, freeze fails each reserved cell that no one claimed with a missing-cell error (<a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/model/EngineResult.kt" data-lines="966-978" data-expect="missingResultCell(type, field)">freeze</a> · <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/model/Promise.kt" data-lines="228-240" data-expect="!claimed">unclaimed</a>). A filled passive cell isn&rsquo;t failed, because passive descent writes it with <code>set()</code>, which claims and completes it in one call (<a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/model/EngineResult.kt" data-lines="962" data-expect="check(cell.value.set(value))">fill</a> · <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/model/Promise.kt" data-lines="206-210" data-expect="claim()||delegate.complete(value)">set</a>). So customer&rsquo;s read of <code>customerId</code> fails instead of waiting forever.</p></div>
+
+<div class="explain"><p><b>Successor demand.</b> It is what a resolver task asks its resolver to return. Just before calling the resolver, the task derives it from the construction demand below its field, using the registry: each included field that has a resolver adds that resolver&rsquo;s <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/SuccessorDemand.kt" data-lines="304-318" data-expect="fixedSuccessorInputDemand||fixedResolverInputDemand">declared inputs</a>. So the booking resolver task adds customer&rsquo;s RSS and asks the booking resolver for <code>customerId</code>, which the client never selected. The Booking&rsquo;s OER and closure come only after that resolver returns. Closure derives <code>customerId</code> too, because the two answer different questions: successor demand tells the booking resolver what to return, and closure decides which cells the Booking OER holds, so that customer&rsquo;s resolver has a <code>customerId</code> cell to read. The customer resolver task asks its resolver for <code>firstName</code>, the one field the client selected below customer. The unchecked part, checkers&rsquo; inputs, is converted the same way, and when the returned object may need a type check, the inputs of the type checkers for every type it could be are added too. Demand that <code>@parent</code> fields induce is worked out in the same walk (<a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/SuccessorDemand.kt" data-lines="27-31" data-expect="fused into the successor demand">comment</a>).</p>
+</div>
+
+<figure class="code" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/SuccessorDemand.kt" data-lines="32-54" data-hl="37,38,40,44" data-expect="successorDemandFromConstructionDemand||fusedSuccessorDemandWithChecks||parentApplication.combine" data-title="successorDemandFromConstructionDemand"><figcaption><span class="path" title="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/SuccessorDemand.kt">successorDemandFromConstructionDemand — <span>core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/SuccessorDemand.kt:32-54</span></span><a>view source ↗</a></figcaption><pre class="src" data-start="32"><code class="language-kotlin">internal fun Demand&lt;SelectionForest&gt;.successorDemandFromConstructionDemand(
+    world: Assumptions,
+    possibleRootTypes: Set&lt;ViaductSchema.Object&gt; = emptySet(),
+): SelectionForest {
+    val context = FusedSuccessorDemandContext(world)
+    val checkedResult = checked.fusedSuccessorDemandWithChecks(context, checked = true)
+    val uncheckedResult = unchecked.fusedSuccessorDemandWithChecks(context, checked = false)
+    val typeCheckerDemand = if (typeCheckCondition !== InclusionCondition.Never) {
+        possibleRootTypes.fixedTypeCheckerInputDemand(context.expansionContext).guardedBy(typeCheckCondition)
+    } else {
+        selectionForestOf()
+    }
+    val topLevelParent = context.parentApplication.combine(checkedResult.parentDemand, uncheckedResult.parentDemand)
+    val topLevelParentSuccessor =
+        if (topLevelParent === PreparedParentDemand.EMPTY) {
+            selectionForestOf()
+        } else {
+            val parentLocal = topLevelParent.localDemand
+            parentLocal.checked.fusedSuccessorDemandWithChecks(context, checked = true).successorDemand +
+                parentLocal.unchecked.fusedSuccessorDemandWithChecks(context, checked = false).successorDemand
+        }
+    return checkedResult.successorDemand + uncheckedResult.successorDemand + typeCheckerDemand + topLevelParentSuccessor
+}</code></pre></figure>
+
+<div class="explain"><p><b>Invoke once.</b> <code>publishResult</code> computes that demand first, then checks the cell&rsquo;s <a class="gl" href="../glossary.html#activation">activation</a>, its include-or-skip decision. A task whose cell is not activated returns before any tenant code runs. Otherwise the demand becomes the resolver&rsquo;s <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/FieldResolutionLogic.kt" data-lines="296-304" data-expect="selections = invocationDemand">selections</a>. <code>runFieldResolver</code> has just this one call site, and each task calls <code>publishResult</code> once (<a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/FieldResolverTask.kt" data-lines="298" data-expect="resolutionLogic.publishResult()">call</a>). Since <code>prepare</code> made the task its cell&rsquo;s one writer, a field&rsquo;s resolver runs at most once for each occurrence of the field. The other branches skip <code>runFieldResolver</code>: a root-field reference, which the code after this excerpt hands to its root field&rsquo;s resolver, or a <code>PassiveValueOccurrence</code>, a list of root-field references, such as node references, copied from the parent&rsquo;s output under an inclusion condition, which a task holds until its activation is decided.</p></div>
+
+<figure class="code" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/FieldResolutionLogic.kt" data-lines="111-138" data-hl="116,119,125,131,134" data-expect="successorDemandFromConstructionDemand||activatePublication()||runFieldResolver" data-title="FieldResolutionLogic.publishResult"><figcaption><span class="path" title="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/FieldResolutionLogic.kt">FieldResolutionLogic.publishResult — <span>core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/FieldResolutionLogic.kt:111-138</span></span><a>view source ↗</a></figcaption><pre class="src" data-start="111"><code class="language-kotlin">    suspend fun publishResult() {
+        val publication = fieldResolverTask.publication
+        val sourceOccurrence = publication.sourceOccurrence
+        val selection = sourceOccurrence.selection
+        val constructionDemand = sourceOccurrence.publicationConstructionDemand
+        val invocationDemand: SelectionForest =
+            when (sourceOccurrence) {
+                is PassiveValueOccurrence -&gt; sourceOccurrence.invocationDemand
+                else -&gt; constructionDemand.successorDemandFromConstructionDemand(
+                    publication.operation.world,
+                    (sourceOccurrence.publicationExpectedType.baseTypeDef as? ViaductSchema.CompositeTypeDef)?.possibleObjectTypes.orEmpty(),
+                )
+            }
+
+        val activated = activatePublication()
+        if (!activated) return
+
+        var fieldValue: ResolverOutputData? =
+            when (sourceOccurrence) {
+                is FieldResolverOccurrence -&gt;
+                    runFieldResolver(
+                        fieldResolverOccurrence = sourceOccurrence,
+                        selection = selection,
+                        invocationDemand = invocationDemand,
+                    )
+                is RootFieldReferenceOccurrence -&gt; sourceOccurrence.reference
+                is PassiveValueOccurrence -&gt; sourceOccurrence.value
+            }</code></pre></figure>
+
+<div class="explain"><p><b>New occurrence.</b> The customer resolver returns a User. Passive descent, the resolver task&rsquo;s walk over the value its resolver returned, handles it. Like any returned object, the User gets a <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/framework/SharedPassiveValueResolutionLogic.kt" data-lines="193-203" data-expect="createObjectResult">fresh OER</a>, then its own orchestrator:</p>
+<ol class="flow">
+<li>The orchestrator is <b>created</b>, which runs its closure.</li>
+<li><code>materializePassiveFields</code> fills the cells of the <a class="gl" href="../glossary.html#passive-field">passive fields</a> from the returned data, which for the customer is <code>firstName</code>. This writes cells, unlike materialization, which reads them to build a consumer&rsquo;s input. User has no resolver fields, so no cell waits for a task.</li>
+<li>The orchestrator is dispatched. With no tasks to dispatch, its run only <a class="gl" href="../glossary.html#freeze">freezes</a> the User OER and its associated Query OER, which seals each one&rsquo;s set of cells, and that happens before dispatch returns. A run never suspends, so even an orchestrator with tasks has claimed, dispatched and frozen before dispatch returns.</li>
+</ol>
+<p>This code lives in <code>resolution/framework</code>, which never imports the rest of <code>resolution</code>. <code>createOrchestrationTask</code> is an abstract hook that <code>resolution</code>&rsquo;s subclass implements, and <code>dispatchOrchestration</code> belongs to the framework&rsquo;s own dispatcher interface (<a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/PassiveValueResolutionLogic.kt" data-lines="22-28" data-expect="override fun createOrchestrationTask">subclass</a> · <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/framework/SharedTaskDispatcher.kt" data-lines="42-44" data-expect="fun dispatchOrchestration(task: O)">interface</a>).</p></div>
+
+<figure class="code" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/framework/SharedPassiveValueResolutionLogic.kt" data-lines="208-229" data-hl="222,223,228" data-expect="createOrchestrationTask||materializePassiveFields||dispatchOrchestration" data-title="resolvePassiveObjectValues"><figcaption><span class="path" title="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/framework/SharedPassiveValueResolutionLogic.kt">resolvePassiveObjectValues — <span>core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/resolution/framework/SharedPassiveValueResolutionLogic.kt:208-229</span></span><a>view source ↗</a></figcaption><pre class="src" data-start="208"><code class="language-kotlin">    /**
+     * Passively resolves [source] into the OER in [occurrence]. Prepares the object&#x27;s closed demand
+     * before resolving passive fields recursively, then dispatches its active work. The occurrence
+     * may be a root or a newly allocated child; it must enter this lifecycle only once.
+     */
+    fun resolvePassiveObjectValues(
+        source: EngineObjectData.Sync,
+        occurrence: OEROccurrence,
+        constructionDemand: Demand&lt;SelectionForest&gt;,
+        invocationDemand: SelectionForest = constructionDemand.values,
+    ) {
+        require(source.schemaType(operation.world.schema) == occurrence.target.type) {
+            &quot;Source type ${source.schemaType(operation.world.schema).name} does not match result type ${occurrence.target.type.name}&quot;
+        }
+        val orchestration = createOrchestrationTask(occurrence, source, constructionDemand)
+        materializePassiveFields(
+            orchestration,
+            closedConstructionDemand(orchestration),
+            invocationDemand,
+        )
+        operation.dispatcher.dispatchOrchestration(orchestration)
+    }</code></pre></figure>
+
+</section>
+
+<section id="packages"><h2>The package layers</h2>
+<div class="explain">
+<p>The packages form layers, with a shared vocabulary at the bottom, the <a class="gl" href="../glossary.html#resolution">resolution</a> machinery on top of it, and above that the entry point that runs a request, with the bootstrap that builds the registry beside it. bootstrap imports the entry point, never the reverse. Imports only point one way, so you can read the code from the bottom up.</p>
+<p>The resolution machinery&rsquo;s <code>framework</code> subpackage holds the contracts and model operations that Runtime2&rsquo;s main engine shares with all the <a class="gl" href="../glossary.html#reference-resolver-families">reference resolver families</a>. These are six simpler alternate resolution engines, kept in the unpublished <code>src/testFixtures</code> tree, which is not part of the published library (<a class="src" data-src="core/engine/runtime2/impldocs/architecture/resolver-families.md" data-lines="25" data-expect="live in the unpublished `src/testFixtures/kotlin/viaduct/engine/runtime2/resolvers` tree">doc</a> · <a class="src" data-src="publications/runtime/build.gradle.kts" data-lines="18-24" data-expect="Runtime fat JAR contains runtime2 test fixture output">publication check</a>). A semantic change should become testable in the simplest family that applies, the depth-first reference resolvers before the coroutine ones, before it reaches the main engine (<a class="src" data-src="core/engine/runtime2/impldocs/architecture/resolver-families.md" data-lines="17" data-expect="testable in the simplest applicable family">doc</a>). Here a &ldquo;reference resolver&rdquo; means a whole engine, not a tenant&rsquo;s field resolver. The <a href="reference-resolver-families.html">Reference resolver families</a> deep dive covers them.</p>
+</div>
+<figure class="scene" data-duration="21">
+  <div class="stage"><svg viewBox="0 0 960 490" role="img" aria-label="Runtime2 packages and the direction of their imports">
+    <defs><marker id="pm-ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0,0L10,5L0,10z" class="ah"/></marker></defs>
+
+    <!-- model -->
+    <g data-in="0" data-anim="pop">
+      <rect class="zone" x="60" y="364" width="840" height="112" rx="12"/>
+      <text x="80" y="388" class="title">model</text>
+      <text x="136" y="388" class="small muted">the semantic vocabulary; imports no other runtime2 package</text>
+    </g>
+    <g data-in="0.4" data-anim="pop" class="c2"><rect class="box c2" x="80" y="402" width="284" height="58" rx="10"/><text x="222" y="425" text-anchor="middle" class="title">model</text><text x="222" y="446" text-anchor="middle" class="mono muted small">Selection · EngineResult · Promise</text></g>
+    <g data-in="0.8" data-anim="pop" class="c1"><rect class="box c1" x="376" y="402" width="180" height="58" rx="10"/><text x="466" y="425" text-anchor="middle" class="title">model/registry</text><text x="466" y="446" text-anchor="middle" class="mono muted small">ResolverRegistry</text></g>
+    <g data-in="1.1" data-anim="pop" class="c1"><rect class="box c1" x="568" y="402" width="140" height="58" rx="10"/><text x="638" y="425" text-anchor="middle" class="title">model/spec</text><text x="638" y="446" text-anchor="middle" class="mono muted small">SpecSelection</text></g>
+    <g data-in="1.4" data-anim="pop" class="c1"><rect class="box c1" x="720" y="402" width="170" height="58" rx="10"/><text x="805" y="425" text-anchor="middle" class="title">model/invariants</text><text x="805" y="446" text-anchor="middle" class="small muted">conformance</text></g>
+
+    <!-- schema -->
+    <g data-in="3" data-anim="pop" class="c1">
+      <rect class="box c1" x="60" y="226" width="270" height="88" rx="12"/>
+      <text x="80" y="252" class="title">schema</text>
+      <text x="80" y="272" class="small muted">decodes operations into selections</text>
+      <rect class="box" x="80" y="282" width="110" height="22" rx="6"/><text x="135" y="297" text-anchor="middle" class="mono small">lowering/</text>
+    </g>
+    <g data-in="3.6" data-anim="draw" data-on="18"><path id="pm-a1" class="wire thick" d="M195,314 L195,360" marker-end="url(#pm-ah)"/></g>
+
+    <!-- resolution -->
+    <g data-in="6" data-anim="pop"><rect class="zone" x="380" y="226" width="520" height="88" rx="12"/></g>
+    <g data-in="6.2" data-anim="pop" class="c4"><rect class="box c4" x="396" y="238" width="230" height="64" rx="10"/><text x="511" y="263" text-anchor="middle" class="title">resolution</text><text x="511" y="285" text-anchor="middle" class="small muted">closure · tasks · materialization</text></g>
+    <g data-in="6.5" data-anim="pop" class="c4"><rect class="box c4" x="654" y="238" width="230" height="64" rx="10"/><text x="769" y="263" text-anchor="middle" class="title">resolution/framework</text><text x="769" y="285" text-anchor="middle" class="small muted">demand · bindings · cycle checker</text></g>
+    <g data-in="7" data-anim="draw" data-on="18"><path id="pm-a3" class="wire thick" d="M626,270 L652,270" marker-end="url(#pm-ah)"/></g>
+    <g data-in="7.3" data-anim="draw" data-on="18"><path id="pm-a4" class="wire thick" d="M511,302 L511,360" marker-end="url(#pm-ah)"/></g>
+    <g data-in="7.3" data-anim="draw" data-on="18"><path id="pm-a2" class="wire thick" d="M769,302 L769,360" marker-end="url(#pm-ah)"/></g>
+
+    <!-- execution -->
+    <g data-in="9" data-anim="pop" class="c4">
+      <rect class="box c4" x="600" y="100" width="300" height="78" rx="12"/>
+      <text x="620" y="126" class="title">execution</text>
+      <text x="620" y="146" class="small muted">request entry point</text>
+      <text x="620" y="166" class="mono small">QPlanExecutionStrategy</text>
+    </g>
+    <g data-in="9.6" data-anim="draw" data-on="18"><path id="pm-a5" class="wire thick" d="M640,178 L640,222" marker-end="url(#pm-ah)"/></g>
+    <g data-in="9.6" data-anim="draw" data-on="18"><path id="pm-a6" class="wire thick" d="M604,178 C580,198 302,186 302,204 L302,222" marker-end="url(#pm-ah)"/></g>
+    <g data-in="9.6" data-anim="draw" data-on="18"><path id="pm-a7" class="wire thick" d="M900,139 C938,139 938,170 938,200 L938,370 C938,410 934,419 904,419" marker-end="url(#pm-ah)"/></g>
+
+    <!-- bootstrap -->
+    <g data-in="12" data-anim="pop" class="c1">
+      <rect class="box c1" x="60" y="100" width="270" height="78" rx="12"/>
+      <text x="80" y="126" class="title">bootstrap</text>
+      <text x="80" y="146" class="small muted">builds the registry from tenant inputs</text>
+      <text x="80" y="166" class="mono small">resolverRegistryOf</text>
+    </g>
+    <g data-in="12.6" data-anim="draw" data-on="18"><path id="pm-a8" class="wire thick" d="M195,178 L195,222" marker-end="url(#pm-ah)"/></g>
+    <g data-in="12.6" data-anim="draw" data-on="18"><path id="pm-a9" class="wire thick" d="M330,139 L596,139" marker-end="url(#pm-ah)"/></g>
+    <g data-in="12.6" data-anim="draw" data-on="18"><path id="pm-a10" class="wire thick" d="M310,178 C340,204 446,200 466,235" marker-end="url(#pm-ah)"/></g>
+    <g data-in="12.6" data-anim="draw" data-on="18"><path id="pm-a11" class="wire thick" d="M60,139 C22,139 22,170 22,200 L22,370 C22,410 26,419 56,419" marker-end="url(#pm-ah)"/></g>
+
+    <!-- root -->
+    <g data-in="15" data-anim="pop"><rect class="box" x="390" y="14" width="180" height="48" rx="10"/><text x="480" y="36" text-anchor="middle" class="title">Engine2.kt</text><text x="480" y="53" text-anchor="middle" class="small muted">package root</text></g>
+    <g data-in="15.6" data-anim="draw" data-on="18"><path id="pm-a13" class="wire thick" d="M555,62 C570,80 658,68 658,78 L658,96" marker-end="url(#pm-ah)"/></g>
+  </svg></div>
+  <ol class="beats">
+    <li data-at="0" data-title="Model at the bottom"><p>All paths sit under <code>core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/</code>, and an arrow means &ldquo;imports&rdquo;. At the bottom, <code>model</code> is the vocabulary: selections, OERs, cells and promises. It imports no other Runtime2 package, and its <code>registry</code>, <code>spec</code> and <code>invariants</code> subpackages build only on it. <code>spec</code> holds GraphQL-spec selections before they are flattened into selection forests, and <code>invariants</code> holds checks that model values conform to the schema (<a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/model/spec/SpecSelection.kt" data-lines="9" data-expect="A post-validation selection in a GraphQL-spec selection set">spec</a> · <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/model/invariants/SchemaConformance.kt" data-lines="58" data-expect="Whether this engine result recursively conforms to the schema definitions">invariants</a>).</p></li>
+    <li data-at="3" data-title="schema"><p><code>schema</code> decodes operations into selection forests and, in <code>lowering/</code>, turns the GraphQL schema into Runtime2&rsquo;s own field-resolution schema. It imports only <code>model</code>.</p></li>
+    <li data-at="6" data-title="resolution"><p><code>resolution</code> holds the orchestrator, resolver tasks, closure and materialization, which builds a consumer&rsquo;s input from cells. These parts sit on its <code>framework</code> subpackage, which is shared with the reference resolver families. Outside its own <code>framework</code> subpackage, <code>resolution</code> imports only <code>model</code> and never reaches up into <code>schema</code>, <code>execution</code> or <code>bootstrap</code>.</p></li>
+    <li data-at="9" data-title="execution"><p><code>execution</code> is the entry point for each request. It turns the operation into selections with <code>schema</code>, starts resolution, and hands the result tree to <a class="gl" href="../glossary.html#completion">completion</a>, the step that reads cells to build the GraphQL response, through <code>QPlanWiringFactory</code>, which also lives in <code>execution</code>. So it imports <code>schema</code>, <code>resolution</code> and <code>model</code>.</p></li>
+    <li data-at="12" data-title="bootstrap"><p><code>bootstrap</code> builds the registry from tenant inputs, importing from <code>model</code>, <code>schema</code>, <code>resolution</code> and <code>execution</code>.</p></li>
+    <li data-at="15" data-title="Package root"><p>At the package root, <code>Engine2.kt</code> imports <code>execution</code>. It also imports <code>schema</code> and <code>model</code>, but the map leaves those two arrows out. <code>Engine2</code> gets the registry built from the <code>DispatcherRegistry</code> that today&rsquo;s engine also uses, a map of field resolvers, node resolvers and checkers (<a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/Engine2.kt" data-lines="91-92" data-expect="resolverRegistryFactory.create(||resolverRegistries.forBootstrap()">registry</a>). <code>Engine2</code> builds the world from that registry and hands the world to <code>execution</code> (<a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/Engine2.kt" data-lines="93-97" data-expect="private val world = Assumptions.of(">world</a> · <a class="src" data-src="core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/Engine2.kt" data-lines="129-130" data-expect="QPlanExecutionStrategy(||world = world">strategy</a>).</p></li>
+    <li data-at="18" data-title="One direction"><p>Every arrow points down or sideways, and each sideways import runs one way only: <code>execution</code> never imports <code>bootstrap</code>, and <code>framework</code> never imports the rest of <code>resolution</code>. No package imports one drawn above it, so you can read each layer knowing only the layers below and beside it.</p></li>
+  </ol>
+</figure>
+<p class="where">Where in code: <a class="src" data-src="core/engine/runtime2/README.md" data-lines="19" data-expect="executable semantic model">README.md</a> · <a class="src" data-src="core/engine/runtime2/impldocs/architecture/resolver-families.md" data-lines="27" data-expect="All-family roles belong in `resolution.framework`">resolver-families.md</a></p>
+</section>
+
+<section id="next"><h2>Reading further</h2>
+<div class="explain closing">
+<p>Every step of the booking query now has a type and a few lines behind it, and the package layers tell you which way to read. When another deep dive goes further, the same entry types are where to start.</p>
+</div>
+</section>
+</main>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/kotlin.min.js"></script>
+<script src="../assets/app.js"></script><script src="../assets/motion.js"></script>
+</body></html>
