@@ -2,6 +2,7 @@ package viaduct.engine.runtime2.resolution
 
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
@@ -13,7 +14,12 @@ import viaduct.engine.runtime2.contract.observeGeneratedCase
 import viaduct.engine.runtime2.coverage.CoverageTestId
 import viaduct.engine.runtime2.coverage.ResolverCoverageMeasurement
 import viaduct.engine.runtime2.coverage.ResolverCoverageRecords
+import viaduct.engine.runtime2.coverage.ResolverCoverageRequirement
+import viaduct.engine.runtime2.coverage.ResolverCoverageRequirementKind
 import viaduct.engine.runtime2.coverage.ResolverCoverageRow
+import viaduct.engine.runtime2.coverage.ResolverCoverageScoreRelation
+import viaduct.engine.runtime2.coverage.ResolverCoverageScoringCriteria
+import viaduct.engine.runtime2.coverage.compareSavedSuiteCandidate
 import viaduct.engine.runtime2.coverage.coverageRecords
 import viaduct.engine.runtime2.coverage.measureSavedSuiteCoverage
 import viaduct.engine.runtime2.model.ObjectEngineResult
@@ -55,6 +61,17 @@ class StoredSuiteCoverageExampleTest : CorrectResolutionPostTestPolicy, Resoluti
     }
 
     @Test
+    fun `measuring one batch replays all and only its cases`(): Unit =
+        runTest {
+            val batch = suite.batches.first()
+            val expected = suite.testCaseIds().filter { it.batch == batch.id }.map(::coverageTestId)
+
+            val batchMeasurement = measureSavedSuiteCoverage(suite, selectedBatchId = batch.id)
+
+            assertEquals(expected, batchMeasurement.executions.map { it.test })
+        }
+
+    @Test
     fun `replaying a saved case reproduces its occurrence rows`(): Unit =
         runTest {
             val example = measurement.rows.first()
@@ -74,6 +91,25 @@ class StoredSuiteCoverageExampleTest : CorrectResolutionPostTestPolicy, Resoluti
         val runIds = sameCaseReruns.flatMap { it.executions }.map { it.runId }.distinct()
         assertEquals(2, runIds.size)
     }
+
+    @Test
+    fun `candidate scoring rejects a saved suite missing a required behavior`() =
+        runTest {
+            val required =
+                ResolverCoverageRequirement(
+                    ResolverCoverageRequirementKind.OBLIGATION,
+                    "both_sources_within_one_execution",
+                    1,
+                )
+            val criteria =
+                ResolverCoverageScoringCriteria(setOf(required))
+            val emptySuite = ResolverTestSuite.load(ResolverTestSuiteDefinition.EMPTY_OBJECT_FRAGMENT)
+            val comparison = compareSavedSuiteCandidate(suite, emptySuite, criteria)
+
+            assertFalse(comparison.candidateScore.meetsRequirements)
+            assertEquals(setOf(required), comparison.scoreChange.unmetRequirements)
+            assertEquals(ResolverCoverageScoreRelation.INFEASIBLE, comparison.scoreChange.relation)
+        }
 
     private fun coverageTestId(testCaseId: ResolverTestCaseId): CoverageTestId =
         CoverageTestId.from(

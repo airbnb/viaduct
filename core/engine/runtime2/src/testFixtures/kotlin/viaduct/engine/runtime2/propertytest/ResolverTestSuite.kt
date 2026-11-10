@@ -106,7 +106,7 @@ suspend fun replayResolverTestSuite(
 ): ResolverTestRun =
     when {
         selected == null -> ResolverTestSuite.load(definition).replay(selectiveResolvers = selectiveResolvers, property = property)
-        selected.suite == definition.id -> ResolverTestSuite.load(definition).replay(selected, selectiveResolvers, property)
+        selected.suite == definition.id -> ResolverTestSuite.load(definition).replay(selected = selected, selectiveResolvers = selectiveResolvers, property = property)
         else -> definition.unselectedRun(selected)
     }
 
@@ -182,20 +182,28 @@ class ResolverTestSuite private constructor(
     suspend fun replay(
         selected: ResolverTestCaseId? = null,
         selectiveResolvers: Boolean = true,
+        selectedBatchId: String? = null,
         property: suspend (TestWorld, ResolverTestCase) -> Unit,
     ): ResolverTestRun {
+        require(selected == null || selectedBatchId == null) { "Select either one case or one batch, not both" }
         require(selected == null || selected.suite == definition.id) {
             "Test case $selected is not in resolver test suite ${definition.id}"
         }
         val selectedBatches =
-            if (selected == null) {
-                batches.withIndex().toList()
-            } else {
-                listOf(
-                    requireNotNull(batches.withIndex().singleOrNull { (_, batch) -> batch.id == selected.batch }) {
-                        "Resolver test suite ${definition.id} holds no batch ${selected.batch} for test case $selected; it was removed or never existed"
-                    },
-                )
+            when {
+                selected != null ->
+                    listOf(
+                        requireNotNull(batches.withIndex().singleOrNull { (_, batch) -> batch.id == selected.batch }) {
+                            "Resolver test suite ${definition.id} holds no batch ${selected.batch} for test case $selected; it was removed or never existed"
+                        },
+                    )
+                selectedBatchId != null ->
+                    listOf(
+                        requireNotNull(batches.withIndex().singleOrNull { (_, batch) -> batch.id == selectedBatchId }) {
+                            "Resolver test suite ${definition.id} holds no batch $selectedBatchId; it was removed or never existed"
+                        },
+                    )
+                else -> batches.withIndex().toList()
             }
         var attemptedCases = 0
         for ((offset, stored) in selectedBatches) {

@@ -49,6 +49,7 @@ class ResolverCoverageExtractionTest : CorrectResolutionPostTestPolicy, Resoluti
     private lateinit var rows: List<ResolverCoverageRow>
     private lateinit var dependencies: List<ResolverDependencyRow>
     private lateinit var rowsWithoutInvocationEvidence: List<ResolverCoverageRow>
+    private lateinit var execution: CoverageExecution
 
     override fun resolve(
         operation: SharedOperationContext<*>,
@@ -64,7 +65,7 @@ class ResolverCoverageExtractionTest : CorrectResolutionPostTestPolicy, Resoluti
                 world,
                 "query { items { passive passiveError active consumer child { output dependency } } mixed(seed: 7) mixedAgain(seed: 7) multiDependency bad nullable(input: {values: [1, null]}) { active } nullableConsumer }",
             )
-            val execution = CoverageExecution("fixture", "E1", CoverageTestId("fixture", "schema", "R1", "Q1"))
+            execution = CoverageExecution("fixture", "E1", CoverageTestId("fixture", "schema", "R1", "Q1"))
             val records = observation.coverageRecords(execution)
             rows = records.occurrences
             dependencies = records.dependencies
@@ -186,6 +187,15 @@ class ResolverCoverageExtractionTest : CorrectResolutionPostTestPolicy, Resoluti
     }
 
     @Test
+    fun `ancestor read uses the owning object path for a scalar provider`() {
+        val provider = rowsFor("Item.provider").first()
+        val measurement = ResolverCoverageMeasurement(listOf(execution), rows, dependencies = dependencies)
+
+        assertEquals(OutputKind.SCALAR, provider.outputKind)
+        assertTrue(measurement.descendantReadsAncestor().occurrences > 0)
+    }
+
+    @Test
     fun `object field reads identify the containing object as their source`() {
         assertEquals(setOf(ResolverBindingSource.OBJECT_FIELD), dependenciesFor("Item.consumer").map { it.providerSource }.toSet())
     }
@@ -262,6 +272,13 @@ class ResolverCoverageExtractionTest : CorrectResolutionPostTestPolicy, Resoluti
             val occurrences = observation.coverageRecords(execution).occurrences
 
             assertTrue(occurrences.any { it.fieldCoordinate == "Query.consume" && it.resultPath.contains("queryFragment-") })
+            assertTrue(
+                occurrences.any {
+                    it.fieldCoordinate == "Source.passive" && it.resultPath.contains("queryFragment-") &&
+                        it.resolutionRole == ResolutionRole.SOURCE_SUPPLIED
+                },
+                occurrences.filter { it.fieldCoordinate == "Source.passive" }.toString(),
+            )
         }
 
     @Test
@@ -314,7 +331,7 @@ class ResolverCoverageExtractionTest : CorrectResolutionPostTestPolicy, Resoluti
 
 private fun queryProviderWorld(): TestWorld {
     val fragmentSource =
-        "fragment Input on Query { source { value } consume(value: ${'$'}fromSource) }"
+        "fragment Input on Query { source { value passive } consume(value: ${'$'}fromSource) }"
     return TestWorld.fromSDL(
         schemaSDL =
             """
@@ -323,7 +340,7 @@ private fun queryProviderWorld(): TestWorld {
               source: Source
               consume(value: Int): Int
             }
-            type Source { value: Int }
+            type Source { value: Int passive: Int }
             """.trimIndent(),
         fieldResolvers = { schema ->
             val result = schema.loweredSchema.requireObjectField("Query", "result")
@@ -335,8 +352,13 @@ private fun queryProviderWorld(): TestWorld {
                 ) { _, query, _ -> query.outputValue("consume") },
                 schema.loweredSchema.requireObjectField("Query", "source") to
                     fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
-                        schema.loweredSchema.objectOf("Source") { "value" setTo 7 }
+                        schema.loweredSchema.objectOf("Source") {
+                            "value" setTo 7
+                            "passive" setTo 11
+                        }
                     },
+                schema.loweredSchema.requireObjectField("Source", "passive") to
+                    fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Source")) { _, _ -> 99 },
                 schema.loweredSchema.requireObjectField("Query", "consume") to
                     fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, arguments ->
                         arguments.fieldValues.getValue("value")

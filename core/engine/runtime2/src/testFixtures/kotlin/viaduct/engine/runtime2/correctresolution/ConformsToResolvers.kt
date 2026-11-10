@@ -47,7 +47,11 @@ fun ObjectEngineResult.conformsToResolvers(operation: SharedOperationContext<*>)
  */
 internal fun ObjectEngineResult.sourceSuppliedResolverOccurrences(operation: SharedOperationContext<*>): Set<ResolverOccurrenceId> {
     val cache = operation.resolverApplicationCache(this)
-    val evidence = resolverConformanceEvidenceFor(operation, cache)
+    val evidence = resolverConformanceEvidenceFor(
+        operation,
+        cache,
+        requireCompleteRootFieldReferenceWitness = false,
+    )
     check(evidence.conforms) {
         "Coverage source provenance requires a result that passes correctness validation."
     }

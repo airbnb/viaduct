@@ -63,6 +63,8 @@ Testing:
 
 - [Testing guide](impldocs/testing/guide.md) gives the practical testing, replay, debugging, and investigation workflow.
 - [Testing strategy](impldocs/testing/strategy.md) explains how contract tests, correctness oracles, generated profiles, exact witnesses, and checker profiles provide independent evidence.
+- [RFC-271 saved-suite guide](impldocs/testing/rfc-271-saved-suite-coverage.md) explains how to record the saved suites and use future results to choose test changes.
+- [RFC-271 batch line coverage](impldocs/testing/rfc-271-saved-suite-coverage.md#compare-source-lines-across-batches) describes the local workflow for measuring Runtime2 source-line overlap by saved-suite batch.
 - [Resolution testing](impldocs/testing/resolution.md) documents tests specific to production Resolution.
 - [Property tests](impldocs/testing/property-tests.md) describes generated worlds, campaigns, replay, and shrinking.
 - [Resolver DSL](impldocs/testing/resolver-dsl.md) defines the deterministic schema-embedded resolver-world DSL.

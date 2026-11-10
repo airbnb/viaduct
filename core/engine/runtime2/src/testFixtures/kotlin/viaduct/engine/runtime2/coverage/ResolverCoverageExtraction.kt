@@ -59,6 +59,19 @@ private class ResolverCoverageExtractor(
         val supplied =
             roots.filter(CoverageRoot::hasValidatedSourceProvenance)
                 .flatMapTo(mutableSetOf()) { it.result.sourceSuppliedResolverOccurrences(operation) }
+        // Query-fragment roots are partial inputs checked in their owner resolver's context, so
+        // they cannot be checked as complete standalone results. A registered field that was
+        // activated there, had valid arguments, and has no recorded invocation was supplied by
+        // the source object in that validated fragment.
+        val appliedOccurrences = observation.appliedResolverOccurrences
+        if (appliedOccurrences != null) {
+            fields.filter { field ->
+                CoverageRootKind.QUERY_FRAGMENT in field.root.kinds &&
+                    field.key.field in operation.world.resolverRegistry &&
+                    field.key.groundedArguments(operation) != Arguments.Error &&
+                    ResolverOccurrenceId.at(field.root.result, field.path) !in appliedOccurrences
+            }.mapTo(supplied) { field -> ResolverOccurrenceId.at(field.root.result, field.path) }
+        }
         val occurrences = fields.map { field -> occurrenceRow(field, supplied, paths) }
         val dependencies = dependencyRows(rootsByResult, paths)
         return ResolverCoverageRecords(occurrences, dependencies)
@@ -282,12 +295,14 @@ private class ResolverCoverageExtractor(
                     provider = ResolverDependencyOccurrence(
                         occurrenceId = paths.id(ResolverOccurrenceId.at(providerRoot.result, provider.path)),
                         fieldCoordinate = "${provider.field.containingDef.name}.${provider.field.name}",
+                        occurrenceCoordinate = paths.path(providerRoot, provider.path),
                     ),
                     providerSource = read.providerFragment.bindingSource(),
                     providerOutcome = read.outcome,
                     consumer = ResolverDependencyOccurrence(
                         occurrenceId = paths.id(ResolverOccurrenceId.at(consumerRoot.result, consumer.path)),
                         fieldCoordinate = "${consumer.field.containingDef.name}.${consumer.field.name}",
+                        occurrenceCoordinate = paths.path(consumerRoot, consumer.path),
                     ),
                     variableName = read.variableName,
                 )
@@ -300,20 +315,45 @@ private class CoveragePathEncoder(
     occurrences: List<CoverageField>,
 ) {
     private val ids = linkedMapOf<ResolverOccurrenceId, String>()
+    private val coordinates = linkedMapOf<ResolverOccurrenceId, String>()
+    private val occurrencesById = occurrences.associateBy { ResolverOccurrenceId.at(it.root.result, it.path) }
+    private val coordinatesInProgress = mutableSetOf<ResolverOccurrenceId>()
 
     init {
-        occurrences.forEach { id(ResolverOccurrenceId.at(it.root.result, it.path)) }
+        occurrencesById.keys.forEach(::id)
+        occurrencesById.keys.forEach(::coordinateFor)
     }
 
     fun id(occurrence: ResolverOccurrenceId): String = ids.getOrPut(occurrence) { "occurrence-${ids.size + 1}" }
 
+    private fun coordinateFor(occurrence: ResolverOccurrenceId): String? {
+        coordinates[occurrence]?.let { return it }
+        val field = occurrencesById[occurrence] ?: return null
+        if (!coordinatesInProgress.add(occurrence)) return null
+        return try {
+            coordinate(field.root, field.path).also { coordinates[occurrence] = it }
+        } finally {
+            coordinatesInProgress.remove(occurrence)
+        }
+    }
+
     fun path(
         root: CoverageRoot,
+        path: List<PathComponent>,
+    ): String = encodePath(root.label, path)
+
+    fun coordinate(
+        root: CoverageRoot,
+        path: List<PathComponent>,
+    ): String = encodePath(root.stableLabel, path)
+
+    private fun encodePath(
+        rootLabel: String,
         path: List<PathComponent>,
     ): String =
         PropertyTestJson.write(
             mapOf(
-                "root" to root.label,
+                "root" to rootLabel,
                 "path" to path.map { component ->
                     when (component) {
                         is ListEngineResult.Index -> mapOf("index" to component.index)
@@ -333,7 +373,7 @@ private class CoveragePathEncoder(
             is Arguments.Variable -> mapOf(
                 "variable" to value.variableName,
                 "target" to value.target.render(),
-                "owner" to id(requireNotNull(value.instanceId).resolverOccurrenceId),
+                "owner" to value.instanceId?.resolverOccurrenceId?.let(::coordinateFor),
             )
             is Map<*, *> -> value.entries.associate { it.key.toString() to expression(it.value) }
             is List<*> -> value.map(::expression)
@@ -378,6 +418,7 @@ private class CoverageRoot(
     }
 
     val kinds: Set<CoverageRootKind> get() = roles.keys
+    val stableLabel: String get() = kinds.sortedBy(CoverageRootKind::priority).joinToString("+") { it.prefix }
     val stableSortPriority: Int get() = roles.keys.minOf(CoverageRootKind::priority)
     val stableSignature: String get() = sortSegments.joinToString("\u0000")
     val stableSortKey: String
@@ -391,7 +432,9 @@ private class CoverageRoot(
                 if (kind == CoverageRootKind.OPERATION_RESULT) kind.prefix else "${kind.prefix}-${requireNotNull(indices[kind])}"
             }
 
-    fun hasValidatedSourceProvenance(): Boolean = CoverageRootKind.OPERATION_RESULT in roles || CoverageRootKind.QUERY_FRAGMENT in roles
+    fun hasValidatedSourceProvenance(): Boolean {
+        return CoverageRootKind.OPERATION_RESULT in roles
+    }
 }
 
 private data class CoverageField(
