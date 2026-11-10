@@ -41,7 +41,11 @@ public class Money extends ObjectBase implements SearchHit {
     }
 
     public Money(InternalContext context, EngineObjectData.Sync data) {
-        super(context, data);
+        this(context, data, false);
+    }
+
+    public Money(InternalContext context, EngineObjectData.Sync data, boolean isRequiredSelectionInput) {
+        super(context, data, isRequiredSelectionInput);
     }
 
     @SuppressWarnings("UnusedMethod")

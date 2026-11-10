@@ -23,8 +23,11 @@ import viaduct.engine.api.EngineObject
  */
 class ObjectV2(
     context: InternalContext,
-    engineObject: EngineObject
-) : ObjectBase(context, engineObject), Object {
+    engineObject: EngineObject,
+    isRequiredSelectionInput: Boolean,
+) : ObjectBase(context, engineObject, isRequiredSelectionInput), Object {
+    constructor(context: InternalContext, engineObject: EngineObject) : this(context, engineObject, false)
+
     final suspend fun getStringFieldOrThrow(alias: String?): String {
         return getStrictInternal("stringField", String::class, alias)
     }
@@ -68,7 +71,8 @@ class ObjectV2(
         ObjectBase.Builder<ObjectV2>(
             context.internal,
             context.internal.schema.schema.getObjectType("ObjectV2"),
-            null
+            null,
+            false
         ) {
         fun stringField(stringField: String): Builder {
             putInternal("stringField", stringField)
@@ -109,8 +113,11 @@ class ObjectV2(
 
 class MissingBuilderObjectV2(
     context: InternalContext,
-    engineObject: EngineObject
-) : ObjectBase(context, engineObject), Object {
+    engineObject: EngineObject,
+    isRequiredSelectionInput: Boolean,
+) : ObjectBase(context, engineObject, isRequiredSelectionInput), Object {
+    constructor(context: InternalContext, engineObject: EngineObject) : this(context, engineObject, false)
+
     final suspend fun getStringFieldOrThrow(alias: String?): String {
         return getStrictInternal("stringField", String::class, alias)
     }
@@ -122,13 +129,17 @@ class MissingBuilderObjectV2(
 
 class MissingGetterObjectV2(
     context: InternalContext,
-    engineObject: EngineObject
-) : ObjectBase(context, engineObject), Object {
+    engineObject: EngineObject,
+    isRequiredSelectionInput: Boolean,
+) : ObjectBase(context, engineObject, isRequiredSelectionInput), Object {
+    constructor(context: InternalContext, engineObject: EngineObject) : this(context, engineObject, false)
+
     class Builder(context: ExecutionContext) :
         ObjectBase.Builder<MissingGetterObjectV2>(
             context.internal,
             context.internal.schema.schema.getObjectType("MissingGetterObjectV2"),
-            null
+            null,
+            false
         ) {
         fun stringField(stringField: String): Builder {
             put("stringField", stringField)
@@ -141,8 +152,11 @@ class MissingGetterObjectV2(
 
 class MissingDefaultGetterObjectV2(
     context: InternalContext,
-    engineObject: EngineObject
-) : ObjectBase(context, engineObject), Object {
+    engineObject: EngineObject,
+    isRequiredSelectionInput: Boolean,
+) : ObjectBase(context, engineObject, isRequiredSelectionInput), Object {
+    constructor(context: InternalContext, engineObject: EngineObject) : this(context, engineObject, false)
+
     final suspend fun getStringFieldOrThrow(alias: String?): String {
         return getStrictInternal("stringField", String::class, alias)
     }
@@ -151,7 +165,8 @@ class MissingDefaultGetterObjectV2(
         ObjectBase.Builder<MissingDefaultGetterObjectV2>(
             context.internal,
             context.internal.schema.schema.getObjectType("MissingDefaultGetterObjectV2"),
-            null
+            null,
+            false
         ) {
         fun stringField(stringField: String): Builder {
             put("stringField", stringField)
@@ -164,8 +179,11 @@ class MissingDefaultGetterObjectV2(
 
 class MissingNonDefaultGetterObjectV2(
     context: InternalContext,
-    engineObject: EngineObject
-) : ObjectBase(context, engineObject), Object {
+    engineObject: EngineObject,
+    isRequiredSelectionInput: Boolean,
+) : ObjectBase(context, engineObject, isRequiredSelectionInput), Object {
+    constructor(context: InternalContext, engineObject: EngineObject) : this(context, engineObject, false)
+
     final suspend fun getStringFieldOrThrow(): String {
         return getStringFieldOrThrow()
     }
@@ -174,7 +192,8 @@ class MissingNonDefaultGetterObjectV2(
         ObjectBase.Builder<MissingNonDefaultGetterObjectV2>(
             context.internal,
             context.internal.schema.schema.getObjectType("MissingNonDefaultGetterObjectV2"),
-            null
+            null,
+            false
         ) {
         fun stringField(stringField: String): Builder {
             put("stringField", stringField)
@@ -187,8 +206,11 @@ class MissingNonDefaultGetterObjectV2(
 
 class MissingSetterObjectV2(
     context: InternalContext,
-    engineObject: EngineObject
-) : ObjectBase(context, engineObject), Object {
+    engineObject: EngineObject,
+    isRequiredSelectionInput: Boolean,
+) : ObjectBase(context, engineObject, isRequiredSelectionInput), Object {
+    constructor(context: InternalContext, engineObject: EngineObject) : this(context, engineObject, false)
+
     final suspend fun getStringFieldOrThrow(alias: String? = null): String {
         return getStrictInternal("stringField", String::class, alias)
     }
@@ -201,7 +223,8 @@ class MissingSetterObjectV2(
         ObjectBase.Builder<MissingSetterObjectV2>(
             context.internal,
             context.internal.schema.schema.getObjectType("MissingSetterObjectV2"),
-            null
+            null,
+            false
         ) {
         override fun build() = MissingSetterObjectV2(__context, buildEngineObjectData())
     }
@@ -496,8 +519,11 @@ enum class ExerciserTestEnum : Enum {
 
 class TestArgObject(
     context: InternalContext,
-    engineObject: EngineObject
-) : ObjectBase(context, engineObject), Object {
+    engineObject: EngineObject,
+    isRequiredSelectionInput: Boolean,
+) : ObjectBase(context, engineObject, isRequiredSelectionInput), Object {
+    constructor(context: InternalContext, engineObject: EngineObject) : this(context, engineObject, false)
+
     final suspend fun getTestOrThrow(alias: String? = null): String {
         return getStrictInternal("test", String::class, alias)
     }
@@ -510,7 +536,8 @@ class TestArgObject(
         ObjectBase.Builder<TestArgObject>(
             context.internal,
             context.internal.schema.schema.getObjectType("TestArgObject"),
-            null
+            null,
+            false
         ) {
         fun test(test: String): Builder {
             put("test", test)
@@ -566,8 +593,11 @@ class TestArgObject_Test_Arguments internal constructor(
 @Suppress("ClassName")
 class Under_Score_Object(
     context: InternalContext,
-    engineObject: EngineObject
-) : ObjectBase(context, engineObject), Object {
+    engineObject: EngineObject,
+    isRequiredSelectionInput: Boolean,
+) : ObjectBase(context, engineObject, isRequiredSelectionInput), Object {
+    constructor(context: InternalContext, engineObject: EngineObject) : this(context, engineObject, false)
+
     final suspend fun getSomeFieldOrThrow(alias: String? = null): String {
         return getStrictInternal("someField", String::class, alias)
     }
@@ -576,7 +606,8 @@ class Under_Score_Object(
         ObjectBase.Builder<Under_Score_Object>(
             context.internal,
             context.internal.schema.schema.getObjectType("Under_Score_Object"),
-            null
+            null,
+            false
         ) {
         fun someField(someField: String): Builder {
             put("someField", someField)

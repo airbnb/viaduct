@@ -71,7 +71,7 @@ class ViaductObjectBuilder<T : GRT> private constructor(
         }
 
     @Attribution(AttributionContext.FRAMEWORK)
-    private fun buildInFrameworkCode(): T = grtClazz.constructors.first().call(context, underlyingWrapper.getEngineObjectData())
+    private fun buildInFrameworkCode(): T = constructObjectGRT(context, grtClazz, underlyingWrapper.getEngineObjectData(), isRequiredSelectionInput = false)
 
     companion object {
         @Suppress("unused")

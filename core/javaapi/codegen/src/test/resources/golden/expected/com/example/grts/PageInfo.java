@@ -46,7 +46,11 @@ public class PageInfo extends ObjectBase {
     }
 
     public PageInfo(InternalContext context, EngineObjectData.Sync data) {
-        super(context, data);
+        this(context, data, false);
+    }
+
+    public PageInfo(InternalContext context, EngineObjectData.Sync data, boolean isRequiredSelectionInput) {
+        super(context, data, isRequiredSelectionInput);
     }
 
     @SuppressWarnings("UnusedMethod")

@@ -16,6 +16,7 @@ import viaduct.api.mocks.executionContext
 import viaduct.api.mocks.testGlobalId
 import viaduct.api.testschema.ApiTestSchema
 import viaduct.api.testschema.E1
+import viaduct.api.testschema.HasAbstractField
 import viaduct.api.testschema.I1
 import viaduct.api.testschema.O1
 import viaduct.api.testschema.O2
@@ -34,6 +35,66 @@ class ObjectBaseTest {
     private val gqlSchema = ApiTestSchema.schema
     private val internalContext = MockInternalContext.create(gqlSchema, "viaduct.api.testschema")
     private val executionContext = internalContext.executionContext
+
+    @Test
+    fun `required selection origin follows composite descendants without changing shared data`() {
+        val childData = EngineObjectDataBuilder.from(gqlSchema.schema.getObjectType("O2")).put("intField", 42).build()
+        val interfaceData = EngineObjectDataBuilder.from(gqlSchema.schema.getObjectType("I1")).put("commonField", "value").build()
+        val data = EngineObjectDataBuilder.from(gqlSchema.schema.getObjectType("O1"))
+            .put("objectField", childData)
+            .put("listField", listOf(null, listOf(childData)))
+            .put("interfaceField", interfaceData)
+            .build()
+        val input = O1(internalContext, data, isRequiredSelectionInput = true)
+        val output = O1(internalContext, data)
+
+        val inputChild = input.getObjectFieldOrThrow()!!
+        assertThrows<TenantUsageException> { inputChild.checkOutputValue() }
+        assertThrows<TenantUsageException> { input.getListFieldOrThrow()!![1]!![0]!!.checkOutputValue() }
+        assertThrows<TenantUsageException> { (input.getInterfaceFieldOrThrow() as ObjectBase).checkOutputValue() }
+        output.getObjectFieldOrThrow()!!.checkOutputValue()
+        output.checkOutputValue()
+        assertEquals(42, inputChild.getIntFieldOrThrow())
+    }
+
+    @Test
+    fun `required selection origin follows union values`() {
+        val concrete = EngineObjectDataBuilder.from(gqlSchema.schema.getObjectType("Concrete")).put("x", 1).build()
+        val data = EngineObjectDataBuilder.from(gqlSchema.schema.getObjectType("HasAbstractField")).put("u2", concrete).build()
+        val input = HasAbstractField(internalContext, data, isRequiredSelectionInput = true)
+
+        assertThrows<TenantUsageException> { (input.getU2OrThrow() as ObjectBase).checkOutputValue() }
+    }
+
+    @Test
+    fun `typed and dynamic builders reject required selection objects and list items`() {
+        val data = EngineObjectDataBuilder.from(gqlSchema.schema.getObjectType("O2")).put("intField", 42).build()
+        val input = O2(internalContext, data, isRequiredSelectionInput = true)
+        val expectedMessage = "Cannot use required-selection GRT 'O2' as output. " +
+            "Build a new GRT or use ctx.query() with the output selections."
+
+        val direct = assertThrows<TenantUsageException> { O1.Builder(executionContext).objectField(input) }
+        assertEquals(expectedMessage, direct.message)
+        val list = assertThrows<TenantUsageException> { O1.Builder(executionContext).listField(listOf(null, listOf(input))) }
+        assertEquals(expectedMessage, list.message)
+        assertThrows<TenantUsageException> { O1.Builder(executionContext).put("objectField", input) }
+        assertThrows<TenantUsageException> { ViaductObjectBuilder.dynamicBuilderFor(internalContext, O1::class).put("objectField", input) }
+
+        val output = O1.Builder(executionContext).objectField(O2(internalContext, data)).build()
+        assertEquals(42, output.getObjectFieldOrThrow()!!.getIntFieldOrThrow())
+    }
+
+    @Test
+    fun `toBuilder preserves input origin while fresh scalar copies are outputs`() {
+        val data = EngineObjectDataBuilder.from(gqlSchema.schema.getObjectType("O2")).put("intField", 42).build()
+        val input = O2(internalContext, data, isRequiredSelectionInput = true)
+        val copy = input.toBuilder().intField(43).build().toBuilder().build()
+
+        assertThrows<TenantUsageException> { copy.checkOutputValue() }
+        val output = O2.Builder(executionContext).intField(input.getIntFieldOrThrow()).build().toBuilder().build()
+        output.checkOutputValue()
+        assertEquals(42, output.getIntFieldOrThrow())
+    }
 
     // Use viaduct.api.testschema.E1 for the actual E1 value. This is for a regression test and represents a different version (classic)
     // of the GRT for the same GraphQL enum type.
@@ -667,7 +728,7 @@ class ObjectBaseTest {
             assertEquals("foo", e13.cause!!.message)
         }
 
-    inner class BuggyBuilder : ObjectBase.Builder<O2>(internalContext, gqlSchema.schema.getObjectType("O2"), null) {
+    inner class BuggyBuilder : ObjectBase.Builder<O2>(internalContext, gqlSchema.schema.getObjectType("O2"), null, false) {
         fun intField(v: Any?): BuggyBuilder {
             putInternal("intField", v)
             return this
@@ -681,7 +742,7 @@ class ObjectBaseTest {
         override fun build() = O2(__context, buildEngineObjectData())
     }
 
-    inner class BuggyO1Builder : ObjectBase.Builder<O1>(internalContext, gqlSchema.schema.getObjectType("O1"), null) {
+    inner class BuggyO1Builder : ObjectBase.Builder<O1>(internalContext, gqlSchema.schema.getObjectType("O1"), null, false) {
         fun listField(v: Any?): BuggyO1Builder {
             putInternal("listField", v)
             return this
@@ -714,7 +775,7 @@ class ObjectBaseTest {
             context: InternalContext,
             type: GraphQLObjectType,
             baseEngineObjectData: EngineObjectData.Sync? = null
-        ) : ObjectBase.Builder<TestObject>(context, type, baseEngineObjectData) {
+        ) : ObjectBase.Builder<TestObject>(context, type, baseEngineObjectData, false) {
             constructor(context: viaduct.api.context.ExecutionContext) : this(
                 context.internal,
                 context.internal.schema.schema.getObjectType("O2"), // Use existing O2 type

@@ -21,6 +21,13 @@ public abstract class NodeObjectBase extends ObjectBase implements NodeObject {
     super(__context, data);
   }
 
+  protected NodeObjectBase(
+      @Nullable InternalContext __context,
+      EngineObjectData.Sync data,
+      boolean isRequiredSelectionInput) {
+    super(__context, data, isRequiredSelectionInput);
+  }
+
   protected NodeObjectBase(@Nullable InternalContext __context, Map<String, Object> data) {
     super(__context, data);
   }

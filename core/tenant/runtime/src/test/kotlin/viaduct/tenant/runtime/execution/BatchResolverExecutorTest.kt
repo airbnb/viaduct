@@ -22,6 +22,7 @@ import viaduct.api.context.BaseFieldExecutionContext
 import viaduct.api.context.NodeExecutionContext
 import viaduct.api.internal.BaseBatchedFieldResolver
 import viaduct.api.internal.BaseBatchedNodeResolver
+import viaduct.api.internal.InternalContext
 import viaduct.api.internal.ObjectBase
 import viaduct.api.types.NodeObject
 import viaduct.engine.api.EngineExecutionContext
@@ -42,7 +43,17 @@ import viaduct.tenant.runtime.context.factory.NodeExecutionContextFactory
 
 @Suppress("UNUSED_PARAMETER")
 class BatchResolverExecutorTest {
-    class TestNodeGRT(data: EngineObject) : ObjectBase(mockk(relaxed = true), data), NodeObject
+    class TestNodeGRT(data: EngineObject, context: InternalContext = mockk(relaxed = true), isRequiredSelectionInput: Boolean = false) :
+        ObjectBase(context, data, isRequiredSelectionInput), NodeObject
+
+    @Test
+    fun `node result conversion rejects required selection GRTs`() {
+        val data = mockk<EngineObjectData.Sync>(relaxed = true)
+        val input = TestNodeGRT(data, isRequiredSelectionInput = true)
+
+        assertThrows<TenantUsageException> { NodeUnbatchedResolverExecutorImpl.unwrapNodeResolverResult(input) }
+        assertSame(data, NodeUnbatchedResolverExecutorImpl.unwrapNodeResolverResult(TestNodeGRT(data)))
+    }
 
     class NonListFieldBatchResolver : BaseBatchedFieldResolver {
         override suspend fun invokeFieldBatchResolver(contexts: List<BaseFieldExecutionContext<*, *, *>>): Any = "not a list"

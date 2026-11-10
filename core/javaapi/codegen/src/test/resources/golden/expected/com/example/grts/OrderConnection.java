@@ -44,7 +44,11 @@ public class OrderConnection extends ObjectBase implements viaduct.java.api.type
     }
 
     public OrderConnection(InternalContext context, EngineObjectData.Sync data) {
-        super(context, data);
+        this(context, data, false);
+    }
+
+    public OrderConnection(InternalContext context, EngineObjectData.Sync data, boolean isRequiredSelectionInput) {
+        super(context, data, isRequiredSelectionInput);
     }
 
     @SuppressWarnings("UnusedMethod")

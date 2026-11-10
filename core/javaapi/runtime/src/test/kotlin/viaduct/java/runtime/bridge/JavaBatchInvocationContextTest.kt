@@ -56,12 +56,13 @@ class JavaBatchInvocationContextTest {
     private val batches = mutableListOf<Pair<ResolverMetadata, Int>>()
 
     class TestNode : ObjectBase, NodeObject {
-        constructor(context: InternalContext?, data: EngineObjectData.Sync) : super(context, data)
+        constructor(context: InternalContext?, data: EngineObjectData.Sync, isRequiredSelectionInput: Boolean = false) : super(context, data, isRequiredSelectionInput)
         constructor(context: InternalContext?, ref: NodeReference) : super(context, ref)
         constructor(context: InternalContext?, ref: RootFieldReference) : super(context, ref)
     }
 
-    class QueryResult(context: InternalContext?, data: EngineObjectData.Sync) : ObjectBase(context, data), Query {
+    class QueryResult(context: InternalContext?, data: EngineObjectData.Sync, isRequiredSelectionInput: Boolean = false) :
+        ObjectBase(context, data, isRequiredSelectionInput), Query {
         fun context(): InternalContext = __context()!!
     }
 

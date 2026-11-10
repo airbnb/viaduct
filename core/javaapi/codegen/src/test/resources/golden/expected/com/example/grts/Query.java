@@ -172,7 +172,11 @@ public class Query extends ObjectBase implements viaduct.java.api.types.Query {
 
 
     public Query(InternalContext context, EngineObjectData.Sync data) {
-        super(context, data);
+        this(context, data, false);
+    }
+
+    public Query(InternalContext context, EngineObjectData.Sync data, boolean isRequiredSelectionInput) {
+        super(context, data, isRequiredSelectionInput);
     }
 
     @SuppressWarnings("UnusedMethod")

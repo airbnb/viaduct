@@ -85,9 +85,29 @@ The signature of the GRT for this type would look approximately like this (metho
 
 The values from a fragment on `User` (for example) are accessed through the GRT for `User`.  As a result, the Viaduct GRTs for object types distinguish fields that are "not set," because they haven’t been requested for in the fragment, from fields that are in the fragment and thus are "set."  Accessing a field that has not been set raises a tenant usage error even if the field is nullable. Kotlin throws `UnsetFieldException`. Java normally throws the same exception, but can fall back to its parent `TenantUsageException` when GraphQL type metadata is unavailable; see the [Java accessor implementation](https://github.com/airbnb/viaduct/blob/main/core/javaapi/api/src/main/java/viaduct/java/api/internal/ObjectBase.java).  Also, when you build an object-type value, you do *not* have to set all fields, even if those fields are non-nullable.
 
+### Required-selection GRTs are resolver inputs
+
+The same generated object class can represent a resolver's required-selection input or an output. For example, a `User` read from `ctx.getObjectValue()` and a `User` created with a fresh builder have the same class, but different origins. Viaduct tracks that origin on each instance.
+
+Composite GRTs obtained from `getObjectValue()` or `getQueryValue()` expose the resolver's required selection set (RSS). **Viaduct rejects these GRTs anywhere in a resolver output with `TenantUsageException`, even when the RSS covers the current output selections.** The restriction follows composite descendants, including objects reached through lists, interfaces, and unions, and it survives `toBuilder()` copies.
+
+| Source of a composite GRT | Use as a resolver output |
+| --- | --- |
+| Required selections, including descendants and `toBuilder()` copies | Rejected, including inside another output GRT or a list. |
+| Fresh output builder | Allowed; populate the fields your resolver is responsible for and use eligible outputs for composite children. |
+| `ctx.query()` results, including descendants and `toBuilder()` copies | Allowed when the subquery selects the fields your resolver is responsible for returning. |
+
+Kotlin and Java output-builder setters reject required-selection inputs immediately. Direct resolver returns are also validated when converted for the engine. You can copy scalars, enums, and IDs from an RSS input into a fresh output builder.
+
+Output eligibility does not mean every field is set. Fresh builders and `ctx.query()` results can still contain unset fields, and aliased fields must be accessed using their selected response names. See [incomplete selection sets](../resolvers/field_resolvers.md#do-not-return-a-grt-with-an-incomplete-selection-set) and [alias access](../resolvers/field_resolvers.md#access-aliased-fields-using-their-response-names) for examples.
+
+"Required-selection input" refers to the origin of a composite object GRT. GraphQL input-object types used for arguments have a separate representation and are not covered by this output rule. See [Field Resolvers](../resolvers/field_resolvers.md#do-not-return-required-selection-grts) for examples and alternatives.
+
 ### Set or override fields with `toBuilder()`
 
-Object and input GRTs have a `toBuilder()` function that creates a builder containing their existing fields. Use it to set additional fields or override values, then call `build()` to create a new GRT. The original GRT is unchanged.
+Object GRTs and GraphQL input-object GRTs have a `toBuilder()` function that creates a builder containing their existing fields. Use it to set additional fields or override values, then call `build()` to create a new GRT. The original GRT is unchanged.
+
+For object GRTs, copying preserves the input/output origin described above. A required-selection input remains an input after `toBuilder().build()`, even if you set additional fields. To produce an output from RSS data, use a fresh builder and explicitly populate it with scalar values or eligible composite outputs.
 
 For example:
 
@@ -108,7 +128,7 @@ For example:
     ```
 
 
-An unresolved node or root-field reference returned by `ctx.ref(...)` cannot be copied: `ctx.ref(...).toBuilder()` throws because the reference does not contain resolved object data. Fetch the fields you need through required selections or `ctx.query()` before calling `toBuilder()` on the result.
+An unresolved node or root-field reference returned by `ctx.ref(...)` cannot be copied: `ctx.ref(...).toBuilder()` throws because the reference does not contain resolved object data. Fetch the fields you need through required selections or `ctx.query()` before calling `toBuilder()` on the result. A copy of a required-selection value remains ineligible for output; a copy of an explicit subquery result remains eligible when its selections are sufficient.
 
 ### Strict and soft-failing accessors
 

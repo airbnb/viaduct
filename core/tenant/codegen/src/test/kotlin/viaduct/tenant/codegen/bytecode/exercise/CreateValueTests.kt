@@ -22,8 +22,9 @@ import viaduct.tenant.codegen.bytecode.config.codegenIncludedFields
 
 class ObjectA(
     context: InternalContext,
-    engineObjectData: EngineObjectData
-) : ObjectBase(context, engineObjectData) {
+    engineObjectData: EngineObjectData,
+    isRequiredSelectionInput: Boolean = false,
+) : ObjectBase(context, engineObjectData, isRequiredSelectionInput) {
     final suspend fun a(): Int {
         return getStrictInternal("a", Int::class, "a")
     }
@@ -31,8 +32,9 @@ class ObjectA(
 
 class ObjectB(
     context: InternalContext,
-    engineObjectData: EngineObjectData
-) : ObjectBase(context, engineObjectData) {
+    engineObjectData: EngineObjectData,
+    isRequiredSelectionInput: Boolean = false,
+) : ObjectBase(context, engineObjectData, isRequiredSelectionInput) {
     final suspend fun b(): ObjectA {
         return getStrictInternal("b", ObjectA::class, "b")
     }
@@ -40,8 +42,9 @@ class ObjectB(
 
 class ObjectC(
     context: InternalContext,
-    engineObjectData: EngineObjectData
-) : ObjectBase(context, engineObjectData) {
+    engineObjectData: EngineObjectData,
+    isRequiredSelectionInput: Boolean = false,
+) : ObjectBase(context, engineObjectData, isRequiredSelectionInput) {
     final suspend fun c(): List<List<ObjectA?>?> {
         return getStrictInternal("c", ObjectA::class, "c")
     }

@@ -255,20 +255,52 @@ A GRT is a partial representation, not a complete snapshot of its GraphQL type. 
 - A GRT returned by `ctx.query()` contains the fields in the subquery's selection set.
 - A GRT created with a builder contains the fields explicitly set on the builder.
 
-These cases are equivalent. In each case, fields outside that selection set are unset, even when they are nullable. Accessing an unset field raises `UnsetFieldException`.
+In each case, fields outside that selection set are unset, even when they are nullable. Accessing an unset field raises `UnsetFieldException`.
 
-Aliases are part of the selection as well. If an RSS selects `listingTitle: title`, the GRT contains `title` under the `listingTitle` response name. `getTitle(alias = "listingTitle")` in Kotlin or `getTitle("listingTitle")` in Java works, but `getTitle()` is still unset. Returning that GRT directly does not satisfy an unaliased `title` selection in the resolver's output.
-
-**In practice, avoid directly returning a GRT from `getObjectValue()`, `getQueryValue()`, or `ctx.query()`.** Its selection set may not include every field the resolver is responsible for returning, which can fail at runtime or produce an incomplete response.
-
-Before returning a GRT, make sure the selection set that created it covers every field the resolver is responsible for returning. For a non-node object output, construct a new GRT with a builder and set the required fields explicitly when the source selection set is insufficient. If the object should be delegated to another resolver, use [`ref`](node_references.md) for node types or a [root field reference](root_field_references.md) for root and namespace object fields instead.
-
-For example, suppose `FeaturedListing` returns a `Listing` and the client requests `id`, `title`, and `coverPhoto`. The following resolver is unsafe because its RSS does not include `coverPhoto`:
+For example, a fresh builder can create a partial `Listing` with `title` set and `coverPhoto` unset:
 
 === "Kotlin"
 
     ```kotlin
-    // Bad: returns a partial GRT directly.
+    val listing = Listing.Builder(ctx).title("Seaside cottage").build()
+    listing.getTitleOrThrow() // Returns "Seaside cottage".
+    listing.getCoverPhotoOrThrow() // Throws UnsetFieldException.
+    ```
+
+=== "Java"
+
+    ```java
+    var listing = Listing.builder(ctx).title("Seaside cottage").build();
+    listing.getTitleOrThrow(); // Returns "Seaside cottage".
+    listing.getCoverPhotoOrThrow(); // Throws UnsetFieldException.
+    ```
+
+An unset field differs from a field explicitly set to `null`. Nullable fields still need to be selected or set before they can be accessed; the soft accessor, such as `getCoverPhoto()`, also throws for an unset field.
+
+Aliases are part of the selection as well. If a fragment selects `listingTitle: title`, the GRT contains `title` under the `listingTitle` response name. `getTitleOrThrow(alias = "listingTitle")` in Kotlin or `getTitleOrThrow("listingTitle")` in Java works, but the unaliased `getTitleOrThrow()` is still unset.
+
+Before returning a GRT built with a builder or obtained from `ctx.query()`, make sure it supplies every field the resolver is responsible for returning. For example, a subquery selecting `listing { id title }` leaves `coverPhoto` unset and cannot supply that field if the resolver's output requires it. The required-selection input check described below does not validate the completeness of these outputs.
+
+### Do not return required-selection GRTs
+
+**Do not return composite GRTs obtained from `getObjectValue()` or `getQueryValue()`.** Viaduct treats these as required-selection inputs and throws `TenantUsageException` if one is returned directly, placed in an output list, or assigned to an output builder. The restriction applies to objects, including concrete objects accessed through interfaces or unions. It is enforced even when the RSS happens to cover the current output selections.
+
+Composite descendants of a required-selection input retain that origin, including values reached through lists. Calling `toBuilder()` and changing fields also preserves the input origin: `input.toBuilder().build()` cannot be returned as an output. Kotlin and Java output builders reject input GRTs when their setters are called; direct resolver returns are checked when the result is converted for the engine.
+
+To produce an output:
+
+- Construct a fresh GRT with a builder. You can copy scalars, enums, and IDs from required selections. Composite children must themselves be eligible outputs; putting an RSS-derived child inside a fresh outer GRT is rejected.
+- Return a GRT from `ctx.query()`, or one of its composite descendants, after selecting every field your resolver is responsible for returning. Explicit subquery results are eligible outputs because you control their selections; Viaduct does not verify that those selections are sufficient.
+- Delegate to another resolver using [`ref`](node_references.md) for node types or a [root field reference](root_field_references.md) for root and namespace object fields.
+
+Here, "required-selection input" describes the origin of an object GRT. GraphQL input-object types used in arguments are a separate concept. See [Generated Code](../generated_code/index.md#required-selection-grts-are-resolver-inputs) for how this distinction applies to generated objects and copies.
+
+For example, suppose `FeaturedListing` returns a `Listing` and the client requests `id`, `title`, and `coverPhoto`. This resolver throws `TenantUsageException` because it returns an RSS-derived GRT. The missing `coverPhoto` illustrates why forwarding such an input is hazardous; adding it to the RSS would still not permit returning the input:
+
+=== "Kotlin"
+
+    ```kotlin
+    // Rejected: returns an RSS-derived GRT.
     @Resolver("fragment _ on Query { listing { id title } }")
     class FeaturedListingResolver : QueryResolvers.FeaturedListing() {
         override suspend fun resolve(ctx: Context): Listing? {
@@ -284,7 +316,7 @@ For example, suppose `FeaturedListing` returns a `Listing` and the client reques
     public final class FeaturedListingResolver extends QueryResolvers.FeaturedListing {
       @Override
       public CompletableFuture<Listing> resolve(Context ctx) {
-        // Unsafe: coverPhoto is not included in this GRT.
+        // Rejected: returns an RSS-derived GRT.
         return CompletableFuture.completedFuture(ctx.getObjectValue().getListingOrThrow());
       }
     }
@@ -321,16 +353,21 @@ If `Listing` is a node, return a node reference instead. The node resolver will 
     ```
 
 
-The same issue can occur if the RSS includes the full output selection set but includes an alias:
+### Access aliased fields using their response names
+
+The alias rule also applies when copying selected scalars into a fresh output. If an RSS selects `num: formattedNumber`, the unaliased `formattedNumber` is unset. The following resolver uses a fresh builder but still throws `UnsetFieldException` when it reads that unaliased field:
 
 === "Kotlin"
 
     ```kotlin
-    // Bad: `formattedNumber` is unset in the response because of the alias
     @Resolver("fragment _ on Listing { phoneNumbers { num: formattedNumber } }")
     class PrimaryPhoneNumberResolver : ListingResolvers.PrimaryPhoneNumber() {
         override suspend fun resolve(ctx: Context): PhoneNumber? {
-            return ctx.getObjectValue().getPhoneNumbersOrThrow().firstOrNull()
+            return ctx.getObjectValue().getPhoneNumbersOrThrow().firstOrNull()?.let {
+                PhoneNumber.Builder(ctx)
+                    .formattedNumber(it.getFormattedNumberOrThrow()) // Throws: selected as "num".
+                    .build()
+            }
         }
     }
     ```
@@ -345,15 +382,19 @@ The same issue can occur if the RSS includes the full output selection set but i
       @Override
       public CompletableFuture<PhoneNumber> resolve(Context ctx) {
         var numbers = ctx.getObjectValue().getPhoneNumbersOrThrow();
-        // Unsafe: formattedNumber is only populated under the alias "num".
-        return CompletableFuture.completedFuture(
-            numbers == null || numbers.isEmpty() ? null : numbers.get(0));
+        if (numbers == null || numbers.isEmpty() || numbers.get(0) == null) {
+          return CompletableFuture.completedFuture(null);
+        }
+        PhoneNumber result = PhoneNumber.builder(ctx)
+            .formattedNumber(numbers.get(0).getFormattedNumberOrThrow()) // Throws: selected as "num".
+            .build();
+        return CompletableFuture.completedFuture(result);
       }
     }
     ```
 
 
-Either omit the alias or recreate the GRT using the builder:
+Pass the alias when reading the selected scalar, then copy it to the output field name with a fresh builder. If the RSS omits the alias instead, use the unaliased getter. In either case, returning the required-selection GRT itself is rejected independently of whether its fields are set:
 
 === "Kotlin"
 

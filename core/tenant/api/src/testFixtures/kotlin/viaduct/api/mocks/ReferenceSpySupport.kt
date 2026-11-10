@@ -48,7 +48,7 @@ private fun <T : Object> opaqueReferenceFor(
         type = internalContext.schema.schema.getObjectType(field.type.name),
         args = args,
     )
-    return reference.toObjectGRT(internalContext, field.type.kcls)
+    return reference.toObjectGRT(internalContext, field.type.kcls, isRequiredSelectionInput = false)
 }
 
 /**

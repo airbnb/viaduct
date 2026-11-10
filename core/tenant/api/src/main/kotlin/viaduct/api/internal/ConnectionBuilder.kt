@@ -49,12 +49,28 @@ import viaduct.errors.handleFrameworkErrors
  */
 @StableApi
 @OptIn(InternalApi::class, ExperimentalApi::class)
-abstract class ConnectionBuilder<C : Connection<E, N>, E : Edge<N>, N>(
-    protected val executionContext: ExecutionContext,
-    graphQLObjectType: GraphQLObjectType,
-    baseEngineObjectData: EngineObjectData.Sync?,
-    private val edgeType: Type<E>,
-) : ObjectBase.Builder<C>(executionContext.internal, graphQLObjectType, baseEngineObjectData) {
+abstract class ConnectionBuilder<C : Connection<E, N>, E : Edge<N>, N> : ObjectBase.Builder<C> {
+    protected val executionContext: ExecutionContext
+    private val edgeType: Type<E>
+
+    @InternalApi
+    constructor(
+        executionContext: ExecutionContext,
+        graphQLObjectType: GraphQLObjectType,
+        baseEngineObjectData: EngineObjectData.Sync?,
+        edgeType: Type<E>,
+        isRequiredSelectionInput: Boolean,
+    ) : super(executionContext.internal, graphQLObjectType, baseEngineObjectData, isRequiredSelectionInput) {
+        this.executionContext = executionContext
+        this.edgeType = edgeType
+    }
+    constructor(
+        executionContext: ExecutionContext,
+        graphQLObjectType: GraphQLObjectType,
+        baseEngineObjectData: EngineObjectData.Sync?,
+        edgeType: Type<E>,
+    ) : this(executionContext, graphQLObjectType, baseEngineObjectData, edgeType, false)
+
     /**
      * Retains the original constructor descriptor for existing generated connection builders.
      */

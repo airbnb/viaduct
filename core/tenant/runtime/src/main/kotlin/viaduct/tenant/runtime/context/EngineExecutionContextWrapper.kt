@@ -78,7 +78,7 @@ class EngineExecutionContextWrapperImpl(
             engineExecutionContext.resolveSelectionSet(
                 selections.getEngineSelectionSet(),
                 ResolveSelectionSetOptions.DEFAULT
-            ).toObjectGRT(ctx, selections.internalType().kcls)
+            ).toObjectGRT(ctx, selections.internalType().kcls, isRequiredSelectionInput = false)
         }
 
     override suspend fun <T : Mutation> mutation(
@@ -89,7 +89,7 @@ class EngineExecutionContextWrapperImpl(
             engineExecutionContext.resolveSelectionSet(
                 selections.getEngineSelectionSet(),
                 ResolveSelectionSetOptions.MUTATION
-            ).toObjectGRT(ctx, selections.internalType().kcls)
+            ).toObjectGRT(ctx, selections.internalType().kcls, isRequiredSelectionInput = false)
         }
 
     private fun SelectionSet<*>.getEngineSelectionSet() =
@@ -133,7 +133,7 @@ class EngineExecutionContextWrapperImpl(
             val id = ctx.globalIDCodec.serialize(globalID.type.name, globalID.internalID)
             val nodeReference = engineExecutionContext.createNodeReference(id, graphqlObjectType)
 
-            nodeReference.toObjectGRT(ctx, globalID.type.kcls)
+            nodeReference.toObjectGRT(ctx, globalID.type.kcls, isRequiredSelectionInput = false)
         }
 
     @Suppress("UNCHECKED_CAST")
@@ -156,6 +156,6 @@ class EngineExecutionContextWrapperImpl(
                 graphqlType,
                 argsMap
             )
-            (rootFieldReference as EngineObject).toObjectGRT(ctx, field.type.kcls as kotlin.reflect.KClass<Object>) as T
+            (rootFieldReference as EngineObject).toObjectGRT(ctx, field.type.kcls as kotlin.reflect.KClass<Object>, isRequiredSelectionInput = false) as T
         }
 }

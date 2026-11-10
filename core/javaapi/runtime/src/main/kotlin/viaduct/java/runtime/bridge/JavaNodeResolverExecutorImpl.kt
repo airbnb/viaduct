@@ -13,6 +13,7 @@ import viaduct.engine.api.instrumentation.resolver.ResolverInstrumentationContex
 import viaduct.engine.api.spi.NodeResolverExecutor
 import viaduct.errors.FrameworkException
 import viaduct.errors.TenantUsageException
+import viaduct.errors.handleTenantErrors
 import viaduct.errors.handleTenantErrorsSuspend
 import viaduct.errors.resultOfSuspend
 import viaduct.java.api.internal.BaseUnbatchedNodeResolver
@@ -87,7 +88,9 @@ class JavaNodeResolverExecutorImpl(
                 "NodeReference returned from node resolver. Use a GRT builder instead of ctx.ref to construct your node object."
             )
         }
-        return convertResult(result, graphqlSchema, context.globalIDCodec) as? EngineObjectData
+        return handleTenantErrors(typeName) {
+            convertResult(result, graphqlSchema, context.globalIDCodec)
+        } as? EngineObjectData
             ?: throw FrameworkException(
                 "Node resolver for $typeName failed to convert result to EngineObjectData: ${result.javaClass.name}"
             )

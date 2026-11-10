@@ -3,6 +3,7 @@ package viaduct.tenant.runtime.execution
 import javax.inject.Provider
 import viaduct.api.internal.BaseUnbatchedNodeResolver
 import viaduct.api.internal.ObjectBase
+import viaduct.api.internal.checkOutputValue
 import viaduct.apiannotations.Attribution
 import viaduct.apiannotations.AttributionContext
 import viaduct.engine.api.EngineExecutionContext
@@ -73,6 +74,7 @@ class NodeUnbatchedResolverExecutorImpl(
             if (result !is ObjectBase) {
                 throw TenantUsageException("Unexpected result type that is not a GRT for a node object: $result")
             }
+            result.checkOutputValue()
 
             return when (val eo = result.__engineObject) {
                 is NodeReference -> throw TenantUsageException(

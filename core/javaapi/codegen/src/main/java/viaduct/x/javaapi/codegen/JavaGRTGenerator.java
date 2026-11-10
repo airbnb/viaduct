@@ -263,7 +263,11 @@ public final class JavaGRTGenerator {
 
                 <endif>
                 public <mdl.className>(InternalContext context, EngineObjectData.Sync data) {
-                    super(context, data);
+                    this(context, data, false);
+                }
+
+                public <mdl.className>(InternalContext context, EngineObjectData.Sync data, boolean isRequiredSelectionInput) {
+                    super(context, data, isRequiredSelectionInput);
                 }
 
                 @SuppressWarnings("UnusedMethod")
@@ -392,7 +396,11 @@ public final class JavaGRTGenerator {
                 }
 
                 public <mdl.className>(InternalContext context, EngineObjectData.Sync data) {
-                    super(context, data);
+                    this(context, data, false);
+                }
+
+                public <mdl.className>(InternalContext context, EngineObjectData.Sync data, boolean isRequiredSelectionInput) {
+                    super(context, data, isRequiredSelectionInput);
                 }
 
                 @SuppressWarnings("UnusedMethod")

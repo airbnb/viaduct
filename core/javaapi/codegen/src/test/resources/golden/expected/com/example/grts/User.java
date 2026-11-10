@@ -59,7 +59,11 @@ public class User extends NodeObjectBase implements Node, SearchHit {
     }
 
     public User(InternalContext context, EngineObjectData.Sync data) {
-        super(context, data);
+        this(context, data, false);
+    }
+
+    public User(InternalContext context, EngineObjectData.Sync data, boolean isRequiredSelectionInput) {
+        super(context, data, isRequiredSelectionInput);
     }
 
     @SuppressWarnings("UnusedMethod")

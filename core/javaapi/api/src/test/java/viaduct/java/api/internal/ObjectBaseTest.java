@@ -21,7 +21,6 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.function.BiFunction;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 import viaduct.engine.api.EngineObjectData;
@@ -53,12 +52,84 @@ class ObjectBaseTest {
           .coercing(Scalars.GraphQLString.getCoercing())
           .build();
 
+  @Test
+  void requiredSelectionOriginFollowsChildrenListsAndCopies()
+      throws ReflectiveOperationException, TenantUsageException {
+    EngineObjectData.Sync childData = engineData(map("name", "child"));
+    EngineObjectData.Sync data =
+        engineData(map("child", childData, "children", List.of(childData)));
+    TestObject input = ObjectBase.constructGRT(TestObject.class, null, data, true);
+    TestObject output = ObjectBase.constructGRT(TestObject.class, null, data, false);
+
+    TenantUsageException error =
+        assertThrows(TenantUsageException.class, () -> input.__checkOutputValue());
+    assertEquals(
+        "Cannot use required-selection GRT 'TestObject' as output. "
+            + "Build a new GRT or use ctx.query() with the output selections.",
+        error.getMessage());
+    assertThrows(
+        TenantUsageException.class,
+        () -> input.object("child", TestObject.class, TestObject::new).__checkOutputValue());
+    assertThrows(
+        TenantUsageException.class,
+        () ->
+            input
+                .objectList("children", TestObject.class, TestObject::new)
+                .get(0)
+                .__checkOutputValue());
+    TestObject copy = input.copy(map("name", "changed")).copy(map());
+    assertThrows(TenantUsageException.class, () -> copy.__checkOutputValue());
+    assertThrows(
+        TenantUsageException.class,
+        () -> copy.object("child", TestObject.class, TestObject::new).__checkOutputValue());
+    output.__checkOutputValue();
+    output.object("child", TestObject.class, TestObject::new).__checkOutputValue();
+    assertEquals("child", output.object("child", TestObject.class, TestObject::new).scalar("name"));
+  }
+
+  @Test
+  void requiredSelectionConstructionDoesNotFallBackToLegacyConstructor() {
+    assertThrows(
+        NoSuchMethodException.class,
+        () -> ObjectBase.constructGRT(LegacyObject.class, null, engineData(map()), true));
+  }
+
+  @Test
+  void requiredSelectionOriginFollowsAbstractNodeChildren() throws TenantUsageException {
+    EngineObjectData.Sync child = engineData("ObjectBaseTestNode", map("name", "child"));
+    EngineObjectData.Sync data = engineData(map("thing", child, "things", List.of(child)));
+    TestAbstractHolder input = new TestAbstractHolder(null, data, true);
+    TestAbstractHolder output = new TestAbstractHolder(null, data, false);
+
+    ObjectBase inputChild = (ObjectBase) input.abstractNode("thing");
+    ObjectBase inputItem = (ObjectBase) input.abstractNodes("things").get(0);
+    assertThrows(TenantUsageException.class, () -> inputChild.__checkOutputValue());
+    assertThrows(TenantUsageException.class, () -> inputItem.__checkOutputValue());
+    ((ObjectBase) output.abstractNode("thing")).__checkOutputValue();
+    ((ObjectBase) output.abstractNodes("things").get(0)).__checkOutputValue();
+  }
+
+  interface TestAbstractNode extends NodeCompositeOutput {}
+
+  static final class LegacyObject extends ObjectBase {
+    public LegacyObject(@Nullable InternalContext context, EngineObjectData.Sync data) {
+      super(context, data);
+    }
+  }
+
   // ===== Test doubles =====
 
   /** Minimal concrete GRT exposing ObjectBase's protected fetch* methods for testing. */
   static final class TestObject extends ObjectBase {
     TestObject(@Nullable InternalContext context, EngineObjectData.Sync data) {
       super(context, data);
+    }
+
+    public TestObject(
+        @Nullable InternalContext context,
+        EngineObjectData.Sync data,
+        boolean isRequiredSelectionInput) {
+      super(context, data, isRequiredSelectionInput);
     }
 
     TestObject(@Nullable InternalContext context, Map<String, Object> data) {
@@ -110,16 +181,12 @@ class ObjectBaseTest {
     }
 
     <T extends ObjectBase> @Nullable T object(
-        String field,
-        Class<T> objectClass,
-        BiFunction<InternalContext, EngineObjectData.Sync, T> ctor) {
+        String field, Class<T> objectClass, ObjectConstructor<T> ctor) {
       return fetchObject(field, null, objectClass, ctor);
     }
 
     <T extends ObjectBase> @Nullable List<T> objectList(
-        String field,
-        Class<T> objectClass,
-        BiFunction<InternalContext, EngineObjectData.Sync, T> ctor) {
+        String field, Class<T> objectClass, ObjectConstructor<T> ctor) {
       return fetchObjectList(field, null, objectClass, ctor);
     }
 
@@ -905,8 +972,32 @@ class ObjectBaseTest {
       super(context, data);
     }
 
+    TestAbstractHolder(
+        @Nullable InternalContext context,
+        EngineObjectData.Sync data,
+        boolean isRequiredSelectionInput) {
+      super(context, data, isRequiredSelectionInput);
+    }
+
+    @Nullable TestAbstractNode abstractNode(String field) {
+      return fetchAbstractObject(field, null, TestAbstractNode.class);
+    }
+
+    @Nullable List<TestAbstractNode> abstractNodes(String field) {
+      return fetchAbstractObjectList(field, null, TestAbstractNode.class);
+    }
+
     @Nullable Object abstractThing(String field) {
       return fetchAbstractObject(field, null, NodeCompositeOutput.class);
     }
+  }
+}
+
+final class ObjectBaseTestNode extends NodeObjectBase implements ObjectBaseTest.TestAbstractNode {
+  public ObjectBaseTestNode(
+      @Nullable InternalContext context,
+      EngineObjectData.Sync data,
+      boolean isRequiredSelectionInput) {
+    super(context, data, isRequiredSelectionInput);
   }
 }

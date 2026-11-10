@@ -47,7 +47,10 @@ import viaduct.tenant.runtime.jvm.OverlayEngineObjectData as SharedOverlayEngine
 abstract class ObjectBase(
     @Suppress("ConstructorParameterNaming") protected val __context: InternalContext,
     @Suppress("ConstructorParameterNaming") val __engineObject: EngineObject,
+    @JvmField @Suppress("VariableNaming", "ConstructorParameterNaming") val __isRequiredSelectionInput: Boolean,
 ) : Object {
+    constructor(context: InternalContext, engineObject: EngineObject) : this(context, engineObject, false)
+
     private val fieldCache = ConcurrentHashMap<String, Any>()
 
     /**
@@ -226,7 +229,7 @@ abstract class ObjectBase(
         }
 
         @Suppress("UNCHECKED_CAST")
-        return wrapOutputObject(__context, valueType as Type<Object>, value) as ObjectBase
+        return wrapOutputObject(__context, valueType as Type<Object>, value, __isRequiredSelectionInput) as ObjectBase
     }
 
     /**
@@ -261,7 +264,8 @@ abstract class ObjectBase(
     abstract class Builder<T>(
         @Suppress("ConstructorParameterNaming") protected val __context: InternalContext,
         private val type: GraphQLObjectType,
-        private val baseEngineObjectData: EngineObjectData.Sync?
+        private val baseEngineObjectData: EngineObjectData.Sync?,
+        @Suppress("ConstructorParameterNaming") protected val __isRequiredSelectionInput: Boolean,
     ) : DynamicOutputValueBuilder<T> {
         private val wrapper = EODBuilderWrapper(type, __context.globalIDCodec)
 
@@ -337,5 +341,15 @@ abstract class ObjectBase(
     companion object {
         // Used to represent null in the field cache, since ConcurrentHashMap does not allow null values
         private const val NULL_VALUE = "OBJECTBASE_GRT_NULL"
+    }
+}
+
+@InternalApi
+fun ObjectBase.checkOutputValue() {
+    if (__isRequiredSelectionInput) {
+        throw TenantUsageException(
+            "Cannot use required-selection GRT '${__engineObject.type.name}' as output. " +
+                "Build a new GRT or use ctx.query() with the output selections."
+        )
     }
 }

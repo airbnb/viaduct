@@ -15,6 +15,7 @@ import org.junit.jupiter.api.assertThrows
 import viaduct.api.FieldValue
 import viaduct.api.context.BaseFieldExecutionContext
 import viaduct.api.internal.BaseBatchedFieldResolver
+import viaduct.api.internal.ObjectBase
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.mocks.MockSchema
 import viaduct.engine.api.mocks.createEngineObjectData
@@ -36,6 +37,25 @@ class FieldBatchResolverExecutorImplTest {
         } returns resolverContext
     }
     private val engineExecutionContext = ContextMocks().engineExecutionContext
+
+    @Test
+    fun `required selection result fails only its batch item and identifies the offending type`() {
+        val input = object : ObjectBase(mockk(relaxed = true), objectData, true) {}
+        val output = object : ObjectBase(mockk(relaxed = true), objectData) {}
+        val selectors = listOf(selector(), selector())
+        val executor = createExecutor(TestBatchResolver(listOf(FieldValue.ofValue(listOf(null, input)), FieldValue.ofValue(output))))
+
+        val result = runBlocking { executor.batchResolve(selectors, engineExecutionContext) }
+
+        val error = result.getValue(selectors[0]).exceptionOrNull().shouldBeInstanceOf<TenantResolverException>()
+        val cause = error.cause.shouldBeInstanceOf<TenantUsageException>()
+        assertEquals("Query.batchedField", error.resolver)
+        assertEquals(
+            "Cannot use required-selection GRT 'Query' as output. Build a new GRT or use ctx.query() with the output selections.",
+            cause.message
+        )
+        assertSame(objectData, result.getValue(selectors[1]).getOrThrow())
+    }
 
     @Test
     fun `batchResolve throws when resolver returns non-list`() {

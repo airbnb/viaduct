@@ -24,7 +24,8 @@ annotation class FakeGRT
  * directly independent of the constructor-protocol of "real" GRTs.
  */
 @FakeGRT
-open class FakeObject(val ctx: InternalContext, val data: EngineObjectData) : ObjectBase(ctx, data), Object {
+open class FakeObject(val ctx: InternalContext, val data: EngineObjectData, isRequiredSelectionInput: Boolean = false) :
+    ObjectBase(ctx, data, isRequiredSelectionInput), Object {
     suspend inline fun <reified T> get(
         fieldName: String,
         alias: String? = null
@@ -42,7 +43,8 @@ open class FakeObject(val ctx: InternalContext, val data: EngineObjectData) : Ob
  * directly independent of the constructor-protocol of "real" GRTs.
  */
 @FakeGRT
-class FakeQuery(ctx: InternalContext, data: EngineObjectData) : FakeObject(ctx, data), Query {
+class FakeQuery(ctx: InternalContext, data: EngineObjectData, isRequiredSelectionInput: Boolean = false) :
+    FakeObject(ctx, data, isRequiredSelectionInput), Query {
     object Reflection : Type<Query> {
         override val name: String = "Query"
         override val kcls = FakeQuery::class
@@ -54,7 +56,8 @@ class FakeQuery(ctx: InternalContext, data: EngineObjectData) : FakeObject(ctx, 
  * directly independent of the constructor-protocol of "real" GRTs.
  */
 @FakeGRT
-class FakeMutation(ctx: InternalContext, data: EngineObjectData) : FakeObject(ctx, data), Mutation {
+class FakeMutation(ctx: InternalContext, data: EngineObjectData, isRequiredSelectionInput: Boolean = false) :
+    FakeObject(ctx, data, isRequiredSelectionInput), Mutation {
     object Reflection : Type<Mutation> {
         override val name: String = "Mutation"
         override val kcls = FakeMutation::class

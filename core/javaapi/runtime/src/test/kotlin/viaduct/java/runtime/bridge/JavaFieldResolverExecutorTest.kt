@@ -17,6 +17,8 @@ import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.ValueSource
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.ExecutionAttribution
@@ -25,11 +27,43 @@ import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.select.SelectionsParser
 import viaduct.engine.api.spi.FieldResolverExecutor
 import viaduct.errors.TenantResolverException
+import viaduct.errors.TenantUsageException
 import viaduct.java.api.internal.BaseUnbatchedFieldResolver
+import viaduct.java.api.internal.InternalContext
+import viaduct.java.api.internal.ObjectBase
 import viaduct.java.api.types.NodeCompositeOutput
+import viaduct.java.api.types.Query
 import viaduct.service.api.spi.GlobalIDCodec
 
 class JavaFieldResolverExecutorTest {
+    class RequiredSelectionValue(context: InternalContext?, data: EngineObjectData.Sync, isRequiredSelectionInput: Boolean) :
+        ObjectBase(context, data, isRequiredSelectionInput), Query
+
+    @ParameterizedTest
+    @ValueSource(booleans = [false, true])
+    fun `returning object or query RSS values is a tenant resolver error`(queryValue: Boolean) =
+        runBlocking {
+            val data = mockk<EngineObjectData.Sync>()
+            val executor = JavaFieldResolverExecutorImpl(
+                resolver = Provider {
+                    BaseUnbatchedFieldResolver { context ->
+                        CompletableFuture.completedFuture(if (queryValue) context.queryValue else context.objectValue)
+                    }
+                },
+                resolverId = "Query.reuse",
+                resolverName = "ReuseResolver",
+                objectValueClass = if (queryValue) null else RequiredSelectionValue::class.java,
+                queryValueClass = if (queryValue) RequiredSelectionValue::class.java else null,
+            )
+            val selector = FieldResolverExecutor.Selector(emptyMap(), null, { data }, { data })
+
+            val result = executor.batchResolve(listOf(selector), mockEngineContext()).getValue(selector)
+
+            val error = result.exceptionOrNull().shouldBeInstanceOf<TenantResolverException>()
+            error.cause.shouldBeInstanceOf<TenantUsageException>()
+            assertEquals("Query.reuse", error.resolver)
+        }
+
     @Test
     fun `simple resolver returns expected value`(): Unit =
         runBlocking {

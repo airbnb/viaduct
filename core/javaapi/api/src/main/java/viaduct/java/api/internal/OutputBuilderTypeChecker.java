@@ -175,10 +175,11 @@ public final class OutputBuilderTypeChecker {
       Object value)
       throws TenantUsageException {
     GraphQLSchema schema = context.getSchema().getSchema();
-    GraphQLObjectType actualType =
-        value instanceof ObjectBase objectValue
-            ? concreteObjectType(schema, objectValue, expectedGeneratedType)
-            : null;
+    GraphQLObjectType actualType = null;
+    if (value instanceof ObjectBase objectValue) {
+      objectValue.__checkOutputValue();
+      actualType = concreteObjectType(schema, objectValue, expectedGeneratedType);
+    }
     if (actualType == null || !isValidObjectType(schema, expectedType, actualType)) {
       throw new TenantUsageException(
           "Expected object of type "

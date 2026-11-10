@@ -10,9 +10,11 @@ import viaduct.engine.api.EngineObject
 import viaduct.engine.api.EngineObjectData
 
 @OptIn(InternalApi::class)
-class Mutation(context: InternalContext, engineObject: EngineObject)
-    : ObjectBase(context, engineObject), viaduct.api.types.Object,viaduct.api.types.Mutation
+class Mutation(context: InternalContext, engineObject: EngineObject, isRequiredSelectionInput: Boolean)
+    : ObjectBase(context, engineObject, isRequiredSelectionInput), viaduct.api.types.Object,viaduct.api.types.Mutation
 {
+    constructor(context: InternalContext, engineObject: EngineObject) : this(context, engineObject, false)
+
      fun getCreateOrderOrThrow(alias: String?): viaduct.api.grts.Order? = TODO()
      fun getCreateOrderOrThrow(): viaduct.api.grts.Order? = TODO()
      fun getCreateOrder(alias: String?): viaduct.api.grts.Order? = TODO()
@@ -20,7 +22,7 @@ class Mutation(context: InternalContext, engineObject: EngineObject)
 
 
     fun toBuilder(): Builder =
-        Builder(__context, __engineObject.type, toBuilderEOD())
+        Builder(__context, __engineObject.type, toBuilderEOD(), __isRequiredSelectionInput)
 
     object of {
         operator fun invoke(context: ExecutionContext, block: Builder.() -> Unit): Mutation =
@@ -32,14 +34,16 @@ class Mutation(context: InternalContext, engineObject: EngineObject)
             : super(
                 context as InternalContext,
                 TODO() as graphql.schema.GraphQLObjectType,
-                null
+                null,
+                false
             )
 
         internal constructor(
             context: InternalContext,
             type: graphql.schema.GraphQLObjectType,
-            baseEngineObjectData: EngineObjectData.Sync
-        ) : super(context, type, baseEngineObjectData)
+            baseEngineObjectData: EngineObjectData.Sync,
+            isRequiredSelectionInput: Boolean
+        ) : super(context, type, baseEngineObjectData, isRequiredSelectionInput)
 
                   fun createOrder(value: viaduct.api.grts.Order?): Builder = TODO()
 

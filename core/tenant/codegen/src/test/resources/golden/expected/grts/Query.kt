@@ -10,9 +10,11 @@ import viaduct.engine.api.EngineObject
 import viaduct.engine.api.EngineObjectData
 
 @OptIn(InternalApi::class)
-class Query(context: InternalContext, engineObject: EngineObject)
-    : ObjectBase(context, engineObject), viaduct.api.types.Object,viaduct.api.types.Query
+class Query(context: InternalContext, engineObject: EngineObject, isRequiredSelectionInput: Boolean)
+    : ObjectBase(context, engineObject, isRequiredSelectionInput), viaduct.api.types.Object,viaduct.api.types.Query
 {
+    constructor(context: InternalContext, engineObject: EngineObject) : this(context, engineObject, false)
+
      fun getOrderOrThrow(alias: String?): viaduct.api.grts.Order? = TODO()
      fun getOrderOrThrow(): viaduct.api.grts.Order? = TODO()
      fun getOrder(alias: String?): viaduct.api.grts.Order? = TODO()
@@ -50,7 +52,7 @@ class Query(context: InternalContext, engineObject: EngineObject)
 
 
     fun toBuilder(): Builder =
-        Builder(__context, __engineObject.type, toBuilderEOD())
+        Builder(__context, __engineObject.type, toBuilderEOD(), __isRequiredSelectionInput)
 
     companion object {
             fun order(
@@ -144,14 +146,16 @@ class Query(context: InternalContext, engineObject: EngineObject)
             : super(
                 context as InternalContext,
                 TODO() as graphql.schema.GraphQLObjectType,
-                null
+                null,
+                false
             )
 
         internal constructor(
             context: InternalContext,
             type: graphql.schema.GraphQLObjectType,
-            baseEngineObjectData: EngineObjectData.Sync
-        ) : super(context, type, baseEngineObjectData)
+            baseEngineObjectData: EngineObjectData.Sync,
+            isRequiredSelectionInput: Boolean
+        ) : super(context, type, baseEngineObjectData, isRequiredSelectionInput)
 
                   fun order(value: viaduct.api.grts.Order?): Builder = TODO()
 

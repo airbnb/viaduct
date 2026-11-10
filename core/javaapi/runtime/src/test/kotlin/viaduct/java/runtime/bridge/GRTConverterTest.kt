@@ -7,6 +7,8 @@ import graphql.schema.GraphQLObjectType
 import graphql.schema.GraphQLSchema
 import io.mockk.every
 import io.mockk.mockk
+import kotlinx.coroutines.future.await
+import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNull
@@ -17,18 +19,57 @@ import org.junit.jupiter.api.assertThrows
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.EngineSchema
+import viaduct.engine.api.EngineSelectionSet
 import viaduct.engine.api.FullSchema
+import viaduct.engine.api.ResolveSelectionSetOptions
 import viaduct.engine.api.ResolvedEngineObjectData
 import viaduct.engine.api.RootFieldReference
+import viaduct.engine.api.mocks.MockSchema
+import viaduct.engine.runtime.mocks.ContextMocks
+import viaduct.errors.TenantUsageException
 import viaduct.java.api.internal.InternalContext
 import viaduct.java.api.internal.ObjectBase
 import viaduct.java.api.types.Arguments
 import viaduct.java.api.types.GraphQLObject
 import viaduct.java.api.types.NodeCompositeOutput
+import viaduct.java.api.types.Query
 import viaduct.service.api.spi.GlobalIDCodec
 
 class GRTConverterTest {
     private val codec = mockk<GlobalIDCodec>()
+
+    class QueryResult(context: InternalContext?, data: EngineObjectData.Sync, isRequiredSelectionInput: Boolean = false) :
+        ObjectBase(context, data, isRequiredSelectionInput), Query {
+        fun value(): ObjectBase? = fetchObject("value", null, CopyableObject::class.java) { context, data, isRequiredSelectionInput -> CopyableObject(data, context, isRequiredSelectionInput) }
+    }
+
+    @Test
+    fun `composite descendants of explicit Java queries can be returned`() =
+        runTest {
+            val schema = MockSchema.mk(
+                """
+            extend type Query { value: CopyableObject }
+            type CopyableObject { name: String }
+                """.trimIndent()
+            )
+            val data = ResolvedEngineObjectData(schema.schema.getObjectType("CopyableObject"), mapOf("name" to "value"))
+            val queryData = ResolvedEngineObjectData(schema.schema.queryType, mapOf("value" to data))
+            val engineContext = object : EngineExecutionContext by ContextMocks(myFullSchema = schema).engineExecutionContext {
+                override suspend fun resolveSelectionSet(
+                    selectionSet: EngineSelectionSet,
+                    options: ResolveSelectionSetOptions,
+                ): EngineObjectData.Sync = queryData
+            }
+            val ctx = SimpleFieldExecutionContext(
+                requestContext = null,
+                engineExecutionContext = engineContext,
+                coroutineScope = this,
+            )
+
+            val result = ctx.query("value { name }", emptyMap(), QueryResult::class.java).await()
+
+            assertSame(data, convertResult(result.value(), schema.schema, codec))
+        }
 
     private class RootReferenceObject(ref: RootFieldReference) :
         ObjectBase(null, ref),
@@ -44,13 +85,46 @@ class GRTConverterTest {
     }
 
     private class CopyableObject : ObjectBase {
-        constructor(data: EngineObjectData.Sync) : super(null, data)
+        constructor(data: EngineObjectData.Sync, context: InternalContext? = null, isRequiredSelectionInput: Boolean = false) : super(context, data, isRequiredSelectionInput)
 
         constructor(data: Map<String, Any?>) : super(null, data)
 
         private constructor(base: ObjectBase, data: Map<String, Any?>) : super(null, base, data)
 
         fun copy(data: Map<String, Any?>) = CopyableObject(toBuilderBase(), data)
+
+        fun child(): CopyableObject? = fetchObject("child", null, CopyableObject::class.java) { context, data, isRequiredSelectionInput -> CopyableObject(data, context, isRequiredSelectionInput) }
+    }
+
+    @Test
+    fun `required selection objects cannot escape through returns nested maps or copies`() {
+        val schema = MockSchema.mk(
+            """
+            extend type Query { value: CopyableObject }
+            type CopyableObject { name: String, child: CopyableObject, items: [CopyableObject] }
+            """.trimIndent()
+        )
+        val type = schema.schema.getObjectType("CopyableObject")
+        val childData = ResolvedEngineObjectData(type, mapOf("name" to "child"))
+        val data = ResolvedEngineObjectData(type, mapOf("name" to "original", "child" to childData))
+        val context = InternalContextImpl(schema, codec)
+        val input = CopyableObject(data, context, isRequiredSelectionInput = true)
+        val expectedMessage = "Cannot use required-selection GRT 'CopyableObject' as output. " +
+            "Build a new GRT or use ctx.query() with the output selections."
+
+        val direct = assertThrows<TenantUsageException> { convertResult(input, schema.schema, codec) }
+        assertEquals(expectedMessage, direct.message)
+        val list = assertThrows<TenantUsageException> { convertResult(listOf(null, listOf(input)), schema.schema, codec) }
+        assertEquals(expectedMessage, list.message)
+        val nested = CopyableObject(mapOf("items" to listOf(null, input)))
+        val error = assertThrows<TenantUsageException> { convertResult(nested, schema.schema, codec) }
+        assertEquals(expectedMessage, error.message)
+        assertThrows<TenantUsageException> { convertResult(input.child(), schema.schema, codec) }
+        val copy = input.copy(mapOf("name" to "changed")).copy(emptyMap())
+        assertThrows<TenantUsageException> { convertResult(copy, schema.schema, codec) }
+        assertThrows<TenantUsageException> { convertResult(copy.child(), schema.schema, codec) }
+
+        assertSame(data, convertResult(CopyableObject(data, context), schema.schema, codec))
     }
 
     @Test

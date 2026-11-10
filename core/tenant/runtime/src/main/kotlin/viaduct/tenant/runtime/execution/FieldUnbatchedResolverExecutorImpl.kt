@@ -4,6 +4,7 @@ import javax.inject.Provider
 import viaduct.api.globalid.GlobalID
 import viaduct.api.internal.BaseUnbatchedFieldResolver
 import viaduct.api.internal.ObjectBase
+import viaduct.api.internal.checkOutputValue
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.ResolverMetadata
@@ -71,10 +72,10 @@ class FieldUnbatchedResolverExecutorImpl(
             syncQueryValueGetter = selector.syncQueryValueGetter,
         )
         val resolver = mkResolver()
-        val result: Any? = handleTenantErrorsSuspend(resolverName) {
-            resolver.invokeFieldResolver(ctx)
+        return handleTenantErrorsSuspend(resolverName) {
+            val result = resolver.invokeFieldResolver(ctx)
+            unwrapFieldResolverResult(result, context.globalIDCodec)
         }
-        return unwrapFieldResolverResult(result, context.globalIDCodec)
     }
 
     private fun mkResolver(): BaseUnbatchedFieldResolver = resolver.get()
@@ -82,11 +83,14 @@ class FieldUnbatchedResolverExecutorImpl(
     companion object {
         internal fun unwrapFieldResolverResult(
             result: Any?,
-            globalIDCodec: GlobalIDCodec
+            globalIDCodec: GlobalIDCodec,
         ): Any? {
             return when (result) {
-                is ObjectBase -> result.__engineObject
-                is List<*> -> result.map { unwrapFieldResolverResult(it, globalIDCodec) }
+                is ObjectBase -> {
+                    result.checkOutputValue()
+                    result.__engineObject
+                }
+                is List<*> -> result.map { item -> unwrapFieldResolverResult(item, globalIDCodec) }
                 is GlobalID<*> -> globalIDCodec.serialize(result.type.name, result.internalID)
                 is Enum<*> -> result.name
                 else -> result

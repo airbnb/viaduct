@@ -39,7 +39,7 @@ import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
 import viaduct.tenant.runtime.context.EngineExecutionContextWrapperImpl
 
 class OperationSelectionsParityTest {
-    class OperationResult(val context: InternalContext, val data: EngineObjectData.Sync)
+    class OperationResult(val context: InternalContext, val data: EngineObjectData.Sync, val isRequiredSelectionInput: Boolean)
 
     private class Facades(val operation: String) : AutoCloseable {
         val typeName = if (operation == "query") "ReadRoot" else "WriteRoot"

@@ -259,7 +259,7 @@ class ObjectGenTest {
         """.trimIndent()
         val result = genObject(sdl, "User").toString()
         assertTrue(result.contains("fun toBuilder(): Builder ="))
-        assertTrue(result.contains("Builder(__context, __engineObject.type, toBuilderEOD())"))
+        assertTrue(result.contains("Builder(__context, __engineObject.type, toBuilderEOD(), __isRequiredSelectionInput)"))
     }
 
     @Test

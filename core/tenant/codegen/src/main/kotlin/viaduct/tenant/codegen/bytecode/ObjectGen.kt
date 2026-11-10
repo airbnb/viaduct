@@ -11,6 +11,7 @@ import kotlinx.metadata.Modality
 import kotlinx.metadata.Visibility
 import kotlinx.metadata.hasAnnotations
 import kotlinx.metadata.isNullable
+import kotlinx.metadata.isSecondary
 import kotlinx.metadata.isSuspend
 import kotlinx.metadata.jvm.annotations
 import kotlinx.metadata.modality
@@ -102,6 +103,7 @@ private class ObjectClassGenV2(
             .addSupertype(cfg.OBJECT_BASE.asKmName.asType())
             .addSupertype(cfg.OBJECT_GRT.asKmName.asType())
             .addPrimaryConstructor()
+            .addOutputConstructor()
             .addFieldGetters()
             .addToBuilderFun()
             .addOfObject()
@@ -155,13 +157,16 @@ private class ObjectClassGenV2(
                     KmValueParameter("engineObject").also {
                         it.type = cfg.ENGINE_OBJECT.asKmName.asType()
                     },
+                    KmValueParameter("isRequiredSelectionInput").also {
+                        it.type = KmName("kotlin/Boolean").asType()
+                    },
                 )
             )
         }
 
         this.addConstructor(
             kmConstructor,
-            superCall = "super($1, $2);",
+            superCall = "super($1, $2, $3);",
             body = buildString {
                 append("{\n")
                 append(checkNotNullParameterExpression(cfg.INTERNAL_CONTEXT.asKmName.asType(), 1, "context"))
@@ -169,6 +174,17 @@ private class ObjectClassGenV2(
                 append("}")
             }
         )
+        return this
+    }
+
+    private fun CustomClassBuilder.addOutputConstructor(): CustomClassBuilder {
+        val constructor = KmConstructor().also {
+            it.visibility = Visibility.PUBLIC
+            it.isSecondary = true
+            it.valueParameters += KmValueParameter("context").also { param -> param.type = cfg.INTERNAL_CONTEXT.asKmName.asType() }
+            it.valueParameters += KmValueParameter("engineObject").also { param -> param.type = cfg.ENGINE_OBJECT.asKmName.asType() }
+        }
+        addConstructor(constructor, superCall = "this($1, $2, false);", body = "{}")
         return this
     }
 
@@ -545,7 +561,8 @@ private class ObjectClassGenV2(
                 append("return new ${builderName.asJavaName}(\n")
                 append("    this.get__context(),\n")
                 append("    this.get__engineObject().getType(),\n")
-                append("    this.toBuilderEOD()\n")
+                append("    this.toBuilderEOD(),\n")
+                append("    this.__isRequiredSelectionInput\n")
                 append(");\n")
                 append("}")
             }

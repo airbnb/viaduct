@@ -12,7 +12,12 @@ import viaduct.java.api.internal.ObjectBase;
  */
 final class PageInfo extends ObjectBase {
   PageInfo(@Nullable InternalContext ctx, EngineObjectData.Sync data) {
-    super(ctx, data);
+    this(ctx, data, false);
+  }
+
+  PageInfo(
+      @Nullable InternalContext ctx, EngineObjectData.Sync data, boolean isRequiredSelectionInput) {
+    super(ctx, data, isRequiredSelectionInput);
   }
 
   PageInfo(@Nullable InternalContext ctx, Map<String, Object> data) {

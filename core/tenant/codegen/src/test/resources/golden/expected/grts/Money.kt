@@ -10,9 +10,11 @@ import viaduct.engine.api.EngineObject
 import viaduct.engine.api.EngineObjectData
 
 @OptIn(InternalApi::class)
-class Money(context: InternalContext, engineObject: EngineObject)
-    : ObjectBase(context, engineObject), viaduct.api.types.Object,viaduct.api.grts.SearchHit
+class Money(context: InternalContext, engineObject: EngineObject, isRequiredSelectionInput: Boolean)
+    : ObjectBase(context, engineObject, isRequiredSelectionInput), viaduct.api.types.Object,viaduct.api.grts.SearchHit
 {
+    constructor(context: InternalContext, engineObject: EngineObject) : this(context, engineObject, false)
+
      fun getAmountOrThrow(alias: String?): kotlin.Double = TODO()
      fun getAmountOrThrow(): kotlin.Double = TODO()
      fun getAmount(alias: String?): kotlin.Double? = TODO()
@@ -25,7 +27,7 @@ class Money(context: InternalContext, engineObject: EngineObject)
 
 
     fun toBuilder(): Builder =
-        Builder(__context, __engineObject.type, toBuilderEOD())
+        Builder(__context, __engineObject.type, toBuilderEOD(), __isRequiredSelectionInput)
 
     object of {
         operator fun invoke(context: ExecutionContext, block: Builder.() -> Unit): Money =
@@ -37,14 +39,16 @@ class Money(context: InternalContext, engineObject: EngineObject)
             : super(
                 context as InternalContext,
                 TODO() as graphql.schema.GraphQLObjectType,
-                null
+                null,
+                false
             )
 
         internal constructor(
             context: InternalContext,
             type: graphql.schema.GraphQLObjectType,
-            baseEngineObjectData: EngineObjectData.Sync
-        ) : super(context, type, baseEngineObjectData)
+            baseEngineObjectData: EngineObjectData.Sync,
+            isRequiredSelectionInput: Boolean
+        ) : super(context, type, baseEngineObjectData, isRequiredSelectionInput)
 
                   fun amount(value: kotlin.Double): Builder = TODO()
 

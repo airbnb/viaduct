@@ -10,9 +10,11 @@ import viaduct.engine.api.EngineObject
 import viaduct.engine.api.EngineObjectData
 
 @OptIn(InternalApi::class)
-class User(context: InternalContext, engineObject: EngineObject)
-    : ObjectBase(context, engineObject), viaduct.api.types.Object,viaduct.api.grts.Node,viaduct.api.grts.SearchHit,viaduct.api.types.NodeObject
+class User(context: InternalContext, engineObject: EngineObject, isRequiredSelectionInput: Boolean)
+    : ObjectBase(context, engineObject, isRequiredSelectionInput), viaduct.api.types.Object,viaduct.api.grts.Node,viaduct.api.grts.SearchHit,viaduct.api.types.NodeObject
 {
+    constructor(context: InternalContext, engineObject: EngineObject) : this(context, engineObject, false)
+
           final override fun getIdOrThrow(alias: String?): viaduct.api.globalid.GlobalID<viaduct.api.grts.User> = TODO()
           final override fun getIdOrThrow(): viaduct.api.globalid.GlobalID<viaduct.api.grts.User> = TODO()
           final override fun getId(alias: String?): viaduct.api.globalid.GlobalID<viaduct.api.grts.User>? = TODO()
@@ -60,7 +62,7 @@ class User(context: InternalContext, engineObject: EngineObject)
 
 
     fun toBuilder(): Builder =
-        Builder(__context, __engineObject.type, toBuilderEOD())
+        Builder(__context, __engineObject.type, toBuilderEOD(), __isRequiredSelectionInput)
 
     object of {
         operator fun invoke(context: ExecutionContext, block: Builder.() -> Unit): User =
@@ -72,14 +74,16 @@ class User(context: InternalContext, engineObject: EngineObject)
             : super(
                 context as InternalContext,
                 TODO() as graphql.schema.GraphQLObjectType,
-                null
+                null,
+                false
             )
 
         internal constructor(
             context: InternalContext,
             type: graphql.schema.GraphQLObjectType,
-            baseEngineObjectData: EngineObjectData.Sync
-        ) : super(context, type, baseEngineObjectData)
+            baseEngineObjectData: EngineObjectData.Sync,
+            isRequiredSelectionInput: Boolean
+        ) : super(context, type, baseEngineObjectData, isRequiredSelectionInput)
 
                   fun id(value: viaduct.api.globalid.GlobalID<viaduct.api.grts.User>): Builder = TODO()
 

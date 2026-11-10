@@ -225,9 +225,11 @@ private val objectSTGroup = stTemplate(
     import viaduct.engine.api.EngineObjectData
 
     @OptIn(InternalApi::class)
-    class <mdl.className>(context: InternalContext, engineObject: EngineObject)
-        : ObjectBase(context, engineObject), <mdl.superTypes>
+    class <mdl.className>(context: InternalContext, engineObject: EngineObject, isRequiredSelectionInput: Boolean)
+        : ObjectBase(context, engineObject, isRequiredSelectionInput), <mdl.superTypes>
     {
+        constructor(context: InternalContext, engineObject: EngineObject) : this(context, engineObject, false)
+
         <mdl.fields: { f |
           <f.overrideKeywords> fun <f.getterName>OrThrow(alias: String?): <f.kotlinType> = TODO()
           <f.overrideKeywords> fun <f.getterName>OrThrow(): <f.kotlinType> = TODO()
@@ -236,7 +238,7 @@ private val objectSTGroup = stTemplate(
         }; separator="\n">
 
         fun toBuilder(): Builder =
-            Builder(__context, __engineObject.type, toBuilderEOD())
+            Builder(__context, __engineObject.type, toBuilderEOD(), __isRequiredSelectionInput)
 
         <if(mdl.rootFieldReferences)>
         <mdl.rootFieldReferences>
@@ -251,14 +253,16 @@ private val objectSTGroup = stTemplate(
                 : super(
                     context as InternalContext,
                     TODO() as graphql.schema.GraphQLObjectType,
-                    null
+                    null,
+                    false
                 )
 
             internal constructor(
                 context: InternalContext,
                 type: graphql.schema.GraphQLObjectType,
-                baseEngineObjectData: EngineObjectData.Sync
-            ) : super(context, type, baseEngineObjectData)
+                baseEngineObjectData: EngineObjectData.Sync,
+                isRequiredSelectionInput: Boolean
+            ) : super(context, type, baseEngineObjectData, isRequiredSelectionInput)
 
             <mdl.fields: { f |
               fun <f.escapedName>(value: <f.kotlinType>): Builder = TODO()
@@ -289,9 +293,11 @@ private val connectionObjectSTGroup = stTemplate(
     import viaduct.engine.api.EngineObjectData
 
     @OptIn(InternalApi::class, ExperimentalApi::class)
-    class <mdl.className>(context: InternalContext, engineObject: EngineObject)
-        : ObjectBase(context, engineObject), <mdl.superTypes>
+    class <mdl.className>(context: InternalContext, engineObject: EngineObject, isRequiredSelectionInput: Boolean)
+        : ObjectBase(context, engineObject, isRequiredSelectionInput), <mdl.superTypes>
     {
+        constructor(context: InternalContext, engineObject: EngineObject) : this(context, engineObject, false)
+
         <mdl.fields: { f |
           <f.overrideKeywords> fun <f.getterName>OrThrow(alias: String?): <f.kotlinType> = TODO()
           <f.overrideKeywords> fun <f.getterName>OrThrow(): <f.kotlinType> = TODO()
@@ -300,7 +306,7 @@ private val connectionObjectSTGroup = stTemplate(
         }; separator="\n">
 
         fun toBuilder(): Builder =
-            Builder(__context, __engineObject.type, toBuilderEOD())
+            Builder(__context, __engineObject.type, toBuilderEOD(), __isRequiredSelectionInput)
 
         object of {
             operator fun invoke(context: ExecutionContext, block: Builder.() -> Unit): <mdl.className> =
@@ -319,12 +325,14 @@ private val connectionObjectSTGroup = stTemplate(
             internal constructor(
                 context: InternalContext,
                 type: graphql.schema.GraphQLObjectType,
-                baseEngineObjectData: EngineObjectData.Sync
+                baseEngineObjectData: EngineObjectData.Sync,
+                isRequiredSelectionInput: Boolean
             ) : super(
                     context as ExecutionContext,
                     type,
                     baseEngineObjectData,
-                    <mdl.pkg>.<mdl.edgeTypeName>.Reflection
+                    <mdl.pkg>.<mdl.edgeTypeName>.Reflection,
+                    isRequiredSelectionInput
                 )
 
             <mdl.fields: { f |

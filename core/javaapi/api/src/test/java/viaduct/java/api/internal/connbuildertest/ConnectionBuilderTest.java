@@ -86,6 +86,20 @@ class ConnectionBuilderTest {
   }
 
   @Test
+  void fromEdges_rejectsRequiredSelectionEdgesWhenCalled() {
+    FakeExecutionContext ctx = new FakeExecutionContext();
+    TestEdge input =
+        new TestEdge(
+            ctx, new FakeSync(Map.of("cursor", OffsetCursor.fromOffset(3).getValue())), true);
+    TestConnection.Builder builder = new TestConnection.Builder(ctx);
+
+    TenantUsageException error =
+        assertThrows(TenantUsageException.class, () -> builder.fromEdges(List.of(input)));
+
+    assertTrue(error.getMessage().contains("required-selection GRT 'TestEdge'"));
+  }
+
+  @Test
   @SuppressWarnings({"rawtypes", "unchecked"})
   void fromEdges_rejectsWrongEdgeTypeBeforeReadingCursors() {
     FakeExecutionContext ctx = new FakeExecutionContext();

@@ -237,7 +237,7 @@ open class MockResolverExecutionContext<Q : Query>(
     override fun <T : NodeObject> ref(globalID: GlobalID<T>): T {
         val id = globalIDCodec.serialize(globalID.type.name, globalID.internalID)
         val graphqlObjectType = schema.schema.getObjectType(globalID.type.name)
-        return MockNodeEngineObjectData(id, graphqlObjectType).toObjectGRT(this, globalID.type.kcls)
+        return MockNodeEngineObjectData(id, graphqlObjectType).toObjectGRT(this, globalID.type.kcls, isRequiredSelectionInput = false)
     }
 
     override fun <T : Object> ref(call: RootFieldCall<T>): T {
