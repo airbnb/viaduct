@@ -1,13 +1,13 @@
 # Remote Resolver Architecture
 
-Remote resolvers replace selected Viaduct node and field resolver executors with gRPC proxies. The GraphQL engine, query planning, required-selection-set resolution, access checks, and response completion remain in the main server process. Only the tenant resolver executor call moves to a remote resolver server.
+Remote resolvers replace selected Viaduct node and field resolver executors with gRPC proxies. The GraphQL engine, query planning, required-selection-set resolution, access checks, and response completion remain in the main server process. Only the tenant resolver executor call moves to a remote tenant service.
 
 This document describes the current experimental implementation in `core/x/remoteresolvers`: bootstrap, resolver dispatch, wire formats, callback execution, process-local state, failure isolation, lifecycle, and test coverage. The module's [README](../README.md) covers configuration and running the StarWars demo.
 
 ## Terminology
 
 - **Main server** or **RRP**: The Viaduct process that owns GraphQL execution. It replaces selected executors with `RemoteNodeProxyExecutor` or `RemoteFieldProxyExecutor` and exposes `EngineCallbackService`.
-- **Remote server** or **RRS**: The process that owns `RemoteResolverService`, bootstraps tenant executors independently, and invokes them for incoming RPCs.
+- **Remote Tenant Service** or **RTS**: The process that owns `RemoteResolverService`, bootstraps tenant executors independently, and invokes them for incoming RPCs.
 - **Executor ID**: A stable string used to identify the same logical resolver in both processes. Node executors use their GraphQL type name; field executors use their field coordinate (`Type.field`).
 - **Handle**: A random string referring to an object in a process-local registry. Handles are temporary references, not serialized objects and not cross-process identities.
 - **RSS**: A resolver's required selection set. The main engine resolves field resolver object and query RSSes before the proxy is called.
@@ -16,7 +16,7 @@ This document describes the current experimental implementation in `core/x/remot
 ## Process Architecture
 
 ```text
-Main server (RRP)                              Remote server (RRS)
+Main server (RRP)                              Remote Tenant Service (RTS)
 
 GraphQL request
       |
@@ -59,13 +59,13 @@ The implementation has four important ownership rules:
 
 ### Transport lifecycle
 
-`RemoteResolverConfig.fromEnvironment()` accepts an explicit enablement value and reads the RRS
+`RemoteResolverConfig.fromEnvironment()` accepts an explicit enablement value and reads the RTS
 endpoint and callback port. The main server derives an exact `RemoteResolverSelection` from the
 selected tenants' `ExecutionRegistryConfigFile` resources and passes it to `RemoteResolverInitializer`.
 `RemoteResolverInitializer.initialize()` then:
 
 1. Returns `ProxyResolverFactory.NO_OP` when remote execution is disabled.
-2. Creates one shaded-Netty `ManagedChannel` to the configured RRS endpoint.
+2. Creates one shaded-Netty `ManagedChannel` to the configured RTS endpoint.
 3. Starts a plaintext gRPC callback server containing `EngineCallbackServiceImpl`.
 4. Advertises the callback endpoint as `<resolved-local-address>:<callback-port>`.
 5. Builds a `RemoteProxyResolverFactory` that owns proxy-selection predicates but not the channel lifecycle.
@@ -130,7 +130,7 @@ On the remote server, `RemoteResolverServiceImpl.batchResolveNode()`:
 5. Calls the remote process's node executor once with the reconstructed batch.
 6. Serializes each successful node result independently.
 
-Selection handles are process-local, and the node RPC does not carry a serialized selection set. Consequently, a separate RRS normally executes a non-selective node resolver with an empty selection set. The main engine still projects and completes the requested fields after the node returns. A future implementation that needs remote-side projection or selection-aware node execution must add a node selection-set wire representation.
+Selection handles are process-local, and the node RPC does not carry a serialized selection set. Consequently, a separate RTS normally executes a non-selective node resolver with an empty selection set. The main engine still projects and completes the requested fields after the node returns. A future implementation that needs remote-side projection or selection-aware node execution must add a node selection-set wire representation.
 
 The response uses node ID as its correlation key. This is why selective node resolvers, which may contain duplicate IDs with different selections, are unsupported.
 
@@ -180,7 +180,7 @@ Malformed arguments, RSS data, or selection documents fail only their selector. 
 
 The proxy indexes the response by `selector_key`, requires one response for every sent selector, and deserializes each success against the main context's live schema. Pre-RPC failures and remote results are then combined into the map expected by `FieldResolverExecutor`.
 
-The main engine performs normal field completion after the proxy returns. Remote execution does not move access checks, child query-plan execution, or GraphQL response completion into the RRS.
+The main engine performs normal field completion after the proxy returns. Remote execution does not move access checks, child query-plan execution, or GraphQL response completion into the RTS.
 
 ## Wire Formats
 
@@ -294,7 +294,7 @@ All registries are in-memory JVM singletons:
 
 `ContextRegistry`, `SelectionsRegistry`, and executor registries use `ConcurrentHashMap`. Every context registration returns a fresh UUID, even when concurrent RPCs use the same context, so one request's cleanup cannot remove another's entry.
 
-The RRS bootstrap path instead owns a `RemoteResolverRuntime` containing one schema and complete node and field executor maps, and injects that runtime into both service transports.
+The RTS bootstrap path instead owns a `RemoteResolverRuntime` containing one schema and complete node and field executor maps, and injects that runtime into both service transports.
 
 Do not treat registry handles as globally resolvable. A handle lookup succeeds in integration tests because both gRPC services run in one JVM; that is not evidence that the same lookup works between deployed processes.
 
@@ -323,7 +323,7 @@ Failure boundaries are:
 
 ## Channels, Security, and Shutdown
 
-The main initializer owns one RRS channel and one callback server. Each `RemoteResolverServiceImpl` caches one callback channel per advertised endpoint in a `ConcurrentHashMap`; creating a channel per request would create a Netty thread pool per request. The RRS host must call `shutdownChannels()` during shutdown.
+The main initializer owns one RTS channel and one callback server. Each `RemoteResolverServiceImpl` caches one callback channel per advertised endpoint in a `ConcurrentHashMap`; creating a channel per request would create a Netty thread pool per request. The RTS host must call `shutdownChannels()` during shutdown.
 
 Both directions currently use plaintext gRPC. There is no TLS, authentication, authorization, or request metadata propagation in this experimental transport. The callback endpoint advertised by the main process must be routable from the remote process.
 
@@ -343,7 +343,7 @@ The remote resolver library is a separate included Gradle build under `core/x/re
 The demo illustrates both sides of the integration:
 
 - `starwars/main-server` embeds Viaduct, installs the proxy factory, and owns the callback server.
-- `starwars/remote-server` loads schema and tenant manifests, supplies a Guice-backed `CodeInjector`, registers executors, and owns the RRS server.
+- `starwars/remote-server` loads schema and tenant manifests, supplies a Guice-backed `CodeInjector`, registers executors, and owns the RTS server.
 
 ## Testing
 

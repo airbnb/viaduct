@@ -119,7 +119,7 @@ class RemoteResolverStreamServiceImplTest {
         service: RemoteResolverStreamServiceImpl = RemoteResolverStreamServiceImpl(),
         block: suspend (RemoteResolverStreamServiceGrpcKt.RemoteResolverStreamServiceCoroutineStub) -> Unit,
     ) {
-        val serverName = "rrs-stream-${System.nanoTime()}"
+        val serverName = "rts-stream-${System.nanoTime()}"
         val server = InProcessServerBuilder.forName(serverName)
             .directExecutor()
             .addService(service)

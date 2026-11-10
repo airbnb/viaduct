@@ -120,7 +120,7 @@ Each of these fails a build that 2.0 accepted:
 
 ### Experimental — `x/remoteresolvers`, not covered by the API stability contract
 
-- **The remote-resolver wire encoding is now versioned** ([7fc43a5b0](https://github.com/airbnb/viaduct/commit/7fc43a5b0)) by @cetinsahin — build the RRS and the RRP from the same Viaduct version.
+- **The remote-resolver wire encoding is now versioned** ([7fc43a5b0](https://github.com/airbnb/viaduct/commit/7fc43a5b0)) by @cetinsahin — build the RTS and the RRP from the same Viaduct version.
 
 ---
 
@@ -197,7 +197,7 @@ Both are off by default and are not ready for production use.
 - `ctx.query()` and `ctx.mutation()` callbacks work across JVMs ([5cd9fbfe8](https://github.com/airbnb/viaduct/commit/5cd9fbfe8)) by @cetinsahin.
 - Response context from remote resolvers ([57b0ad316](https://github.com/airbnb/viaduct/commit/57b0ad316)) by @junjinp.
 - An opt-in streaming transport for node resolvers ([9ce37b455](https://github.com/airbnb/viaduct/commit/9ce37b455)) by @vickeyyeh.
-- Client interceptors on the RRS gRPC channel ([f2c4e6578](https://github.com/airbnb/viaduct/commit/f2c4e6578)) by @vickeyyeh.
+- Client interceptors on the RTS gRPC channel ([f2c4e6578](https://github.com/airbnb/viaduct/commit/f2c4e6578)) by @vickeyyeh.
 - Dispatch and execution instrumentation SPIs, and remote-resolver metrics and error classification ([981d39d6f](https://github.com/airbnb/viaduct/commit/981d39d6f), [00cea8a86](https://github.com/airbnb/viaduct/commit/00cea8a86), [3b2327ce0](https://github.com/airbnb/viaduct/commit/3b2327ce0), [00fff5710](https://github.com/airbnb/viaduct/commit/00fff5710), [463d0197b](https://github.com/airbnb/viaduct/commit/463d0197b), [f231d6ca0](https://github.com/airbnb/viaduct/commit/f231d6ca0), [002889d63](https://github.com/airbnb/viaduct/commit/002889d63), [1228c8c24](https://github.com/airbnb/viaduct/commit/1228c8c24), [b90442590](https://github.com/airbnb/viaduct/commit/b90442590)) by @vickeyyeh.
 
 ---
@@ -326,7 +326,7 @@ Both are off by default and are not ready for production use.
 - Share Kotlin and Java input type construction, required selection set dependencies, annotated operation preparation and node batch execution ([fbb6f91bc](https://github.com/airbnb/viaduct/commit/fbb6f91bc), [9a8e6f522](https://github.com/airbnb/viaduct/commit/9a8e6f522), [8b7f5cead](https://github.com/airbnb/viaduct/commit/8b7f5cead), [cc0e63d46](https://github.com/airbnb/viaduct/commit/cc0e63d46)) by @catacraciun
 - Introduce `FullSchema` for the complete engine schema while keeping scoped views as `EngineSchema` ([872ac4897](https://github.com/airbnb/viaduct/commit/872ac4897)) by @gokhan-ozgozen
 - Rename the engine `ViaductSchema` to `EngineSchema` ([b5444c026](https://github.com/airbnb/viaduct/commit/b5444c026)) by @gokhan-ozgozen
-- Build the RRS schema and executors as an instance-owned runtime ([38af9473a](https://github.com/airbnb/viaduct/commit/38af9473a)) by @njlynch
+- Build the RTS schema and executors as an instance-owned runtime ([38af9473a](https://github.com/airbnb/viaduct/commit/38af9473a)) by @njlynch
 - Remove remote resolver proxy factory registry side effects ([5bbe8838d](https://github.com/airbnb/viaduct/commit/5bbe8838d)) by @njlynch
 - Read materialized paths and coverage through the field reader, and make materialized field reads configurable ([a675bd66f](https://github.com/airbnb/viaduct/commit/a675bd66f), [3676d91c4](https://github.com/airbnb/viaduct/commit/3676d91c4)) by @alexanderuv
 - Share data fetcher result transformation ([6225ba54f](https://github.com/airbnb/viaduct/commit/6225ba54f)) by @alexanderuv

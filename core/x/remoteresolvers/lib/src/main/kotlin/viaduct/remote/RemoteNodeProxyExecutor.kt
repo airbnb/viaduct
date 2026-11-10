@@ -131,12 +131,12 @@ abstract class RemoteNodeProxyExecutor(
  * single unary RPC to a [RemoteResolverService], with [callbackEndpoint] as the address the
  * remote service dials back for re-entrant queries.
  *
- * The caller is responsible for the lifecycle of [rrsChannel]; this class does not shut it down.
+ * The caller is responsible for the lifecycle of [rtsChannel]; this class does not shut it down.
  */
 class UnaryRemoteNodeProxyExecutor(
     originalExecutor: NodeResolverExecutor,
     executorId: String,
-    rrsChannel: ManagedChannel,
+    rtsChannel: ManagedChannel,
     private val callbackEndpoint: String,
     private val requestDeadline: Duration? = null,
     private val contextCapturerProvider: RemoteResolverContextCapturerProvider =
@@ -146,7 +146,7 @@ class UnaryRemoteNodeProxyExecutor(
     dispatchInstrumentation: RemoteDispatchInstrumentation =
         RemoteDispatchInstrumentation.NO_OP,
 ) : RemoteNodeProxyExecutor(originalExecutor, executorId, responseContextApplier, dispatchInstrumentation) {
-    private val rrsStub = RemoteResolverServiceGrpcKt.RemoteResolverServiceCoroutineStub(rrsChannel)
+    private val rtsStub = RemoteResolverServiceGrpcKt.RemoteResolverServiceCoroutineStub(rtsChannel)
 
     override suspend fun callRemote(
         request: BatchResolveNodeRequest,
@@ -162,7 +162,7 @@ class UnaryRemoteNodeProxyExecutor(
 
         // Handle is valid only for the duration of this RPC — unregister in finally so a
         // failure doesn't leak the context reference.
-        val stub = requestDeadline?.let { rrsStub.withDeadlineAfter(it.toMillis(), TimeUnit.MILLISECONDS) } ?: rrsStub
+        val stub = requestDeadline?.let { rtsStub.withDeadlineAfter(it.toMillis(), TimeUnit.MILLISECONDS) } ?: rtsStub
         return try {
             stub.batchResolveNode(fullRequest)
         } finally {
@@ -172,7 +172,7 @@ class UnaryRemoteNodeProxyExecutor(
 }
 
 /**
- * Thrown when a field/node's remote resolver itself failed -- reported by RRS over the wire
+ * Thrown when a field/node's remote resolver itself failed -- reported by RTS over the wire
  * ([viaduct.remote.grpc.ErrorInfo]), not a local exception. Attributed to tenant code.
  */
 class RemoteResolverException(

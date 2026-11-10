@@ -146,7 +146,7 @@ class UnaryRemoteEngineExecutionContext(
         // The result's root type is the selection set's own type, which is known locally — no need to
         // trust (or invent) a type name for it. Resolve nested names against this receiver's own
         // schema, like every other decode site (selectionSet.schema is equivalent today but throws
-        // outright for the empty selection set the RRS substitutes on a handle miss).
+        // outright for the empty selection set the RTS substitutes on a handle miss).
         return EngineObjectDataSerializer.deserialize(
             response.objectDataJson.toByteArray(),
             fullSchema.schema,

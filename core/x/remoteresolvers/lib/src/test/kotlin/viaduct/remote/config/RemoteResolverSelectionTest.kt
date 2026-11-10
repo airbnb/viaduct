@@ -73,7 +73,7 @@ class RemoteResolverSelectionTest {
 
     @Test
     fun `non-kotlin configs are not proxied because the remote process does not load them`() {
-        // A tenant's second-API config lives beside its `kotlin` one on the classpath, but RRS only loads
+        // A tenant's second-API config lives beside its `kotlin` one on the classpath, but RTS only loads
         // <pkg>.json — proxying those coordinates would route them to a process that cannot resolve
         // them.
         val selection = RemoteResolverSelection.fromModuleConfigSources(

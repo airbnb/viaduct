@@ -6,7 +6,7 @@ option java_package = "viaduct.remote.grpc";
 option java_multiple_files = true;
 option java_outer_classname = "RemoteResolverProto";
 
-// Service for executing resolvers remotely (RRP -> RRS)
+// Service for executing resolvers remotely (RRP -> RTS)
 service RemoteResolverService {
   // Execute a batch of node resolver invocations
   rpc BatchResolveNode(BatchResolveNodeRequest) returns (BatchResolveNodeResponse);
@@ -15,7 +15,7 @@ service RemoteResolverService {
   rpc BatchResolveField(BatchResolveFieldRequest) returns (BatchResolveFieldResponse);
 }
 
-// Service for callbacks from resolver back to engine (RRS -> RRP)
+// Service for callbacks from resolver back to engine (RTS -> RRP)
 service EngineCallbackService {
   // Execute a GraphQL query
   rpc ExecuteQuery(QueryRequest) returns (QueryResponse);
@@ -158,8 +158,8 @@ message BatchResolveFieldResponse {
   // Opaque host-defined context captured after remote field resolver execution.
   EncodedRemoteContext response_context = 2;
 
-  // Wall-clock time RRS spent inside the resolver's own batchResolve() call, in nanoseconds --
-  // excludes RRS's own request/response (de)serialization. Absent when the RRS binary predates
+  // Wall-clock time RTS spent inside the resolver's own batchResolve() call, in nanoseconds --
+  // excludes RTS's own request/response (de)serialization. Absent when the RTS binary predates
   // this field (rolling deploy); callers must check presence rather than assume zero.
   optional int64 body_duration_nanos = 3;
 }
@@ -173,7 +173,7 @@ message ResolvedField {
     // Success: the field value, JSON-encoded by EngineObjectDataSerializer — each object records its
     // concrete GraphQL type, and the root is a versioned `[version, value]` array.
     // NOTE: successive encodings here have deliberately reused this field number rather than adding a
-    // new one, so the RRS and RRP must be built from the same commit / co-deployed. The root version
+    // new one, so the RTS and RRP must be built from the same commit / co-deployed. The root version
     // exists so that violating that fails loudly rather than decoding into a wrong value.
     bytes value_json = 2;
 
@@ -235,9 +235,9 @@ service RemoteResolverStreamService {
   rpc ResolveFieldBatch(stream ViaductServiceFieldMessage) returns (stream RemoteResolverServiceFieldMessage);
 }
 
-// RRP -> RRS, on the node-resolve stream. The first message on the stream is always
+// RRP -> RTS, on the node-resolve stream. The first message on the stream is always
 // resolve_request; any number of callback_response messages may follow, one per
-// callback_request received from RRS.
+// callback_request received from RTS.
 message ViaductServiceMessage {
   oneof payload {
     BatchResolveNodeRequest resolve_request = 1;
@@ -245,7 +245,7 @@ message ViaductServiceMessage {
   }
 }
 
-// RRS -> RRP, on the node-resolve stream. Any number of callback_request messages may be sent
+// RTS -> RRP, on the node-resolve stream. Any number of callback_request messages may be sent
 // (including zero, and including several concurrently in flight for different selectors in
 // the batch); resolve_response is always the last message, after which the stream completes.
 message RemoteResolverServiceMessage {
@@ -255,7 +255,7 @@ message RemoteResolverServiceMessage {
   }
 }
 
-// RRP -> RRS, on the field-resolve stream. Same lifecycle as ViaductServiceMessage.
+// RRP -> RTS, on the field-resolve stream. Same lifecycle as ViaductServiceMessage.
 message ViaductServiceFieldMessage {
   oneof payload {
     BatchResolveFieldRequest resolve_request = 1;
@@ -263,7 +263,7 @@ message ViaductServiceFieldMessage {
   }
 }
 
-// RRS -> RRP, on the field-resolve stream. Same lifecycle as RemoteResolverServiceMessage.
+// RTS -> RRP, on the field-resolve stream. Same lifecycle as RemoteResolverServiceMessage.
 message RemoteResolverServiceFieldMessage {
   oneof payload {
     CallbackRequest callback_request = 1;
@@ -271,9 +271,9 @@ message RemoteResolverServiceFieldMessage {
   }
 }
 
-// A re-entrant ctx.query()/ctx.mutation() call, sent by RRS on the stream it received the
+// A re-entrant ctx.query()/ctx.mutation() call, sent by RTS on the stream it received the
 // original resolve_request on. Carries the selection set's content, not a handle -- the
-// receiving side (RRP) has no way to resolve a reference into RRS's process-local registry, so
+// receiving side (RRP) has no way to resolve a reference into RTS's process-local registry, so
 // the actual selections travel on the wire.
 message CallbackRequest {
   // Correlates this request with its CallbackResponse; scoped to one stream. A batch may have

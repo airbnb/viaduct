@@ -4,7 +4,7 @@ import com.google.inject.Guice
 import kotlin.system.exitProcess
 import org.slf4j.LoggerFactory
 
-/** Entry point for the standalone Remote Resolver Server. See module README for transports and configuration. */
+/** Entry point for the standalone Remote Tenant Service. See module README for transports and configuration. */
 fun main(args: Array<String>) {
     val log = LoggerFactory.getLogger("RemoteServer")
     val config = RemoteConfiguration.fromArgs(args)

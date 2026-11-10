@@ -20,53 +20,53 @@ import viaduct.remote.registry.NodeExecutorRegistry
 class RemoteProxyResolverFactoryTest {
     @Test
     fun `proxying resolvers does not register originals`() {
-        val rrsChannel =
-            InProcessChannelBuilder.forName("test-rrs-no-registration-${System.nanoTime()}").directExecutor().build()
+        val rtsChannel =
+            InProcessChannelBuilder.forName("test-rts-no-registration-${System.nanoTime()}").directExecutor().build()
         val nodeExecutor = SimpleNodeResolverExecutor(typeName = "RrpNoRegistration", nodeData = emptyMap())
         val fieldExecutor = SimpleFieldResolverExecutor(resolverId = "RrpNoRegistration.field")
         try {
-            val factory = RemoteProxyResolverFactory(rrsChannel, "test-cb")
+            val factory = RemoteProxyResolverFactory(rtsChannel, "test-cb")
 
             assertTrue(factory.proxyNode(nodeExecutor) is UnaryRemoteNodeProxyExecutor)
             assertTrue(factory.proxyField(fieldExecutor) is RemoteFieldProxyExecutor)
             assertNull(NodeExecutorRegistry.get(nodeExecutor.typeName))
             assertNull(FieldExecutorRegistry.get(fieldExecutor.resolverId))
         } finally {
-            rrsChannel.shutdownNow()
+            rtsChannel.shutdownNow()
         }
     }
 
     @Test
     fun `default factory proxies nodes with the unary executor`() {
-        val rrsChannel = InProcessChannelBuilder.forName("test-rrs-unary-${System.nanoTime()}").directExecutor().build()
+        val rtsChannel = InProcessChannelBuilder.forName("test-rts-unary-${System.nanoTime()}").directExecutor().build()
         try {
-            val factory = RemoteProxyResolverFactory(rrsChannel, "test-cb")
+            val factory = RemoteProxyResolverFactory(rtsChannel, "test-cb")
             val node = factory.proxyNode(SimpleNodeResolverExecutor.createUserResolver())
             assertTrue(node is UnaryRemoteNodeProxyExecutor, "expected the unary node proxy executor")
         } finally {
-            rrsChannel.shutdownNow()
+            rtsChannel.shutdownNow()
         }
     }
 
     @Test
     fun `useStreamingTransport proxies nodes with the streaming executor`() {
-        val rrsChannel = InProcessChannelBuilder.forName("test-rrs-streaming-${System.nanoTime()}").directExecutor().build()
+        val rtsChannel = InProcessChannelBuilder.forName("test-rts-streaming-${System.nanoTime()}").directExecutor().build()
         try {
-            val factory = RemoteProxyResolverFactory(rrsChannel, "test-cb", useStreamingTransport = true)
+            val factory = RemoteProxyResolverFactory(rtsChannel, "test-cb", useStreamingTransport = true)
             val node = factory.proxyNode(SimpleNodeResolverExecutor.createUserResolver())
             assertTrue(node is RemoteNodeStreamProxyExecutor, "expected the streaming node proxy executor")
         } finally {
-            rrsChannel.shutdownNow()
+            rtsChannel.shutdownNow()
         }
     }
 
     @Test
     fun `a proxied node resolver's metadata is tagged isRemote, regardless of transport`() {
-        val rrsChannel = InProcessChannelBuilder.forName("test-rrs-node-metadata-${System.nanoTime()}").directExecutor().build()
+        val rtsChannel = InProcessChannelBuilder.forName("test-rts-node-metadata-${System.nanoTime()}").directExecutor().build()
         try {
             val original = SimpleNodeResolverExecutor.createUserResolver()
-            val unaryFactory = RemoteProxyResolverFactory(rrsChannel, "test-cb")
-            val streamingFactory = RemoteProxyResolverFactory(rrsChannel, "test-cb", useStreamingTransport = true)
+            val unaryFactory = RemoteProxyResolverFactory(rtsChannel, "test-cb")
+            val streamingFactory = RemoteProxyResolverFactory(rtsChannel, "test-cb", useStreamingTransport = true)
 
             assertTrue(original.metadata.isRemote == false, "the original executor's metadata should be unaffected")
             assertTrue(
@@ -78,20 +78,20 @@ class RemoteProxyResolverFactoryTest {
                 "the streaming proxy's metadata should be tagged isRemote"
             )
         } finally {
-            rrsChannel.shutdownNow()
+            rtsChannel.shutdownNow()
             NodeExecutorRegistry.clear()
         }
     }
 
     @Test
     fun `useStreamingTransport does not affect field resolvers -- they stay on the unary executor`() {
-        val rrsChannel = InProcessChannelBuilder.forName("test-rrs-streaming-field-${System.nanoTime()}").directExecutor().build()
+        val rtsChannel = InProcessChannelBuilder.forName("test-rts-streaming-field-${System.nanoTime()}").directExecutor().build()
         try {
-            val factory = RemoteProxyResolverFactory(rrsChannel, "test-cb", useStreamingTransport = true)
+            val factory = RemoteProxyResolverFactory(rtsChannel, "test-cb", useStreamingTransport = true)
             val field = factory.proxyField(SimpleFieldResolverExecutor(resolverId = "Character.isAdult"))
             assertTrue(field is RemoteFieldProxyExecutor, "expected the unary field proxy executor even with useStreamingTransport")
         } finally {
-            rrsChannel.shutdownNow()
+            rtsChannel.shutdownNow()
         }
     }
 }

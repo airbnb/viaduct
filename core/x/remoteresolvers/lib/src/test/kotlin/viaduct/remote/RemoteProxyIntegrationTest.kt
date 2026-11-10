@@ -78,11 +78,11 @@ class RemoteProxyIntegrationTest {
     @Test
     fun `test proxy resolver factory wraps specified types`() {
         // Create mock channels for testing
-        val rrsChannel = io.grpc.inprocess.InProcessChannelBuilder.forName("test-rrs").directExecutor().build()
+        val rtsChannel = io.grpc.inprocess.InProcessChannelBuilder.forName("test-rts").directExecutor().build()
         val callbackEndpoint = "test-rrp-callback"
 
         // Create a factory that proxies "User" type
-        val factory = RemoteProxyResolverFactory.proxyTypes(rrsChannel, callbackEndpoint, "User")
+        val factory = RemoteProxyResolverFactory.proxyTypes(rtsChannel, callbackEndpoint, "User")
 
         // Create resolvers for different types
         val userResolver = SimpleNodeResolverExecutor.createUserResolver()
@@ -160,13 +160,13 @@ class RemoteProxyIntegrationTest {
             // 1. Setup: Create the underlying resolver with test data
             val actualResolver = SimpleNodeResolverExecutor.createUserResolver()
 
-            // 2. Setup: Start InProcess gRPC server for RRS (Remote Resolver Server)
-            val rrsServerName = "test-rrs-e2e"
-            val rrsService = InProcessCallbackRemoteResolverService()
-            val rrsServer = InProcessServerBuilder
-                .forName(rrsServerName)
+            // 2. Setup: Start InProcess gRPC server for RTS (Remote Tenant Service)
+            val rtsServerName = "test-rts-e2e"
+            val rtsService = InProcessCallbackRemoteResolverService()
+            val rtsServer = InProcessServerBuilder
+                .forName(rtsServerName)
                 .directExecutor()
-                .addService(rrsService)
+                .addService(rtsService)
                 .build()
                 .start()
 
@@ -184,9 +184,9 @@ class RemoteProxyIntegrationTest {
                 // 4. Setup: Register the actual resolver in NodeExecutorRegistry (simulating service discovery)
                 val executorId = NodeExecutorRegistry.register(actualResolver)
 
-                // 5. Setup: Create gRPC channel to RRS
-                val rrsChannel = io.grpc.inprocess.InProcessChannelBuilder
-                    .forName(rrsServerName)
+                // 5. Setup: Create gRPC channel to RTS
+                val rtsChannel = io.grpc.inprocess.InProcessChannelBuilder
+                    .forName(rtsServerName)
                     .directExecutor()
                     .build()
 
@@ -194,7 +194,7 @@ class RemoteProxyIntegrationTest {
                 val remoteProxy = UnaryRemoteNodeProxyExecutor(
                     originalExecutor = actualResolver,
                     executorId = executorId,
-                    rrsChannel = rrsChannel,
+                    rtsChannel = rtsChannel,
                     callbackEndpoint = callbackEndpoint
                 )
 
@@ -206,7 +206,7 @@ class RemoteProxyIntegrationTest {
                 )
 
                 // 8. Test: Make a request through the FULL gRPC stack
-                // Flow: RemoteNodeProxyExecutor (RRP) -> gRPC -> RemoteResolverServiceImpl (RRS)
+                // Flow: RemoteNodeProxyExecutor (RRP) -> gRPC -> RemoteResolverServiceImpl (RTS)
                 //       -> actualResolver -> serialize -> gRPC -> RemoteNodeProxyExecutor -> deserialize
                 val results = remoteProxy.resolve(listOf(selector), context)
 
@@ -251,9 +251,9 @@ class RemoteProxyIntegrationTest {
                 )
             } finally {
                 // Cleanup
-                rrsServer.shutdown()
+                rtsServer.shutdown()
                 callbackServer.shutdown()
-                rrsService.shutdownChannels()
+                rtsService.shutdownChannels()
                 NodeExecutorRegistry.clear()
                 ContextRegistry.clear()
                 SelectionsRegistry.clear()
@@ -272,7 +272,7 @@ class RemoteProxyIntegrationTest {
                 sentinelId = SimpleNodeResolverExecutor.UNSERIALIZABLE_NODE_ID,
                 nameSuffix = "serfail",
                 failureLabel = "Node with an un-serializable result should fail",
-                // RRS's own serialization of its return value; reported over the wire as an
+                // RTS's own serialization of its return value; reported over the wire as an
                 // application-level error, unaffected by the codec-exception split.
                 expectedExceptionType = RemoteResolverException::class.java,
             )
@@ -311,12 +311,12 @@ class RemoteProxyIntegrationTest {
         // fixture's normal path.
         val actualResolver = SimpleNodeResolverExecutor.createUserResolver()
 
-        val rrsServerName = "test-rrs-node-$nameSuffix"
-        val rrsService = InProcessCallbackRemoteResolverService()
-        val rrsServer = InProcessServerBuilder
-            .forName(rrsServerName)
+        val rtsServerName = "test-rts-node-$nameSuffix"
+        val rtsService = InProcessCallbackRemoteResolverService()
+        val rtsServer = InProcessServerBuilder
+            .forName(rtsServerName)
             .directExecutor()
-            .addService(rrsService)
+            .addService(rtsService)
             .build()
             .start()
 
@@ -330,15 +330,15 @@ class RemoteProxyIntegrationTest {
 
         try {
             val executorId = NodeExecutorRegistry.register(actualResolver)
-            val rrsChannel = InProcessChannelBuilder
-                .forName(rrsServerName)
+            val rtsChannel = InProcessChannelBuilder
+                .forName(rtsServerName)
                 .directExecutor()
                 .build()
 
             val remoteProxy = UnaryRemoteNodeProxyExecutor(
                 originalExecutor = actualResolver,
                 executorId = executorId,
-                rrsChannel = rrsChannel,
+                rtsChannel = rtsChannel,
                 callbackEndpoint = callbackEndpoint
             )
 
@@ -374,9 +374,9 @@ class RemoteProxyIntegrationTest {
             assertTrue(lastResult!!.isSuccess, "Well-formed node should still succeed despite its batch-mate failing")
             assertEquals("Charlie", lastResult.getOrNull()?.fetch("name"), "Last node name should match")
         } finally {
-            rrsServer.shutdown()
+            rtsServer.shutdown()
             callbackServer.shutdown()
-            rrsService.shutdownChannels()
+            rtsService.shutdownChannels()
             NodeExecutorRegistry.clear()
             ContextRegistry.clear()
             SelectionsRegistry.clear()
@@ -398,13 +398,13 @@ class RemoteProxyIntegrationTest {
             // This resolver will fetch a post, then call context.query() to fetch the author
             val postResolver = viaduct.remote.fixtures.CallbackNodeResolverExecutor.create()
 
-            // 3. Setup: Start InProcess gRPC server for RRS (Remote Resolver Server)
-            val rrsServerName = "test-rrs-callback"
-            val rrsService = InProcessCallbackRemoteResolverService()
-            val rrsServer = InProcessServerBuilder
-                .forName(rrsServerName)
+            // 3. Setup: Start InProcess gRPC server for RTS (Remote Tenant Service)
+            val rtsServerName = "test-rts-callback"
+            val rtsService = InProcessCallbackRemoteResolverService()
+            val rtsServer = InProcessServerBuilder
+                .forName(rtsServerName)
                 .directExecutor()
-                .addService(rrsService)
+                .addService(rtsService)
                 .build()
                 .start()
 
@@ -423,9 +423,9 @@ class RemoteProxyIntegrationTest {
                 val postExecutorId = NodeExecutorRegistry.register(postResolver)
                 NodeExecutorRegistry.register(userResolver)
 
-                // 6. Setup: Create gRPC channel to RRS
-                val rrsChannel = InProcessChannelBuilder
-                    .forName(rrsServerName)
+                // 6. Setup: Create gRPC channel to RTS
+                val rtsChannel = InProcessChannelBuilder
+                    .forName(rtsServerName)
                     .directExecutor()
                     .build()
 
@@ -433,7 +433,7 @@ class RemoteProxyIntegrationTest {
                 val remotePostProxy = UnaryRemoteNodeProxyExecutor(
                     originalExecutor = postResolver,
                     executorId = postExecutorId,
-                    rrsChannel = rrsChannel,
+                    rtsChannel = rtsChannel,
                     callbackEndpoint = callbackEndpoint
                 )
 
@@ -479,9 +479,9 @@ class RemoteProxyIntegrationTest {
                 assertTrue(result != null, "Result should not be null")
             } finally {
                 // Cleanup
-                rrsServer.shutdown()
+                rtsServer.shutdown()
                 callbackServer.shutdown()
-                rrsService.shutdownChannels()
+                rtsService.shutdownChannels()
                 NodeExecutorRegistry.clear()
                 ContextRegistry.clear()
                 SelectionsRegistry.clear()

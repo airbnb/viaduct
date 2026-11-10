@@ -331,7 +331,7 @@ class RemoteResolverContextIntegrationTest {
                 val nodeExecutor = SimpleNodeResolverExecutor.createUserResolver()
                 val factory =
                     RemoteProxyResolverFactory(
-                        rrsChannel = channel,
+                        rtsChannel = channel,
                         callbackEndpoint = "unused",
                         contextCapturerProvider = capturerProvider,
                         responseContextApplier = responseApplier,
@@ -459,7 +459,7 @@ class RemoteResolverContextIntegrationTest {
                 val nodeExecutor = SimpleNodeResolverExecutor.createUserResolver()
                 val factory =
                     RemoteProxyResolverFactory(
-                        rrsChannel = channel,
+                        rtsChannel = channel,
                         callbackEndpoint = "unused",
                         useStreamingTransport = true,
                         contextCapturerProvider = capturerProvider,

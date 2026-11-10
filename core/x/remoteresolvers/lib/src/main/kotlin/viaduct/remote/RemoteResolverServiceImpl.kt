@@ -178,7 +178,7 @@ open class RemoteResolverServiceImpl(
             .build()
     }
 
-    /** Drains and clears the callback channel cache. Call during RRS shutdown. */
+    /** Drains and clears the callback channel cache. Call during RTS shutdown. */
     fun shutdownChannels() {
         callbackChannelCache.values.forEach { channel ->
             channel.shutdown()

@@ -23,9 +23,9 @@ data class RemoteResolverSelection(
             }
 
             // A tenant may contribute one config per tenant API implementation, but the remote process
-            // only bootstraps the `kotlin` `<pkg>.json` config (see RrsTenantBootstrapper's registry
+            // only bootstraps the `kotlin` `<pkg>.json` config (see RtsTenantBootstrapper's registry
             // loader). Proxying coordinates from a config the remote side never registers would route
-            // those fields to a process that cannot resolve them, so select only the API RRS loads.
+            // those fields to a process that cannot resolve them, so select only the API RTS loads.
             val registrySourcesByTenant = moduleConfigSources
                 .filter { it.apiName == PROXYABLE_API_NAME }
                 .groupBy { it.tenantName }

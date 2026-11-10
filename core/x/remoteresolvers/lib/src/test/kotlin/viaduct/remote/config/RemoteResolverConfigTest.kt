@@ -26,19 +26,19 @@ class RemoteResolverConfigTest {
     @Test
     fun `network endpoints default and override`() {
         val defaults = RemoteResolverConfig.fromEnvironment(envOf())
-        assertEquals(RemoteResolverConfig.DEFAULT_RRS_HOST, defaults.rrsHost)
-        assertEquals(RemoteResolverConfig.DEFAULT_RRS_PORT, defaults.rrsPort)
+        assertEquals(RemoteResolverConfig.DEFAULT_RTS_HOST, defaults.rtsHost)
+        assertEquals(RemoteResolverConfig.DEFAULT_RTS_PORT, defaults.rtsPort)
         assertEquals(RemoteResolverConfig.DEFAULT_CALLBACK_PORT, defaults.callbackPort)
 
         val overridden = RemoteResolverConfig.fromEnvironment(
             envOf(
-                RemoteResolverConfig.ENV_RRS_HOST to "rrs.internal",
-                RemoteResolverConfig.ENV_RRS_PORT to "60001",
-                RemoteResolverConfig.ENV_CALLBACK_PORT to "60002",
+                "VIADUCT_RTS_HOST" to "rts.internal",
+                "VIADUCT_RTS_PORT" to "60001",
+                "VIADUCT_RTS_CALLBACK_PORT" to "60002",
             )
         )
-        assertEquals("rrs.internal", overridden.rrsHost)
-        assertEquals(60001, overridden.rrsPort)
+        assertEquals("rts.internal", overridden.rtsHost)
+        assertEquals(60001, overridden.rtsPort)
         assertEquals(60002, overridden.callbackPort)
     }
 
@@ -46,11 +46,11 @@ class RemoteResolverConfigTest {
     fun `unparseable port values fall back to defaults`() {
         val cfg = RemoteResolverConfig.fromEnvironment(
             envOf(
-                RemoteResolverConfig.ENV_RRS_PORT to "not-a-port",
+                RemoteResolverConfig.ENV_RTS_PORT to "not-a-port",
                 RemoteResolverConfig.ENV_CALLBACK_PORT to "also-not",
             )
         )
-        assertEquals(RemoteResolverConfig.DEFAULT_RRS_PORT, cfg.rrsPort)
+        assertEquals(RemoteResolverConfig.DEFAULT_RTS_PORT, cfg.rtsPort)
         assertEquals(RemoteResolverConfig.DEFAULT_CALLBACK_PORT, cfg.callbackPort)
     }
 }

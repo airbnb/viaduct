@@ -22,9 +22,9 @@ class RemoteConfigurationTest {
     fun `reads each value from env`() {
         val cfg = RemoteConfiguration.fromEnvironment(
             envOf(
-                RemoteConfiguration.ENV_PORT to "60001",
-                RemoteConfiguration.ENV_CALLBACK_HOST to "callback.example",
-                RemoteConfiguration.ENV_CALLBACK_PORT to "60002",
+                "VIADUCT_RTS_PORT" to "60001",
+                "VIADUCT_RTS_CALLBACK_HOST" to "callback.example",
+                "VIADUCT_RTS_CALLBACK_PORT" to "60002",
             )
         )
         assertEquals(60001, cfg.port)
@@ -41,9 +41,9 @@ class RemoteConfigurationTest {
     @Test
     fun `args override env`() {
         val env = envOf(
-            RemoteConfiguration.ENV_PORT to "60001",
-            RemoteConfiguration.ENV_CALLBACK_HOST to "callback.example",
-            RemoteConfiguration.ENV_CALLBACK_PORT to "60002",
+            "VIADUCT_RTS_PORT" to "60001",
+            "VIADUCT_RTS_CALLBACK_HOST" to "callback.example",
+            "VIADUCT_RTS_CALLBACK_PORT" to "60002",
         )
         val cfg = RemoteConfiguration.fromArgs(
             arrayOf("--port", "70001", "--callback-host", "override.example", "--callback-port", "70002"),
@@ -56,7 +56,7 @@ class RemoteConfigurationTest {
 
     @Test
     fun `args inherit unspecified values from env`() {
-        val env = envOf(RemoteConfiguration.ENV_CALLBACK_HOST to "callback.example")
+        val env = envOf("VIADUCT_RTS_CALLBACK_HOST" to "callback.example")
         val cfg = RemoteConfiguration.fromArgs(arrayOf("--port", "70001"), env)
         assertEquals(70001, cfg.port)
         assertEquals("callback.example", cfg.callbackHost)

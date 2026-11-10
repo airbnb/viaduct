@@ -31,14 +31,14 @@ class RemoteResolverInitializer(
         RemoteResolverResponseContextApplier.NO_OP,
     private val dispatchInstrumentation: RemoteDispatchInstrumentation =
         RemoteDispatchInstrumentation.NO_OP,
-    // Applied to the RRS gRPC channel. Empty by default; a host can supply interceptors here to
+    // Applied to the RTS gRPC channel. Empty by default; a host can supply interceptors here to
     // propagate cross-cutting request context to the remote resolver call.
     private val clientInterceptors: List<ClientInterceptor> = emptyList(),
 ) : AutoCloseable {
     private val log = LoggerFactory.getLogger(RemoteResolverInitializer::class.java)
 
     private var callbackServer: Server? = null
-    private var rrsChannel: ManagedChannel? = null
+    private var rtsChannel: ManagedChannel? = null
 
     // Read on the fast path before synchronized — `factory !== NO_OP` doubles as the
     // initialized sentinel for double-checked locking.
@@ -80,18 +80,18 @@ class RemoteResolverInitializer(
             }
             try {
                 log.info("Shutting down remote resolver execution")
-                rrsChannel?.shutdown()
+                rtsChannel?.shutdown()
                 callbackServer?.shutdown()
                 try {
-                    if (rrsChannel?.awaitTermination(SHUTDOWN_TIMEOUT_SECONDS, TimeUnit.SECONDS) == false) rrsChannel?.shutdownNow()
+                    if (rtsChannel?.awaitTermination(SHUTDOWN_TIMEOUT_SECONDS, TimeUnit.SECONDS) == false) rtsChannel?.shutdownNow()
                     if (callbackServer?.awaitTermination(SHUTDOWN_TIMEOUT_SECONDS, TimeUnit.SECONDS) == false) callbackServer?.shutdownNow()
                 } catch (e: InterruptedException) {
-                    rrsChannel?.shutdownNow()
+                    rtsChannel?.shutdownNow()
                     callbackServer?.shutdownNow()
                     Thread.currentThread().interrupt()
                 }
             } finally {
-                rrsChannel = null
+                rtsChannel = null
                 callbackServer = null
                 factory = ProxyResolverFactory.NO_OP
                 closed = true
@@ -102,8 +102,8 @@ class RemoteResolverInitializer(
     // Shaded Netty avoids classpath clashes with a non-shaded grpc-netty pulled in by
     // host applications. Plaintext only; TLS is out of scope for this experimental feature.
     private fun initializeTransport(selection: RemoteResolverSelection): ProxyResolverFactory {
-        log.info("Connecting to remote RRS at {}:{}", config.rrsHost, config.rrsPort)
-        rrsChannel = NettyChannelBuilder.forAddress(config.rrsHost, config.rrsPort)
+        log.info("Connecting to remote RTS at {}:{}", config.rtsHost, config.rtsPort)
+        rtsChannel = NettyChannelBuilder.forAddress(config.rtsHost, config.rtsPort)
             .usePlaintext()
             .intercept(clientInterceptors)
             .build()
@@ -116,7 +116,7 @@ class RemoteResolverInitializer(
 
         val callbackEndpoint = "${resolveLocalHost()}:${config.callbackPort}"
         log.info("Callback endpoint: {}", callbackEndpoint)
-        return buildFactory(rrsChannel!!, callbackEndpoint, selection)
+        return buildFactory(rtsChannel!!, callbackEndpoint, selection)
     }
 
     private fun buildFactory(

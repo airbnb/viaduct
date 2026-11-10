@@ -32,13 +32,13 @@ import viaduct.remote.registry.SelectionsRegistry
  *
  * The proxy delegates [objectSelectionSet] / [querySelectionSet] so the engine resolves them before
  * calling [batchResolve]; each selector's resolved object and query values are then serialized to the
- * remote service. The caller owns [rrsChannel]'s lifecycle. [callbackEndpoint] is where the remote
+ * remote service. The caller owns [rtsChannel]'s lifecycle. [callbackEndpoint] is where the remote
  * service dials back for re-entrant queries, in "host:port" form.
  */
 class RemoteFieldProxyExecutor(
     private val originalExecutor: FieldResolverExecutor,
     private val executorId: String,
-    rrsChannel: ManagedChannel,
+    rtsChannel: ManagedChannel,
     private val callbackEndpoint: String,
     private val requestDeadline: Duration? = null,
     private val contextCapturerProvider: RemoteResolverContextCapturerProvider =
@@ -58,7 +58,7 @@ class RemoteFieldProxyExecutor(
     }
 
     private val log = LoggerFactory.getLogger(RemoteFieldProxyExecutor::class.java)
-    private val rrsStub = RemoteResolverServiceGrpcKt.RemoteResolverServiceCoroutineStub(rrsChannel)
+    private val rtsStub = RemoteResolverServiceGrpcKt.RemoteResolverServiceCoroutineStub(rtsChannel)
 
     // Delegated so the engine resolves the required selection sets before calling batchResolve.
     override val objectSelectionSet: RequiredSelectionSet?
@@ -96,7 +96,7 @@ class RemoteFieldProxyExecutor(
             val sent = mutableListOf<Pair<Int, FieldResolverExecutor.Selector>>()
             // Serializing a selector's object/query value can throw (e.g. a nested NodeReference in the
             // resolved object). Isolate that to the offending selector's Result and still send the rest —
-            // mirroring the RRS-side per-selector isolation — rather than failing the whole batch.
+            // mirroring the RTS-side per-selector isolation — rather than failing the whole batch.
             val preFailed = mutableMapOf<FieldResolverExecutor.Selector, Result<Any?>>()
             // A batched field usually shares one selection-set instance across all its selectors; build
             // the wire form (handle + serialized selection set) once per distinct instance rather than
@@ -170,7 +170,7 @@ class RemoteFieldProxyExecutor(
                 .apply { capturedContext?.let { setRemoteContext(it.toWire()) } }
                 .build()
 
-            val stub = requestDeadline?.let { rrsStub.withDeadlineAfter(it.toMillis(), TimeUnit.MILLISECONDS) } ?: rrsStub
+            val stub = requestDeadline?.let { rtsStub.withDeadlineAfter(it.toMillis(), TimeUnit.MILLISECONDS) } ?: rtsStub
             val response = stub.batchResolveField(request)
             dispatch.onResponseReceived(
                 RemoteDispatchInstrumentationContext.RemoteDispatchResponse(

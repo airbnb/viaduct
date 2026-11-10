@@ -25,12 +25,12 @@ channel; the remote server calls back through a plaintext server bound by the ma
 
 | Env var | Default | Side | Description |
 | --- | --- | --- | --- |
-| `VIADUCT_RRS_HOST` | `localhost` | main | Hostname the main server dials for the remote resolver service. |
-| `VIADUCT_RRS_PORT` | `50051` | both | Remote server gRPC port — the main server dials it, the remote server binds it. |
-| `VIADUCT_RRS_CALLBACK_HOST` | `localhost` | remote | Hostname the remote server reaches the main server callback at. |
-| `VIADUCT_RRS_CALLBACK_PORT` | `50052` | both | Callback port — the main server binds it, the remote server dials it. |
+| `VIADUCT_RTS_HOST` | `localhost` | main | Hostname the main server dials for the remote resolver service. |
+| `VIADUCT_RTS_PORT` | `50051` | both | Remote server gRPC port — the main server dials it, the remote server binds it. |
+| `VIADUCT_RTS_CALLBACK_HOST` | `localhost` | remote | Hostname the remote server reaches the main server callback at. |
+| `VIADUCT_RTS_CALLBACK_PORT` | `50052` | both | Callback port — the main server binds it, the remote server dials it. |
 
-The same `VIADUCT_RRS_PORT` / `VIADUCT_RRS_CALLBACK_PORT` values must be configured on
+The same `VIADUCT_RTS_PORT` / `VIADUCT_RTS_CALLBACK_PORT` values must be configured on
 both the main server and the remote server process so they meet on the wire.
 
 ## Wiring it in
@@ -68,7 +68,7 @@ When the proxy comes up, the main-server log includes:
 
 ```
 INFO  viaduct.remote.config.RemoteResolverInitializer - Remote resolver execution selected by tenants [filmography, universe]: <node-count> node types, <field-count> fields
-INFO  viaduct.remote.config.RemoteResolverInitializer - Connecting to remote RRS at localhost:50051
+INFO  viaduct.remote.config.RemoteResolverInitializer - Connecting to remote RTS at localhost:50051
 INFO  viaduct.remote.config.RemoteResolverInitializer - Starting callback server on port 50052
 INFO  viaduct.remote.config.RemoteResolverInitializer - Remote resolver execution initialized
 ```

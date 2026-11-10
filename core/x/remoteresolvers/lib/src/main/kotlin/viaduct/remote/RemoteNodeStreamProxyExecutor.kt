@@ -18,17 +18,17 @@ import viaduct.remote.grpc.ViaductServiceMessage
  * RRP-side [RemoteNodeProxyExecutor] that forwards [NodeResolverExecutor.resolve] calls over the
  * bidirectional streaming transport instead of the unary
  * [RemoteResolverServiceImpl]/[UnaryRemoteNodeProxyExecutor] path -- additive alongside it, not a
- * replacement. Re-entrant ctx.query()/ctx.mutation() calls from the resolver running on RRS travel
+ * replacement. Re-entrant ctx.query()/ctx.mutation() calls from the resolver running on RTS travel
  * as callback messages on this same stream, driven by [driveClientStream] against the real, local
  * [EngineExecutionContext] passed into `resolve()` -- no callback server, no context_handle, no
  * process-local registry lookup for the callback path.
  *
- * The caller is responsible for the lifecycle of [rrsChannel]; this class does not shut it down.
+ * The caller is responsible for the lifecycle of [rtsChannel]; this class does not shut it down.
  */
 class RemoteNodeStreamProxyExecutor(
     originalExecutor: NodeResolverExecutor,
     executorId: String,
-    rrsChannel: ManagedChannel,
+    rtsChannel: ManagedChannel,
     private val requestDeadline: Duration? = null,
     private val contextCapturerProvider: RemoteResolverContextCapturerProvider =
         RemoteResolverContextCapturerProvider.NO_OP,
@@ -37,7 +37,7 @@ class RemoteNodeStreamProxyExecutor(
     dispatchInstrumentation: RemoteDispatchInstrumentation =
         RemoteDispatchInstrumentation.NO_OP,
 ) : RemoteNodeProxyExecutor(originalExecutor, executorId, responseContextApplier, dispatchInstrumentation) {
-    private val rrsStub = RemoteResolverStreamServiceGrpcKt.RemoteResolverStreamServiceCoroutineStub(rrsChannel)
+    private val rtsStub = RemoteResolverStreamServiceGrpcKt.RemoteResolverStreamServiceCoroutineStub(rtsChannel)
 
     override suspend fun callRemote(
         request: BatchResolveNodeRequest,
@@ -47,7 +47,7 @@ class RemoteNodeStreamProxyExecutor(
         val fullRequest = request.toBuilder()
             .apply { capturedContext?.let { setRemoteContext(it.toWire()) } }
             .build()
-        val stub = requestDeadline?.let { rrsStub.withDeadlineAfter(it.toMillis(), TimeUnit.MILLISECONDS) } ?: rrsStub
+        val stub = requestDeadline?.let { rtsStub.withDeadlineAfter(it.toMillis(), TimeUnit.MILLISECONDS) } ?: rtsStub
         return driveClientStream(
             initial = ViaductServiceMessage.newBuilder().setResolveRequest(fullRequest).build(),
             context = context,

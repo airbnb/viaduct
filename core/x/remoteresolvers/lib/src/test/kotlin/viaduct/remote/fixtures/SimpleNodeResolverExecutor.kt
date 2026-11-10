@@ -47,7 +47,7 @@ class SimpleNodeResolverExecutor(
             when {
                 // Sentinel: return a node whose value carries an unresolved nested NodeReference.
                 // EngineObjectDataSerializer.serialize rejects a nested NodeReference (encodeValue
-                // throws), so this node fails serialization on the RRS side while its batch-mates —
+                // throws), so this node fails serialization on the RTS side while its batch-mates —
                 // which take the normal path below — still serialize and return successfully.
                 selector.id == UNSERIALIZABLE_NODE_ID -> Result.success(
                     EngineObjectDataBuilder.from(graphQLType)
@@ -55,7 +55,7 @@ class SimpleNodeResolverExecutor(
                         .put("friend", context.createNodeReference(selector.id, graphQLType))
                         .build()
                 )
-                // Sentinel: return a node of the WRONG GraphQL type. It serializes cleanly on the RRS
+                // Sentinel: return a node of the WRONG GraphQL type. It serializes cleanly on the RTS
                 // side, so the failure lands on the caller's deserialize — which asserts the payload's
                 // type against the node type it independently expects. Exercises per-node isolation of
                 // a *deserialization* failure, the mirror of the serialize case above.
@@ -88,7 +88,7 @@ class SimpleNodeResolverExecutor(
         const val UNSERIALIZABLE_NODE_ID = "user:unserializable"
 
         /**
-         * Node id that makes [resolve] return a well-formed node of a *different* GraphQL type. The RRS
+         * Node id that makes [resolve] return a well-formed node of a *different* GraphQL type. The RTS
          * serializes it happily; the caller rejects it because the payload's declared type disagrees
          * with the node type the caller expects. Used to exercise per-node isolation of a
          * deserialization failure (a bad node must not sink its batch-mates).
@@ -151,7 +151,7 @@ class SimpleNodeResolverExecutor(
  *
  * This resolver fetches a Post and then makes a callback query to fetch
  * the associated User (author), demonstrating the callback flow where
- * RRS → gRPC callback → RRP → engine.
+ * RTS → gRPC callback → RRP → engine.
  */
 class CallbackNodeResolverExecutor(
     private val postData: Map<String, Map<String, Any?>>
@@ -178,7 +178,7 @@ class CallbackNodeResolverExecutor(
                     data.forEach { (key, value) -> builder.put(key, value) }
 
                     // Make callback query to fetch the author (User)
-                    // This tests the re-entrant call: RRS → callback → RRP → engine
+                    // This tests the re-entrant call: RTS → callback → RRP → engine
                     val authorId = data["authorId"] as? String
                     if (authorId != null) {
                         val authorSelections = context.engineSelectionSetFactory.engineSelectionSet(

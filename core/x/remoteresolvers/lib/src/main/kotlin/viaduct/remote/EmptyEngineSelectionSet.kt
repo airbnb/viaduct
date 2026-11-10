@@ -9,7 +9,7 @@ import viaduct.engine.api.fragment.Fragment
 
 /**
  * No-op [EngineSelectionSet] used when the caller's selection-set handle isn't resolvable
- * on the RRS side (the registry is per-JVM). Mirrors the previously-public
+ * on the RTS side (the registry is per-JVM). Mirrors the previously-public
  * `EngineSelectionSet.empty(...)` helper that was removed from the engine API.
  */
 internal class EmptyEngineSelectionSet(override val type: String) : EngineSelectionSet {

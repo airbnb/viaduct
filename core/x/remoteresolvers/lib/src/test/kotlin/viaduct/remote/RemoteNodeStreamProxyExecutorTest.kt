@@ -123,10 +123,10 @@ class RemoteNodeStreamProxyExecutorTest {
         val selective = object : NodeResolverExecutor by SimpleNodeResolverExecutor.createUserResolver() {
             override val isSelective: Boolean = true
         }
-        val channel = InProcessChannelBuilder.forName("rrs-stream-selective-${System.nanoTime()}").build()
+        val channel = InProcessChannelBuilder.forName("rts-stream-selective-${System.nanoTime()}").build()
         try {
             assertThrows<IllegalArgumentException> {
-                RemoteNodeStreamProxyExecutor(originalExecutor = selective, executorId = "User", rrsChannel = channel)
+                RemoteNodeStreamProxyExecutor(originalExecutor = selective, executorId = "User", rtsChannel = channel)
             }
         } finally {
             channel.shutdownNow()
@@ -138,23 +138,23 @@ class RemoteNodeStreamProxyExecutorTest {
         block: suspend (RemoteNodeStreamProxyExecutor, EngineExecutionContext) -> Unit
     ) {
         val executorId = NodeExecutorRegistry.register(actualResolver)
-        val serverName = "rrs-stream-node-proxy-${System.nanoTime()}"
+        val serverName = "rts-stream-node-proxy-${System.nanoTime()}"
         val server = InProcessServerBuilder.forName(serverName)
             .directExecutor()
             .addService(RemoteResolverStreamServiceImpl())
             .build()
             .start()
-        val rrsChannel = InProcessChannelBuilder.forName(serverName).directExecutor().build()
+        val rtsChannel = InProcessChannelBuilder.forName(serverName).directExecutor().build()
         try {
             val proxy = RemoteNodeStreamProxyExecutor(
                 originalExecutor = actualResolver,
                 executorId = executorId,
-                rrsChannel = rrsChannel
+                rtsChannel = rtsChannel
             )
             val context = ContextMocks(testSchema).engineExecutionContext
             block(proxy, context)
         } finally {
-            rrsChannel.shutdownNow()
+            rtsChannel.shutdownNow()
             server.shutdownNow()
         }
     }

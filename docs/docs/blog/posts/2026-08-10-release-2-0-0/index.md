@@ -148,17 +148,17 @@ Background: [discussion #399](https://github.com/airbnb/viaduct/discussions/399)
 
 ### Remote resolvers (experimental)
 
-- Remote resolvers in NETWORK mode, with `rrs-server` for remote resolver execution ([d4c78e50](https://github.com/airbnb/viaduct/commit/d4c78e50)) by @cetinsahin
+- Remote resolvers in NETWORK mode, with `remote-server` for remote resolver execution ([d4c78e50](https://github.com/airbnb/viaduct/commit/d4c78e50)) by @cetinsahin
 - Field-resolver remote-execution substrate: RPC, serializer, registry, executor ([0e73564a](https://github.com/airbnb/viaduct/commit/0e73564a)) by @cetinsahin
 - Opt-in remote field-resolver execution via `VIADUCT_REMOTE_RESOLVER_FIELDS` ([95850160](https://github.com/airbnb/viaduct/commit/95850160)) by @cetinsahin
 - Remote field resolvers are proxied by default, like node resolvers ([a8eb4194](https://github.com/airbnb/viaduct/commit/a8eb4194)) by @cetinsahin
 - Remote field resolvers can return objects, node references and lists (opt-in) ([6af855f1](https://github.com/airbnb/viaduct/commit/6af855f1)) by @cetinsahin
 - Remote field resolvers with composite and node-reference returns work in network mode ([0c6eabce](https://github.com/airbnb/viaduct/commit/0c6eabce)) by @cetinsahin
-- Bootstrap selected Viaduct tenant resolver code in the remote resolver server ([29ec9a13](https://github.com/airbnb/viaduct/commit/29ec9a13)) by @junjinp
+- Bootstrap selected Viaduct tenant resolver code in the remote tenant service ([29ec9a13](https://github.com/airbnb/viaduct/commit/29ec9a13)) by @junjinp
 - Host-defined request context carrier ([5833354d](https://github.com/airbnb/viaduct/commit/5833354d)) by @cetinsahin
 - Bidirectional-streaming proto schema ([f4b9e1df](https://github.com/airbnb/viaduct/commit/f4b9e1df)) by @vickeyyeh
 - VS-side streaming wireframe ([e1ada684](https://github.com/airbnb/viaduct/commit/e1ada684)) by @vickeyyeh
-- RRS-side streaming wireframe ([8324dbd3](https://github.com/airbnb/viaduct/commit/8324dbd3)) by @vickeyyeh
+- RTS-side streaming wireframe ([8324dbd3](https://github.com/airbnb/viaduct/commit/8324dbd3)) by @vickeyyeh
 - Real node resolution over the streaming transport ([147a7fff](https://github.com/airbnb/viaduct/commit/147a7fff)) by @vickeyyeh
 - Real node resolution in the VS-side streaming proxy ([e4c7e9ee](https://github.com/airbnb/viaduct/commit/e4c7e9ee)) by @vickeyyeh
 
@@ -309,8 +309,8 @@ Background: [discussion #399](https://github.com/airbnb/viaduct/discussions/399)
 - Complete per-tenant DI via Micronaut ([59055646](https://github.com/airbnb/viaduct/commit/59055646)) by @gokhan-ozgozen
 - Replace `com.google.inject.Inject`/`Singleton` with `javax.inject` equivalents ([1b6579a3](https://github.com/airbnb/viaduct/commit/1b6579a3)) by @fireboy1919
 - Make the remote-resolvers library include-only and its demo self-contained ([d76a5c30](https://github.com/airbnb/viaduct/commit/d76a5c30)) by @cetinsahin
-- `rrs-server` builds node executors from the tenant manifest via the file-based bootstrapper ([d9d4901c](https://github.com/airbnb/viaduct/commit/d9d4901c)) by @cetinsahin
-- Rename the remote-resolver demo servers (`rrp-server` → `main-server`, `rrs-server` → `remote-server`) and group them under `x/remoteresolvers/starwars/` ([e618be20](https://github.com/airbnb/viaduct/commit/e618be20)) by @cetinsahin
+- `remote-server` builds node executors from the tenant manifest via the file-based bootstrapper ([d9d4901c](https://github.com/airbnb/viaduct/commit/d9d4901c)) by @cetinsahin
+- Rename and group the remote-resolver demo servers as `main-server` and `remote-server` under `x/remoteresolvers/starwars/` ([e618be20](https://github.com/airbnb/viaduct/commit/e618be20)) by @cetinsahin
 - Inject the greeting message via `@Value` in the micronaut-starter demoapp ([5b82f2a0](https://github.com/airbnb/viaduct/commit/5b82f2a0)) by @nmarsollier
 - Remove `viaduct.apiannotations` usages from non-BCV-api modules ([4a71d950](https://github.com/airbnb/viaduct/commit/4a71d950)) by @nmarsollier
 - Migrate test assertions off assertj-core, strikt-core, kotlin-test and guava-testlib ([a41b57d5](https://github.com/airbnb/viaduct/commit/a41b57d5)) by @nmarsollier

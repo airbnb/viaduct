@@ -4,7 +4,7 @@ import org.slf4j.LoggerFactory
 import viaduct.remote.config.EnvLookup
 
 /**
- * Configuration for the standalone remote resolver server.
+ * Configuration for the standalone remote tenant service.
  *
  * @property port port to listen on for incoming gRPC requests
  * @property callbackHost hostname the main (proxy) callback server is reachable at
@@ -20,9 +20,9 @@ data class RemoteConfiguration(
         const val DEFAULT_CALLBACK_PORT = 50052
         const val DEFAULT_CALLBACK_HOST = "localhost"
 
-        const val ENV_PORT = "VIADUCT_RRS_PORT"
-        const val ENV_CALLBACK_HOST = "VIADUCT_RRS_CALLBACK_HOST"
-        const val ENV_CALLBACK_PORT = "VIADUCT_RRS_CALLBACK_PORT"
+        const val ENV_PORT = "VIADUCT_RTS_PORT"
+        const val ENV_CALLBACK_HOST = "VIADUCT_RTS_CALLBACK_HOST"
+        const val ENV_CALLBACK_PORT = "VIADUCT_RTS_CALLBACK_PORT"
 
         /**
          * Parses CLI arguments. Args override environment defaults; any unset arg falls

@@ -7,7 +7,7 @@ fun interface RemoteResolverFunction<T> {
     suspend fun resolve(): T
 }
 
-/** SPI for observing/wrapping a remote resolver's own execution on the RRS side. */
+/** SPI for observing/wrapping a remote resolver's own execution on the RTS side. */
 interface RemoteResolverExecutionInstrumentation {
     data class RemoteResolverExecutionParameters(val resolverMetadata: ResolverMetadata)
 

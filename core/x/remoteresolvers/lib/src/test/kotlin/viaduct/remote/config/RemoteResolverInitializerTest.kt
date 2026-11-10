@@ -25,8 +25,8 @@ class RemoteResolverInitializerTest {
     ) = RemoteResolverConfig(
         enabled = enabled,
         useStreamingTransport = useStreamingTransport,
-        rrsHost = "localhost",
-        rrsPort = 0,
+        rtsHost = "localhost",
+        rtsPort = 0,
         // Port 0 lets the OS pick a free callback port.
         callbackPort = 0,
     )

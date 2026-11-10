@@ -22,17 +22,17 @@ data class RemoteResolverConfig(
      * always use the unary transport, since streaming doesn't support fields yet.
      */
     val useStreamingTransport: Boolean = false,
-    val rrsHost: String = DEFAULT_RRS_HOST,
-    val rrsPort: Int = DEFAULT_RRS_PORT,
+    val rtsHost: String = DEFAULT_RTS_HOST,
+    val rtsPort: Int = DEFAULT_RTS_PORT,
     val callbackPort: Int = DEFAULT_CALLBACK_PORT,
 ) {
     companion object {
-        const val ENV_RRS_HOST = "VIADUCT_RRS_HOST"
-        const val ENV_RRS_PORT = "VIADUCT_RRS_PORT"
-        const val ENV_CALLBACK_PORT = "VIADUCT_RRS_CALLBACK_PORT"
+        const val ENV_RTS_HOST = "VIADUCT_RTS_HOST"
+        const val ENV_RTS_PORT = "VIADUCT_RTS_PORT"
+        const val ENV_CALLBACK_PORT = "VIADUCT_RTS_CALLBACK_PORT"
 
-        const val DEFAULT_RRS_HOST = "localhost"
-        const val DEFAULT_RRS_PORT = 50051
+        const val DEFAULT_RTS_HOST = "localhost"
+        const val DEFAULT_RTS_PORT = 50051
         const val DEFAULT_CALLBACK_PORT = 50052
 
         fun fromEnvironment(
@@ -43,8 +43,8 @@ data class RemoteResolverConfig(
             RemoteResolverConfig(
                 enabled = enabled,
                 useStreamingTransport = useStreamingTransport,
-                rrsHost = env.get(ENV_RRS_HOST) ?: DEFAULT_RRS_HOST,
-                rrsPort = env.get(ENV_RRS_PORT)?.toIntOrNull() ?: DEFAULT_RRS_PORT,
+                rtsHost = env.get(ENV_RTS_HOST) ?: DEFAULT_RTS_HOST,
+                rtsPort = env.get(ENV_RTS_PORT)?.toIntOrNull() ?: DEFAULT_RTS_PORT,
                 callbackPort = env.get(ENV_CALLBACK_PORT)?.toIntOrNull() ?: DEFAULT_CALLBACK_PORT,
             )
     }

@@ -19,7 +19,7 @@ import viaduct.remote.api.spi.RemoteResolverResponseContextApplier
  * skips them *before* constructing a proxy — otherwise the default "proxy all" would crash bootstrap
  * on a selective resolver.
  *
- * @param rrsChannel Channel to the remote resolver service. Caller owns the channel.
+ * @param rtsChannel Channel to the remote resolver service. Caller owns the channel.
  * @param callbackEndpoint Endpoint the remote service dials for re-entrant queries;
  *   must use "host:port" form.
  * @param requestDeadline Deadline applied to every outbound resolve RPC, or `null` to rely
@@ -40,7 +40,7 @@ import viaduct.remote.api.spi.RemoteResolverResponseContextApplier
  * @param dispatchInstrumentation Experimental hook for observing remote dispatch latency/outcome.
  */
 class RemoteProxyResolverFactory(
-    private val rrsChannel: ManagedChannel,
+    private val rtsChannel: ManagedChannel,
     private val callbackEndpoint: String,
     private val requestDeadline: Duration? = null,
     private val useStreamingTransport: Boolean = false,
@@ -62,7 +62,7 @@ class RemoteProxyResolverFactory(
             RemoteNodeStreamProxyExecutor(
                 originalExecutor = executor,
                 executorId = executorId,
-                rrsChannel = rrsChannel,
+                rtsChannel = rtsChannel,
                 requestDeadline = requestDeadline,
                 contextCapturerProvider = contextCapturerProvider,
                 responseContextApplier = responseContextApplier,
@@ -72,7 +72,7 @@ class RemoteProxyResolverFactory(
             UnaryRemoteNodeProxyExecutor(
                 originalExecutor = executor,
                 executorId = executorId,
-                rrsChannel = rrsChannel,
+                rtsChannel = rtsChannel,
                 callbackEndpoint = callbackEndpoint,
                 requestDeadline = requestDeadline,
                 contextCapturerProvider = contextCapturerProvider,
@@ -89,7 +89,7 @@ class RemoteProxyResolverFactory(
         return RemoteFieldProxyExecutor(
             originalExecutor = executor,
             executorId = executor.resolverId,
-            rrsChannel = rrsChannel,
+            rtsChannel = rtsChannel,
             callbackEndpoint = callbackEndpoint,
             requestDeadline = requestDeadline,
             contextCapturerProvider = contextCapturerProvider,
@@ -101,19 +101,19 @@ class RemoteProxyResolverFactory(
     companion object {
         /** Creates a factory that proxies every node and field resolver. */
         fun proxyAll(
-            rrsChannel: ManagedChannel,
+            rtsChannel: ManagedChannel,
             callbackEndpoint: String,
             requestDeadline: Duration? = null
-        ) = RemoteProxyResolverFactory(rrsChannel, callbackEndpoint, requestDeadline)
+        ) = RemoteProxyResolverFactory(rtsChannel, callbackEndpoint, requestDeadline)
 
         /** Creates a factory that proxies only the listed node type names, and no field resolvers. */
         fun proxyTypes(
-            rrsChannel: ManagedChannel,
+            rtsChannel: ManagedChannel,
             callbackEndpoint: String,
             vararg types: String,
             requestDeadline: Duration? = null
         ) = RemoteProxyResolverFactory(
-            rrsChannel,
+            rtsChannel,
             callbackEndpoint,
             requestDeadline,
             shouldProxyNode = { it.typeName in types },
@@ -122,12 +122,12 @@ class RemoteProxyResolverFactory(
 
         /** Creates a factory that proxies only the listed field coordinates ("Type.field"), and no nodes. */
         fun proxyFields(
-            rrsChannel: ManagedChannel,
+            rtsChannel: ManagedChannel,
             callbackEndpoint: String,
             vararg fields: String,
             requestDeadline: Duration? = null
         ) = RemoteProxyResolverFactory(
-            rrsChannel,
+            rtsChannel,
             callbackEndpoint,
             requestDeadline,
             shouldProxyNode = { false },

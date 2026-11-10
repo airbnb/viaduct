@@ -102,17 +102,17 @@ class RemoteFieldProxyIntegrationTest {
         )
     }
 
-    private suspend inline fun withServers(block: (rrsChannel: io.grpc.ManagedChannel, callbackEndpoint: String, context: EngineExecutionContext) -> Unit) {
+    private suspend inline fun withServers(block: (rtsChannel: io.grpc.ManagedChannel, callbackEndpoint: String, context: EngineExecutionContext) -> Unit) {
         FieldExecutorRegistry.clear()
         ContextRegistry.clear()
         SelectionsRegistry.clear()
 
-        val rrsService = InProcessCallbackRemoteResolverService()
-        val rrsServerName = "test-rrs-field-${System.nanoTime()}"
-        val rrsServer = InProcessServerBuilder
-            .forName(rrsServerName)
+        val rtsService = InProcessCallbackRemoteResolverService()
+        val rtsServerName = "test-rts-field-${System.nanoTime()}"
+        val rtsServer = InProcessServerBuilder
+            .forName(rtsServerName)
             .directExecutor()
-            .addService(rrsService)
+            .addService(rtsService)
             .build()
             .start()
 
@@ -124,14 +124,14 @@ class RemoteFieldProxyIntegrationTest {
             .build()
             .start()
 
-        val rrsChannel = InProcessChannelBuilder.forName(rrsServerName).directExecutor().build()
+        val rtsChannel = InProcessChannelBuilder.forName(rtsServerName).directExecutor().build()
         try {
-            block(rrsChannel, callbackEndpoint, ContextMocks(testSchema).engineExecutionContext)
+            block(rtsChannel, callbackEndpoint, ContextMocks(testSchema).engineExecutionContext)
         } finally {
-            rrsChannel.shutdownNow()
-            rrsServer.shutdownNow()
+            rtsChannel.shutdownNow()
+            rtsServer.shutdownNow()
             callbackServer.shutdownNow()
-            rrsService.shutdownChannels()
+            rtsService.shutdownChannels()
             FieldExecutorRegistry.clear()
             ContextRegistry.clear()
             SelectionsRegistry.clear()
@@ -140,14 +140,14 @@ class RemoteFieldProxyIntegrationTest {
 
     /** Like [withServers], but also wires a [RecordingDispatchInstrumentation] into the proxy. */
     private suspend inline fun withRecordingProxy(block: (proxy: RemoteFieldProxyExecutor, recording: RecordingDispatchInstrumentation, context: EngineExecutionContext) -> Unit) {
-        withServers { rrsChannel, callbackEndpoint, context ->
+        withServers { rtsChannel, callbackEndpoint, context ->
             val executor = SimpleFieldResolverExecutor()
             val executorId = FieldExecutorRegistry.register(executor)
             val recording = RecordingDispatchInstrumentation()
             val proxy = RemoteFieldProxyExecutor(
                 originalExecutor = executor,
                 executorId = executorId,
-                rrsChannel = rrsChannel,
+                rtsChannel = rtsChannel,
                 callbackEndpoint = callbackEndpoint,
                 dispatchInstrumentation = recording
             )
@@ -166,14 +166,14 @@ class RemoteFieldProxyIntegrationTest {
     @Test
     fun `field value round-trips through the full gRPC stack`(): Unit =
         runBlocking {
-            withServers { rrsChannel, callbackEndpoint, context ->
+            withServers { rtsChannel, callbackEndpoint, context ->
                 val executor = SimpleFieldResolverExecutor()
                 val executorId = FieldExecutorRegistry.register(executor)
 
                 val proxy = RemoteFieldProxyExecutor(
                     originalExecutor = executor,
                     executorId = executorId,
-                    rrsChannel = rrsChannel,
+                    rtsChannel = rtsChannel,
                     callbackEndpoint = callbackEndpoint
                 )
 
@@ -191,13 +191,13 @@ class RemoteFieldProxyIntegrationTest {
     @Test
     fun `batch of two selectors each resolve independently`(): Unit =
         runBlocking {
-            withServers { rrsChannel, callbackEndpoint, context ->
+            withServers { rtsChannel, callbackEndpoint, context ->
                 val executor = SimpleFieldResolverExecutor()
                 val executorId = FieldExecutorRegistry.register(executor)
                 val proxy = RemoteFieldProxyExecutor(
                     originalExecutor = executor,
                     executorId = executorId,
-                    rrsChannel = rrsChannel,
+                    rtsChannel = rtsChannel,
                     callbackEndpoint = callbackEndpoint
                 )
 
@@ -218,13 +218,13 @@ class RemoteFieldProxyIntegrationTest {
             // register per distinct instance). Drive a batch whose selectors all share ONE non-null
             // EngineSelectionSet instance and verify every selector still round-trips to its own value —
             // memoizing the shared selection set must not collapse or corrupt the per-selector results.
-            withServers { rrsChannel, callbackEndpoint, context ->
+            withServers { rtsChannel, callbackEndpoint, context ->
                 val executor = SimpleFieldResolverExecutor()
                 val executorId = FieldExecutorRegistry.register(executor)
                 val proxy = RemoteFieldProxyExecutor(
                     originalExecutor = executor,
                     executorId = executorId,
-                    rrsChannel = rrsChannel,
+                    rtsChannel = rtsChannel,
                     callbackEndpoint = callbackEndpoint
                 )
 
@@ -266,7 +266,7 @@ class RemoteFieldProxyIntegrationTest {
     @Test
     fun `resolver failure surfaces as a RemoteResolverException`(): Unit =
         runBlocking {
-            withServers { rrsChannel, callbackEndpoint, context ->
+            withServers { rtsChannel, callbackEndpoint, context ->
                 // This executor throws inside batchResolve so we can verify error propagation
                 // across the wire.
                 val failing = object : FieldResolverExecutor by SimpleFieldResolverExecutor() {
@@ -282,7 +282,7 @@ class RemoteFieldProxyIntegrationTest {
                 val proxy = RemoteFieldProxyExecutor(
                     originalExecutor = failing,
                     executorId = executorId,
-                    rrsChannel = rrsChannel,
+                    rtsChannel = rtsChannel,
                     callbackEndpoint = callbackEndpoint
                 )
 
@@ -305,11 +305,11 @@ class RemoteFieldProxyIntegrationTest {
     fun `a whole-batch failure wrapped in TenantResolverException reports the real exception type over the wire`(): Unit =
         runBlocking {
             // Modern resolver dispatch (FieldBatchResolverExecutorImpl) wraps a tenant resolver's
-            // synchronous throw in TenantResolverException before it reaches RRS's own catch. RRS
+            // synchronous throw in TenantResolverException before it reaches RTS's own catch. RTS
             // must unwrap it so the wire-reported errorType is the real underlying exception, not
             // the wrapper's class name -- this is what RemoteResolverServiceImpl.fieldError's
             // unwrapTenantResolverException() call is for.
-            withServers { rrsChannel, callbackEndpoint, context ->
+            withServers { rtsChannel, callbackEndpoint, context ->
                 val failing = object : FieldResolverExecutor by SimpleFieldResolverExecutor() {
                     override val resolverId: String = "Character.isAdult"
 
@@ -323,7 +323,7 @@ class RemoteFieldProxyIntegrationTest {
                 val proxy = RemoteFieldProxyExecutor(
                     originalExecutor = failing,
                     executorId = executorId,
-                    rrsChannel = rrsChannel,
+                    rtsChannel = rtsChannel,
                     callbackEndpoint = callbackEndpoint
                 )
 
@@ -352,13 +352,13 @@ class RemoteFieldProxyIntegrationTest {
             // isolated to the offending selector's Result rather than propagated, but the
             // process-global handles must still be unregistered in the finally block regardless.
             // withServers clears all registries before this block, giving a clean baseline (size == 0).
-            withServers { rrsChannel, callbackEndpoint, context ->
+            withServers { rtsChannel, callbackEndpoint, context ->
                 val executor = SimpleFieldResolverExecutor()
                 val executorId = FieldExecutorRegistry.register(executor)
                 val proxy = RemoteFieldProxyExecutor(
                     originalExecutor = executor,
                     executorId = executorId,
-                    rrsChannel = rrsChannel,
+                    rtsChannel = rtsChannel,
                     callbackEndpoint = callbackEndpoint
                 )
 
@@ -402,13 +402,13 @@ class RemoteFieldProxyIntegrationTest {
         val selective = object : FieldResolverExecutor by SimpleFieldResolverExecutor() {
             override val isSelective: Boolean = true
         }
-        val channel = InProcessChannelBuilder.forName("rrs-selective-${System.nanoTime()}").build()
+        val channel = InProcessChannelBuilder.forName("rts-selective-${System.nanoTime()}").build()
         try {
             assertThrows<IllegalArgumentException> {
                 RemoteFieldProxyExecutor(
                     originalExecutor = selective,
                     executorId = "Character.isAdult",
-                    rrsChannel = channel,
+                    rtsChannel = channel,
                     callbackEndpoint = "cb"
                 )
             }
@@ -420,7 +420,7 @@ class RemoteFieldProxyIntegrationTest {
     @Test
     fun `selector arguments round-trip to the remote resolver`(): Unit =
         runBlocking {
-            withServers { rrsChannel, callbackEndpoint, context ->
+            withServers { rtsChannel, callbackEndpoint, context ->
                 // The resolver branches on arguments, so the returned value proves the remote side
                 // reconstructed the selector with the same arguments the proxy serialized.
                 val executor = ArgumentEchoFieldResolverExecutor()
@@ -428,7 +428,7 @@ class RemoteFieldProxyIntegrationTest {
                 val proxy = RemoteFieldProxyExecutor(
                     originalExecutor = executor,
                     executorId = executorId,
-                    rrsChannel = rrsChannel,
+                    rtsChannel = rtsChannel,
                     callbackEndpoint = callbackEndpoint
                 )
 
@@ -461,7 +461,7 @@ class RemoteFieldProxyIntegrationTest {
     @Test
     fun `non-serializable result fails only its own selector in a batch`(): Unit =
         runBlocking {
-            withServers { rrsChannel, callbackEndpoint, context ->
+            withServers { rtsChannel, callbackEndpoint, context ->
                 // age 7 -> the resolver returns a value the wire format genuinely can't carry (an
                 // arbitrary non-JSON, non-EngineObject type); any other age returns a Boolean scalar.
                 // This drives the per-selector try/catch in RemoteResolverServiceImpl.batchResolveField.
@@ -482,7 +482,7 @@ class RemoteFieldProxyIntegrationTest {
                 val proxy = RemoteFieldProxyExecutor(
                     originalExecutor = unserializableReturning,
                     executorId = executorId,
-                    rrsChannel = rrsChannel,
+                    rtsChannel = rtsChannel,
                     callbackEndpoint = callbackEndpoint
                 )
 
@@ -511,7 +511,7 @@ class RemoteFieldProxyIntegrationTest {
     @Test
     fun `a sender-side serialization failure fails only its own selector in a batch`(): Unit =
         runBlocking {
-            withServers { rrsChannel, callbackEndpoint, context ->
+            withServers { rtsChannel, callbackEndpoint, context ->
                 // The middle selector's object-value getter throws while the proxy is serializing the
                 // batch, so it never reaches the wire. The two well-formed selectors around it must
                 // still be sent to the remote and resolve normally. This is the sender-side mirror of
@@ -522,7 +522,7 @@ class RemoteFieldProxyIntegrationTest {
                 val proxy = RemoteFieldProxyExecutor(
                     originalExecutor = executor,
                     executorId = executorId,
-                    rrsChannel = rrsChannel,
+                    rtsChannel = rtsChannel,
                     callbackEndpoint = callbackEndpoint
                 )
 
@@ -557,7 +557,7 @@ class RemoteFieldProxyIntegrationTest {
     @Test
     fun `a node-reference field value round-trips as a NodeReference over the wire`(): Unit =
         runBlocking {
-            withServers { rrsChannel, callbackEndpoint, context ->
+            withServers { rtsChannel, callbackEndpoint, context ->
                 // The resolver returns a node reference (as `Character.species` would). It must ship
                 // as {id, type} and be rebuilt into a NodeReference on the engine side.
                 val refReturning = object : FieldResolverExecutor by SimpleFieldResolverExecutor() {
@@ -571,7 +571,7 @@ class RemoteFieldProxyIntegrationTest {
                 val proxy = RemoteFieldProxyExecutor(
                     originalExecutor = refReturning,
                     executorId = executorId,
-                    rrsChannel = rrsChannel,
+                    rtsChannel = rtsChannel,
                     callbackEndpoint = callbackEndpoint
                 )
 
@@ -589,7 +589,7 @@ class RemoteFieldProxyIntegrationTest {
     @Test
     fun `an object field value round-trips as an EngineObjectData over the wire`(): Unit =
         runBlocking {
-            withServers { rrsChannel, callbackEndpoint, context ->
+            withServers { rtsChannel, callbackEndpoint, context ->
                 // The resolver returns a resolved object (as an object-typed field would). It must
                 // ship as {type, field-map} and rebuild against the real type on the engine side.
                 val objectReturning = object : FieldResolverExecutor by SimpleFieldResolverExecutor() {
@@ -608,7 +608,7 @@ class RemoteFieldProxyIntegrationTest {
                 val proxy = RemoteFieldProxyExecutor(
                     originalExecutor = objectReturning,
                     executorId = executorId,
-                    rrsChannel = rrsChannel,
+                    rtsChannel = rtsChannel,
                     callbackEndpoint = callbackEndpoint
                 )
 
@@ -626,7 +626,7 @@ class RemoteFieldProxyIntegrationTest {
     @Test
     fun `a list of objects field value round-trips element-by-element over the wire`(): Unit =
         runBlocking {
-            withServers { rrsChannel, callbackEndpoint, context ->
+            withServers { rtsChannel, callbackEndpoint, context ->
                 // Mirrors `allCharacters`: a list of resolved objects. Each element ships tagged and
                 // rebuilds independently on the engine side.
                 val listReturning = object : FieldResolverExecutor by SimpleFieldResolverExecutor() {
@@ -648,7 +648,7 @@ class RemoteFieldProxyIntegrationTest {
                 val proxy = RemoteFieldProxyExecutor(
                     originalExecutor = listReturning,
                     executorId = executorId,
-                    rrsChannel = rrsChannel,
+                    rtsChannel = rtsChannel,
                     callbackEndpoint = callbackEndpoint
                 )
 
@@ -670,13 +670,13 @@ class RemoteFieldProxyIntegrationTest {
             // no-op engine, so the re-entrant query cannot complete. We assert the callback
             // mechanism fires (the failure originates engine-side, behind the gRPC callback
             // channel) rather than that the query succeeds.
-            withServers { rrsChannel, callbackEndpoint, context ->
+            withServers { rtsChannel, callbackEndpoint, context ->
                 val executor = CallbackFieldResolverExecutor()
                 val executorId = FieldExecutorRegistry.register(executor)
                 val proxy = RemoteFieldProxyExecutor(
                     originalExecutor = executor,
                     executorId = executorId,
-                    rrsChannel = rrsChannel,
+                    rtsChannel = rtsChannel,
                     callbackEndpoint = callbackEndpoint
                 )
 
@@ -1004,14 +1004,14 @@ class RemoteFieldProxyIntegrationTest {
                 assertEquals(RemoteDispatchInstrumentationContext.RemoteDispatchOutcome.SUCCESS, dispatch.completedOutcome)
                 assertNull(dispatch.completedCause, "a successful dispatch should report a null cause")
                 val latencyNs = dispatch.receivedResponse?.resolverExecutionLatencyNs
-                assertTrue(latencyNs != null && latencyNs >= 0, "RRS's real batchResolve() call should report a body duration, got $latencyNs")
+                assertTrue(latencyNs != null && latencyNs >= 0, "RTS's real batchResolve() call should report a body duration, got $latencyNs")
             }
         }
 
     @Test
     fun `a remote resolver failure reports onCompleted with APPLICATION_ERROR`(): Unit =
         runBlocking {
-            withServers { rrsChannel, callbackEndpoint, context ->
+            withServers { rtsChannel, callbackEndpoint, context ->
                 val failing = object : FieldResolverExecutor by SimpleFieldResolverExecutor() {
                     override suspend fun batchResolve(
                         selectors: List<FieldResolverExecutor.Selector>,
@@ -1024,7 +1024,7 @@ class RemoteFieldProxyIntegrationTest {
                 val proxy = RemoteFieldProxyExecutor(
                     originalExecutor = failing,
                     executorId = executorId,
-                    rrsChannel = rrsChannel,
+                    rtsChannel = rtsChannel,
                     callbackEndpoint = callbackEndpoint,
                     dispatchInstrumentation = recording
                 )
@@ -1047,7 +1047,7 @@ class RemoteFieldProxyIntegrationTest {
         runBlocking {
             // Point the proxy at an in-process server name nothing is listening on, so the RPC
             // itself fails (UNAVAILABLE) rather than the remote resolver returning an error.
-            val deadChannel = InProcessChannelBuilder.forName("dead-rrs-${System.nanoTime()}").directExecutor().build()
+            val deadChannel = InProcessChannelBuilder.forName("dead-rts-${System.nanoTime()}").directExecutor().build()
             try {
                 FieldExecutorRegistry.clear()
                 ContextRegistry.clear()
@@ -1059,7 +1059,7 @@ class RemoteFieldProxyIntegrationTest {
                 val proxy = RemoteFieldProxyExecutor(
                     originalExecutor = executor,
                     executorId = executorId,
-                    rrsChannel = deadChannel,
+                    rtsChannel = deadChannel,
                     callbackEndpoint = "cb-${System.nanoTime()}",
                     dispatchInstrumentation = recording
                 )
