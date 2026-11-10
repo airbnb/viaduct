@@ -3,6 +3,7 @@ package viaduct.engine.runtime.instrumentation
 import graphql.execution.instrumentation.FieldFetchingInstrumentationContext
 import graphql.execution.instrumentation.InstrumentationContext
 import graphql.execution.instrumentation.InstrumentationState
+import graphql.execution.instrumentation.SimpleInstrumentationContext.noOp
 import graphql.execution.instrumentation.parameters.InstrumentationExecutionStrategyParameters
 import graphql.execution.instrumentation.parameters.InstrumentationFieldCompleteParameters
 import graphql.execution.instrumentation.parameters.InstrumentationFieldFetchParameters
@@ -14,6 +15,7 @@ import viaduct.engine.api.instrumentation.ChainedModernGJInstrumentation
 import viaduct.engine.api.instrumentation.IViaductInstrumentation
 import viaduct.engine.api.instrumentation.InstrumentNodeFetchingParameters
 import viaduct.engine.api.instrumentation.ViaductInstrumentationBase
+import viaduct.engine.api.instrumentation.ViaductModernGJInstrumentation
 import viaduct.engine.api.instrumentation.asStandardInstrumentations
 import viaduct.engine.api.spi.CheckerExecutor
 import viaduct.engine.api.spi.ShadowFieldExecutionComparison
@@ -31,11 +33,9 @@ class OptimizedChainedInstrumentation(
         parameters: InstrumentationFieldParameters,
         state: InstrumentationState?
     ): InstrumentationContext<Any>? =
-        ChainedInstrumentationContext(
-            beginFieldInstrumentations.map { instr ->
-                instr.beginFieldExecution(parameters, getState(instr, state))
-            }
-        )
+        chainContexts(beginFieldInstrumentations) { instr ->
+            instr.beginFieldExecution(parameters, getState(instr, state))
+        }
 
     private val shadowFieldExecutionInstrumentations by lazy {
         mapInstrumentations<IViaductInstrumentation.WithShadowFieldExecution>()
@@ -45,15 +45,21 @@ class OptimizedChainedInstrumentation(
     override fun requestShadowFieldExecution(
         parameters: InstrumentationFieldParameters,
         state: InstrumentationState?,
-    ): ShadowFieldExecutionComparison? =
-        ShadowFieldExecutionComparison.combine(
-            shadowFieldExecutionInstrumentations.mapNotNull { instrumentation ->
+    ): ShadowFieldExecutionComparison? {
+        val instrumentations = shadowFieldExecutionInstrumentations
+        if (instrumentations.size == 1) {
+            val instrumentation = instrumentations.first()
+            return instrumentation.requestShadowFieldExecution(parameters, getState(instrumentation, state))
+        }
+        return ShadowFieldExecutionComparison.combine(
+            instrumentations.mapNotNull { instrumentation ->
                 instrumentation.requestShadowFieldExecution(
                     parameters,
                     getState(instrumentation, state),
                 )
             }
         )
+    }
 
     private val beginFieldFetchInstrumentations by lazy {
         mapInstrumentations<IViaductInstrumentation.WithBeginFieldFetch>()
@@ -71,21 +77,17 @@ class OptimizedChainedInstrumentation(
         parameters: InstrumentationFieldFetchParameters,
         state: InstrumentationState?
     ): InstrumentationContext<Any> =
-        ChainedInstrumentationContext(
-            beginFieldFetchInstrumentations.map { instr ->
-                instr.beginFieldFetch(parameters, getState(instr, state))
-            }
-        )
+        chainContexts(beginFieldFetchInstrumentations) { instr ->
+            instr.beginFieldFetch(parameters, getState(instr, state))
+        }
 
     override fun beginFieldFetching(
         parameters: InstrumentationFieldFetchParameters,
         state: InstrumentationState?
     ): FieldFetchingInstrumentationContext? =
-        ChainedFieldFetchingInstrumentationContext(
-            beginFieldFetchingInstrumentations.mapNotNull { instr ->
-                instr.beginFieldFetching(parameters, getState(instr, state))
-            }
-        )
+        chainFieldFetchingContexts(beginFieldFetchingInstrumentations) { instr ->
+            instr.beginFieldFetching(parameters, getState(instr, state))
+        }
 
     private val beginFieldCompleteInstrumentations by lazy {
         mapInstrumentations<IViaductInstrumentation.WithBeginFieldCompletion>()
@@ -95,11 +97,9 @@ class OptimizedChainedInstrumentation(
         parameters: InstrumentationFieldCompleteParameters,
         state: InstrumentationState?
     ): InstrumentationContext<Any>? =
-        ChainedInstrumentationContext(
-            beginFieldCompleteInstrumentations.map { instr ->
-                instr.beginFieldCompletion(parameters, getState(instr, state))
-            }
-        )
+        chainContexts(beginFieldCompleteInstrumentations) { instr ->
+            instr.beginFieldCompletion(parameters, getState(instr, state))
+        }
 
     private val beginFieldListCompleteInstrumentations by lazy {
         mapInstrumentations<IViaductInstrumentation.WithBeginFieldListCompletion>()
@@ -109,11 +109,9 @@ class OptimizedChainedInstrumentation(
         parameters: InstrumentationFieldCompleteParameters,
         state: InstrumentationState?
     ): InstrumentationContext<Any>? =
-        ChainedInstrumentationContext(
-            beginFieldListCompleteInstrumentations.map { instr ->
-                instr.beginFieldListCompletion(parameters, getState(instr, state))
-            }
-        )
+        chainContexts(beginFieldListCompleteInstrumentations) { instr ->
+            instr.beginFieldListCompletion(parameters, getState(instr, state))
+        }
 
     private val instrumentDataFetcherInstrumentations by lazy {
         mapInstrumentations<IViaductInstrumentation.WithInstrumentDataFetcher>()
@@ -144,11 +142,9 @@ class OptimizedChainedInstrumentation(
         parameters: InstrumentationExecutionStrategyParameters,
         state: InstrumentationState?
     ): InstrumentationContext<Unit> =
-        ChainedInstrumentationContext(
-            beginFetchObjectInstrumentations.map { instr ->
-                instr.beginFetchObject(parameters, getState(instr, state))
-            }
-        )
+        chainContexts(beginFetchObjectInstrumentations) { instr ->
+            instr.beginFetchObject(parameters, getState(instr, state))
+        }
 
     private val beginCompleteObjectInstrumentations by lazy {
         mapInstrumentations<IViaductInstrumentation.WithBeginCompleteObject>()
@@ -158,11 +154,9 @@ class OptimizedChainedInstrumentation(
         parameters: InstrumentationExecutionStrategyParameters,
         state: InstrumentationState?
     ): InstrumentationContext<Any> =
-        ChainedInstrumentationContext(
-            beginCompleteObjectInstrumentations.map { instr ->
-                instr.beginCompleteObject(parameters, getState(instr, state))
-            }
-        )
+        chainContexts(beginCompleteObjectInstrumentations) { instr ->
+            instr.beginCompleteObject(parameters, getState(instr, state))
+        }
 
     private val instrumentAccessCheckInstrumentations by lazy {
         mapInstrumentations<IViaductInstrumentation.WithInstrumentAccessCheck>()
@@ -190,11 +184,55 @@ class OptimizedChainedInstrumentation(
         parameters: InstrumentNodeFetchingParameters,
         state: InstrumentationState?
     ): InstrumentationContext<Any>? =
-        ChainedInstrumentationContext(
-            beginNodeFetchingInstrumentations.mapNotNull { instr ->
-                instr.beginNodeFetching(parameters, getState(instr, state))
+        chainContexts(beginNodeFetchingInstrumentations) { instr ->
+            instr.beginNodeFetching(parameters, getState(instr, state))
+        }
+
+    private inline fun <T : Any> chainContexts(
+        instrumentations: Collection<ViaductModernGJInstrumentation>,
+        begin: (ViaductModernGJInstrumentation) -> InstrumentationContext<T>?
+    ): InstrumentationContext<T> {
+        var first: InstrumentationContext<T>? = null
+        var all: ArrayList<InstrumentationContext<T>>? = null
+        for (instr in instrumentations) {
+            val context = begin(instr)
+            if (context == null || context === noOp<T>()) continue
+            if (first == null) {
+                first = context
+            } else {
+                if (all == null) all = ArrayList<InstrumentationContext<T>>(instrumentations.size).also { it.add(first) }
+                all.add(context)
             }
-        )
+        }
+        return when {
+            all != null -> ChainedInstrumentationContext(all)
+            first != null -> first
+            else -> noOp()
+        }
+    }
+
+    private inline fun chainFieldFetchingContexts(
+        instrumentations: Collection<ViaductModernGJInstrumentation>,
+        begin: (ViaductModernGJInstrumentation) -> FieldFetchingInstrumentationContext?
+    ): FieldFetchingInstrumentationContext {
+        var first: FieldFetchingInstrumentationContext? = null
+        var all: ArrayList<FieldFetchingInstrumentationContext>? = null
+        for (instr in instrumentations) {
+            val context = begin(instr)
+            if (context == null || context === FieldFetchingInstrumentationContext.NOOP) continue
+            if (first == null) {
+                first = context
+            } else {
+                if (all == null) all = ArrayList<FieldFetchingInstrumentationContext>(instrumentations.size).also { it.add(first) }
+                all.add(context)
+            }
+        }
+        return when {
+            all != null -> ChainedFieldFetchingInstrumentationContext(all)
+            first != null -> first
+            else -> FieldFetchingInstrumentationContext.NOOP
+        }
+    }
 
     private inline fun <reified T : IViaductInstrumentation> mapInstrumentations() =
         linkedInstrumentations

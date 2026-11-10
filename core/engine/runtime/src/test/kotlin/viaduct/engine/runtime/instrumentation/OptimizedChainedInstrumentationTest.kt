@@ -7,6 +7,7 @@ import graphql.execution.instrumentation.InstrumentationState
 import graphql.execution.instrumentation.SimpleInstrumentationContext.noOp
 import graphql.execution.instrumentation.parameters.InstrumentationCreateStateParameters
 import graphql.execution.instrumentation.parameters.InstrumentationExecutionStrategyParameters
+import graphql.execution.instrumentation.parameters.InstrumentationFieldCompleteParameters
 import graphql.execution.instrumentation.parameters.InstrumentationFieldFetchParameters
 import graphql.execution.instrumentation.parameters.InstrumentationFieldParameters
 import graphql.schema.DataFetchingEnvironment
@@ -21,6 +22,7 @@ import java.util.concurrent.CompletableFuture
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -392,5 +394,227 @@ class OptimizedChainedInstrumentationTest {
 
             verify(exactly = if (enabled) 1 else 0) { delegateContext.onCompleted(null, null) }
         }
+    }
+
+    private class CompletionParticipant(
+        private val context: InstrumentationContext<Any>?
+    ) : ViaductInstrumentationBase(), IViaductInstrumentation.WithBeginFieldCompletion {
+        var calls = 0
+
+        override fun beginFieldCompletion(
+            parameters: InstrumentationFieldCompleteParameters,
+            state: InstrumentationState?
+        ): InstrumentationContext<Any>? {
+            calls++
+            return context
+        }
+    }
+
+    private class FetchingParticipant(
+        private val context: FieldFetchingInstrumentationContext?
+    ) : ViaductInstrumentationBase(), IViaductInstrumentation.WithBeginFieldFetching {
+        override fun beginFieldFetching(
+            parameters: InstrumentationFieldFetchParameters,
+            state: InstrumentationState?
+        ): FieldFetchingInstrumentationContext? = context
+    }
+
+    @Test
+    fun `field execution preserves context fast paths and callbacks`() {
+        val expectedParameters = mockk<InstrumentationFieldParameters>()
+        assertContextFastPaths(
+            participant = { context ->
+                object : ViaductInstrumentationBase(), IViaductInstrumentation.WithBeginFieldExecution {
+                    override fun beginFieldExecution(
+                        parameters: InstrumentationFieldParameters,
+                        state: InstrumentationState?
+                    ): InstrumentationContext<Any>? {
+                        assertSame(expectedParameters, parameters)
+                        return context
+                    }
+                }
+            },
+            begin = { it.beginFieldExecution(expectedParameters, null) }
+        )
+    }
+
+    @Test
+    fun `list completion preserves context fast paths and callbacks`() {
+        val expectedParameters = mockk<InstrumentationFieldCompleteParameters>()
+        assertContextFastPaths(
+            participant = { context ->
+                object : ViaductInstrumentationBase(), IViaductInstrumentation.WithBeginFieldListCompletion {
+                    override fun beginFieldListCompletion(
+                        parameters: InstrumentationFieldCompleteParameters,
+                        state: InstrumentationState?
+                    ): InstrumentationContext<Any>? {
+                        assertSame(expectedParameters, parameters)
+                        return context
+                    }
+                }
+            },
+            begin = { it.beginFieldListCompletion(expectedParameters, null) }
+        )
+    }
+
+    @Suppress("DEPRECATION")
+    @Test
+    fun `legacy field fetch preserves context fast paths and callbacks`() {
+        val expectedParameters = mockk<InstrumentationFieldFetchParameters>()
+        assertContextFastPaths(
+            participant = { context ->
+                object : ViaductInstrumentationBase(), IViaductInstrumentation.WithBeginFieldFetch {
+                    override fun beginFieldFetch(
+                        parameters: InstrumentationFieldFetchParameters,
+                        state: InstrumentationState?
+                    ): InstrumentationContext<Any>? {
+                        assertSame(expectedParameters, parameters)
+                        return context
+                    }
+                }
+            },
+            begin = { it.beginFieldFetch(expectedParameters, null) }
+        )
+    }
+
+    private fun assertContextFastPaths(
+        participant: (InstrumentationContext<Any>?) -> ViaductInstrumentationBase,
+        begin: (OptimizedChainedInstrumentation) -> InstrumentationContext<Any>?
+    ) {
+        assertSame(noOp<Any>(), begin(OptimizedChainedInstrumentation(emptyList())))
+        assertSame(noOp<Any>(), begin(OptimizedChainedInstrumentation(listOf(participant(null), participant(noOp())))))
+
+        val first = mockk<InstrumentationContext<Any>>(relaxed = true)
+        val second = mockk<InstrumentationContext<Any>>(relaxed = true)
+        val third = mockk<InstrumentationContext<Any>>(relaxed = true)
+        assertSame(first, begin(OptimizedChainedInstrumentation(listOf(participant(null), participant(first), participant(noOp())))))
+        val optimized = OptimizedChainedInstrumentation(
+            listOf(participant(first), participant(null), participant(second), participant(noOp()), participant(third), noInteractionInstrumentationBase)
+        )
+        val result = Any()
+        val error = IllegalStateException("field failed")
+
+        val context = begin(optimized)!!
+        context.onDispatched()
+        context.onCompleted(result, error)
+
+        verifySequence {
+            first.onDispatched()
+            second.onDispatched()
+            third.onDispatched()
+            first.onCompleted(result, error)
+            second.onCompleted(result, error)
+            third.onCompleted(result, error)
+        }
+        verify { noInteractionInstrumentation wasNot Called }
+    }
+
+    @Test
+    fun `hooks without participants return shared no-op contexts`() {
+        val optimized = OptimizedChainedInstrumentation(listOf(ViaductInstrumentationBase()))
+
+        assertSame(noOp<Any>(), optimized.beginFieldExecution(mockk(), null))
+        assertSame(noOp<Any>(), optimized.beginFieldCompletion(mockk(), null))
+        assertSame(noOp<Any>(), optimized.beginFieldListCompletion(mockk(), null))
+        assertSame(noOp<Unit>(), optimized.beginFetchObject(mockk(), null))
+        assertSame(noOp<Any>(), optimized.beginCompleteObject(mockk(), null))
+        assertSame(noOp<Any>(), optimized.beginNodeFetching(InstrumentNodeFetchingParameters(null, null), null))
+        assertSame(FieldFetchingInstrumentationContext.NOOP, optimized.beginFieldFetching(mockk(), null))
+    }
+
+    @Test
+    fun `completion calls every participant and returns the only useful context directly`() {
+        val context = mockk<InstrumentationContext<Any>>()
+        val participants = listOf(CompletionParticipant(noOp()), CompletionParticipant(context), CompletionParticipant(null))
+        val optimized = OptimizedChainedInstrumentation(participants)
+
+        assertSame(context, optimized.beginFieldCompletion(mockk(), null))
+        assertEquals(listOf(1, 1, 1), participants.map { it.calls })
+        assertSame(noOp<Any>(), OptimizedChainedInstrumentation(listOf(CompletionParticipant(null), CompletionParticipant(noOp()))).beginFieldCompletion(mockk(), null))
+    }
+
+    @Test
+    fun `completion preserves callback order and errors after filtering no-op contexts`() {
+        val first = mockk<InstrumentationContext<Any>>(relaxed = true)
+        val second = mockk<InstrumentationContext<Any>>(relaxed = true)
+        val optimized = OptimizedChainedInstrumentation(
+            listOf(CompletionParticipant(null), CompletionParticipant(first), CompletionParticipant(noOp()), CompletionParticipant(second))
+        )
+        val result = Any()
+        val error = IllegalStateException("completion failed")
+
+        val context = optimized.beginFieldCompletion(mockk(), null)!!
+        context.onDispatched()
+        context.onCompleted(result, error)
+
+        verifySequence {
+            first.onDispatched()
+            second.onDispatched()
+            first.onCompleted(result, error)
+            second.onCompleted(result, error)
+        }
+    }
+
+    @Test
+    fun `completion retains callbacks for participants sharing the same context`() {
+        val shared = mockk<InstrumentationContext<Any>>(relaxed = true)
+        val optimized = OptimizedChainedInstrumentation(listOf(CompletionParticipant(shared), CompletionParticipant(shared)))
+
+        optimized.beginFieldCompletion(mockk(), null)!!.onCompleted(null, null)
+
+        verify(exactly = 2) { shared.onCompleted(null, null) }
+    }
+
+    @Test
+    fun `field fetching returns a lone modern context and forwards fetched values`() {
+        val delegate = mockk<FieldFetchingInstrumentationContext>(relaxed = true)
+        val optimized = OptimizedChainedInstrumentation(
+            listOf(FetchingParticipant(null), FetchingParticipant(delegate), FetchingParticipant(FieldFetchingInstrumentationContext.NOOP))
+        )
+        val result = Any()
+        val error = IllegalStateException("fetch failed")
+
+        val context = optimized.beginFieldFetching(mockk(), null)!!
+        assertSame(delegate, context)
+        context.onDispatched()
+        context.onFetchedValue(result)
+        context.onCompleted(result, error)
+
+        verifySequence {
+            delegate.onDispatched()
+            delegate.onFetchedValue(result)
+            delegate.onCompleted(result, error)
+        }
+    }
+
+    @Test
+    fun `field fetching discards null and shared no-op modern contexts`() {
+        val optimized = OptimizedChainedInstrumentation(
+            listOf(FetchingParticipant(FieldFetchingInstrumentationContext.NOOP), FetchingParticipant(null))
+        )
+
+        assertSame(FieldFetchingInstrumentationContext.NOOP, optimized.beginFieldFetching(mockk(), null))
+    }
+
+    @Test
+    fun `shadow execution returns a lone comparison and preserves multiple comparison order`() {
+        val events = mutableListOf<String>()
+        val first = ShadowFieldExecutionComparison { events += "first" }
+        val second = ShadowFieldExecutionComparison { events += "second" }
+
+        fun participant(comparison: ShadowFieldExecutionComparison?) =
+            object : ViaductInstrumentationBase(), IViaductInstrumentation.WithShadowFieldExecution {
+                override fun requestShadowFieldExecution(
+                    parameters: InstrumentationFieldParameters,
+                    state: InstrumentationState?
+                ): ShadowFieldExecutionComparison? = comparison
+            }
+
+        assertSame(first, OptimizedChainedInstrumentation(listOf(participant(first))).requestShadowFieldExecution(mockk(), null))
+        assertNull(OptimizedChainedInstrumentation(listOf(participant(null))).requestShadowFieldExecution(mockk(), null))
+        assertNull(OptimizedChainedInstrumentation(emptyList()).requestShadowFieldExecution(mockk(), null))
+        OptimizedChainedInstrumentation(listOf(participant(first), participant(null), participant(second)))
+            .requestShadowFieldExecution(mockk(), null)!!.compare(mockk())
+        assertEquals(listOf("first", "second"), events)
     }
 }
