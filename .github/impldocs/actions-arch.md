@@ -91,7 +91,7 @@ A listener runs on `workflow_run`, after another run completes. It sees that run
 
 `release.yml` is separate from the CI infrastructure described above. It is a manually-triggered workflow used by release managers to publish either a release candidate or a final Viaduct release. See [.github/impldocs/release-runbook.md](release-runbook.md) for the full release process.
 
-- RC mode publishes `X.Y.Z-rc.N-SNAPSHOT` artifacts to the Central snapshot repository, after refusing a version that is already there. It pushes demo apps to `rc/vX.Y.Z-rc.N` and verifies them against the snapshot repository.
+- RC mode publishes `X.Y.Z-rc.N-SNAPSHOT` artifacts to the Central snapshot repository, after refusing a version that is already there. It pushes demo apps to `rc/vX.Y.Z-rc.N`, checks every published file's signature against the release key in `.github/release-signing-key.asc`, and verifies the demo apps against the snapshot repository.
 - Final mode publishes the final `X.Y.Z` release, pushes demo apps to `main`, verifies them, creates the `vX.Y.Z` tag, and publishes the GitHub release.
 
 `release.yml` delegates the actual artifact publication work to `publish-branch.yml`.
@@ -343,9 +343,10 @@ demoapps-nightly-check.yml  [orchestrator]
   |      v                               v
   |    push-demoapps.yml  [atomic]     (poll Sonatype until 200)
   |
-  |--- check-demoapps
-  |      v
-  |    check-published-demoapps.yml  [atomic]
+  |--- check-demoapps (parallel)     verify-signatures (parallel)
+  |      v                              (wait for this run's build, then
+  |    check-published-demoapps.yml     check every file's signature)
+  |      [atomic]
   |
   '--- cleanup (if tmp/* branch)
          delete tmp branches from viaduct-dev/* repos
