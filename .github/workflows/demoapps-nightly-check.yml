@@ -100,6 +100,44 @@ jobs:
         shell: bash
 
   # ---------------------------------------------------------------------------
+  # Verify every published snapshot file is signed with the release key
+  # Runs in parallel with check-demoapps
+  # ---------------------------------------------------------------------------
+  verify-signatures:
+    needs: [publish-snapshot, wait-for-publication]
+    runs-on: ubuntu-latest
+    env:
+      VIADUCT_DEPENDENCY_MIRROR_ROLE_ARN: ${{ vars.VIADUCT_DEPENDENCY_MIRROR_ROLE_ARN }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.publish-snapshot.outputs.source_sha }}
+
+      # The verifier and key come from the dispatched workflow, not from the published ref, which may predate them.
+      - uses: actions/checkout@v6
+        with:
+          path: tooling
+
+      - uses: ./.github/actions/setup-build
+        with:
+          java-version: '21'
+
+      - name: Derive the published coordinates
+        run: ./gradlew writePublishedCoordinates --no-daemon --stacktrace
+        shell: bash
+
+      - name: Verify the snapshot's signatures
+        env:
+          VERSION: ${{ needs.publish-snapshot.outputs.version }}
+          BUILT_AFTER: ${{ needs.publish-snapshot.outputs.publish_started_at }}
+        run: |
+          set -euo pipefail
+          python3 tooling/.github/scripts/verify_published_signatures.py \
+            --root . --version "$VERSION" --built-after "$BUILT_AFTER" \
+            --key tooling/.github/release-signing-key.asc
+        shell: bash
+
+  # ---------------------------------------------------------------------------
   # Verify standalone repos build against published snapshot artifacts
   # ---------------------------------------------------------------------------
   check-demoapps:
