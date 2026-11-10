@@ -129,7 +129,7 @@ extend type Query {
 
 ## Query Fragments
 
-`qf` is an optional selection-set string relative to `Query`. An absent or empty `qf` denotes an empty Query fragment. Like `of`, it preserves response-key aliases, nested selections, inclusion conditions, and resolver-owned variable bindings. `pathVars` still reads paths from the object fragment, even when the variable is used only by the Query fragment. This extension does not add Query-field variable providers or general root-field-reference results.
+`qf` is an optional selection-set string relative to `Query`. An absent or empty `qf` denotes an empty Query fragment. Like `of`, it preserves response-key aliases, nested selections, inclusion conditions, and resolver-owned variable bindings. `pathVars` still reads paths from the object fragment, even when the variable is used only by the Query fragment. This does not add Query-field variable providers.
 
 Use `query:` before a response-key path in a result expression to read the materialized Query input. Unqualified paths continue to read the object input, and `$name` reads a resolver argument. The prefix is separate from GraphQL names so an object field named `query` remains usable.
 
@@ -201,7 +201,7 @@ type Entry {
 
 ## Node Results
 
-Node IDs are globally unique within one DSL world. A node resolver's result is the concrete object body for that ID; its top-level `id` is injected by the fixture, while internal typename demand is resolved through the generated `V_A_typename` field resolver. A complete top-down world places the root field before the Node type:
+Node IDs are globally unique within one DSL world. A node resolver's ordinary object result is the concrete body for that ID; its top-level `id` is injected by the fixture, while internal typename demand is resolved through the generated `V_A_typename` field resolver. Node resolvers may also return a structured root-field reference as described below. A complete top-down world places the root field before the Node type:
 
 ```graphql
 extend type Query {
@@ -243,6 +243,30 @@ type User implements Node
 Using an argument in `idFrom` reads it directly and does not define a resolver-registry variable.
 
 An unknown ID, an ID registered for an incompatible Node type, a duplicate global ID, or additional fields in a Node reference is rejected.
+
+## Root-Field Reference Results
+
+Use a reserved JSON result object with `__ref` and optional `arguments` to return a canonical root-field reference. `__ref` is a dot-separated path starting with a field of Query; omit the `Query.` prefix. Intermediate fields must be singular, argumentless object fields, and the target must return a singular value. The existing reference factory validates the path and coerces arguments against the target schema. Extra keys, duplicate keys, invalid paths, and invalid arguments are rejected.
+
+```graphql
+extend type Query {
+  viewer(id: ID): User
+    @resolver(result: {__ref: "directory.lookup", arguments: {id: "$id"}})
+  directory: Directory
+}
+type Directory {
+  lookup(id: ID): User @resolver(result: {id: "idFrom($id)"})
+}
+type User implements Node
+  @nodeResolver(result: [{id: "user-1", result: {score: 7}}]) {
+  id: ID!
+  score: Int
+}
+```
+
+Reference argument values use GraphQL literals. A string consisting of `$name` reads an argument of the returning resolver directly; this works recursively in list and input-object arguments and does not declare a registry variable. Integer `value`, `sum`, and `sumplus1` expressions can also read the current resolver's object or Query inputs. Node-resolver results have no field arguments to substitute.
+
+The reference form works for scalar or object results, fields supplied inside returned objects, list elements, and `@nodeResolver` results. It is recognized before ordinary object/Node-body interpretation, so a node resolver can return another reference without injecting an intermediate `id`. Reference targets can themselves return references. The engine follows the chain within one publication and retains the first Node reference's authoritative identity. This DSL support is broader than the animation's supported scope; list animations remain unsupported.
 
 ## Invocation Assertions
 

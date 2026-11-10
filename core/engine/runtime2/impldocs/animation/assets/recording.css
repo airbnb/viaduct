@@ -101,6 +101,11 @@ svg .input-read > .cell { stroke: var(--c3); stroke-width: 3; }
 .legend { margin: 0; }
 .passive-legend { --c: var(--c4); --cs: color-mix(in srgb, #f5d45c 35%, var(--bg-elev)); }
 .hint { margin-top: 0; }
+.reference-chain { margin: 16px 0; padding: 12px 16px; border: 1px solid var(--border); border-radius: 8px; }
+.reference-chain ol { display: flex; flex-wrap: wrap; gap: 8px; list-style: none; padding: 0; }
+.reference-chain li + li::before { content: "→ "; color: var(--fg-muted); }
+.reference-current { color: var(--c4); font-weight: 650; }
+.reference-chain p { font-size: .8rem; color: var(--fg-muted); }
 footer { margin-top: 20px; font-size: .82rem; color: var(--fg-muted); }
 .recordings { list-style: none; padding: 0; }
 .recordings li { padding: 16px 0; border-bottom: 1px solid var(--border); }

@@ -29,6 +29,60 @@ import viaduct.graphql.schema.ViaductSchema
 
 class ResolverTestDslTest {
     @Test
+    fun `compiles structured references at scalar object and nested list positions`() {
+        val world = TestWorld.fromDSL(
+            """
+            extend type Query {
+              item(seed: Int): Item @resolver(result: {
+                number: {__ref: "namespace.number", arguments: {value: "${'$'}seed", options: {weights: ["${'$'}seed", null]}}},
+                items: [[{__ref: "item", arguments: {seed: 3}}, null]]
+              })
+              namespace: Namespace
+            }
+            type Item { number: Int items: [[Item]] }
+            type Namespace { number(value: Int, options: Options): Int }
+            input Options { weights: [Int] }
+            """.trimIndent(),
+        )
+        val item = assertIs<EngineObjectData.Sync>(world.apply(world.schema.requireObjectField("Query", "item"), arguments = mapOf("seed" to 7)))
+        val number = assertIs<RootFieldReferenceData>(item.outputValue("number"))
+        assertEquals(listOf("namespace", "number"), number.path.map { it.name })
+        assertEquals(mapOf("value" to 7, "options" to mapOf("weights" to listOf(7, null))), number.arguments.fieldValues)
+        val list = assertIs<List<*>>(assertIs<List<*>>(item.outputValue("items")).single())
+        assertEquals(mapOf("seed" to 3), assertIs<RootFieldReferenceData>(list.first()).arguments.fieldValues)
+        assertNull(list.last())
+    }
+
+    @Test
+    fun `rejects malformed structured references and invalid target arguments`() {
+        for (result in listOf(
+            "{__ref: 7}",
+            "{__ref: \"\"}",
+            "{__ref: \"missing\"}",
+            "{__ref: \"target\", extra: 1}",
+            "{__ref: \"target\", arguments: 7}",
+            "{__ref: \"target\", arguments: {value: \"wrong\"}}",
+            "{__ref: \"target\", arguments: {value: \"${'$'}missing\"}}",
+            "{__ref: \"target\", arguments: {value: 1, value: 2}}",
+            "{__ref: \"targets\"}",
+            "{__ref: \"namespace.target\"}",
+        )) {
+            val world = TestWorld.fromDSL(
+                """
+                extend type Query {
+                  source: Int @resolver(result: $result)
+                  target(value: Int): Int
+                  targets: [Int]
+                  namespace(id: Int): Namespace
+                }
+                type Namespace { target: Int }
+                """.trimIndent(),
+            )
+            assertThrows<IllegalArgumentException>(result) { world.apply(world.schema.requireObjectField("Query", "source")) }
+        }
+    }
+
+    @Test
     fun `evaluates object Query and argument inputs in one result`() {
         val world = TestWorld.fromDSL(
             """

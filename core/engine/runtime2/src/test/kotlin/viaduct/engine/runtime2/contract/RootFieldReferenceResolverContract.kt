@@ -662,6 +662,47 @@ interface ObjectFragmentRootFieldReferenceResolverContract : ResolverContract {
 /** Reference targets inherit the Query-fragment and `FromArgument` capability tier. */
 interface QueryFragmentRootFieldReferenceResolverContract : QueryFragmentResolverContract {
     @Test
+    fun `chases a passive reference through an independent Query input`() {
+        val world = TestWorld.fromDSL(
+            """
+            extend type Query {
+              container: Container @resolver(result: {value: {__ref: "namespace.first", arguments: {seed: 7}}})
+              namespace: Namespace
+              echo(value: Int): Int @resolver(result: "value(${'$'}value)")
+            }
+            type Container {
+              value: Int @resolver(result: 999)
+            }
+            type Namespace {
+              first(seed: Int): Int
+                @resolver(
+                  qf: "echoed: echo(value: ${'$'}seed)"
+                  result: {__ref: "namespace.second", arguments: {value: "sumplus1(query:echoed)"}}
+                )
+              second(value: Int): Int @resolver(result: "value(${'$'}value)")
+            }
+            """.trimIndent(),
+        )
+        val applications = ResolverApplicationArguments()
+        val resolution = resolveAndValidateObserved(world, "{ container { value } }", resolutionObserver = applications)
+        val container = assertIs<ObjectEngineResult>(resolution.result.getCell(world.schema.contractKey("Query", "container")).get())
+
+        assertEquals(8, container.getCell(world.schema.contractKey("Container", "value")).get())
+        applications.assertApplications(
+            mapOf(
+                world.schema.requireObjectField("Query", "container") to listOf(emptyMap()),
+                world.schema.requireObjectField("Query", "echo") to listOf(mapOf("value" to 7)),
+                world.schema.requireObjectField("Namespace", "first") to listOf(mapOf("seed" to 7)),
+                world.schema.requireObjectField("Namespace", "second") to listOf(mapOf("value" to 8)),
+            ),
+        )
+        val hops = (resolution.operation.resolutionObserver as CorrectnessResolverObserver).rootFieldReferenceInvocations()
+        assertEquals(listOf("first", "second"), hops.map { it.invocationKey.field.name })
+        assertEquals(listOf(mapOf("seed" to 7), mapOf("value" to 8)), hops.map { it.reference.arguments.fieldValues })
+        assertEquals(1, hops.map { it.publicationRoot to it.publicationPath }.distinct().size)
+    }
+
+    @Test
     fun `binds referenced arguments consumed by the target Query fragment`() {
         val testWorld =
             TestWorld.fromSDL(

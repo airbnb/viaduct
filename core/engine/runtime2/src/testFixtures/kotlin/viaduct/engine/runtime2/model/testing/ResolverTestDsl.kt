@@ -30,6 +30,7 @@ import viaduct.engine.runtime2.model.EngineErrorData
 import viaduct.engine.runtime2.model.EngineInputData
 import viaduct.engine.runtime2.model.EngineOutputData
 import viaduct.engine.runtime2.model.Fragment
+import viaduct.engine.runtime2.model.ResolverOutputData
 import viaduct.engine.runtime2.model.ResolverTarget
 import viaduct.engine.runtime2.model.RootFieldReferenceData
 import viaduct.engine.runtime2.model.arg
@@ -570,7 +571,7 @@ private class ResultEvaluator(
         input: EngineObjectData.Sync,
         queryValue: EngineObjectData.Sync,
         arguments: Arguments.Resolved,
-    ): EngineOutputData? =
+    ): ResolverOutputData? =
         evaluate(
             typeExpr = sourceSchema.typeExpr(field),
             source = result,
@@ -618,7 +619,7 @@ private class ResultEvaluator(
                 )
         }
 
-    fun evaluateNodeResult(entry: CompiledNodeResult): EngineOutputData? =
+    fun evaluateNodeResult(entry: CompiledNodeResult): ResolverOutputData? =
         evaluate(
             typeExpr = ViaductSchema.TypeExpr(entry.type),
             source = entry.result,
@@ -631,7 +632,7 @@ private class ResultEvaluator(
         source: GraphQLValue<*>,
         context: EvaluationContext,
         nodeRoot: CompiledNodeResult? = null,
-    ): EngineOutputData? {
+    ): ResolverOutputData? {
         if (source is StringValue && source.value == ERROR_SENTINEL) return errorResult
         if (source is NullValue) {
             require(typeExpr.isNullable) { "null does not conform to $typeExpr" }
@@ -643,6 +644,9 @@ private class ResultEvaluator(
             return source.values.map { value ->
                 evaluate(elementType, value, context)
             }
+        }
+        if (source is ObjectValue && source.objectFields.any { it.name == REFERENCE_FIELD }) {
+            return evaluateReference(source, context)
         }
         return when (val type = typeExpr.baseTypeDef) {
             is ViaductSchema.Scalar ->
@@ -668,6 +672,47 @@ private class ResultEvaluator(
             else -> error("Output field has a non-output type")
         }
     }
+
+    private fun evaluateReference(
+        source: ObjectValue,
+        context: EvaluationContext,
+    ): RootFieldReferenceData {
+        val fields = source.uniqueFields("root-field reference")
+        require(fields.keys.all { it == REFERENCE_FIELD || it == ARGUMENTS_FIELD }) {
+            "Root-field references allow only $REFERENCE_FIELD and $ARGUMENTS_FIELD"
+        }
+        val path = fields.getValue(REFERENCE_FIELD)
+        require(path is StringValue && PATH.matches(path.requiredValue())) {
+            "$REFERENCE_FIELD must be a dot-separated field path from Query"
+        }
+        var type: ViaductSchema.OutputTypeDef = schema.requireType("Query") as ViaductSchema.Object
+        val referencePath = path.requiredValue().split('.').map { name ->
+            val field = sourceSchema.field(type.name, name)
+            require(field is ViaductSchema.ObjectField)
+            type = sourceSchema.typeExpr(field).baseTypeDef
+            field
+        }
+        val arguments = fields[ARGUMENTS_FIELD]?.let { value ->
+            require(value is ObjectValue) { "$ARGUMENTS_FIELD must be an object" }
+            value.uniqueFields("reference arguments").mapValues { (_, argument) -> referenceArgument(argument, context) }
+        }.orEmpty()
+        return try {
+            RootFieldReferenceData.of(referencePath, arguments)
+        } catch (cause: ClassCastException) {
+            throw IllegalArgumentException("Invalid reference arguments for ${path.requiredValue()}", cause)
+        }
+    }
+
+    private fun referenceArgument(
+        value: GraphQLValue<*>,
+        context: EvaluationContext,
+    ): EngineInputData? =
+        when (value) {
+            is StringValue -> if (value.requiredValue().startsWith('$')) argumentValue(value.requiredValue().drop(1), context) else evaluateProviderValue(value, context)
+            is ArrayValue -> value.values.map { referenceArgument(it, context) }
+            is ObjectValue -> value.uniqueFields("reference argument").mapValues { (_, item) -> referenceArgument(item, context) }
+            else -> evaluateProviderValue(value, context)
+        }
 
     private fun evaluateComposite(
         declaredType: ViaductSchema.CompositeTypeDef,
@@ -1048,6 +1093,8 @@ private const val NAME_FIELD = "name"
 private const val PATH_FIELD = "path"
 private const val ID_FIELD = "id"
 private const val TYPENAME_FIELD = "__typename"
+private const val REFERENCE_FIELD = "__ref"
+private const val ARGUMENTS_FIELD = "arguments"
 private const val ERROR_SENTINEL = "ERROR"
 private const val ERROR_VARIABLE_PREFIX = "__resolverTestError"
 private const val ID_FROM_ARGUMENT_PREFIX = "idFrom("

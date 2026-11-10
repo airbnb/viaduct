@@ -42,6 +42,10 @@ CODE_POINTERS = {
     "passive-fields": ("Complete available passive fields before dispatch", MAIN_SOURCE + "resolution/framework/SharedPassiveValueResolutionLogic.kt", (("val orchestration = createOrchestrationTask(occurrence, source, constructionDemand, creator)", "operation.dispatcher.dispatchOrchestration(orchestration)"),)),
     "publish": ("Complete the destination cell", MAIN_SOURCE + "resolution/FieldResolutionLogic.kt", (("publication.publicationCell.value.complete(passiveValue)", "publication.publicationCell.value.complete(passiveValue)"),)),
     "completion": ("Wait for structured resolution to finish", MAIN_SOURCE + "resolution/Resolver.kt", (("return withTimeout(timeoutMillis)", "                ).root\n            }"),)),
+    "reference-tail": ("Follow references in the same publication", MAIN_SOURCE + "resolution/FieldResolutionLogic.kt", (("var authoritativeNodeIdentity: NodeReferenceIdentity? = null", "fieldValue =\n            fieldValue.withAuthoritativeNodeId("),)),
+    "reference-invoke": ("Prepare and invoke a reference target", MAIN_SOURCE + "resolution/FieldResolutionLogic.kt", (("private suspend fun invokeRootFieldResolver(", "executionContext = fieldResolverTask,"),)),
+    "reference-query": ("Resolve a reference target's independent Query input", MAIN_SOURCE + "resolution/FieldResolverTask.kt", (("private suspend fun FieldValueResolver.resolveQueryFragment(", "resultPath = emptyList(),"),)),
+    "node-identity": ("Preserve the first Node reference's identity", MAIN_SOURCE + "resolution/framework/WithAuthoritativeNodeId.kt", (("internal fun ResolverOutputData?.withAuthoritativeNodeId(", "if (contextUnchanged && idUnchanged) return this"),)),
 }
 TOUR = "https://pages.git.musta.ch/alex-ubillus/viaduct-runtime2/"
 PROJECTION = "viaduct.engine.runtime2.resolution.ResolverContractTest.omits unselected passive fields from selective resolver outputs"
@@ -107,7 +111,19 @@ def input_values(value):
         return {key: input_values(item) for key, item in value["fields"].items()}
     if isinstance(value, list):
         return [input_values(item) for item in value]
+    if isinstance(value, dict) and value.get("kind") in {"id", "enum"}:
+        return value["value"]
     return value
+
+
+def argument_text(value):
+    if isinstance(value, dict):
+        if value.get("kind") == "variable":
+            return "$" + value["name"]
+        return "{ " + ", ".join(f"{key}: {argument_text(item)}" for key, item in value.items()) + " }"
+    if isinstance(value, list):
+        return "[" + ", ".join(argument_text(item) for item in value) + "]"
+    return json.dumps(value)
 
 
 def selection_name(key, alias=None):
@@ -116,7 +132,7 @@ def selection_name(key, alias=None):
     if alias and alias != name:
         name = f"{alias}: {name}"
     if key["arguments"]:
-        name += "(" + ", ".join(f"{k}: {json.dumps(v)}" for k, v in key["arguments"].items()) + ")"
+        name += "(" + ", ".join(f"{k}: {argument_text(v)}" for k, v in key["arguments"].items()) + ")"
     return name
 
 
@@ -158,10 +174,56 @@ def short(value, length=26):
 
 def subject(event, tasks):
     facts = event["facts"]
+    if event.get("referenceTaskId") is not None:
+        return tasks[event["referenceTaskId"]]
     if "taskId" in facts:
         return tasks[facts["taskId"]]
     occurrence = facts.get("resolverOccurrenceId")
     return next((t for t in tasks.values() if occurrence is not None and t.get("resolverOccurrenceId") == occurrence), None)
+
+
+def reference_events(events, tasks):
+    hops, by_occurrence = {}, {}
+    for event in events:
+        if event["kind"] != "ROOT_FIELD_REFERENCE_INVOCATION":
+            continue
+        facts = event["facts"]
+        publication = facts["publication"]
+        task = next((t for t in tasks.values() if t["kind"] == "FIELD_RESOLVER"
+                     and t["location"]["rootId"] == publication["rootId"]
+                     and t["location"]["path"] == publication["path"]), None)
+        if task is None:
+            raise ValueError("Reference hop has no publication task")
+        chain = hops.setdefault(task["id"], [])
+        chain.append(facts)
+        by_occurrence[facts["resolverOccurrenceId"]] = (task["id"], chain, len(chain))
+    for event in events:
+        match = by_occurrence.get(event["facts"].get("resolverOccurrenceId"))
+        if match and event["kind"] in {"RESOLVER_INVOCATION", "ROOT_FIELD_REFERENCE_INVOCATION", "INDEPENDENT_QUERY_FRAGMENT_PREPARED"}:
+            task_id, chain, hop = match
+            yield {**event, "referenceTaskId": task_id, "referenceChain": chain, "referenceHop": hop}
+        else:
+            yield event
+
+
+def reference_label(facts):
+    reference = facts.get("reference") or {}
+    identity = reference.get("nodeIdentity")
+    if identity:
+        return f'node({identity["type"]}, {json.dumps(identity["id"])})'
+    path = reference.get("path") or [part["field"] for part in facts["invocation"]["path"]]
+    name = ".".join(part.split(".")[-1] for part in path)
+    arguments = reference.get("arguments", facts["key"]["arguments"])
+    return name + "(" + ", ".join(f"{key}: {json.dumps(value)}" for key, value in arguments.items()) + ")"
+
+
+def reference_chain(event, task):
+    chain, hop = event["referenceChain"], event["referenceHop"]
+    targets = []
+    for i, facts in enumerate(chain[:hop], 1):
+        state = "current" if i == hop else "done"
+        targets.append(f'<li class="reference-{state}">{code(reference_label(facts))}</li>')
+    return f'<section class="reference-chain"><b>Reference chain · {code(path_label(task))} · task #{task["id"]}</b><ol>{"".join(targets)}</ol><p>The destination cell stays claimed while this task follows the references.</p></section>'
 
 
 def active_task(event, tasks):
@@ -227,7 +289,7 @@ def animation_steps(events, tasks):
 def phase(event):
     if event["kind"] == "TASK_EXECUTION":
         return "running" if event["facts"]["state"] == "STARTED" else "finished"
-    return {"BOOTSTRAP": "", "QUERY_OER_PREPARED": "preparing", "TASK_PREPARED": "prepared", "RESOLVER_INVOCATION": "resolver invoked"}.get(event["kind"], "observed")
+    return {"BOOTSTRAP": "", "QUERY_OER_PREPARED": "preparing", "TASK_PREPARED": "prepared", "RESOLVER_INVOCATION": "reference target" if event.get("referenceHop") else "resolver invoked", "ROOT_FIELD_REFERENCE_INVOCATION": "checking reference tail", "INDEPENDENT_QUERY_FRAGMENT_PREPARED": "awaiting Query input"}.get(event["kind"], "observed")
 
 
 def preparing_orchestrator(step, tasks):
@@ -243,7 +305,7 @@ def orchestration_caller(step, tasks):
     task = subject(event, tasks)
     if event["kind"] == "TASK_EXECUTION" and event["facts"]["state"] == "STARTED" and task["kind"] == "ORCHESTRATION":
         creator = tasks.get(task["creatorId"])
-        if creator and creator["kind"] == "FIELD_RESOLVER":
+        if creator and creator["kind"] == "FIELD_RESOLVER" and creator["location"]["rootId"] == task["location"]["rootId"]:
             return creator
     return None
 
@@ -338,7 +400,7 @@ def task_track(steps, tasks, oers):
            f'<path class="rail" d="M150 72H{width}M150 172H{width}"/>']
     for task_id, task in tasks.items():
         appearances = [(i, e) for i, step in enumerate(steps) for e in step if subject(e, tasks) == task
-                       and e["kind"] in {"BOOTSTRAP", "QUERY_OER_PREPARED", "TASK_PREPARED", "TASK_EXECUTION", "RESOLVER_INVOCATION"}]
+                       and e["kind"] in {"BOOTSTRAP", "QUERY_OER_PREPARED", "TASK_PREPARED", "TASK_EXECUTION", "RESOLVER_INVOCATION", "ROOT_FIELD_REFERENCE_INVOCATION", "INDEPENDENT_QUERY_FRAGMENT_PREPARED"}]
         if not appearances:
             raise ValueError(f"Task {task_id} has no recorded observations")
         first_step = appearances[0][0]
@@ -406,7 +468,11 @@ def oer_progress(steps, tasks):
             task = subject(event, tasks)
             if task:
                 location = task["location"]
-                seen.setdefault(location["oerId"], path_label(task) if task["kind"] == "ORCHESTRATION" else "root")
+                label = path_label(task) if task["kind"] == "ORCHESTRATION" else "root"
+                creator = tasks.get(task["creatorId"])
+                if task["kind"] == "ORCHESTRATION" and creator and not location["path"] and location["rootId"] != creator["location"]["rootId"]:
+                    label = f'Query input for task #{creator["id"]}'
+                seen.setdefault(location["oerId"], label)
                 if event["kind"] == "TASK_PREPARED" and task["kind"] == "FIELD_RESOLVER":
                     key = location["path"][-1]
                     if isinstance(key, dict) and "field" in key:
@@ -504,7 +570,7 @@ def oer_frames(steps, tasks, oers):
                         rendered = f'completed: → {oers[value["id"]]["type"]} #{value["id"]}'
                         links.append((oer_id, value["id"], cy + 15, at, window))
                     else:
-                        rendered = "completed: " + json.dumps(value, ensure_ascii=False) if value_cell["state"] == "COMPLETED" else "failed"
+                        rendered = "completed: " + json.dumps(input_values(value), ensure_ascii=False) if value_cell["state"] == "COMPLETED" else "failed"
                     css = "cell full" if value_cell["state"] == "COMPLETED" else "cell"
                     focus = ' data-focus' if current and (i * SECONDS <= at < (i + 1) * SECONDS or reading) else ""
                     visibility = f' data-on="{window}"' if window else ""
@@ -593,7 +659,7 @@ def demand_frames(recording, steps, tasks, oers):
             return oers[value["id"]]["type"]
         if isinstance(value, list):
             return "[" + ", ".join(completed_value(v) for v in value) + "]"
-        return json.dumps(value, ensure_ascii=False)
+        return json.dumps(input_values(value), ensure_ascii=False)
 
     def input_addresses(location, selections, value):
         addresses = set()
@@ -707,7 +773,7 @@ def materialize(oer_id, states, visited=()):
             return materialize(v["id"], states, (*visited, oer_id))
         if isinstance(v, list):
             return [value(item) for item in v]
-        return v
+        return input_values(v)
 
     return {(c["key"].get("responseKey") or c["key"]["field"].split(".")[-1]): value(c.get("value"))
             for c in states[oer_id]["fields"] if c["state"] == "COMPLETED"}
@@ -724,8 +790,10 @@ def caption(step, tasks, oers):
     if kind == "QUERY_OER_PREPARED" or (kind == "TASK_PREPARED" and task["kind"] == "ORCHESTRATION"):
         title = "Prepare object orchestration"
         body = f'When a resolver returns an object, the field-resolver task allocates an OER for it{code_pointer("object")} and creates and prepares an orchestrator task for it{code_pointer("prepare")}. The orchestrator will close demand{code_pointer("closure")} and bind variable declarations{code_pointer("bindings")}.'
-        if not task["location"]["path"]:
+        if not task["location"]["path"] and task["creatorId"] is None:
             body = f'Prepare the operation\'s root OER and its orchestration task{code_pointer("root")}. The orchestrator closes demand{code_pointer("closure")} and declares variable bindings{code_pointer("bindings")}.'
+        elif not task["location"]["path"]:
+            body = f'The reference target needs its own Query input. Its publication task creates an independently rooted Query OER and prepares an orchestrator{code_pointer("reference-query")}. The orchestrator closes this input’s construction demand{code_pointer("closure")} and declares its bindings{code_pointer("bindings")}. This is input preparation, before the reference target is invoked.'
         body += f' Reserved OER cells hold space for demanded values{code_pointer("reserve")}. Field-resolver tasks will later claim responsibility for the cells they produce.'
         query = next((e["facts"] for e in step if e["kind"] == "QUERY_OER_PREPARED"), None)
         if query and query["oer"]["fields"]:
@@ -750,22 +818,43 @@ def caption(step, tasks, oers):
             title = "Start the field task" if started else "Field task finished"
             if started:
                 body = f'The task computes successor demand{code_pointer("successor")}, then evaluates the field’s inclusion condition. If the field is excluded, it marks the cell inactive and stops{code_pointer("inactive")}. Otherwise, it resolves argument values{code_pointer("arguments")}, and reads required inputs{code_pointer("inputs")}. All of a resolver’s inputs must be ready before the resolver is called; the task suspends waiting for those inputs if they are not ready{code_pointer("await-inputs")}.'
+                if facts.get("sourceReference"):
+                    body = f'The source already supplies a root-field reference. This task computes successor demand and evaluates inclusion{code_pointer("successor")}{code_pointer("inactive")}, then follows the reference instead of invoking the containing field’s registered resolver{code_pointer("reference-tail")}. Each target uses the reference’s grounded arguments and its own Query input{code_pointer("reference-invoke")}.'
             else:
                 body = f'The task has finished passive descent{code_pointer("passive")} and publication{code_pointer("publish")}. Its parent\'s cell now holds the observed value.'
         if facts.get("cause"):
             body += f' The recorded termination has a cause: {code(facts["cause"])}.'
     elif kind == "RESOLVER_INVOCATION":
-        title = "Invoke the resolver"
+        reference = event.get("referenceHop")
+        title = "Follow a reference · hop " + str(reference) if reference else "Invoke the resolver"
         demand = selection_text(facts["suppliedDemand"])
-        body = f'Invoke {code(facts["field"])}{code_pointer("invoke")} with arguments {code(json.dumps(facts["arguments"]))}{code_pointer("arguments")} and successor demand {code(demand or "empty")}{code_pointer("successor")}.'
+        identity = event["referenceChain"][reference - 1].get("reference", {}).get("nodeIdentity") if reference else None
+        arguments = f'for Node identity {code(identity["type"] + ": " + identity["id"])}' if identity else f'with arguments {code(json.dumps(facts["arguments"]))}{"" if reference else code_pointer("arguments")}'
+        body = f'Invoke {code(facts["field"])}{code_pointer("reference-invoke" if reference else "invoke")} {arguments} and successor demand {code(demand or "empty")}{code_pointer("successor")}.'
+        if reference:
+            body += f' The same field task follows {code(reference_label(event["referenceChain"][reference - 1]))}; this is a new resolver invocation, with a fresh invocation identity, within the existing publication{code_pointer("reference-tail")}. The target path identifies the resolver; namespace prefixes are not executed to reach it.'
         if not facts["inputSelections"] and not facts["queryInputSelections"]:
             body += " No object or Query input fields are required."
         for input_label, selection_key, value_key in [("Object fragment", "inputSelections", "input"), ("Query fragment", "queryInputSelections", "queryInput")]:
             if facts[selection_key]:
-                pointer = "object-input" if selection_key == "inputSelections" else "query-input"
+                pointer = "object-input" if selection_key == "inputSelections" else ("reference-query" if reference else "query-input")
                 inputs += f'<section class="input-snapshot"><p><b>{input_label}</b> {code("{ " + selection_text(facts[selection_key]) + " }")}{code_pointer(pointer)}</p><pre>{pretty(input_values(facts[value_key]))}</pre></section>'
         if facts["inputSelections"] or facts["queryInputSelections"]:
             inputs += '<p>The highlighted OER cells supply this invocation’s required inputs.</p>'
+    elif kind == "ROOT_FIELD_REFERENCE_INVOCATION":
+        hop = event["referenceHop"]
+        title = "Check the reference tail"
+        body = f'The helper for {code(reference_label(facts))} has returned{code_pointer("reference-tail")}. The task checks its result: another reference continues the loop; an ordinary value proceeds to passive resolution and publication.'
+        if hop < len(event["referenceChain"]):
+            body += ' This execution continues with another reference hop in the same task.'
+        else:
+            body += ' This is the last reference hop for this publication.'
+            identity = next((f.get("reference", {}).get("nodeIdentity") for f in event["referenceChain"] if f.get("reference", {}).get("nodeIdentity")), None)
+            if identity:
+                body += f' Before passive descent, the first Node identity, {code(identity["type"] + ": " + identity["id"])}, remains authoritative for demanded output{code_pointer("node-identity")}.'
+    elif kind == "INDEPENDENT_QUERY_FRAGMENT_PREPARED":
+        title = "Prepare the reference target’s Query input"
+        body = f'This reference invocation has an independently rooted Query input{code_pointer("reference-query")}. Its cells must be ready before the target resolver can be invoked. It is separate from the publication’s result OER and from other reference hops’ Query inputs.'
     elif kind == "RESOLUTION_COMPLETED":
         title = "Resolution complete"
         body = f'The final recorded OER tree contains the constructed values{code_pointer("completion")}. This is resolution output, before GraphQL response completion.'
@@ -777,6 +866,8 @@ def caption(step, tasks, oers):
     if caller:
         actor_label = task_label(caller, oers) + " → " + actor_label
     content = f'<span class="actor">{escape(actor_label)}</span><p>{body}</p>{inputs}'
+    if event.get("referenceHop"):
+        content += reference_chain(event, task)
     if kind == "RESOLUTION_COMPLETED":
         content += f'<pre>{pretty(materialize(facts["rootId"], {s["id"]: s for s in facts["oers"]}))}</pre>'
     event_label = f'Observation #{event["sequence"]} · {kind}' if len(step) == 1 else "Observations " + ", ".join(f'#{e["sequence"]}' for e in step)
@@ -803,7 +894,7 @@ def render(recording):
         raise ValueError("This first viewer requires a successfully completed resolution")
     tasks = {t["id"]: t for t in recording["tasks"]}
     oers = {o["id"]: o for o in recording["oers"]}
-    events = recording["events"]
+    events = list(reference_events(recording["events"], tasks))
     if not events or any(t["kind"] not in {"ORCHESTRATION", "FIELD_RESOLVER"} for t in tasks.values()) or any(e["kind"].startswith("CHECKER") for e in events):
         raise ValueError("This first viewer supports nonempty, checker-free orchestration and field-resolver recordings")
     steps = animation_steps(events, tasks)

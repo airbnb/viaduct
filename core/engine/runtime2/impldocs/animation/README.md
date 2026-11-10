@@ -6,7 +6,7 @@ Any future additions or modifications to the animations should be guided by [ani
 
 ## Supported resolution features
 
-The animator currently supports simple queries, including passive values, polymorphic object results, and resolvers that use object fragments or Query fragments. The demand view does not yet display type conditions explicitly. Use cases involving checkers, variable definitions, `@parent` fields, lists, node references, `@skip`/`@include`, mutations, or error handling are not yet properly animated.
+The animator currently supports simple queries, including passive values, polymorphic object results, resolvers that use object fragments or Query fragments, and singular root-field references including Node references. Reference chains retain one publication task and destination cell across multiple target invocations; targets can prepare independent Query inputs. Node chains show the first Node identity retained for demanded output. References supplied inside returned objects also work. The demand view does not yet display type conditions explicitly. Use cases involving checkers, general variable definitions, `@parent` fields, lists (including list-element references), `@skip`/`@include`, mutations, or error handling are not yet properly animated.
 
 ## Generate and view
 
@@ -19,7 +19,7 @@ For the complete supported debugger walkthrough, run one command:
   --no-configuration-cache --console=plain
 ```
 
-This records seven production resolver contract examples in one test execution: selective output, transitive sibling demand, descendant demand, recursive object-fragment demand, transitive Query fragments, shared Query-owner projections, and selective Query successor demand. It builds all seven animations before starting the gallery server at [http://localhost:8765/](http://localhost:8765/). Existing animations remain in the gallery.
+This records nine production resolver contract examples in one test execution: selective output, transitive sibling demand, descendant demand, recursive object-fragment demand, transitive Query fragments, shared Query-owner projections, selective Query successor demand, a Node/root-field reference chain, and a passive reference chain with independent Query input. It builds all nine animations before starting the gallery server at [http://localhost:8765/](http://localhost:8765/). Existing animations remain in the gallery.
 
 The task prints viewing instructions, including an SSH port-forwarding command for remote workstations. Add `-PanimationPort=8080` to use another port; the printed URL and SSH command both use that port. The server listens only on the loopback interface. Press Ctrl-C in the Gradle terminal to stop it.
 
@@ -52,7 +52,9 @@ Dynamic and parameterized tests are not recorded. Calls with `record = false` op
 
 `animate` runs the selected test through `recordAnimation`, which enables recording automatically, then renders its JSON log. Gradle may reuse the existing test execution when that task is up-to-date; the Python rendering still runs. Recordings are intentionally not declared as Gradle task outputs. If an artifact has been deleted, or you want a fresh execution, add `--rerun-tasks` to the generation command.
 
-`easteregg` follows the same policy through `recordEasteregg` and `animateEasteregg`: the seven-test recording task can be up-to-date, while rendering runs again before the server starts. Changing `animationPort` alone does not require another test execution. `animationTest` selects the single-example `animate` workflow; it does not change the seven examples selected by `easteregg`.
+`easteregg` follows the same policy through `recordEasteregg` and `animateEasteregg`: the nine-test recording task can be up-to-date, while rendering runs again before the server starts. Changing `animationPort` alone does not require another test execution. `animationTest` selects the single-example `animate` workflow; it does not change the nine examples selected by `easteregg`.
+
+For the Node reference chain alone, use `-PanimationTest=viaduct.engine.runtime2.resolution.ResolverContractTest.chases node and root-field references in one publication` with `animate`. The complete DSL setup appears on the page: `viewer` returns the Node reference `User: alias`, its node resolver returns a reference to `redirect`, and `redirect` returns the Node reference `User: canonical`. The final data comes from `canonical`, while the demanded `id` remains `alias`. For a reference supplied in an object and a target with Query dependencies, select `viaduct.engine.runtime2.resolution.ResolverContractTest.chases a passive reference through an independent Query input`.
 
 ## Viewer controls and notation
 
@@ -63,6 +65,7 @@ Dynamic and parameterized tests are not recorded. Calls with `record = false` op
 - Task-track labels include the creator in parentheses: `#5 (#4) - rendered`. Other references use the task number. Lines connect orchestrators to their field tasks.
 - Task cards stay at a fixed size. The track scrolls horizontally and brings the active task into view.
 - Cells progress from `reserved` to `claimed by #N` to `completed: VALUE`. Passive values can complete a reserved cell without a field-task claim.
+- Reference captions grow a chain of targets as one field task follows them. Target invocation and the subsequent tail check are separate steps; a hop does not allocate a new publication task or publish an intermediate reference. Fresh invocation roots are identity scopes, so they are not displayed as empty result trees.
 - Switch the left pane between **OER** and **Construction demand** without changing position. Client demand is bold; added demand is slightly gray. Required input fields are highlighted at resolver invocation.
 - The panes scroll as their contents grow and focus on changes. Drag the handle underneath to resize their height. The player respects reduced-motion preferences.
 - Small Octocat icon buttons next to individual phrases open the corresponding source file with relevant lines highlighted. The modal has line numbers and scrolls in both directions. Click a line number, then Shift-click another to highlight a range; **Reset highlights** restores the suggested ranges. Opening source pauses playback. Close with **Close**, Escape, or a click outside the modal.

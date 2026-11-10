@@ -21,13 +21,16 @@ import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.PathComponent
 import viaduct.engine.runtime2.model.ResolverOccurrenceId
 import viaduct.engine.runtime2.model.ResolverTarget
+import viaduct.engine.runtime2.model.RootFieldReferenceData
 import viaduct.engine.runtime2.model.SelectionForest
 import viaduct.engine.runtime2.model.fieldExpressions
+import viaduct.engine.runtime2.model.nodeReferenceIdentityOrNull
 import viaduct.engine.runtime2.model.outputValue
 import viaduct.engine.runtime2.model.registry.CheckerInput
 import viaduct.engine.runtime2.model.render
 import viaduct.engine.runtime2.resolution.FieldResolverOccurrence
 import viaduct.engine.runtime2.resolution.FieldResolverTask
+import viaduct.engine.runtime2.resolution.RootFieldReferenceOccurrence
 import viaduct.engine.runtime2.resolution.framework.CheckerInvocationObservation
 import viaduct.engine.runtime2.resolution.framework.MutationOrchestrationTask
 import viaduct.engine.runtime2.resolution.framework.OEROccurrence
@@ -135,6 +138,7 @@ class RecordingResolutionObserver(
                 "invocation" to location(observation.invocationRoot, observation.invocationPath),
                 "resolverOccurrenceId" to occurrenceId(ResolverOccurrenceId.at(observation.invocationRoot, observation.invocationPath)),
                 "key" to key(observation.invocationKey),
+                "reference" to reference(observation.reference),
                 "suppliedDemand" to selections(observation.suppliedDemand),
             )
         }
@@ -235,7 +239,9 @@ class RecordingResolutionObserver(
             is SharedFieldResolverTask<*> -> task.publication.oerOccurrence
             else -> null
         }
-        return mapOf("taskId" to id, "oer" to occurrence?.let { oerState(it.target) })
+        val reference = ((task as? FieldResolverTask)?.publication?.sourceOccurrence as? RootFieldReferenceOccurrence)?.reference
+        return mapOf("taskId" to id, "oer" to occurrence?.let { oerState(it.target) }) +
+            if (reference != null) mapOf("sourceReference" to reference(reference)) else emptyMap()
     }
 
     private fun occurrenceId(id: ResolverOccurrenceId): Int = occurrenceIds.getOrPut(id) { occurrenceIds.size + 1 }
@@ -263,6 +269,13 @@ class RecordingResolutionObserver(
         }
 
     private fun coordinate(field: ViaductSchema.Field): String = "${field.containingDef.name}.${field.name}"
+
+    private fun reference(reference: RootFieldReferenceData): Map<String, Any?> =
+        mapOf(
+            "path" to reference.path.map(::coordinate),
+            "arguments" to value(reference.arguments),
+            "nodeIdentity" to reference.nodeReferenceIdentityOrNull()?.let { mapOf("type" to it.type.name, "id" to it.id) },
+        )
 
     private fun key(key: ObjectEngineResult.Key): Map<String, Any?> =
         mapOf("field" to coordinate(key.field), "arguments" to value(key.arguments), "responseKey" to (key as? ObjectEngineResult.MutationKey)?.responseKey)

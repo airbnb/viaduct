@@ -39,6 +39,49 @@ import viaduct.engine.runtime2.schema.operationSelectionsFrom
 
 class RecordingResolutionObserverTest : ResolutionDispatcherResource {
     @Test
+    fun `reference facts retain source identity and each independently rooted hop`() {
+        val world = TestWorld.fromDSL(
+            """
+            extend type Query {
+              container: Container @resolver(result: {viewer: {id: "alias"}})
+              redirect: User @resolver(result: {id: "canonical"})
+            }
+            type Container { viewer: User }
+            type User implements Node
+              @nodeResolver(result: [
+                {id: "alias", result: {__ref: "redirect"}},
+                {id: "canonical", result: {score: 7}}
+              ]) {
+              id: ID!
+              score: Int
+            }
+            """.trimIndent(),
+        )
+        val selections = world.schemas.operationSelectionsFrom("{ container { viewer { id score } } }")
+        val recorder = RecordingResolutionObserver(RecordedTest("Example", "references"), initialDemand = selections)
+        recorder.complete(SharedOperationContext.create(world.assumptions, resolutionObserver = recorder).resolveWithTestDispatcher(selections))
+
+        val recording = recorder.snapshot()
+        val hops = recording.events.filter { it.kind == "ROOT_FIELD_REFERENCE_INVOCATION" }.map { it.facts }
+        assertEquals(listOf("Query.node", "Query.redirect", "Query.node"), hops.map { it["reference"]["path"].single().asText() })
+        assertEquals(listOf("alias", null, "canonical"), hops.map { it["reference"]["nodeIdentity"]["id"]?.asText() })
+        assertEquals("User", hops.first()["reference"]["nodeIdentity"]["type"].asText())
+        assertEquals(1, hops.map { it["publication"] }.distinct().size)
+        assertEquals(3, hops.map { it["invocation"]["rootId"] }.distinct().size)
+        val invocations = recording.events.filter { it.kind == "RESOLVER_INVOCATION" }.associateBy { it.facts["resolverOccurrenceId"] }
+        hops.forEach { hop ->
+            val invocation = invocations.getValue(hop["resolverOccurrenceId"])
+            assertTrue(invocation.sequence < recording.events.single { it.facts === hop }.sequence)
+            assertEquals(hop["reference"]["arguments"], invocation.facts["arguments"])
+        }
+        val prepared = recording.events.single { it.kind == "TASK_PREPARED" && it.facts.has("sourceReference") }
+        assertEquals(hops.first()["reference"], prepared.facts["sourceReference"])
+        assertEquals(recording, jacksonObjectMapper().readValue<ResolutionRecording>(jacksonObjectMapper().writeValueAsBytes(recording)))
+        (hops.first()["reference"] as ObjectNode).removeAll()
+        assertTrue(recorder.snapshot().events.first { it.kind == "ROOT_FIELD_REFERENCE_INVOCATION" }.facts["reference"].has("path"))
+    }
+
+    @Test
     fun `real resolution records task ancestry OER growth and invocation facts`() {
         val world = TestWorld.fromDSL(
             """

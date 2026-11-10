@@ -14,6 +14,8 @@ val eastereggTests = listOf(
     "query fragment resolution is transitive",
     "shared exact Query key retains distinct owner projections",
     "selective Query producer receives exact successor demand once",
+    "chases node and root-field references in one publication",
+    "chases a passive reference through an independent Query input",
 ).map { "$animationTestClass.$it" }
 
 fun Test.recordAnimations(selectedTests: List<String>) {
@@ -99,18 +101,18 @@ tasks.register<Exec>("animationViewer") {
 }
 
 val recordEasteregg = tasks.register<Test>("recordEasteregg") {
-    description = "Records the seven supported debugger-walkthrough examples in one test execution."
+    description = "Records the supported debugger-walkthrough examples in one test execution."
     recordAnimations(eastereggTests)
 }
 
 val animateEasteregg = tasks.register<Exec>("animateEasteregg") {
-    description = "Builds animations and the gallery for the seven debugger-walkthrough examples."
+    description = "Builds animations and the gallery for the debugger-walkthrough examples."
     dependsOn(recordEasteregg)
     renderAnimations(eastereggTests)
 }
 
 tasks.register<Exec>("easteregg") {
-    description = "Records and animates seven debugger examples, then serves their gallery at localhost:8765."
+    description = "Records and animates debugger examples, then serves their gallery at localhost:8765."
     dependsOn(animateEasteregg)
     serveAnimationGallery("Find your easter egg")
 }

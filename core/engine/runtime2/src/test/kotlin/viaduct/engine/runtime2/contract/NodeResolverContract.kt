@@ -37,6 +37,38 @@ import viaduct.graphql.schema.ViaductSchema
  */
 interface NodeResolverContract : ResolverContract {
     @Test
+    fun `chases node and root-field references in one publication`() {
+        val world = TestWorld.fromDSL(
+            """
+            extend type Query {
+              viewer: User @resolver(result: {id: "alias"})
+              redirect: User @resolver(result: {id: "canonical"})
+            }
+            type User implements Node
+              @nodeResolver(result: [
+                {id: "alias", result: {__ref: "redirect"}},
+                {id: "canonical", result: {score: 7}}
+              ]) {
+              id: ID!
+              score: Int
+              extra: Int @resolver(result: 8)
+            }
+            """.trimIndent(),
+        )
+        val resolution = resolveAndValidateObserved(world, "{ viewer { id score extra } }")
+        val viewer = assertIs<ObjectEngineResult>(resolution.result.getCell(world.schema.contractKey("Query", "viewer")).get())
+
+        assertEquals(IDEngineResult.of("alias"), viewer.getCell(world.schema.contractKey("User", "id")).get())
+        assertEquals(7, viewer.getCell(world.schema.contractKey("User", "score")).get())
+        assertEquals(8, viewer.getCell(world.schema.contractKey("User", "extra")).get())
+        val hops = (resolution.operation.resolutionObserver as CorrectnessResolverObserver).rootFieldReferenceInvocations()
+        assertEquals(listOf("node", "redirect", "node"), hops.map { it.invocationKey.field.name })
+        assertEquals(1, hops.map { it.publicationRoot to it.publicationPath }.distinct().size)
+        assertEquals(3, hops.map { it.invocationRoot }.distinct().size)
+        assertEquals(1, hops.map { it.suppliedDemand }.distinct().size)
+    }
+
+    @Test
     fun `reference tails restore opted-in context without interpreting ordinary maps or requiring id demand`() {
         val fields = mapOf("id" to "correlation-id", "requestTag" to "trace-1")
         for (retained in listOf(NodeResolverContext(fields), fields)) {
