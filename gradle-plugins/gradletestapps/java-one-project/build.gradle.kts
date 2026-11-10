@@ -1,3 +1,5 @@
+import viaduct.gradle.viaductSchemaContributions
+
 plugins {
     // `java-library` on top of `conventions.java`: the application plugin's `validateJvmPluginApplied`
     // requires an `api` configuration, which the plain `java` plugin does not create.
@@ -13,6 +15,11 @@ dependencies {
     implementation("com.airbnb.viaduct:javaapi-api")
     implementation("com.airbnb.viaduct:javaapi-runtime")
 }
+
+viaductSchemaContributions.register(
+    "dev.example.fixture",
+    files(layout.projectDirectory.file("src/viaduct/schema/common.graphqls")),
+)
 
 // The smoke test asserts on what the module actually ships: the assembled registry is packaged by
 // `jar`, and the raw APT descriptors must not be. `test` does not build the jar on its own, and

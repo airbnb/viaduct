@@ -1,5 +1,6 @@
 package viaduct.graphql.schema.validation.rules
 
+import viaduct.graphql.schema.SchemaProvenance
 import viaduct.graphql.schema.ViaductSchema
 
 /**
@@ -17,13 +18,16 @@ internal fun ViaductSchema.SourceLocation.partitionMatchPath(): String = sourceN
 internal fun isUnderModulePartition(
     location: ViaductSchema.SourceLocation?,
     modulePathPrefix: String
-): Boolean = location?.partitionMatchPath()?.contains(modulePathPrefix) == true
+): Boolean =
+    SchemaProvenance.parse(location?.partitionMatchPath())?.let { it.scope == "module" }
+        ?: (location?.partitionMatchPath()?.contains(modulePathPrefix) == true)
 
 internal fun tenantFromLocation(
     location: ViaductSchema.SourceLocation?,
     modulePathPrefix: String
 ): String? {
     val sourceName = location?.partitionMatchPath() ?: return null
+    SchemaProvenance.parse(sourceName)?.let { return it.tenantModule }
     if (!sourceName.contains(modulePathPrefix)) return null
     return sourceName.substringAfter(modulePathPrefix).substringBefore("/")
 }

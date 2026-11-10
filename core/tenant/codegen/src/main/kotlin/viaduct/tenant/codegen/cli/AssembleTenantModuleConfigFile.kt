@@ -57,6 +57,8 @@ class AssembleTenantModuleConfigFile : CliktCommand(
     private val schemaBinary: File? by option("--schema-binary")
         .file(mustExist = true, canBeFile = true)
 
+    private val schemaRoot: File? by option("--schema-root").file(mustExist = true, canBeFile = false)
+
     private val schemaFiles: List<File> by option("--schema-files")
         .file(mustExist = true, canBeDir = false)
         .split(",")
@@ -93,6 +95,7 @@ class AssembleTenantModuleConfigFile : CliktCommand(
             tenantMetadata = TenantModuleConfigAssembler.readTenantMetadata(tenantMetadataFile),
             schemaBinary = schemaBinary,
             schemaFiles = schemaFiles,
+            schemaRoot = schemaRoot,
             outputDir = outputDir,
             forbiddenSelectionDirectives = forbiddenSelectionDirectives.toSet(),
         )

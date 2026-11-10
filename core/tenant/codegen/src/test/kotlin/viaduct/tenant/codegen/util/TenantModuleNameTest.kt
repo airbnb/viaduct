@@ -41,9 +41,12 @@ class TenantModuleNameTest {
     }
 
     @Test
-    fun `throws when the package equals the prefix, leaving an empty name`() {
-        assertThrows(IllegalArgumentException::class.java) {
-            tenantModuleNameFromPackage("com.airbnb.viaduct", "com.airbnb.viaduct")
-        }
+    fun `root package retains its identity when it equals the prefix`() {
+        assertEquals("com/airbnb/viaduct", tenantModuleNameFromPackage("com.airbnb.viaduct", "com.airbnb.viaduct"))
+    }
+
+    @Test
+    fun `blank package cannot identify a tenant`() {
+        assertThrows(IllegalArgumentException::class.java) { tenantModuleNameFromPackage("", "") }
     }
 }

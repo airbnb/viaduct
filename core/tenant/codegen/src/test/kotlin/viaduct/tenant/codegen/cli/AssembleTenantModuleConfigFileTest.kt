@@ -30,6 +30,7 @@ class AssembleTenantModuleConfigFileTest {
         out: File = outputDir(),
         schemaBinary: File? = null,
         schemaFiles: List<File> = emptyList(),
+        schemaRoot: File? = null,
         forbiddenSelectionDirectives: List<String> = emptyList(),
         tenantMetadata: String? = null,
     ) {
@@ -58,6 +59,7 @@ class AssembleTenantModuleConfigFileTest {
         if (schemaFiles.isNotEmpty()) {
             args += listOf("--schema-files", schemaFiles.joinToString(",") { it.absolutePath })
         }
+        schemaRoot?.let { args += listOf("--schema-root", it.absolutePath) }
         forbiddenSelectionDirectives.forEach { args += listOf("--forbidden-selection-directive", it) }
         AssembleTenantModuleConfigFile().main(args)
     }
@@ -304,15 +306,12 @@ class AssembleTenantModuleConfigFileTest {
     }
 
     @Test
-    fun `fails with clear error when tenant package matches package prefix`() {
-        val exception = assertThrows<IllegalArgumentException> {
-            runCli(
-                tenantPkg = "com.example",
-                tenantPackagePrefix = "com.example",
-            )
-        }
+    fun `root module config retains the package identity when package matches prefix`() {
+        val out = outputDir()
+        runCli(tenantPkg = "com.example", tenantPackagePrefix = "com.example", out = out)
 
-        assertTrue(exception.message!!.contains("Tenant module name must not be empty"), exception.message)
+        val json = out.resolve("$REGISTRY_RESOURCE_PATH/com.example.json").readText()
+        assertTrue(json.contains("\"tenantName\" : \"com/example\""), json)
     }
 
     @Test
@@ -818,6 +817,48 @@ class AssembleTenantModuleConfigFileTest {
         assertTrue(exception.message!!.contains("RSS validation failed"), exception.message)
         assertTrue(exception.message!!.contains("User.tenantLocalFromOther"), exception.message)
         assertTrue(exception.message!!.contains("owned by other"), exception.message)
+    }
+
+    @Test
+    fun `rooted schema enforces tenant-local field ownership during module config assembly`() {
+        val schemas = tenantLocalSourceSchemas().mapIndexed { index, file ->
+            val module = if (index == 0) "feature" else "other"
+            sourceSchemaFile("schema/module/$module/source/schema.graphqls", file.readText())
+        }
+        val descriptors = crossTenantLocalDescriptor()
+        val exception = assertThrows<IllegalStateException> {
+            runCli(
+                descriptors = descriptors,
+                schemaFiles = schemas,
+                schemaRoot = tempDir,
+            )
+        }
+        assertTrue(exception.message!!.contains("RSS validation failed"), exception.message)
+        assertTrue(exception.message!!.contains("User.tenantLocalFromOther"), exception.message)
+        assertTrue(exception.message!!.contains("owned by other"), exception.message)
+
+        runCli(descriptors = descriptors, tenantPkg = "com.example.other", schemaFiles = schemas, schemaRoot = tempDir)
+
+        assertTrue(outputDir().resolve("META-INF/viaduct/modules/com.example.other.json").exists())
+    }
+
+    @Test
+    fun `rooted schema accepts plugin scalar directive values during module config assembly`() {
+        val plugin = sourceSchemaFile(
+            "schema/plugin/dev.example.fixture/source/directives.graphqls",
+            "scalar FixtureJson\ndirective @fixture(payload: FixtureJson) on OBJECT",
+        )
+        val module = sourceSchemaFile(
+            "schema/module/feature/source/schema.graphqls",
+            """
+            type Query { greeting: String }
+            type FixtureProduct @fixture(payload: { items: [1, null, ENUM] }) { id: ID }
+            """.trimIndent(),
+        )
+
+        runCli(schemaFiles = listOf(plugin, module), schemaRoot = tempDir)
+
+        assertTrue(outputDir().resolve("META-INF/viaduct/modules/com.example.feature.json").exists())
     }
 
     @Test

@@ -37,6 +37,8 @@ class JavaGRTsGenerator : CliktCommand(
     name = "java-grts-generator",
     help = "Generates Java GRTs (GraphQL Representational Types) and resolvers from GraphQL schema files"
 ) {
+    private val schemaRoot: File? by option("--schema_root").file(mustExist = true, canBeFile = false)
+
     private val schemaFiles: List<File> by option("--schema_files", help = "Comma-separated list of GraphQL schema files")
         .file(mustExist = true, canBeDir = false)
         .split(",")
@@ -95,11 +97,11 @@ class JavaGRTsGenerator : CliktCommand(
         val scopeSet = appliedScopes?.filter { it.isNotBlank() }?.toSet()?.takeIf { it.isNotEmpty() }
 
         // Generate GRTs (enums, objects, inputs, interfaces, unions)
-        val grtsCodegen = JavaGRTsCodegen()
+        val grtsCodegen = JavaGRTsCodegen(schemaRoot)
         val grtsResult = grtsCodegen.generate(schemaFiles, grtOutputDir, resolvedGrtPackage, includeRootTypes, scopeSet)
 
         // Generate Resolvers (separate step)
-        val resolversCodegen = JavaResolversCodegen()
+        val resolversCodegen = JavaResolversCodegen(schemaRoot)
         val resolversResult = resolversCodegen.generate(schemaFiles, resolverGeneratedDir, resolvedGrtPackage, resolvedTenantPackage, null, scopeSet)
 
         // Archive outputs into srcjars if requested

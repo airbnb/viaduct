@@ -1,13 +1,11 @@
 package viaduct.graphql.schema.graphqljava
 
-import graphql.parser.MultiSourceReader
 import graphql.parser.Parser
 import graphql.schema.idl.SchemaParser
 import graphql.schema.idl.TypeDefinitionRegistry
 import java.io.File
 import java.io.InputStreamReader
 import java.io.Reader
-import java.io.StringReader
 import java.net.URL
 
 /** Reads all the files in `inputFiles` and parses all of them into a
@@ -30,9 +28,14 @@ fun readTypesFromURLs(inputFiles: List<URL>): TypeDefinitionRegistry =
 fun readTypesFromFiles(inputFiles: List<File>): TypeDefinitionRegistry =
     readTypes(
         inputFiles,
-        { file -> InputStreamReader(file.inputStream()) },
+        { file -> InputStreamReader(file.inputStream(), Charsets.UTF_8) },
         { file -> file.invariantSourceName() }
     )
+
+fun readTypesFromFiles(
+    inputFiles: List<File>,
+    sourceRoot: File
+): TypeDefinitionRegistry = readTypes(inputFiles, { it.reader(Charsets.UTF_8) }, { it.relativeTo(sourceRoot).invariantSeparatorsPath })
 
 /**
  * This file's path with the platform separator rewritten to '/', for use as a parse-time source name.
@@ -49,27 +52,11 @@ private fun <T> readTypes(
     toReader: (T) -> Reader,
     toPath: (T) -> String
 ): TypeDefinitionRegistry {
-    val reader =
-        MultiSourceReader
-            .newMultiSourceReader()
-            .apply {
-                inputFiles.forEach {
-                    val readerWithTrailingNewline =
-                        toReader(it).use { reader ->
-                            val text = reader.readText()
-                            StringReader(
-                                if (text.endsWith("\n")) {
-                                    text
-                                } else {
-                                    "$text\n"
-                                }
-                            )
-                        }
-                    this.reader(readerWithTrailingNewline, toPath(it))
-                }
-            }.trackData(true)
-            .build()
-    return SchemaParser().parse(reader)
+    return SchemaDefinitionReconciler.parseSources(
+        inputFiles.asSequence().map { input ->
+            toPath(input) to toReader(input).use { it.readText() }
+        }
+    )
 }
 
 fun readTypes(input: String): TypeDefinitionRegistry {

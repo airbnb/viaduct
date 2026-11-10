@@ -3,8 +3,12 @@ public abstract interface class viaduct/gradle/ViaductApplicationConventions {
 	public abstract fun getAllSchemaPartitionsIn ()Lorg/gradle/api/NamedDomainObjectProvider;
 	public abstract fun getCentralSchema ()Lorg/gradle/api/NamedDomainObjectProvider;
 	public abstract fun getCentralSchemaDirectory ()Lorg/gradle/api/provider/Provider;
+	public abstract fun getFinalSchemaDirectory ()Lorg/gradle/api/provider/Provider;
 	public abstract fun getModulePackagePrefix ()Ljava/lang/String;
 	public abstract fun getModules ()Lorg/gradle/api/NamedDomainObjectProvider;
+	public abstract fun getPluginFinalSchema ()Lorg/gradle/api/file/CopySpec;
+	public abstract fun getPluginSchema ()Lorg/gradle/api/file/CopySpec;
+	public abstract fun getSchemaValidationPlugins ()Lorg/gradle/api/NamedDomainObjectProvider;
 }
 
 public class viaduct/gradle/ViaductApplicationExtension : viaduct/gradle/ViaductApplicationConventions {
@@ -13,8 +17,12 @@ public class viaduct/gradle/ViaductApplicationExtension : viaduct/gradle/Viaduct
 	public fun getAllSchemaPartitionsIn ()Lorg/gradle/api/NamedDomainObjectProvider;
 	public fun getCentralSchema ()Lorg/gradle/api/NamedDomainObjectProvider;
 	public fun getCentralSchemaDirectory ()Lorg/gradle/api/provider/Provider;
+	public fun getFinalSchemaDirectory ()Lorg/gradle/api/provider/Provider;
 	public fun getModulePackagePrefix ()Ljava/lang/String;
 	public fun getModules ()Lorg/gradle/api/NamedDomainObjectProvider;
+	public fun getPluginFinalSchema ()Lorg/gradle/api/file/CopySpec;
+	public fun getPluginSchema ()Lorg/gradle/api/file/CopySpec;
+	public fun getSchemaValidationPlugins ()Lorg/gradle/api/NamedDomainObjectProvider;
 }
 
 public final class viaduct/gradle/ViaductArtifacts {

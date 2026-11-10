@@ -24,6 +24,7 @@ object SchemaExtensionsValidator {
             listOf(
                 NoSubscriptionsRule(),
                 NoCustomScalarsRule(allowedScalarNames),
+                PluginScalarReferencesRule(),
                 BackingDataFieldsRule(),
                 IdOfTypeValidationRule(),
                 NamespaceTypeConstraintsRule(),

@@ -16,9 +16,7 @@ java {
 dependencies {
     api(project(":common"))
 
-    bundled(libs.viaduct.shared.graphql)
     bundled(libs.viaduct.shared.bootstrap)
-    bundled(libs.viaduct.shared.viaductschema)
 
     testImplementation(libs.kotest.assertions.core.jvm)
 }

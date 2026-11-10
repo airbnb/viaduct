@@ -24,6 +24,7 @@ dependencies {
     implementation(libs.guice)
     implementation(libs.graphql.java)
     implementation(libs.viaduct.shared.graphql)
+    implementation(libs.viaduct.shared.viaductschema)
     implementation(libs.slf4j.api)
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.kotlinx.coroutines.jdk8)

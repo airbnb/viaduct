@@ -5,11 +5,29 @@ import io.kotest.matchers.collections.shouldContainExactlyInAnyOrder
 import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.shouldBe
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import viaduct.graphql.schema.ViaductSchema
 import viaduct.graphql.schema.graphqljava.extensions.fromTypeDefinitionRegistry
 import viaduct.graphql.schema.validation.SchemaValidationError.Severity
 
 class ValidationContextTest {
+    @Test
+    fun `diagnostics retain the reporting rule and restore attribution after callback failure`() {
+        val schema = ViaductSchema.fromTypeDefinitionRegistry("type Query { hello: String }")
+        val ctx = ValidationContext(schema)
+        val rule = object : ValidationRule("reporting-rule") {
+            override fun visitSchema(ctx: ValidationContext) {
+                ctx.reportError("CODE", "From callback", SchemaLocation.ofType("Query"))
+                error("callback failure")
+            }
+        }
+        assertThrows<IllegalStateException> { ctx.walkSchema(listOf(rule)) }
+        ctx.reportError("OUTSIDE", "Outside traversal", SchemaLocation(emptyList()))
+
+        ctx.errorsByRule.map { it.first } shouldBe listOf(rule, null)
+        ctx.errorsByRule.map { it.second } shouldBe ctx.errors
+    }
+
     @Test
     fun `walkSchema visits all directives`() {
         val visitedDirectives = mutableListOf<String>()

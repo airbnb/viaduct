@@ -13,6 +13,7 @@ import viaduct.gradle.ViaductPluginCommon.prettyPath
 import viaduct.gradle.ViaductPluginCommon.requireViaductTopology
 import viaduct.gradle.ViaductPluginCommon.requireViaductTopologyModuleProjectPaths
 import viaduct.gradle.task.AssembleSchemaPartitionTask
+import viaduct.graphql.schema.SchemaProvenance
 
 @StableApi
 interface ViaductModulePackageLayout {
@@ -33,16 +34,14 @@ internal data class DefaultViaductModulePackageLayout(
     override val resolverBasePackage: String = if (modulePackageSuffix.isBlank()) modulePackagePrefix else modulePackageSuffix
     override val fullTenantPackage: String = if (modulePackageSuffix.isBlank()) modulePackagePrefix else "$modulePackagePrefix.$modulePackageSuffix"
     override val schemaPartitionPrefixPath: String =
-        if (modulePackageSuffix.isBlank()) {
-            "graphql"
-        } else {
-            "${modulePackageSuffix.replace('.', '/')}/graphql"
-        }
+        SchemaProvenance.moduleSourceDirectory(ViaductModulePluginSupport.schemaModuleId(this))
     override val fullTenantPackagePath: String = fullTenantPackage.replace('.', '/')
 }
 
 @InternalApi
 object ViaductModulePluginSupport {
+    fun schemaModuleId(layout: ViaductModulePackageLayout): String = SchemaProvenance.moduleIdFromPackage(layout.fullTenantPackage, layout.modulePackagePrefix)
+
     fun modulePackageLayout(
         project: Project,
         topology: ViaductApplicationTopology,

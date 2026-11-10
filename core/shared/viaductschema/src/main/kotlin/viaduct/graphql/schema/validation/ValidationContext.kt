@@ -21,9 +21,12 @@ open class ValidationContext(val schema: ViaductSchema) {
         ViaductReverseSchema.from(schema)
     }
 
-    private val _errors = mutableListOf<SchemaValidationError>()
+    private val reportedErrors = mutableListOf<Pair<ValidationRule?, SchemaValidationError>>()
+    private var currentRule: ValidationRule? = null
 
-    val errors: List<SchemaValidationError> get() = _errors.toList()
+    val errors: List<SchemaValidationError> get() = reportedErrors.map { it.second }
+
+    val errorsByRule: List<Pair<ValidationRule?, SchemaValidationError>> get() = reportedErrors.toList()
 
     fun reportError(
         code: String,
@@ -31,55 +34,60 @@ open class ValidationContext(val schema: ViaductSchema) {
         location: SchemaLocation,
         severity: SchemaValidationError.Severity = SchemaValidationError.Severity.ERROR
     ) {
-        _errors.add(SchemaValidationError(code, message, location, severity))
+        reportedErrors.add(currentRule to SchemaValidationError(code, message, location, severity))
     }
 
     /**
      * Walks the schema and invokes all rules at each node.
      */
-    fun walkSchema(rules: List<ValidationRule>) {
+    fun walkSchema(rules: List<ValidationRule>) = walkSchema(rules) { _, callback -> callback() }
+
+    fun walkSchema(
+        rules: List<ValidationRule>,
+        invokeRule: (ValidationRule, () -> Unit) -> Unit
+    ) {
         // Schema-level visit
-        rules.forEach { it.visitSchema(this) }
+        visitRules(rules, invokeRule) { it.visitSchema(this) }
 
         // Directive definitions
         schema.directives.values.forEach { directive ->
-            rules.forEach { it.visitDirective(this, directive) }
+            visitRules(rules, invokeRule) { it.visitDirective(this, directive) }
             directive.args.forEach { arg ->
-                rules.forEach { it.visitDirectiveArg(this, arg) }
+                visitRules(rules, invokeRule) { it.visitDirectiveArg(this, arg) }
             }
         }
 
         // Type definitions
         schema.types.values.forEach { typeDef ->
-            rules.forEach { it.visitTypeDef(this, typeDef) }
+            visitRules(rules, invokeRule) { it.visitTypeDef(this, typeDef) }
 
             when (typeDef) {
                 is ViaductSchema.Scalar ->
-                    rules.forEach { it.visitScalar(this, typeDef) }
+                    visitRules(rules, invokeRule) { it.visitScalar(this, typeDef) }
 
                 is ViaductSchema.Enum -> {
-                    rules.forEach { it.visitEnum(this, typeDef) }
+                    visitRules(rules, invokeRule) { it.visitEnum(this, typeDef) }
                     typeDef.values.forEach { value ->
-                        rules.forEach { it.visitEnumValue(this, value) }
+                        visitRules(rules, invokeRule) { it.visitEnumValue(this, value) }
                     }
                 }
 
                 is ViaductSchema.Union ->
-                    rules.forEach { it.visitUnion(this, typeDef) }
+                    visitRules(rules, invokeRule) { it.visitUnion(this, typeDef) }
 
                 is ViaductSchema.Input -> {
-                    rules.forEach { it.visitInput(this, typeDef) }
-                    walkRecordFields(typeDef, rules)
+                    visitRules(rules, invokeRule) { it.visitInput(this, typeDef) }
+                    walkRecordFields(typeDef, rules, invokeRule)
                 }
 
                 is ViaductSchema.Interface -> {
-                    rules.forEach { it.visitInterface(this, typeDef) }
-                    walkRecordFields(typeDef, rules)
+                    visitRules(rules, invokeRule) { it.visitInterface(this, typeDef) }
+                    walkRecordFields(typeDef, rules, invokeRule)
                 }
 
                 is ViaductSchema.Object -> {
-                    rules.forEach { it.visitObject(this, typeDef) }
-                    walkRecordFields(typeDef, rules)
+                    visitRules(rules, invokeRule) { it.visitObject(this, typeDef) }
+                    walkRecordFields(typeDef, rules, invokeRule)
                 }
             }
         }
@@ -87,12 +95,29 @@ open class ValidationContext(val schema: ViaductSchema) {
 
     private fun walkRecordFields(
         record: ViaductSchema.Record,
-        rules: List<ValidationRule>
+        rules: List<ValidationRule>,
+        invokeRule: (ValidationRule, () -> Unit) -> Unit
     ) {
         record.fields.forEach { field ->
-            rules.forEach { it.visitField(this, field) }
+            visitRules(rules, invokeRule) { it.visitField(this, field) }
             field.args.forEach { arg ->
-                rules.forEach { it.visitFieldArg(this, arg) }
+                visitRules(rules, invokeRule) { it.visitFieldArg(this, arg) }
+            }
+        }
+    }
+
+    private fun visitRules(
+        rules: List<ValidationRule>,
+        invokeRule: (ValidationRule, () -> Unit) -> Unit,
+        visit: (ValidationRule) -> Unit
+    ) {
+        rules.forEach { rule ->
+            val previousRule = currentRule
+            currentRule = rule
+            try {
+                invokeRule(rule) { visit(rule) }
+            } finally {
+                currentRule = previousRule
             }
         }
     }

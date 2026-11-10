@@ -139,6 +139,29 @@ class ViaductGeneratorTest {
     }
 
     @Test
+    fun `empty package prefix preserves the full dotted tenant package`() {
+        val argsSlot = slot<Args>()
+        every { any<ViaductSchema>().generateFieldResolvers(capture(argsSlot)) } just Runs
+        ViaductGenerator().main(
+            listOf(
+                "--tenant_pkg",
+                "catalog.pricing",
+                "--resolver_generated_directory",
+                resolverGeneratedDir.absolutePath,
+                "--schema_files",
+                schemaFile.absolutePath,
+                "--binary_schema_file",
+                binarySchemaFile.absolutePath,
+                "--flag_file",
+                flagFile.absolutePath,
+                "--tenant_package_prefix",
+                "",
+            ),
+        )
+        assertEquals("catalog.pricing", argsSlot.captured.tenantPackage)
+    }
+
+    @Test
     fun `test with tenant package prefix from file`() {
         val argsSlot = slot<Args>()
         every { any<ViaductSchema>().generateFieldResolvers(capture(argsSlot)) } just Runs

@@ -213,6 +213,15 @@ class AssembleTenantModuleConfigJarTest {
     }
 
     @Test
+    fun `root module jar retains the package identity when package matches prefix`() {
+        val out = outputJar()
+        runCli(jars = emptyList(), tenantPkg = "com.example", tenantPackagePrefix = "com.example", out = out)
+
+        val json = readJarEntry(out, "$REGISTRY_RESOURCE_PATH/com.example.json")!!
+        assertTrue(json.contains("\"tenantName\" : \"com/example\""), json)
+    }
+
+    @Test
     fun `writes slash separated tenant module name derived from package prefix`() {
         val out = outputJar()
         runCli(

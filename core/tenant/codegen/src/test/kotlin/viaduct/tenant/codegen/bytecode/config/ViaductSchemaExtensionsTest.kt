@@ -1,6 +1,9 @@
 package viaduct.tenant.codegen.bytecode.config
 
+import graphql.parser.MultiSourceReader
+import graphql.schema.idl.SchemaParser
 import java.io.File
+import java.io.StringReader
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNull
@@ -23,6 +26,31 @@ import viaduct.tenant.codegen.bytecode.util.typedef
 
 @Suppress("USELESS_CAST")
 class ViaductSchemaExtensionsTest {
+    @Test
+    fun `explicit provenance owns tenant identity before nested resource paths`() {
+        assertEquals("catalog", ViaductSchema.SourceLocation("schema/module/catalog/source/modules/other/schema/types.graphqls").tenantModule)
+        assertNull(ViaductSchema.SourceLocation("schema/plugin/dev.example.owner/source/modules/other/schema/types.graphqls").tenantModule)
+        assertNull(ViaductSchema.SourceLocation("schema/application/source/common/modules/other/schema/types.graphqls").tenantModule)
+        assertEquals("presentation/catalog", ViaductSchema.SourceLocation("projects/viaduct/modules/presentation/catalog/schema/src/main/resources/types.graphqls").tenantModule)
+    }
+
+    @Test
+    fun `plugin scalar arguments use JSON Kotlin types through nullable and nonnull wrappers`() {
+        val reader = MultiSourceReader.newMultiSourceReader().reader(
+            StringReader("scalar FieldSet\ntype Query { echo(value: FieldSet, required: FieldSet!, nested: [[FieldSet!]!]): String }\n"),
+            "schema/plugin/dev.example.federation/source/schema.graphqls",
+        ).build()
+        val schema = ViaductSchema.fromTypeDefinitionRegistry(SchemaParser().parse(reader))
+        val args = (schema.types.getValue("Query") as ViaductSchema.Object).fields.single().args.toList()
+        val mapper = ViaductBaseTypeMapper(schema)
+        assertEquals("kotlin/Any", (args[0].kmType(KmName("generated"), mapper).classifier as kotlinx.metadata.KmClassifier.Class).name)
+        assertTrue(args[0].type.isNullable)
+        assertFalse(args[1].type.isNullable)
+        args[0].assertKotlinTypeString("kotlin.Any?", baseTypeMapper = mapper)
+        args[1].assertKotlinTypeString("kotlin.Any", baseTypeMapper = mapper)
+        args[2].assertKotlinTypeString("kotlin.collections.List<kotlin.collections.List<kotlin.Any>>?", baseTypeMapper = mapper)
+    }
+
     private fun mkSchema(
         schemaText: String,
         schemaFilePath: String,

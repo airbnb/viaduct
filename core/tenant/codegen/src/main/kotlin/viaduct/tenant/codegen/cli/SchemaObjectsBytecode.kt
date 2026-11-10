@@ -13,6 +13,7 @@ import java.io.File
 import viaduct.graphql.schema.ViaductSchema
 import viaduct.graphql.schema.binary.extensions.fromBinaryFile
 import viaduct.graphql.schema.graphqljava.extensions.fromTypeDefinitionRegistry
+import viaduct.graphql.schema.graphqljava.readTypesFromFiles
 import viaduct.tenant.codegen.bytecode.CodeGenArgs
 import viaduct.tenant.codegen.bytecode.GRTClassFilesBuilderBase
 import viaduct.tenant.codegen.bytecode.config.ViaductBaseTypeMapper
@@ -39,6 +40,7 @@ class SchemaObjectsBytecode : CliktCommand() {
     private val outputArchive: File? by option("--output_archive")
         .file(mustExist = false, canBeDir = false)
 
+    private val schemaRoot: File? by option("--schema_root").file(mustExist = true, canBeFile = false)
     private val schemaFiles: List<File> by option("--schema_files")
         .file(mustExist = true, canBeDir = false).split(",").required()
 
@@ -104,7 +106,8 @@ class SchemaObjectsBytecode : CliktCommand() {
                 } else {
                     schemaFiles
                 }
-                ViaductSchema.fromTypeDefinitionRegistry(schemaFileList, timer)
+                schemaRoot?.let { ViaductSchema.fromTypeDefinitionRegistry(readTypesFromFiles(schemaFileList, it), timer) }
+                    ?: ViaductSchema.fromTypeDefinitionRegistry(schemaFileList, timer)
             }
         }.let {
             if (scopeSet.isNullOrEmpty()) {

@@ -5,6 +5,7 @@ import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.artifacts.Configuration
 import org.gradle.api.attributes.Usage
+import org.gradle.api.file.DuplicatesStrategy
 import org.gradle.api.tasks.Sync
 import org.gradle.kotlin.dsl.register
 import viaduct.apiannotations.StableApi
@@ -42,8 +43,9 @@ class ViaductModuleConventionsPlugin : Plugin<Project> {
 
             val assembleSchemaContributions = tasks.register<Sync>("assembleViaductSchemaContributions") {
                 into(project.layout.buildDirectory.dir("viaduct/schemaContributions"))
+                duplicatesStrategy = DuplicatesStrategy.FAIL
             }
-            val schemaContributions = DefaultViaductSchemaContributions(assembleSchemaContributions)
+            val schemaContributions = DefaultViaductSchemaContributions(assembleSchemaContributions, ViaductModulePluginSupport.schemaModuleId(layout))
             extensions.add(SCHEMA_CONTRIBUTIONS_EXTENSION_NAME, schemaContributions)
             configurations.create(ViaductPluginCommon.Configs.SCHEMA_CONTRIBUTIONS_OUTGOING).apply {
                 isCanBeConsumed = true
@@ -54,6 +56,7 @@ class ViaductModuleConventionsPlugin : Plugin<Project> {
                         ViaductPluginCommon.VIADUCT_KIND,
                         ViaductPluginCommon.Kind.SCHEMA_BASE_CONTRIBUTION,
                     )
+                    attribute(Usage.USAGE_ATTRIBUTE, objects.named(Usage::class.java, ViaductArtifacts.USAGE))
                 }
                 outgoing.artifact(assembleSchemaContributions)
             }

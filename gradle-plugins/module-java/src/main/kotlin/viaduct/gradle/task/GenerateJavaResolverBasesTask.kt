@@ -67,6 +67,8 @@ abstract class GenerateJavaResolverBasesTask
                 classpath,
                 CodegenWorkAction.MainClasses.JAVA_GRTS_GENERATOR,
                 listOf(
+                    "--schema_root",
+                    ViaductPluginCommon.schemaArtifactRoot(centralSchemaFiles).absolutePath,
                     "--schema_files",
                     centralSchemaFiles.files.map(File::getAbsolutePath).sorted().joinToString(","),
                     "--grt_output_dir",

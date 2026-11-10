@@ -2,3 +2,7 @@ extend type Query {
   greeting: String @resolver
   secretGreeting: String @tenantLocal @resolver
 }
+
+type FixtureProduct @fixture(payload: { items: [1, null, ENUM] }) @generatedFixture {
+  id: ID
+}

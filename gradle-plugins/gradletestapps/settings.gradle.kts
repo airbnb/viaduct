@@ -78,3 +78,5 @@ includeViaductApplication {
         modulePackageSuffix("resolvers")
     }
 }
+
+include(":validation-rules", ":validation-rule-support")

@@ -1,3 +1,7 @@
+import fixtures.GenerateFinalSchema
+import fixtures.PluginSchemaResources
+import viaduct.gradle.ViaductApplicationConventions
+
 plugins {
     id("conventions.kotlin")
 }
@@ -40,4 +44,35 @@ tasks.withType<Test>().configureEach {
     systemProperty("alphaResolverBasesDir", layout.buildDirectory.dir("fixture-outputs/alpha").get().asFile.absolutePath)
     inputs.dir(copyBetaResolverBases.map { it.destinationDir }).withPropertyName("betaResolverBases").withPathSensitivity(PathSensitivity.RELATIVE)
     systemProperty("betaResolverBasesDir", layout.buildDirectory.dir("fixture-outputs/beta").get().asFile.absolutePath)
+}
+
+val fixtureSdl = resources.text.fromUri(requireNotNull(
+    PluginSchemaResources::class.java.getResource("/dev/example/fixture/schema/directives.graphqls")
+))
+val generatedFixtureSdl = tasks.register<Sync>("generateFixturePluginSchema") {
+    from(layout.projectDirectory.file("fixture-generated.graphqls"))
+    into(layout.buildDirectory.dir("fixture-plugin-schema"))
+}
+extensions.getByType<ViaductApplicationConventions>().pluginSchema.apply {
+    into("dev.example.fixture/source/dev/example/fixture/schema") {
+        from(fixtureSdl) { rename { "directives.graphqls" } }
+    }
+    into("dev.example.fixture/generated/dev.example.generator") {
+        from(generatedFixtureSdl.map { it.destinationDir })
+    }
+}
+
+val applicationConventions = extensions.getByType<ViaductApplicationConventions>()
+dependencies {
+    add(applicationConventions.schemaValidationPlugins.name, project(":validation-rules"))
+}
+val finalFixtureSchema = tasks.register<GenerateFinalSchema>("generateFinalFixtureSchema") {
+    centralSchema.set(applicationConventions.centralSchemaDirectory)
+    outputDirectory.set(layout.buildDirectory.dir("fixture-final-schema"))
+}
+applicationConventions.pluginFinalSchema.into("dev.example.fixture/generated/dev.example.final-generator") {
+    from(finalFixtureSchema.flatMap { it.outputDirectory })
+}
+tasks.withType<Test>().configureEach {
+    inputs.dir(applicationConventions.finalSchemaDirectory).withPropertyName("finalSchema").withPathSensitivity(PathSensitivity.RELATIVE)
 }

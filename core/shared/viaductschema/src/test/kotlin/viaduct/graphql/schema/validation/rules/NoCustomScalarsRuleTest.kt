@@ -12,6 +12,7 @@ import viaduct.graphql.schema.graphqljava.extensions.fromTypeDefinitionRegistry
 import viaduct.graphql.schema.validation.GraphQLBuiltIns
 import viaduct.graphql.schema.validation.SchemaValidator
 import viaduct.graphql.schema.validation.ValidationErrorCodes
+import viaduct.graphql.utils.DefaultSchemaFactory
 
 class NoCustomScalarsRuleTest {
     @Test
@@ -31,6 +32,16 @@ class NoCustomScalarsRuleTest {
         val errors = validator.validate(schema)
 
         errors.shouldBeEmpty()
+    }
+
+    @Test
+    fun `default validation accepts every scalar recognized by the schema factory`() {
+        val sdl = DefaultSchemaFactory.defaultScalars().joinToString("\n") { "scalar ${it.name}" } + "\ntype Query { value: ID }"
+        val schema = ViaductSchema.fromTypeDefinitionRegistry(sdl)
+
+        val errors = DefaultSchemaValidator().validate(schema)
+
+        errors.filter { it.code == ValidationErrorCodes.CUSTOM_SCALAR_NOT_ALLOWED }.shouldBeEmpty()
     }
 
     @Test

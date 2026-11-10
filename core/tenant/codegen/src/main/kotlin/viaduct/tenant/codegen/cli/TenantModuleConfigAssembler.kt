@@ -62,6 +62,7 @@ internal object TenantModuleConfigAssembler {
         outputDir: File,
         schemaBinary: File? = null,
         schemaFiles: List<File> = emptyList(),
+        schemaRoot: File? = null,
         forbiddenSelectionDirectives: Set<String> = emptySet(),
         tenantMetadata: Map<String, String> = emptyMap(),
     ) {
@@ -74,6 +75,7 @@ internal object TenantModuleConfigAssembler {
             outputDir = outputDir,
             schemaBinary = schemaBinary,
             schemaFiles = schemaFiles,
+            schemaRoot = schemaRoot,
             forbiddenSelectionDirectives = forbiddenSelectionDirectives,
             tenantMetadata = tenantMetadata,
         )
@@ -88,6 +90,7 @@ internal object TenantModuleConfigAssembler {
         outputDir: File,
         schemaBinary: File? = null,
         schemaFiles: List<File> = emptyList(),
+        schemaRoot: File? = null,
         forbiddenSelectionDirectives: Set<String> = emptySet(),
         tenantMetadata: Map<String, String> = emptyMap(),
     ) {
@@ -114,7 +117,8 @@ internal object TenantModuleConfigAssembler {
         }
 
         if (schemaFiles.isNotEmpty()) {
-            val typeDefinitionRegistry = readTypesFromFiles(schemaFiles.sortedBy(File::getAbsolutePath))
+            val sortedFiles = schemaFiles.sortedBy(File::getAbsolutePath)
+            val typeDefinitionRegistry = schemaRoot?.let { readTypesFromFiles(sortedFiles, it) } ?: readTypesFromFiles(sortedFiles)
             val schema = UnExecutableSchemaGenerator.makeUnExecutableSchema(typeDefinitionRegistry)
             val viaductSchema = schemaBinary?.let(ViaductSchema::fromBinaryFile)
                 ?: ViaductSchema.fromTypeDefinitionRegistry(typeDefinitionRegistry)

@@ -169,7 +169,7 @@ includeViaductApplication {{
     runtime_test(root, languages)
 
 
-def run(root, repository, phase, *tasks, offline=False):
+def run(root, repository, phase, *tasks, offline=False, expect_failure=False):
     command = [
         str(root / ("gradlew.bat" if os.name == "nt" else "gradlew")), "-p", str(root), *tasks,
         "--console=plain", "--max-workers=4", "--configuration-cache",
@@ -182,7 +182,7 @@ def run(root, repository, phase, *tasks, offline=False):
     log = root.parent / f"{root.name}-{phase}.log"
     log.write_text(result.stdout)
     print(f"{root.parent.name}/{root.name}: {phase} (log: {log})", flush=True)
-    if result.returncode:
+    if bool(result.returncode) != expect_failure:
         raise AssertionError(f"Gradle failed:\n{result.stdout}")
     return result.stdout
 
@@ -272,6 +272,34 @@ def check_case(parent, repository, languages, same_project, offline):
         invoke(second, "runtime-graph-isolation", "compileJava")
 
 
+def check_minimum_gradle(parent, repository, offline):
+    root = parent / "gradle-8.11"
+    consumer(root, ["kotlin"], False, parent / "cache")
+    properties = root / "gradle/wrapper/gradle-wrapper.properties"
+    text = properties.read_text()
+    text = re.sub(r"distributionUrl=.*", r"distributionUrl=https\\://services.gradle.org/distributions/gradle-8.11-bin.zip", text)
+    text = re.sub(r"distributionSha256Sum=.*", "distributionSha256Sum=57dafb5c2622c6cc08b993c85b7c06956a2f53536432a30ead46166dbca0f1e9", text)
+    properties.write_text(text)
+    invoke = lambda phase, **options: run(root, repository, phase, "assembleViaductFinalSchema", offline=offline, **options)
+    baseline = invoke("minimum-version-assembly")
+    assert "> Task :assembleViaductCentralSchema" in baseline, baseline
+    assert "> Task :assembleViaductFinalSchema" in baseline, baseline
+    reused = invoke("minimum-version-reuse")
+    assert "Reusing configuration cache." in reused, reused
+    outcome(reused, ":assembleViaductCentralSchema", "UP-TO-DATE")
+    outcome(reused, ":assembleViaductFinalSchema", "UP-TO-DATE")
+    schema = root / "kotlin/src/main/viaduct/schema/schema.graphqls"
+    original = schema.read_text()
+    schema.write_text(original + "extend type Query { invalid: MissingType }\n")
+    structural = invoke("minimum-version-structural-error", expect_failure=True)
+    assert "MissingType" in structural and "GraphQL schema validation failed" in structural, structural
+    schema.write_text(original + "scalar ForbiddenScalar\n")
+    rule = invoke("minimum-version-rule-error", expect_failure=True)
+    assert "Custom scalar 'ForbiddenScalar' is not allowed" in rule, rule
+    schema.write_text(original)
+    invoke("minimum-version-recovery")
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--maven-repository", required=True, type=Path)
@@ -289,6 +317,8 @@ def main():
     ):
         if args.case is None or args.case == name:
             check_case(work / name, args.maven_repository.resolve(), languages, same_project, args.offline)
+    if args.case is None:
+        check_minimum_gradle(work / "minimum-gradle", args.maven_repository.resolve(), args.offline)
     print(f"Published plugin compatibility checks passed: {work}", flush=True)
 
 

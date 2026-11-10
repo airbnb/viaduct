@@ -1,5 +1,6 @@
 package viaduct.graphql.schema.validation.rules
 
+import viaduct.graphql.schema.SchemaProvenance
 import viaduct.graphql.schema.ViaductSchema
 import viaduct.graphql.schema.validation.SchemaLocation
 import viaduct.graphql.schema.validation.ValidationContext
@@ -27,7 +28,7 @@ class ApplicationOnlyDefinitionsRule(
         ctx: ValidationContext,
         directive: ViaductSchema.Directive
     ) {
-        if (isModuleLocation(directive.sourceLocation)) {
+        if (isModuleLocation(directive.sourceLocation) && SchemaProvenance.parse(directive.sourceLocation?.sourceName)?.supplyingPlugin == null) {
             ctx.reportError(
                 code = ValidationErrorCodes.DIRECTIVE_DEFINED_IN_MODULE,
                 message = "Directive '@${directive.name}' cannot be defined in a module partition. " +
@@ -41,7 +42,7 @@ class ApplicationOnlyDefinitionsRule(
         ctx: ValidationContext,
         scalar: ViaductSchema.Scalar
     ) {
-        if (isModuleLocation(scalar.sourceLocation)) {
+        if (isModuleLocation(scalar.sourceLocation) && SchemaProvenance.parse(scalar.sourceLocation?.sourceName)?.supplyingPlugin == null) {
             ctx.reportError(
                 code = ValidationErrorCodes.SCALAR_DEFINED_IN_MODULE,
                 message = "Scalar '${scalar.name}' cannot be defined in a module partition. " +

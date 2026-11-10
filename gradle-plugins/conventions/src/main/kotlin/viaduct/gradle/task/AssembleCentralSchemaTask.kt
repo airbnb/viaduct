@@ -1,18 +1,16 @@
 package viaduct.gradle.task
 
-import graphql.parser.MultiSourceReader
-import graphql.schema.GraphQLSchema
-import graphql.schema.idl.SchemaParser
-import graphql.schema.idl.UnExecutableSchemaGenerator
 import java.io.File
-import java.io.StringReader
 import javax.inject.Inject
 import org.gradle.api.DefaultTask
 import org.gradle.api.GradleException
 import org.gradle.api.file.ConfigurableFileCollection
 import org.gradle.api.file.DirectoryProperty
+import org.gradle.api.file.DuplicatesStrategy
 import org.gradle.api.file.FileSystemOperations
+import org.gradle.api.problems.Problems
 import org.gradle.api.tasks.CacheableTask
+import org.gradle.api.tasks.Classpath
 import org.gradle.api.tasks.InputFiles
 import org.gradle.api.tasks.OutputDirectory
 import org.gradle.api.tasks.PathSensitive
@@ -21,12 +19,14 @@ import org.gradle.api.tasks.TaskAction
 import org.slf4j.LoggerFactory
 import viaduct.apiannotations.ExperimentalApi
 import viaduct.apiannotations.InternalApi
-import viaduct.gradle.SchemaContributionReconciler
+import viaduct.gradle.SchemaValidationProblems
 import viaduct.gradle.ScopedSchemaValidator
 import viaduct.gradle.ViaductApplicationConventionsPlugin
 import viaduct.gradle.ViaductApplicationConventionsPlugin.Companion.BUILTIN_SCHEMA_FILE
 import viaduct.gradle.ViaductSchemaValidator
 import viaduct.gradle.ViaductScopesYaml
+import viaduct.graphql.schema.SchemaProvenance
+import viaduct.graphql.schema.graphqljava.readTypesFromFiles
 import viaduct.graphql.utils.DefaultSchemaFactory
 import viaduct.scoping.SchemaScopeDefinitions
 import viaduct.scoping.SchemaScoping
@@ -43,8 +43,11 @@ import viaduct.scoping.SchemaScoping
 abstract class AssembleCentralSchemaTask
     @Inject
     constructor(
-        private var fileSystemOperations: FileSystemOperations
+        private val fileSystemOperations: FileSystemOperations,
     ) : DefaultTask() {
+        @get:Inject
+        abstract val problems: Problems
+
         init {
             group = "viaduct"
             description = "Merge and validate GraphQL schema files from all modules into a single central schema. Run this in CI to verify the complete schema is valid."
@@ -87,6 +90,13 @@ abstract class AssembleCentralSchemaTask
         @get:PathSensitive(PathSensitivity.RELATIVE)
         abstract val commonSchemaFiles: ConfigurableFileCollection
 
+        @get:InputFiles
+        @get:PathSensitive(PathSensitivity.RELATIVE)
+        abstract val pluginSchemaFiles: ConfigurableFileCollection
+
+        @get:Classpath
+        abstract val schemaValidationClasspath: ConfigurableFileCollection
+
         @get:OutputDirectory
         abstract val outputDirectory: DirectoryProperty
 
@@ -113,37 +123,30 @@ abstract class AssembleCentralSchemaTask
             }
             val scoping = ViaductScopesYaml.read(declaredScopesFiles.firstOrNull())
 
-            val reconciledBaseSchema = SchemaContributionReconciler.reconcile(
-                baseSchemaFiles.filter { it.exists() }.files,
-                schemaContributionFiles.filter { it.exists() }.files,
-                temporaryDir.resolve("reconciled-schemabase"),
-            )
             fileSystemOperations.sync {
-                from(schemaPartitions) {
-                    into("partition")
-                    include("**/*.graphqls")
-                }
-
+                duplicatesStrategy = DuplicatesStrategy.FAIL
+                from(schemaPartitions) { include("**/*.graphqls") }
+                from(pluginSchemaFiles) { include("**/*.graphqls") }
+                from(schemaContributionFiles) { include("**/*.graphqls") }
                 from(baseSchemaFiles) {
-                    into("schemabase")
+                    into(SchemaProvenance.applicationSourceDirectory("schemabase"))
                     include("**/*.graphqls")
                 }
-
-                from(reconciledBaseSchema) {
-                    into("schemabase/contributions")
-                }
-
                 from(commonSchemaFiles) {
-                    into("common")
+                    into(SchemaProvenance.applicationSourceDirectory("common"))
                     include("**/*.graphqls")
                 }
-
                 into(outputDirectory.get())
+                includeEmptyDirs = false
             }
             val allSchemaFiles = outputDirectory.get().asFileTree.matching { include("**/*.graphqls") }.files
 
-            val sdl = DefaultSchemaFactory.getDefaultSDL(existingSDLFiles = allSchemaFiles.toList())
+            val sdl = DefaultSchemaFactory.getDefaultSDL(existingRegistry = readTypesFromFiles(allSchemaFiles.toList(), outputDirectory.get().asFile))
             val sdlFile = outputDirectory.get().asFile.resolve(BUILTIN_SCHEMA_FILE)
+            check(!sdlFile.exists()) {
+                "Conflicting plugin SDL destination '$BUILTIN_SCHEMA_FILE': a plugin input and Viaduct built-ins both claim this path."
+            }
+            sdlFile.parentFile.mkdirs()
             sdlFile.writeText(sdl)
 
             val completeSchemaFiles = allSchemaFiles + sdlFile
@@ -165,7 +168,7 @@ abstract class AssembleCentralSchemaTask
         ) {
             if (!scoping.isScoped) return
             val logger = LoggerFactory.getLogger(ViaductApplicationConventionsPlugin::class.java)
-            val failures = ScopedSchemaValidator.validate(parseSchema(schemaFiles), scoping)
+            val failures = ScopedSchemaValidator.validateFiles(schemaFiles, outputDirectory.get().asFile, scoping)
             if (failures.isEmpty()) {
                 logger.info("Declared scoped schemas validated successfully.")
                 return
@@ -176,27 +179,20 @@ abstract class AssembleCentralSchemaTask
             )
         }
 
-        private fun parseSchema(schemaFiles: Collection<File>): GraphQLSchema {
-            val reader = MultiSourceReader.newMultiSourceReader()
-                .apply {
-                    schemaFiles.forEach { file ->
-                        reader(StringReader(file.readText(Charsets.UTF_8)), file.path)
-                    }
-                }
-                .trackData(true)
-                .build()
-            return UnExecutableSchemaGenerator.makeUnExecutableSchema(SchemaParser().parse(reader))
-        }
-
         private fun validateCompleteSchema(
             schemaFiles: Collection<File>,
             excludeFromViaductValidation: Collection<File>,
             scoping: SchemaScoping,
         ) {
             val logger = LoggerFactory.getLogger(ViaductApplicationConventionsPlugin::class.java)
+            val reporting = SchemaValidationProblems(problems, outputDirectory.get().asFile, "central")
             val validator = ViaductSchemaValidator(
                 logger,
                 validateScopeConsistency = scoping.isScoped,
+                sourceRoot = outputDirectory.get().asFile,
+                validationClasspath = schemaValidationClasspath.files,
+                reportDiagnostic = reporting::reportRule,
+                reportStructural = reporting::reportStructural,
             )
             val errors = validator.validateSchema(schemaFiles, excludeFromViaductValidation)
             if (errors.isNotEmpty()) {

@@ -23,6 +23,19 @@ class ViaductGRTSupportTest {
     @TempDir
     lateinit var directory: File
 
+    @Test
+    fun `central schema root comes from the file tree rather than provenance-like checkout names`() {
+        val project = project("schema-root")
+        val root = directory.resolve("schema/plugin/checkout/source/build/central")
+        root.resolve("schema/module/catalog.pricing/source/nested/types.graphqls").apply {
+            parentFile.mkdirs()
+            writeText("type Product { name: String }")
+        }
+        val files = project.files(project.fileTree(root))
+
+        assertEquals(root, ViaductPluginCommon.schemaArtifactRoot(files))
+    }
+
     @TestFactory
     fun `both languages publish API and runtime JAR variants`() =
         ViaductGRTLanguage.values().map { language ->

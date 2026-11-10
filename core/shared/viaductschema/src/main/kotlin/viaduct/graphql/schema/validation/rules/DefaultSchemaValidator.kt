@@ -1,9 +1,10 @@
 package viaduct.graphql.schema.validation.rules
 
 import viaduct.graphql.schema.ViaductSchema
-import viaduct.graphql.schema.validation.GraphQLBuiltIns
 import viaduct.graphql.schema.validation.SchemaValidationError
 import viaduct.graphql.schema.validation.SchemaValidator
+import viaduct.graphql.schema.validation.ValidationRule
+import viaduct.graphql.utils.DefaultSchemaFactory
 
 /**
  * Default schema validator with all standard Viaduct rules.
@@ -38,36 +39,34 @@ class DefaultSchemaValidator(
     strictMode: Boolean = false,
     validateScopeConsistency: Boolean = false,
 ) {
-    private val allowedScalarNames = GraphQLBuiltIns.SCALARS + GraphQLBuiltIns.VIADUCT_SCALARS
     private val modulePartitionPathPrefix = "partition/"
 
-    private val validator = SchemaValidator(
-        phases = listOf(
-            buildList {
-                add(NoSubscriptionsRule())
-                add(NoCustomScalarsRule(allowedScalarNames))
-                add(ApplicationOnlyDefinitionsRule(modulePartitionPathPrefix))
-                add(BackingDataFieldsRule())
-                add(IdOfTypeValidationRule())
-                add(NamespaceTypeConstraintsRule())
-                add(ParentFieldConstraintsRule())
-                add(FieldArgumentsRequireResolverRule())
-                add(ConnectionTypeStructureRule())
-                add(ConnectionEdgeStructureRule())
-                add(ConnectionPageInfoRule())
-                if (strictMode) add(StrictConnectionPageInfoRule())
-                add(ConnectionArgumentsNullabilityRule())
-                add(NoCrossModuleInputExtensionsRule(modulePartitionPathPrefix))
-                add(StructuralDirectivesOnBaseTypeRule())
-                add(CrossModuleExtensionFieldsResolverRule(modulePartitionPathPrefix))
-                add(NoResolverOnInterfaceFieldsRule())
-                add(NoTypeResolverOnNonNodeObjectsRule())
-                add(PageInfoLocationRule(modulePartitionPathPrefix))
-                add(ScopeDirectivesRule(validateScopeConsistency))
-                add(NodeInterfaceIdConsistencyRule())
-            }
-        )
-    )
+    val rules: List<ValidationRule> = buildList {
+        add(NoSubscriptionsRule())
+        add(NoCustomScalarsRule(DefaultSchemaFactory.defaultScalarNames))
+        add(PluginScalarReferencesRule())
+        add(ApplicationOnlyDefinitionsRule(modulePartitionPathPrefix))
+        add(BackingDataFieldsRule())
+        add(IdOfTypeValidationRule())
+        add(NamespaceTypeConstraintsRule())
+        add(ParentFieldConstraintsRule())
+        add(FieldArgumentsRequireResolverRule())
+        add(ConnectionTypeStructureRule())
+        add(ConnectionEdgeStructureRule())
+        add(ConnectionPageInfoRule())
+        if (strictMode) add(StrictConnectionPageInfoRule())
+        add(ConnectionArgumentsNullabilityRule())
+        add(NoCrossModuleInputExtensionsRule(modulePartitionPathPrefix))
+        add(StructuralDirectivesOnBaseTypeRule())
+        add(CrossModuleExtensionFieldsResolverRule(modulePartitionPathPrefix))
+        add(NoResolverOnInterfaceFieldsRule())
+        add(NoTypeResolverOnNonNodeObjectsRule())
+        add(PageInfoLocationRule(modulePartitionPathPrefix))
+        add(ScopeDirectivesRule(validateScopeConsistency))
+        add(NodeInterfaceIdConsistencyRule())
+    }
+
+    private val validator = SchemaValidator(phases = listOf(rules))
 
     /**
      * Returns a [SchemaValidator] with all standard Viaduct validation rules.

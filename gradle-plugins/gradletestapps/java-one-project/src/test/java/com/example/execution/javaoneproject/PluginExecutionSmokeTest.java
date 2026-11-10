@@ -32,11 +32,16 @@ public class PluginExecutionSmokeTest {
 
   @Test
   void generatedSchemaAndResolverOutputsExist() throws IOException {
-    assertExists(buildDir.resolve("viaduct/centralSchema/BUILTIN_SCHEMA.graphqls"));
-    Path baseSchemaFile = buildDir.resolve("viaduct/centralSchema/schemabase/directives.graphqls");
-    Path commonSchemaFile = buildDir.resolve("viaduct/centralSchema/common/common.graphqls");
+    assertExists(
+        buildDir.resolve(
+            "viaduct/centralSchema/schema/plugin/com.airbnb.viaduct/source/BUILTIN_SCHEMA.graphqls"));
+    Path baseSchemaFile =
+        buildDir.resolve(
+            "viaduct/centralSchema/schema/application/source/schemabase/directives.graphqls");
+    Path commonSchemaFile =
+        buildDir.resolve("viaduct/centralSchema/schema/application/source/common/common.graphqls");
     Path partitionSchemaFile =
-        buildDir.resolve("viaduct/centralSchema/partition/resolvers/graphql/schema.graphqls");
+        buildDir.resolve("viaduct/centralSchema/schema/module/resolvers/source/schema.graphqls");
 
     assertExists(baseSchemaFile);
     assertExists(commonSchemaFile);
@@ -105,7 +110,7 @@ public class PluginExecutionSmokeTest {
     assertExists(schemaIndex);
     assertTrue(
         Files.readAllLines(schemaIndex)
-            .contains("viaduct/centralSchema/partition/resolvers/graphql/schema.graphqls"));
+            .contains("viaduct/centralSchema/schema/module/resolvers/source/schema.graphqls"));
   }
 
   @Test
@@ -120,7 +125,7 @@ public class PluginExecutionSmokeTest {
     try (JarFile jar = new JarFile(System.getProperty("schemaJar"))) {
       assertNotNull(jar.getJarEntry("META-INF/viaduct/indexes/schema-v1.index"));
       assertNotNull(
-          jar.getJarEntry("viaduct/centralSchema/partition/resolvers/graphql/schema.graphqls"));
+          jar.getJarEntry("viaduct/centralSchema/schema/module/resolvers/source/schema.graphqls"));
       assertFalse(jar.stream().anyMatch(entry -> entry.getName().endsWith(".class")));
       assertFalse(
           jar.stream().anyMatch(entry -> entry.getName().endsWith("BUILTIN_SCHEMA.graphqls")));

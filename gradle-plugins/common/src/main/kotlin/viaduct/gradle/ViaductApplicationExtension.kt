@@ -2,6 +2,7 @@ package viaduct.gradle
 
 import org.gradle.api.NamedDomainObjectProvider
 import org.gradle.api.artifacts.Configuration
+import org.gradle.api.file.CopySpec
 import org.gradle.api.file.Directory
 import org.gradle.api.model.ObjectFactory
 import org.gradle.api.provider.Provider
@@ -26,6 +27,10 @@ open class ViaductApplicationExtension(objects: ObjectFactory) : ViaductApplicat
         this.conventions = conventions
     }
 
+    override val pluginFinalSchema: CopySpec get() = conventions.pluginFinalSchema
+    override val schemaValidationPlugins: NamedDomainObjectProvider<Configuration> get() = conventions.schemaValidationPlugins
+    override val finalSchemaDirectory: Provider<Directory> get() = conventions.finalSchemaDirectory
+    override val pluginSchema: CopySpec get() = conventions.pluginSchema
     override val modules: NamedDomainObjectProvider<Configuration> get() = conventions.modules
     override val allSchemaPartitionsIn: NamedDomainObjectProvider<Configuration> get() = conventions.allSchemaPartitionsIn
     override val centralSchema: NamedDomainObjectProvider<Configuration> get() = conventions.centralSchema

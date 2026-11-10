@@ -18,7 +18,11 @@ public class JavaGRTsCodegen {
   private final GraphQLSchemaParser parser;
 
   public JavaGRTsCodegen() {
-    this.parser = new GraphQLSchemaParser();
+    this(null);
+  }
+
+  public JavaGRTsCodegen(File schemaRoot) {
+    this.parser = new GraphQLSchemaParser(schemaRoot);
   }
 
   /** Result of the code generation process. */

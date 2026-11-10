@@ -2,7 +2,6 @@ package com.example.execution.twoproject
 
 import java.nio.file.Path
 import kotlin.io.path.exists
-import kotlin.io.path.listDirectoryEntries
 import kotlin.io.path.readText
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
@@ -18,7 +17,7 @@ class PluginExecutionSmokeTest {
         val applicationBuildDir = Path.of(System.getProperty("projectBuildDir"))
         val resolverBasesDir = Path.of(System.getProperty("resolverBasesDir"))
         val partitionSchema = applicationBuildDir.resolve(
-            "viaduct/centralSchema/partition/resolvers/graphql/schema.graphqls"
+            "viaduct/centralSchema/schema/module/resolvers/source/schema.graphqls"
         )
         val resolverBases = resolverBasesDir.resolve(
             "QueryResolvers.kt"
@@ -32,12 +31,12 @@ class PluginExecutionSmokeTest {
     @Test
     fun moduleExtensionContributionIsTransportedToTheApplicationSchema() {
         val applicationBuildDir = Path.of(System.getProperty("projectBuildDir"))
-        val contributions = applicationBuildDir.resolve("viaduct/centralSchema/schemabase/contributions")
+        val contribution = applicationBuildDir.resolve(
+            "viaduct/centralSchema/schema/module/resolvers/generated/com.example.test-schema-contribution/contribution.graphqls"
+        )
 
         assertTrue(
-            contributions.listDirectoryEntries("*.graphqls").any {
-                it.readText().contains("directive @fromModuleExtension")
-            },
+            contribution.readText().contains("directive @fromModuleExtension"),
             "Expected the module-extension contribution in the application central schema",
         )
     }

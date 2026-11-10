@@ -10,6 +10,7 @@ import viaduct.codegen.SchemaAnalysis
 import viaduct.codegen.utils.Km
 import viaduct.codegen.utils.KmName
 import viaduct.codegen.utils.name
+import viaduct.graphql.schema.SchemaProvenance
 import viaduct.graphql.schema.ViaductReverseSchema
 import viaduct.graphql.schema.ViaductSchema
 import viaduct.graphql.utils.DefaultSchemaFactory
@@ -113,6 +114,14 @@ fun ViaductSchema.TypeExpr<*>.baseTypeKmType(
     field: ViaductSchema.HasDefaultValue?,
     isInput: Boolean,
 ): KmType {
+    val scalar = baseTypeDef as? ViaductSchema.Scalar
+    if (scalar != null && SchemaProvenance.isPluginScalar(scalar)) {
+        return KmType().also {
+            it.classifier = KmClassifier.Class(Km.ANY.toString())
+            it.isNullable = baseTypeNullable
+        }
+    }
+
     // Check if mapper wants to handle this type
     baseTypeMapper.mapBaseType(this, pkg, field, isInput)?.let { return it }
 
@@ -317,10 +326,11 @@ fun ViaductSchema.mutationNamespaceTypeNames(): Set<String> {
 }
 
 val ViaductSchema.SourceLocation.tenantModule: String?
-    get() = this.sourceName.let {
+    get() {
+        SchemaProvenance.parse(sourceName)?.let { return it.tenantModule }
         // Normalize Windows backslashes so the slash-only moduleExtractor regex matches on every OS.
-        cfg.moduleExtractor.find(it.replace('\\', '/'))?.groups?.get(1)?.value
-    }?.substringBefore("/src/")
+        return cfg.moduleExtractor.find(sourceName.replace('\\', '/'))?.groups?.get(1)?.value?.substringBefore("/src/")
+    }
 
 /**
  * True if this type has the @edge directive applied.

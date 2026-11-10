@@ -13,6 +13,8 @@ dependencies {
 
     // shared.scoping and shared.apiannotations have no published artifact, so this module bundles their
     // classes; `api` lets the plugins that depend on it name the scoping types directly.
+    bundled(libs.viaduct.shared.viaductschema)
+    api(libs.viaduct.shared.viaductschema)
     bundled(libs.viaduct.shared.scoping)
     api(libs.viaduct.shared.scoping)
     api(libs.viaduct.shared.apiannotations)

@@ -2,6 +2,7 @@ package viaduct.tenant.codegen.bytecode
 
 import viaduct.codegen.utils.JavaBinaryName
 import viaduct.codegen.utils.KmName
+import viaduct.graphql.schema.SchemaProvenance
 import viaduct.graphql.schema.ViaductSchema
 
 /** Assumes that [value] is a valid value for [this] type,
@@ -124,6 +125,6 @@ private fun typeToCtSyntax(
             "Long" -> if (boxed) "java.lang.Long" else "long"
             "Short" -> if (boxed) "java.lang.Short" else "short"
             "String" -> "java.lang.String"
-            else -> "${pkg.asJavaName}.${typeDef.name}"
+            else -> if (typeDef is ViaductSchema.Scalar && SchemaProvenance.isPluginScalar(typeDef)) "java.lang.Object" else "${pkg.asJavaName}.${typeDef.name}"
         }
     )

@@ -4,7 +4,10 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import graphql.parser.MultiSourceReader;
+import graphql.schema.idl.SchemaParser;
 import java.io.IOException;
+import java.io.StringReader;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import viaduct.graphql.schema.ViaductSchema;
@@ -21,6 +24,27 @@ class TypeMapperTest {
 
   private TypeMapper mapper;
   private ViaductSchema schema;
+
+  @Test
+  void pluginScalarArgumentsUseJsonTypesThroughWrappers() {
+    var reader =
+        MultiSourceReader.newMultiSourceReader()
+            .reader(
+                new StringReader(
+                    "scalar FieldSet\n"
+                        + "type Query { echo(value: FieldSet, required: FieldSet!, nested:"
+                        + " [[FieldSet!]!]): String }\n"),
+                "schema/plugin/dev.example.federation/source/schema.graphqls")
+            .build();
+    var pluginSchema =
+        ViaductSchemaFactory.fromTypeDefinitionRegistryInstance(new SchemaParser().parse(reader));
+    var query = (ViaductSchema.Object) pluginSchema.getTypes().get("Query");
+    var args = query.getFields().iterator().next().getArgs().iterator();
+    assertEquals("Object", new TypeMapper("generated").toJavaType(args.next().getType()));
+    assertEquals("Object", new TypeMapper("generated").toJavaType(args.next().getType()));
+    assertEquals(
+        "List<List<Object>>", new TypeMapper("generated").toJavaType(args.next().getType()));
+  }
 
   @BeforeEach
   void setUp() throws IOException {

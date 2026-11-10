@@ -3,6 +3,7 @@ package viaduct.gradle
 import org.gradle.api.NamedDomainObjectProvider
 import org.gradle.api.artifacts.Configuration
 import org.gradle.api.attributes.Attribute
+import org.gradle.api.file.CopySpec
 import org.gradle.api.file.Directory
 import org.gradle.api.provider.Provider
 import viaduct.apiannotations.StableApi
@@ -28,6 +29,10 @@ interface ViaductModuleConventions {
 
 @StableApi
 interface ViaductApplicationConventions {
+    val pluginSchema: CopySpec
+    val pluginFinalSchema: CopySpec
+    val schemaValidationPlugins: NamedDomainObjectProvider<Configuration>
+    val finalSchemaDirectory: Provider<Directory>
     val modules: NamedDomainObjectProvider<Configuration>
     val allSchemaPartitionsIn: NamedDomainObjectProvider<Configuration>
     val centralSchema: NamedDomainObjectProvider<Configuration>

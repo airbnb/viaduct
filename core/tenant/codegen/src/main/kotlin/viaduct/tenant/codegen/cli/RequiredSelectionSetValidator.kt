@@ -21,6 +21,7 @@ import graphql.validation.ValidationErrorType
 import graphql.validation.Validator
 import java.util.Locale
 import viaduct.engine.api.parse.DocumentParser
+import viaduct.graphql.schema.SchemaProvenance
 import viaduct.graphql.schema.ViaductSchema
 import viaduct.graphql.utils.DefaultSchemaFactory
 import viaduct.graphql.utils.SelectionsParserUtils
@@ -393,6 +394,7 @@ private val MODULE_NAME_FROM_SOURCE_REGEXES = listOf(
 )
 
 internal fun moduleNameFromSourceName(sourceName: String?): String? {
+    SchemaProvenance.parse(sourceName)?.let { return it.tenantModule }
     for (regex in MODULE_NAME_FROM_SOURCE_REGEXES) {
         val moduleName = moduleNameFromSourceName(sourceName, regex)
         if (moduleName != null) return moduleName

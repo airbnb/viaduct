@@ -34,6 +34,8 @@ class AssembleTenantModuleConfigJar : CliktCommand(
         help = "JSON tenant metadata applied to every field and node: {\"name\":\"tenant\"}; absent or {} records unknown ownership.",
     ).file(mustExist = true, canBeDir = false)
 
+    private val schemaRoot: File? by option("--schema-root").file(mustExist = true, canBeFile = false)
+
     private val schemaFiles: List<File> by option("--schema-files")
         .file(mustExist = true, canBeDir = false)
         .split(",")
@@ -103,6 +105,7 @@ class AssembleTenantModuleConfigJar : CliktCommand(
                 tenantMetadata = TenantModuleConfigAssembler.readTenantMetadata(tenantMetadataFile),
                 schemaBinary = schemaBinary,
                 schemaFiles = schemaFiles,
+                schemaRoot = schemaRoot,
                 outputDir = outputDir,
                 forbiddenSelectionDirectives = forbiddenSelectionDirectives.toSet(),
             )

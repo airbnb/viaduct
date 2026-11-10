@@ -3,9 +3,15 @@ package viaduct.graphql
 import graphql.GraphQLContext
 import graphql.execution.CoercedVariables
 import graphql.language.BooleanValue
+import graphql.language.Field
 import graphql.language.FloatValue
 import graphql.language.IntValue
+import graphql.language.ObjectField
+import graphql.language.ObjectValue
+import graphql.language.OperationDefinition
 import graphql.language.StringValue
+import graphql.language.VariableReference
+import graphql.parser.Parser
 import graphql.scalars.ExtendedScalars
 import graphql.schema.CoercingParseLiteralException
 import graphql.schema.CoercingParseValueException
@@ -28,6 +34,52 @@ class ScalarsTest {
     private val ctx = GraphQLContext.newContext().build()
     private val locale = Locale.getDefault()
     private val coercedVariables = CoercedVariables.emptyVariables()
+
+    @Test
+    fun `JSON literal lists may contain null`() {
+        assertEquals(
+            listOf(BigInteger.ONE, null),
+            Scalars.Json.coercing.parseLiteral(Parser.parseValue("[1, null]"), coercedVariables, ctx, locale),
+        )
+    }
+
+    @Test
+    fun `JSON literal recursion includes objects enums and variables`() {
+        val value = ObjectValue.newObjectValue().objectFields(
+            listOf(
+                ObjectField("list", Parser.parseValue("""[1, null, {kind: ENUM, text: "value", yes: true, number: 1.5}]""")),
+                ObjectField("variable", VariableReference.newVariableReference().name("input").build()),
+            )
+        ).build()
+        val variables = CoercedVariables.of(mapOf("input" to listOf("value", null)))
+        assertEquals(
+            mapOf(
+                "list" to listOf(BigInteger.ONE, null, mapOf("kind" to "ENUM", "text" to "value", "yes" to true, "number" to BigDecimal("1.5"))),
+                "variable" to listOf("value", null),
+            ),
+            Scalars.Json.coercing.parseLiteral(value, variables, ctx, locale),
+        )
+        val external = mapOf("list" to listOf(1, null, true))
+        assertEquals(external, Scalars.Json.coercing.parseValue(external, ctx, locale))
+        assertEquals(external, Scalars.Json.coercing.serialize(external, ctx, locale))
+        assertEquals(
+            mapOf("list" to listOf(BigInteger.ONE, null, true)),
+            Scalars.Json.coercing.parseLiteral(Scalars.Json.coercing.valueToLiteral(external, ctx, locale), coercedVariables, ctx, locale),
+        )
+    }
+
+    @Test
+    fun `JSON variables nested inside literal objects and lists preserve nulls`() {
+        val value = Parser().parseDocument("""query { field(arg: {outer: [{value: ${'$'}input}, ${'$'}nullable]}) }""")
+            .getDefinitionsOfType(OperationDefinition::class.java).single()
+            .selectionSet.getSelectionsOfType(Field::class.java).single().arguments.single().value
+        val variables = CoercedVariables.of(mapOf("input" to listOf("value", null), "nullable" to null))
+
+        assertEquals(
+            mapOf("outer" to listOf(mapOf("value" to listOf("value", null)), null)),
+            Scalars.Json.coercing.parseLiteral(value, variables, ctx, locale),
+        )
+    }
 
     @Nested
     inner class DateTimeScalarTest {
@@ -452,7 +504,7 @@ class ScalarsTest {
             assertTrue(scalars.contains(ExtendedScalars.GraphQLBigInteger))
             assertTrue(scalars.contains(ExtendedScalars.GraphQLByte))
             assertTrue(scalars.contains(ExtendedScalars.GraphQLShort))
-            assertTrue(scalars.contains(ExtendedScalars.Json))
+            assertTrue(scalars.contains(Scalars.Json))
             assertTrue(scalars.contains(ExtendedScalars.Time))
             assertTrue(scalars.contains(Scalars.BackingData))
             assertTrue(scalars.contains(Scalars.DateTimeScalar))

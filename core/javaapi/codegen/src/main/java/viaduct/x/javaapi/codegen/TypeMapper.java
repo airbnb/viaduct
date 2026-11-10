@@ -1,5 +1,6 @@
 package viaduct.x.javaapi.codegen;
 
+import viaduct.graphql.schema.SchemaProvenance;
 import viaduct.graphql.schema.ViaductSchema;
 
 /**
@@ -72,6 +73,11 @@ public class TypeMapper {
 
     if (globalIDType != null) {
       return globalIDType;
+    }
+
+    if (typeExpr.getBaseTypeDef() instanceof ViaductSchema.Scalar scalar
+        && SchemaProvenance.isPluginScalar(scalar)) {
+      return "Object";
     }
 
     // Base type (not a list)

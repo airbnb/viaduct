@@ -17,6 +17,12 @@ import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.spi.CoroutineInterop
 import viaduct.engine.runtime.execution.DefaultCoroutineInterop
 import viaduct.graphql.Scalars
+import viaduct.graphql.schema.SchemaProvenance
+import viaduct.graphql.schema.ViaductSchema
+import viaduct.graphql.schema.graphqljava.SchemaDefinitionReconciler
+import viaduct.graphql.schema.graphqljava.extensions.fromTypeDefinitionRegistry
+import viaduct.graphql.schema.validation.SchemaValidator
+import viaduct.graphql.schema.validation.rules.PluginScalarReferencesRule
 import viaduct.graphql.utils.DefaultSchemaFactory
 import viaduct.utils.resources.ClasspathResourceIndex
 import viaduct.utils.slf4j.logger
@@ -88,12 +94,12 @@ class SchemaFactory(
                     val url = index.resourceUrl(path)
                     val uniqueKey = url.toExternalForm()
                     val content = url.openStream().use { stream ->
-                        stream.reader(Charsets.UTF_8).readText().trim()
+                        stream.reader(Charsets.UTF_8).readText()
                     }
                     if (content.isEmpty()) {
                         log.warn("Empty schema file found: {}", uniqueKey)
                     }
-                    resourceContents[uniqueKey] = content
+                    resourceContents[path.removePrefix("viaduct/centralSchema/")] = content
                     uniqueKey
                 }
         }
@@ -120,11 +126,12 @@ class SchemaFactory(
         }
 
         return try {
-            schemaFromSdl(
-                sdl,
+            schemaFromTypeDefinitionRegistry(
+                SchemaDefinitionReconciler.parseSources(resourceContents.asSequence().map { it.key to it.value }),
                 coroutineInterop,
                 listOf(Scalars.BackingData),
-                resourceContents.keys.toList()
+                addDefaultSchemaComponents = true,
+                useAppliedDirectivesOnly = false,
             )
         } catch (e: SchemaProblem) {
             // Let SchemaProblem pass through unchanged - it already contains detailed error info
@@ -200,7 +207,10 @@ class SchemaFactory(
             }
         }
 
-        val definedScalars = DefaultSchemaFactory.defaultScalars() + (customScalars ?: emptySet())
+        val pluginScalars = typeRegistry.scalars().values
+            .filter { SchemaProvenance.isPluginScalar(it.name, it.sourceLocation?.sourceName) }
+            .map { scalar -> Scalars.Json.transform { it.name(scalar.name) } }
+        val definedScalars = DefaultSchemaFactory.defaultScalars() + (customScalars ?: emptySet()) + pluginScalars
         val actualWiringFactory = ViaductWiringFactory(coroutineInterop)
         val wiring = RuntimeWiring.newRuntimeWiring().wiringFactory(actualWiringFactory).apply {
             definedScalars.forEach { scalar(it) }
@@ -219,6 +229,11 @@ class SchemaFactory(
             } else {
                 FastSchemaGenerator().makeExecutableSchema(options, typeRegistry, wiring)
             }
+        if (pluginScalars.isNotEmpty()) {
+            val schemaModel = ViaductSchema.fromTypeDefinitionRegistry(typeRegistry)
+            val scalarErrors = SchemaValidator(listOf(listOf(PluginScalarReferencesRule()))).validate(schemaModel)
+            require(scalarErrors.isEmpty()) { scalarErrors.joinToString("\n") { "${it.location}: ${it.message}" } }
+        }
         return EngineSchema(schema)
     }
 

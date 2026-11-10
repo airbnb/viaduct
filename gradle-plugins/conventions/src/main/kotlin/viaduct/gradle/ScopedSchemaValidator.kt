@@ -3,7 +3,10 @@ package viaduct.gradle
 import graphql.GraphQL
 import graphql.introspection.IntrospectionQuery
 import graphql.schema.GraphQLSchema
+import graphql.schema.idl.UnExecutableSchemaGenerator
+import java.io.File
 import viaduct.apiannotations.ExperimentalApi
+import viaduct.graphql.schema.graphqljava.readTypesFromFiles
 import viaduct.graphql.scopes.SchemaDeprecatedDirectiveVisitor
 import viaduct.graphql.scopes.SchemaScopingMode
 import viaduct.graphql.scopes.SchemaView
@@ -22,6 +25,15 @@ import viaduct.scoping.SchemaScoping
  */
 @OptIn(ExperimentalApi::class)
 internal object ScopedSchemaValidator {
+    fun validateFiles(
+        schemaFiles: Collection<File>,
+        sourceRoot: File,
+        scoping: SchemaScoping
+    ): List<String> {
+        if (!scoping.isScoped) return emptyList()
+        return validate(UnExecutableSchemaGenerator.makeUnExecutableSchema(readTypesFromFiles(schemaFiles.toList(), sourceRoot)), scoping)
+    }
+
     /**
      * Returns one message per failed check, empty when every declared scoped schema builds. Failures
      * accumulate rather than throwing, except that a failure no view can affect ends the sweep instead

@@ -1,5 +1,7 @@
 package conventions
 
+import org.gradle.api.artifacts.component.ModuleComponentIdentifier
+import org.gradle.api.artifacts.component.ProjectComponentIdentifier
 import org.gradle.api.publish.PublishingExtension
 import org.gradle.api.publish.maven.MavenPublication
 
@@ -20,7 +22,15 @@ configurations.named("implementation") {
 // capturing a script object reference.
 val bundledViaductClasses: FileCollection = files(
     configurations.named("bundled").map { cfg ->
-        cfg.map { jar -> zipTree(jar).matching { include("viaduct/**") } }
+        cfg.incoming.artifacts.artifacts.filter { artifact ->
+            when (val component = artifact.id.componentIdentifier) {
+                is ModuleComponentIdentifier -> component.group.startsWith("com.airbnb.viaduct")
+                is ProjectComponentIdentifier -> true
+                else -> false
+            }
+        }.map { artifact ->
+            zipTree(artifact.file).matching { include("viaduct/**", "META-INF/*.kotlin_module") }
+        }
     }
 )
 
@@ -32,6 +42,7 @@ tasks.withType<GenerateModuleMetadata> {
 }
 
 tasks.named<Jar>("jar") {
+    dependsOn(configurations.named("bundled"))
     from(bundledViaductClasses)
     duplicatesStrategy = DuplicatesStrategy.WARN
     exclude("META-INF/*.SF")
@@ -42,7 +53,7 @@ tasks.named<Jar>("jar") {
 
 // Shape the published POM for the fat-plugin JAR:
 // - strip viaduct.shared.* deps (those coordinates are not published; their classes are bundled)
-// - promote their non-viaduct transitives as explicit runtime deps so consumers can resolve them
+// - promote their non-viaduct transitives as explicit compile deps so consumers can resolve them
 //
 // Register the POM adjustment after evaluation, and resolve bundled dependencies when the POM is
 // generated so composite substitutions from the enclosing build are available.
@@ -74,11 +85,23 @@ afterEvaluate {
                         toRemove.forEach { depsContainer.remove(it) }
 
                         promotedDeps.get().forEach { (group, name, version) ->
-                            depsContainer.appendNode("dependency").apply {
-                                appendNode("groupId", group)
-                                appendNode("artifactId", name)
-                                appendNode("version", version)
-                                appendNode("scope", "runtime")
+                            val existing = (depsContainer.children() as groovy.util.NodeList)
+                                .filterIsInstance<groovy.util.Node>()
+                                .firstOrNull { dep ->
+                                    (dep.get("groupId") as groovy.util.NodeList).text() == group &&
+                                        (dep.get("artifactId") as groovy.util.NodeList).text() == name
+                                }
+                            if (existing == null) {
+                                depsContainer.appendNode("dependency").apply {
+                                    appendNode("groupId", group)
+                                    appendNode("artifactId", name)
+                                    appendNode("version", version)
+                                    appendNode("scope", "compile")
+                                }
+                            } else {
+                                val scopes = existing.get("scope") as groovy.util.NodeList
+                                if (scopes.isEmpty()) existing.appendNode("scope", "compile")
+                                else (scopes.first() as groovy.util.Node).setValue("compile")
                             }
                         }
                     }

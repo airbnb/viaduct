@@ -22,6 +22,7 @@ import viaduct.gradle.runCodegen
 import viaduct.graphql.schema.ViaductSchema
 import viaduct.graphql.schema.binary.extensions.toBinaryFile
 import viaduct.graphql.schema.graphqljava.extensions.fromGraphQLSchema
+import viaduct.graphql.schema.graphqljava.readTypesFromFiles
 
 @CacheableTask
 @InternalApi
@@ -56,13 +57,15 @@ abstract class GenerateGRTClassFilesTask
             flagFile.writeText(ViaductPluginCommon.buildFlagFileContent(buildFlags.get()))
 
             val binarySchemaFile = temporaryDir.resolve("schema.bgql")
-            ViaductSchema.fromGraphQLSchema(schemaFiles.files.toList())
+            ViaductSchema.fromGraphQLSchema(readTypesFromFiles(schemaFiles.files.toList(), ViaductPluginCommon.schemaArtifactRoot(schemaFiles)))
                 .toBinaryFile(binarySchemaFile)
 
             workerExecutor.runCodegen(
                 classpath,
                 mainClass.get(),
                 listOf(
+                    "--schema_root",
+                    ViaductPluginCommon.schemaArtifactRoot(schemaFiles).absolutePath,
                     "--schema_files",
                     schemaFiles.files.map(File::getAbsolutePath).sorted().joinToString(","),
                     "--binary_schema_file",

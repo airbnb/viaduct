@@ -11,6 +11,7 @@ object ValidationErrorCodes {
     const val SUBSCRIPTION_NOT_ALLOWED = "SUBSCRIPTION_NOT_ALLOWED"
 
     // NoCustomScalarsRule
+    const val PLUGIN_SCALAR_REFERENCE_NOT_ALLOWED = "PLUGIN_SCALAR_REFERENCE_NOT_ALLOWED"
     const val CUSTOM_SCALAR_NOT_ALLOWED = "CUSTOM_SCALAR_NOT_ALLOWED"
 
     // ApplicationOnlyDefinitionsRule

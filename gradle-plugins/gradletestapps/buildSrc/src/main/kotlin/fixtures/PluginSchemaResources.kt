@@ -1,0 +1,3 @@
+package fixtures
+
+object PluginSchemaResources

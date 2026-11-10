@@ -1,5 +1,6 @@
 package viaduct.codegen
 
+import viaduct.graphql.schema.SchemaProvenance
 import viaduct.graphql.schema.ViaductSchema
 import viaduct.utils.string.capitalize
 
@@ -281,6 +282,8 @@ object SchemaAnalysis {
      * `SourceLocation.tenantModule` (build-time form).
      */
     fun buildTimeTenantModule(sourceName: String): String? {
+        SchemaProvenance.parse(sourceName)?.let { return it.tenantModule }
+
         val match = BUILD_TIME_MODULE_EXTRACTOR.find(sourceName.replace('\\', '/')) ?: return null
         val module = match.groupValues[1]
         val srcIdx = module.indexOf("/src/")

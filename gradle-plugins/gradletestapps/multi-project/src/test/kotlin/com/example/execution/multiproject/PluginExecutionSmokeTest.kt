@@ -4,6 +4,7 @@ import java.nio.file.Path
 import kotlin.io.path.exists
 import kotlin.io.path.readText
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import viaduct.service.BasicViaductFactory
@@ -15,10 +16,38 @@ class PluginExecutionSmokeTest {
     private val betaResolverBasesDir = Path.of(System.getProperty("betaResolverBasesDir"))
 
     @Test
+    fun finalAdditionsArePackagedWithoutChangingTheCentralSchema() {
+        val relative = "schema/plugin/dev.example.fixture/generated/dev.example.final-generator/final.graphqls"
+        assertFalse(buildDir.resolve("viaduct/centralSchema/$relative").exists())
+        val finalSdl = buildDir.resolve("viaduct/finalSchema/$relative").readText()
+        assertTrue(finalSdl.contains("type FixtureFinal"))
+        assertTrue(finalSdl.contains("extend interface PluginInputs"))
+        assertEquals(finalSdl, javaClass.getResource("/viaduct/centralSchema/$relative")!!.readText())
+        val index = javaClass.getResource("/META-INF/viaduct/indexes/schema-v1.index")!!.readText()
+        assertTrue(index.contains("viaduct/centralSchema/$relative"))
+        val centralRoot = buildDir.resolve("viaduct/centralSchema")
+        centralRoot.toFile().walkTopDown().filter { it.isFile }.forEach { file ->
+            assertEquals(file.readText(), buildDir.resolve("viaduct/finalSchema").resolve(file.toPath().let { centralRoot.relativize(it) }).readText())
+        }
+    }
+
+    @Test
+    fun pluginResourcesAndGeneratedProviderInputsRetainStablePaths() {
+        val schema = buildDir.resolve("viaduct/centralSchema/schema")
+        val bundled = schema.resolve("plugin/dev.example.fixture/source/dev/example/fixture/schema/directives.graphqls")
+        val generated = schema.resolve("plugin/dev.example.fixture/generated/dev.example.generator/fixture-generated.graphqls")
+        assertEquals(
+            "scalar FixtureJson\n\ndirective @fixture(payload: FixtureJson) on OBJECT\n\ninterface PluginInputs {\n  inspect(value: FixtureJson, values: [FixtureJson!]): String\n}\n",
+            bundled.readText(),
+        )
+        assertEquals("directive @generatedFixture on OBJECT\n", generated.readText())
+    }
+
+    @Test
     fun generatedSchemaAndResolverOutputsExist() {
-        assertExists(buildDir.resolve("viaduct/centralSchema/BUILTIN_SCHEMA.graphqls"))
-        val alphaPartitionSchemaFile = buildDir.resolve("viaduct/centralSchema/partition/alpha/graphql/schema.graphqls")
-        val betaPartitionSchemaFile = buildDir.resolve("viaduct/centralSchema/partition/beta/graphql/schema.graphqls")
+        assertExists(buildDir.resolve("viaduct/centralSchema/schema/plugin/com.airbnb.viaduct/source/BUILTIN_SCHEMA.graphqls"))
+        val alphaPartitionSchemaFile = buildDir.resolve("viaduct/centralSchema/schema/module/alpha/source/schema.graphqls")
+        val betaPartitionSchemaFile = buildDir.resolve("viaduct/centralSchema/schema/module/beta/source/schema.graphqls")
 
         assertExists(alphaPartitionSchemaFile)
         assertExists(betaPartitionSchemaFile)

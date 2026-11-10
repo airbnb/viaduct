@@ -11,6 +11,7 @@ import java.io.File
 import viaduct.graphql.schema.ViaductSchema
 import viaduct.graphql.schema.binary.extensions.fromBinaryFile
 import viaduct.graphql.schema.graphqljava.extensions.fromTypeDefinitionRegistry
+import viaduct.graphql.schema.graphqljava.readTypesFromFiles
 import viaduct.tenant.codegen.bytecode.config.cfg
 import viaduct.tenant.codegen.bytecode.config.cfg.BUILD_TIME_MODULE_EXTRACTOR
 import viaduct.tenant.codegen.kotlingen.Args
@@ -37,6 +38,7 @@ class ViaductGenerator : CliktCommand() {
         .file(mustExist = false, canBeDir = false)
 
     // schema args
+    private val schemaRoot: File? by option("--schema_root").file(mustExist = true, canBeFile = false)
     private val schemaFiles: List<File> by option("--schema_files")
         .file(mustExist = true, canBeDir = false).split(",").required()
     private val binarySchemaFile: File? by option("--binary_schema_file")
@@ -76,7 +78,8 @@ class ViaductGenerator : CliktCommand() {
         val schema = if (useBinary) {
             ViaductSchema.fromBinaryFile(binarySchemaFile!!)
         } else {
-            ViaductSchema.fromTypeDefinitionRegistry(schemaFiles)
+            schemaRoot?.let { ViaductSchema.fromTypeDefinitionRegistry(readTypesFromFiles(schemaFiles, it)) }
+                ?: ViaductSchema.fromTypeDefinitionRegistry(schemaFiles)
         }
         // TODO(jimmy): Remove this global mutable state, see https://docs.google.com/document/d/18FKs13huMY3JyslnO11_V_WtYPcSA7Xb_vNQAf79yP0/edit?tab=t.0#heading=h.a24h0oe8myl2
         cfg.moduleExtractor = if (!tenantFromSourceNameRegex.isNullOrEmpty()) {
@@ -87,7 +90,8 @@ class ViaductGenerator : CliktCommand() {
 
         // Service blocks can override the output Kotlin package without changing the logical
         // tenant path used to derive schema ownership.
-        val tenantPackage = tenantPackage ?: tenantPackagePrefixInFile?.readText()?.trim() ?: "$tenantPackagePrefix.${tenantPkg.replace("_", ".")}"
+        val tenantPackage = tenantPackage ?: tenantPackagePrefixInFile?.readText()?.trim()
+            ?: listOf(tenantPackagePrefix, tenantPkg.replace("_", ".")).filterNot { it.isNullOrEmpty() }.joinToString(".")
         val packagePrefixForTenant = tenantPackagePrefixInFile?.readText()?.trim() ?: tenantPackagePrefix!!
         val grtPackages = if (isFeatureAppTest) tenantPackage else "viaduct.api.grts"
 

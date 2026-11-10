@@ -3,11 +3,13 @@ package viaduct.tenant.codegen.kotlingen
 import java.io.File
 import viaduct.codegen.st.STContents
 import viaduct.codegen.st.stTemplate
+import viaduct.graphql.schema.SchemaProvenance
 import viaduct.graphql.schema.ViaductSchema
 import viaduct.tenant.codegen.bytecode.config.isBatchingResolver
 import viaduct.tenant.codegen.bytecode.config.isNode
 import viaduct.tenant.codegen.bytecode.config.isSelectiveResolver
 import viaduct.tenant.codegen.bytecode.config.tenantModule
+import viaduct.tenant.codegen.util.tenantModuleNameFromPackage
 
 private const val RESOLVER_DIRECTIVE = "resolver"
 
@@ -33,13 +35,7 @@ private class NodeResolverGenerator(
     private val resolverGeneratedDir: File,
     private val isFeatureAppTest: Boolean
 ) {
-    private val targetTenantModule = if (tenantPackage.startsWith("viaduct.testapps.")) {
-        // For testapps, preserve the full path
-        tenantPackage.replace(".", "/")
-    } else {
-        // For regular tenants, use the prefix-based approach (like FieldResolverGenerator)
-        tenantPackage.replace("$tenantPackagePrefix.", "").replace(".", "/")
-    }
+    private val targetTenantModule = tenantModuleNameFromPackage(tenantPackage, tenantPackagePrefix)
 
     fun generate() {
         val tenantOwnedNodes = schema.types.values
@@ -58,7 +54,12 @@ private class NodeResolverGenerator(
 
     private fun isTenantOwnedNode(def: ViaductSchema.TypeDef): Boolean {
         return if (!isFeatureAppTest) {
-            def.isNode && tenantOwnsModule(def.sourceLocation?.tenantModule, targetTenantModule, tenantSchemaModulePrefix)
+            val target = if (SchemaProvenance.parse(def.sourceLocation?.sourceName) == null && tenantPackage.startsWith("viaduct.testapps.")) {
+                tenantPackage.replace('.', '/')
+            } else {
+                targetTenantModule
+            }
+            def.isNode && tenantOwnsModule(def.sourceLocation?.tenantModule, target, tenantSchemaModulePrefix)
         } else {
             def.isNode
         }

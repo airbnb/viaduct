@@ -24,6 +24,7 @@ import viaduct.gradle.runCodegen
 import viaduct.graphql.schema.ViaductSchema
 import viaduct.graphql.schema.binary.extensions.toBinaryFile
 import viaduct.graphql.schema.graphqljava.extensions.fromGraphQLSchema
+import viaduct.graphql.schema.graphqljava.readTypesFromFiles
 
 @InternalApi
 @CacheableTask
@@ -55,9 +56,6 @@ abstract class GenerateResolverBasesTask
         @get:Input
         abstract val tenantPackage: Property<String>
 
-        @get:Input
-        abstract val tenantFromSourceRegex: Property<String>
-
         @get:OutputDirectory
         abstract val outputDirectory: DirectoryProperty
 
@@ -67,13 +65,15 @@ abstract class GenerateResolverBasesTask
             flagFile.writeText(ViaductPluginCommon.buildFlagFileContent(buildFlags.get()))
 
             val binarySchemaFile = temporaryDir.resolve("schema.bgql")
-            ViaductSchema.fromGraphQLSchema(centralSchemaFiles.files.toList())
+            ViaductSchema.fromGraphQLSchema(readTypesFromFiles(centralSchemaFiles.files.toList(), ViaductPluginCommon.schemaArtifactRoot(centralSchemaFiles)))
                 .toBinaryFile(binarySchemaFile)
 
             workerExecutor.runCodegen(
                 classpath,
                 mainClass.get(),
                 listOf(
+                    "--schema_root",
+                    ViaductPluginCommon.schemaArtifactRoot(centralSchemaFiles).absolutePath,
                     "--schema_files",
                     centralSchemaFiles.files.map { it.absolutePath }.sorted().joinToString(","),
                     "--binary_schema_file",
@@ -85,9 +85,7 @@ abstract class GenerateResolverBasesTask
                     "--tenant_pkg",
                     tenantPackage.get(),
                     "--resolver_generated_directory",
-                    outputDirectory.get().asFile.absolutePath,
-                    "--tenant_from_source_name_regex",
-                    tenantFromSourceRegex.get()
+                    outputDirectory.get().asFile.absolutePath
                 )
             )
         }

@@ -1,8 +1,14 @@
 package viaduct.engine
 
+import graphql.ExecutionInput
+import graphql.GraphQL
+import graphql.schema.DataFetcher
+import graphql.schema.FieldCoordinates
+import graphql.schema.GraphQLCodeRegistry
 import graphql.schema.idl.SchemaParser
 import graphql.schema.idl.errors.SchemaProblem
 import io.kotest.matchers.string.shouldContain
+import java.math.BigInteger
 import java.net.URLClassLoader
 import java.nio.file.Path
 import kotlin.io.path.createDirectories
@@ -20,6 +26,49 @@ import viaduct.engine.api.mocks.createCoroutineInterop
 
 class SchemaFactoryTest {
     private val schemaFactory = SchemaFactory(createCoroutineInterop())
+
+    @Test
+    fun `indexed plugin scalars coerce literals and variables using JSON`(
+        @TempDir tempDir: Path
+    ) {
+        val resource = "viaduct/centralSchema/schema/plugin/dev.example.federation/source/schema.graphqls"
+        tempDir.resolve(resource).apply {
+            parent.createDirectories()
+            writeText("\n\nscalar FieldSet\nextend type Query { echo(value: FieldSet): String }")
+        }
+        tempDir.resolve(ViaductResourceIndexes.SCHEMA).apply {
+            parent.createDirectories()
+            writeText("$resource\n")
+        }
+        URLClassLoader(arrayOf(tempDir.toUri().toURL()), null).use { loader ->
+            val schema = schemaFactory.fromResources(null, null, loader).schema
+            val type = schema.getType("FieldSet") as graphql.schema.GraphQLScalarType
+            assertEquals("schema/plugin/dev.example.federation/source/schema.graphqls", type.definition.sourceLocation.sourceName)
+            assertEquals(3, type.definition.sourceLocation.line)
+            val seen = mutableListOf<Any?>()
+            val registry = GraphQLCodeRegistry.newCodeRegistry(schema.codeRegistry).dataFetcher(
+                FieldCoordinates.coordinates("Query", "echo"),
+                DataFetcher { env ->
+                    seen += env.getArgument<Any?>("value")
+                    "ok"
+                },
+            ).build()
+            val graphQL = GraphQL.newGraphQL(schema.transform { it.codeRegistry(registry) }).build()
+            val literal = graphQL.execute("""{ echo(value: {items: [1, null, ENUM, true]}) }""")
+            assertTrue(literal.errors.isEmpty(), literal.errors.toString())
+            val variables = graphQL.execute(
+                ExecutionInput.newExecutionInput().query("query(${ '$' }v: FieldSet) { echo(value: ${ '$' }v) }").variables(mapOf("v" to mapOf("items" to listOf(1, null, "ENUM", true))))
+            )
+            assertTrue(variables.errors.isEmpty(), variables.errors.toString())
+            assertEquals(mapOf("items" to listOf(BigInteger.ONE, null, "ENUM", true)), seen[0])
+            assertEquals(mapOf("items" to listOf(1, null, "ENUM", true)), seen[1])
+        }
+    }
+
+    @Test
+    fun `unattributed custom scalars remain unsupported by fromSdl`() {
+        assertThrows<SchemaProblem> { schemaFactory.fromSdl("scalar Custom\nextend type Query { field(value: Custom): String }") }
+    }
 
     @Nested
     inner class PositiveTests {
@@ -197,6 +246,50 @@ class SchemaFactoryTest {
 
     @Nested
     inner class ErrorTests {
+        @Test
+        fun `indexed parse errors retain resource URLs causes and plugin source locations`(
+            @TempDir tempDir: Path
+        ) {
+            val first = "viaduct/centralSchema/schema/plugin/dev.example.plugin/source/types.graphqls"
+            val second = "viaduct/centralSchema/schema/module/catalog/generated/dev.example.generator/types.graphqls"
+            val variants = listOf(
+                "\n\ntype Broken { value: }" to "type Extra { value: String }",
+                "\n\ntype Shared { value: String }" to "type Shared { value: Int }",
+            )
+            variants.forEach { (left, right) ->
+                val index = listOf(first, second).sorted().joinToString("\n", postfix = "\n")
+                mapOf(first to left, second to right, ViaductResourceIndexes.SCHEMA to index).forEach { (path, content) ->
+                    tempDir.resolve(path).apply { parent.createDirectories() }.writeText(content)
+                }
+
+                val error = assertThrows<ViaductSchemaLoadException> {
+                    URLClassLoader(arrayOf(tempDir.toUri().toURL()), null).use { loader -> schemaFactory.fromResources(null, null, loader) }
+                }
+
+                assertTrue(error.cause is IllegalArgumentException)
+                error.message!! shouldContain tempDir.resolve(first).toUri().toURL().toExternalForm()
+                error.message!! shouldContain tempDir.resolve(second).toUri().toURL().toExternalForm()
+                error.message!! shouldContain "Internal framework/plugin error"
+                error.message!! shouldContain "schema/plugin/dev.example.plugin/source/types.graphqls:3:"
+            }
+        }
+
+        @Test
+        fun `indexed schema validation errors pass through as SchemaProblem`(
+            @TempDir tempDir: Path
+        ) {
+            val resource = "viaduct/centralSchema/schema/plugin/dev.example.plugin/source/types.graphqls"
+            mapOf(resource to "extend type Query { broken: UnknownType }", ViaductResourceIndexes.SCHEMA to "$resource\n").forEach { (path, content) ->
+                tempDir.resolve(path).apply { parent.createDirectories() }.writeText(content)
+            }
+
+            val error = assertThrows<SchemaProblem> {
+                URLClassLoader(arrayOf(tempDir.toUri().toURL()), null).use { loader -> schemaFactory.fromResources(null, null, loader) }
+            }
+
+            error.message!! shouldContain "UnknownType"
+        }
+
         @Test
         fun `test empty SDL string throws ViaductSchemaLoadException with source info`() {
             val exception = assertThrows<ViaductSchemaLoadException> {

@@ -16,10 +16,10 @@ class PluginExecutionSmokeTest {
 
     @Test
     fun generatedSchemaAndResolverOutputsExist() {
-        assertExists(buildDir.resolve("viaduct/centralSchema/BUILTIN_SCHEMA.graphqls"))
-        val baseSchemaFile = buildDir.resolve("viaduct/centralSchema/schemabase/directives.graphqls")
-        val commonSchemaFile = buildDir.resolve("viaduct/centralSchema/common/common.graphqls")
-        val partitionSchemaFile = buildDir.resolve("viaduct/centralSchema/partition/resolvers/graphql/schema.graphqls")
+        assertExists(buildDir.resolve("viaduct/centralSchema/schema/plugin/com.airbnb.viaduct/source/BUILTIN_SCHEMA.graphqls"))
+        val baseSchemaFile = buildDir.resolve("viaduct/centralSchema/schema/application/source/schemabase/directives.graphqls")
+        val commonSchemaFile = buildDir.resolve("viaduct/centralSchema/schema/application/source/common/common.graphqls")
+        val partitionSchemaFile = buildDir.resolve("viaduct/centralSchema/schema/module/resolvers/source/schema.graphqls")
 
         assertExists(baseSchemaFile)
         assertExists(commonSchemaFile)
@@ -63,7 +63,7 @@ class PluginExecutionSmokeTest {
         val schemaIndex = buildDir.resolve(
             "generated-resources/viaduct-schema-index/META-INF/viaduct/indexes/schema-v1.index"
         ).readText()
-        assertTrue(schemaIndex.contains("viaduct/centralSchema/partition/resolvers/graphql/schema.graphqls"))
+        assertTrue(schemaIndex.contains("viaduct/centralSchema/schema/module/resolvers/source/schema.graphqls"))
 
         val registryIndex = buildDir.resolve(
             "generated-resources/viaduct-execution-registry-index/" +

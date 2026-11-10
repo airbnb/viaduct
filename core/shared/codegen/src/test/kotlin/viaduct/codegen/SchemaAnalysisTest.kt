@@ -332,6 +332,13 @@ class SchemaAnalysisTest {
     }
 
     @Test
+    fun `buildTimeTenantModule normalizes dotted artifact ownership for Java codegen`() {
+        assertEquals("catalog/pricing", SchemaAnalysis.buildTimeTenantModule("schema/module/catalog.pricing/source/schema.graphqls"))
+        assertEquals("catalog/pricing", SchemaAnalysis.buildTimeTenantModule("schema/module/catalog.pricing/generated/dev.example.plugin/schema.graphqls"))
+        assertNull(SchemaAnalysis.buildTimeTenantModule("schema/plugin/dev.example.plugin/source/modules/catalog/pricing/schema/schema.graphqls"))
+    }
+
+    @Test
     fun `buildTimeTenantModule strips a trailing src segment`() {
         assertEquals(
             "data/trip",

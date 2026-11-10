@@ -1,6 +1,7 @@
 package viaduct.graphql.schema.validation
 
 import viaduct.graphql.Scalars
+import viaduct.graphql.utils.DefaultSchemaFactory
 
 /**
  * Standard GraphQL built-in types.
@@ -13,14 +14,14 @@ object GraphQLBuiltIns {
      * The five built-in GraphQL scalar types as defined in the GraphQL specification.
      * @see <a href="https://spec.graphql.org/October2021/#sec-Scalars.Built-in-Scalars">GraphQL Spec</a>
      */
-    val SCALARS: Set<String> = setOf("String", "Int", "Float", "Boolean", "ID")
+    val SCALARS: Set<String> = DefaultSchemaFactory.graphqlScalarNames
 
     /**
      * Scalar types provided by the Viaduct framework (not defined in the GraphQL spec).
      * Derived from [Scalars.viaductStandardScalars] to stay in sync with the framework's
      * actual scalar definitions.
      */
-    val VIADUCT_SCALARS: Set<String> = Scalars.viaductStandardScalars.map { it.name }.toSet()
+    val VIADUCT_SCALARS: Set<String> = DefaultSchemaFactory.defaultScalars().map { it.name }.toSet()
 
     /**
      * The built-in GraphQL directive names as defined in the GraphQL specification.

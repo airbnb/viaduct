@@ -10,6 +10,7 @@ import java.io.File
 import viaduct.graphql.schema.ViaductSchema
 import viaduct.graphql.schema.binary.extensions.fromBinaryFile
 import viaduct.graphql.schema.graphqljava.extensions.fromTypeDefinitionRegistry
+import viaduct.graphql.schema.graphqljava.readTypesFromFiles
 import viaduct.tenant.codegen.bytecode.config.ViaductBaseTypeMapper
 import viaduct.tenant.codegen.kotlingen.bytecode.KotlinCodeGenArgs
 import viaduct.tenant.codegen.kotlingen.bytecode.KotlinGRTFilesBuilder
@@ -34,6 +35,7 @@ class KotlinGRTsGenerator : CliktCommand() {
         .file(mustExist = false, canBeDir = false)
     private val generatedDir: File by option("--generated_directory")
         .file(mustExist = false, canBeFile = false).required()
+    private val schemaRoot: File? by option("--schema_root").file(mustExist = true, canBeFile = false)
     private val schemaFiles: List<File> by option("--schema_files")
         .file(mustExist = true, canBeDir = false).split(",").required()
     private val binarySchemaFile: File by option("--binary_schema_file")
@@ -54,7 +56,8 @@ class KotlinGRTsGenerator : CliktCommand() {
             if (useBinarySchema) {
                 ViaductSchema.fromBinaryFile(binarySchemaFile)
             } else {
-                ViaductSchema.fromTypeDefinitionRegistry(schemaFiles, timer)
+                schemaRoot?.let { ViaductSchema.fromTypeDefinitionRegistry(readTypesFromFiles(schemaFiles, it), timer) }
+                    ?: ViaductSchema.fromTypeDefinitionRegistry(schemaFiles, timer)
             }
         }
 

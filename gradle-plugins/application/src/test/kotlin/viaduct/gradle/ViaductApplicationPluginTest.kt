@@ -49,6 +49,83 @@ class ViaductApplicationPluginTest {
     }
 
     @Test
+    fun `plugin schema is copied unchanged and removed inputs leave no stale output`() {
+        val inputs = tempDir.resolve("plugin-input").toFile()
+        val relative = "schema/plugin/dev.example.fixture/source/nested/directives.graphqls"
+        val input = inputs.resolve(relative).apply {
+            parentFile.mkdirs()
+            writeText("\n\nscalar FieldSet\ndirective @fixture(value: [FieldSet!]) on OBJECT\n")
+        }
+        task.pluginSchemaFiles.from(inputs)
+        task.taskAction()
+        assertEquals(input.readText(), task.outputDirectory.get().asFile.resolve(relative).readText())
+        input.delete()
+        task.taskAction()
+        assertTrue(!task.outputDirectory.get().asFile.resolve(relative).exists())
+    }
+
+    @Test
+    fun `generated defaults deduplicate mixed files without rewriting their text`() {
+        val base = tempDir.resolve("base").toFile().apply { mkdirs() }
+        base.resolve("types.graphqls").writeText("type Shared { a: Int b: String }")
+        val contributions = tempDir.resolve("contributions").toFile()
+        val generated = contributions.resolve("schema/module/catalog/generated/dev.example.defaults/types.graphqls").apply {
+            parentFile.mkdirs()
+            writeText("type Shared { b: String a: Int }\n\ntype Extra { value: String }\n")
+        }
+        task.baseSchemaFiles.from(project.fileTree(base))
+        task.schemaContributionFiles.from(contributions)
+        task.taskAction()
+        assertEquals(generated.readText(), task.outputDirectory.get().asFile.resolve(generated.relativeTo(contributions)).readText())
+    }
+
+    @Test
+    fun `invalid bundled and generated schema reports the responsible plugin before validation`() {
+        listOf("schema/plugin/dev.example.fixture/source/bad.graphqls", "schema/module/catalog/generated/dev.example.generator/bad.graphqls").forEachIndexed { index, path ->
+            val input = tempDir.resolve("invalid-$index").toFile()
+            input.resolve(path).apply {
+                parentFile.mkdirs()
+                writeText("\n\ntype Broken { value: }")
+            }
+            task.pluginSchemaFiles.setFrom(input)
+            val error = assertThrows<IllegalArgumentException> { task.taskAction() }
+            assertTrue(error.message!!.contains("Internal framework/plugin error"), error.message)
+            assertTrue(error.message!!.contains(path), error.message)
+            assertTrue(error.message!!.contains(":3:"), error.message)
+        }
+    }
+
+    @Test
+    fun `plugin cannot overwrite the reserved built-in source`() {
+        val input = tempDir.resolve("reserved-input").toFile()
+        input.resolve(ViaductApplicationPlugin.BUILTIN_SCHEMA_FILE).apply {
+            parentFile.mkdirs()
+            writeText("scalar Hijack")
+        }
+        task.pluginSchemaFiles.from(input)
+        val error = assertThrows<IllegalStateException> { task.taskAction() }
+        assertTrue(error.message!!.contains("both claim this path"), error.message)
+    }
+
+    @Test
+    fun `duplicate schema destinations identify both input claims`() {
+        val path = "schema/plugin/dev.example.fixture/source/types.graphqls"
+        val roots = listOf("first", "second").map { name ->
+            tempDir.resolve(name).toFile().also { root ->
+                root.resolve(path).apply {
+                    parentFile.mkdirs()
+                    writeText("directive @fixture on OBJECT")
+                }
+            }
+        }
+        task.pluginSchemaFiles.from(roots)
+
+        val error = assertThrows<GradleException> { task.taskAction() }
+        val messages = generateSequence(error as Throwable?) { it.cause }.mapNotNull { it.message }.joinToString("\n")
+        roots.forEach { assertTrue(messages.contains(it.resolve(path).path), messages) }
+    }
+
+    @Test
     fun `manifest index drops removed directory contributions`() {
         val root = tempDir.resolve("manifest-output").toFile()
         val manifest = root.resolve("META-INF/viaduct/modules/example.json").apply {
@@ -132,7 +209,10 @@ class ViaductApplicationPluginTest {
             writeText("extend type Query { z: String }")
         }
         schemaDir.resolve("partition/a.graphqls").writeText("extend type Query { a: String }")
-        schemaDir.resolve(ViaductApplicationPlugin.BUILTIN_SCHEMA_FILE).writeText("type Query")
+        schemaDir.resolve(ViaductApplicationPlugin.BUILTIN_SCHEMA_FILE).apply {
+            parentFile.mkdirs()
+            writeText("type Query")
+        }
         val moduleJar = tempDir.resolve("module.jar").toFile()
         writeJar(
             moduleJar,

@@ -14,6 +14,7 @@ import viaduct.tenant.codegen.bytecode.config.isSelectiveResolver
 import viaduct.tenant.codegen.bytecode.config.kmType
 import viaduct.tenant.codegen.bytecode.config.mutationNamespaceTypeNames
 import viaduct.tenant.codegen.bytecode.config.tenantModule
+import viaduct.tenant.codegen.util.tenantModuleNameFromPackage
 
 private const val RESOLVER_DIRECTIVE = "resolver"
 
@@ -63,7 +64,7 @@ private class FieldResolverGenerator(
     private fun tenantResolverFields(typeDef: ViaductSchema.TypeDef): List<ViaductSchema.Field>? {
         if (typeDef !is ViaductSchema.Object) return null
 
-        val targetTenantModule = tenantPackage.replace("$tenantPackagePrefix.", "").replace(".", "/")
+        val targetTenantModule = tenantModuleNameFromPackage(tenantPackage, tenantPackagePrefix)
         val resolverFields = mutableListOf<ViaductSchema.Field>()
         for (extension in typeDef.extensions) {
             // This check will not pass for feature test app run so just generate field resolvers

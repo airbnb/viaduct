@@ -22,6 +22,7 @@ import org.gradle.work.InputChanges
 import org.gradle.workers.WorkerExecutor
 import viaduct.apiannotations.InternalApi
 import viaduct.gradle.CodegenWorkAction
+import viaduct.gradle.ViaductPluginCommon
 import viaduct.gradle.runCodegen
 
 /**
@@ -152,6 +153,8 @@ abstract class AssembleTenantModuleConfigFileTask : DefaultTask(), IncrementalAc
             .sorted()
             .takeIf(List<String>::isNotEmpty)
             ?.let { schemaFiles ->
+                args.add("--schema-root")
+                args.add(ViaductPluginCommon.schemaArtifactRoot(centralSchemaFiles).absolutePath)
                 args.add("--schema-files")
                 args.add(schemaFiles.joinToString(","))
             }

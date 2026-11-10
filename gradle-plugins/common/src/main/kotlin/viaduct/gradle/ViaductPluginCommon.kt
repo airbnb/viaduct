@@ -1,11 +1,15 @@
 package viaduct.gradle
 
+import java.io.File
 import java.util.Properties
 import org.gradle.api.GradleException
 import org.gradle.api.Project
 import org.gradle.api.artifacts.Configuration
 import org.gradle.api.attributes.Attribute
 import org.gradle.api.file.Directory
+import org.gradle.api.file.FileCollection
+import org.gradle.api.file.FileVisitDetails
+import org.gradle.api.file.FileVisitor
 import org.gradle.api.file.RegularFile
 import org.gradle.api.provider.Provider
 import org.gradle.api.tasks.TaskProvider
@@ -17,6 +21,21 @@ import viaduct.gradle.shared.BuildFlags
 
 @InternalApi
 object ViaductPluginCommon {
+    fun schemaArtifactRoot(files: FileCollection): File {
+        val roots = mutableSetOf<File>()
+        files.asFileTree.visit(object : FileVisitor {
+            override fun visitDir(dirDetails: FileVisitDetails) = Unit
+
+            override fun visitFile(fileDetails: FileVisitDetails) {
+                var root = fileDetails.file
+                repeat(fileDetails.relativePath.segments.size) { root = root.parentFile }
+                roots += root
+            }
+        })
+        require(roots.size == 1) { "Expected one central schema artifact root, found $roots" }
+        return roots.single()
+    }
+
     val APPLICATION_PLUGIN_IDS = listOf(
         "com.airbnb.viaduct.application-gradle-plugin",
     )

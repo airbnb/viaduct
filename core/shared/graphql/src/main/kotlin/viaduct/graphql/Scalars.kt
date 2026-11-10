@@ -2,7 +2,10 @@ package viaduct.graphql
 
 import graphql.GraphQLContext
 import graphql.execution.CoercedVariables
+import graphql.language.ArrayValue
 import graphql.language.IntValue
+import graphql.language.NullValue
+import graphql.language.ObjectValue
 import graphql.language.StringValue
 import graphql.language.Value
 import graphql.scalars.ExtendedScalars
@@ -96,6 +99,43 @@ object Scalars {
                     private fun convertToOffsetDateTime(value: Any): OffsetDateTime = OffsetDateTime.ofInstant(value as Instant?, ZoneOffset.UTC)
                 }
             ).build()
+
+    val Json: GraphQLScalarType = ExtendedScalars.Json.transform { builder ->
+        @Suppress("UNCHECKED_CAST")
+        val delegate = ExtendedScalars.Json.coercing as Coercing<Any, Any>
+        builder.coercing(object : Coercing<Any, Any> {
+            override fun serialize(
+                input: Any,
+                ctx: GraphQLContext,
+                locale: Locale
+            ): Any? = delegate.serialize(input, ctx, locale)
+
+            override fun parseValue(
+                input: Any,
+                ctx: GraphQLContext,
+                locale: Locale
+            ): Any? = delegate.parseValue(input, ctx, locale)
+
+            override fun valueToLiteral(
+                input: Any,
+                ctx: GraphQLContext,
+                locale: Locale
+            ): Value<*> = delegate.valueToLiteral(input, ctx, locale)
+
+            override fun parseLiteral(
+                input: Value<*>,
+                coercedVariables: CoercedVariables,
+                ctx: GraphQLContext,
+                locale: Locale,
+            ): Any? =
+                when (input) {
+                    is NullValue -> null
+                    is ArrayValue -> input.values.map { parseLiteral(it, coercedVariables, ctx, locale) }
+                    is ObjectValue -> input.objectFields.associate { it.name to parseLiteral(it.value, coercedVariables, ctx, locale) }
+                    else -> delegate.parseLiteral(input, coercedVariables, ctx, locale)
+                }
+        })
+    }
 
     private val LONG_MAX = BigInteger.valueOf(Long.MAX_VALUE)
     private val LONG_MIN = BigInteger.valueOf(Long.MIN_VALUE)
@@ -249,7 +289,7 @@ object Scalars {
         ExtendedScalars.GraphQLBigInteger,
         ExtendedScalars.GraphQLByte,
         ExtendedScalars.GraphQLShort,
-        ExtendedScalars.Json,
+        Json,
         ExtendedScalars.Time,
         BackingData,
         DateTimeScalar,

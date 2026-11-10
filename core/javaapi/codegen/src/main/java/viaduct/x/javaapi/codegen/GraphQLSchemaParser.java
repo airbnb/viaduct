@@ -21,6 +21,7 @@ import viaduct.codegen.ConnectionArgumentsDirection;
 import viaduct.codegen.SchemaAnalysis;
 import viaduct.graphql.schema.ViaductReverseSchema;
 import viaduct.graphql.schema.ViaductSchema;
+import viaduct.graphql.schema.graphqljava.ReadFilesKt;
 import viaduct.graphql.schema.graphqljava.extensions.ViaductSchemaFactory;
 
 /**
@@ -29,6 +30,15 @@ import viaduct.graphql.schema.graphqljava.extensions.ViaductSchemaFactory;
  * graphql-java types directly.
  */
 public class GraphQLSchemaParser {
+  private final File schemaRoot;
+
+  public GraphQLSchemaParser() {
+    this(null);
+  }
+
+  public GraphQLSchemaParser(File schemaRoot) {
+    this.schemaRoot = schemaRoot;
+  }
 
   /**
    * Parses a GraphQL schema from a Reader and returns the ViaductSchema.
@@ -59,7 +69,10 @@ public class GraphQLSchemaParser {
    * @return the merged ViaductSchema
    */
   public ViaductSchema parse(List<File> schemaFiles) {
-    return ViaductSchemaFactory.fromTypeDefinitionRegistry(schemaFiles);
+    return schemaRoot == null
+        ? ViaductSchemaFactory.fromTypeDefinitionRegistry(schemaFiles)
+        : ViaductSchemaFactory.fromTypeDefinitionRegistryInstance(
+            ReadFilesKt.readTypesFromFiles(schemaFiles, schemaRoot));
   }
 
   /**

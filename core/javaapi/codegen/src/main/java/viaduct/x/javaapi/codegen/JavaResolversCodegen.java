@@ -20,7 +20,11 @@ public class JavaResolversCodegen {
   private final GraphQLSchemaParser parser;
 
   public JavaResolversCodegen() {
-    this.parser = new GraphQLSchemaParser();
+    this(null);
+  }
+
+  public JavaResolversCodegen(File schemaRoot) {
+    this.parser = new GraphQLSchemaParser(schemaRoot);
   }
 
   /** Result of the resolver code generation process. */

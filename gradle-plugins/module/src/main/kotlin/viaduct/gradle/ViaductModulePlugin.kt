@@ -1,6 +1,5 @@
 package viaduct.gradle
 
-import centralSchemaDirectoryName
 import org.gradle.api.GradleException
 import org.gradle.api.Plugin
 import org.gradle.api.Project
@@ -210,7 +209,6 @@ class ViaductModulePlugin : Plugin<Project> {
             centralSchemaFiles.from(
                 centralSchemaIncomingCfg.incoming.artifactView {}.files.asFileTree.matching { include("**/*.graphqls") }
             )
-            tenantFromSourceRegex.set("$centralSchemaDirectoryName/partition/(.*)/graphql")
             classpath.setFrom(codegenClasspath)
             mainClass.set(RESOLVER_CODEGEN_MAIN_CLASS)
             wireToModuleLayout(moduleLayout)

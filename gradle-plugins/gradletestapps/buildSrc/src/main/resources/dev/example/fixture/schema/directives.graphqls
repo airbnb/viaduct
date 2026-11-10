@@ -1,0 +1,7 @@
+scalar FixtureJson
+
+directive @fixture(payload: FixtureJson) on OBJECT
+
+interface PluginInputs {
+  inspect(value: FixtureJson, values: [FixtureJson!]): String
+}

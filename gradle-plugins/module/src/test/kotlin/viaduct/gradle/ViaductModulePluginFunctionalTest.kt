@@ -80,7 +80,7 @@ class ViaductModulePluginFunctionalTest {
             .build()
 
         assertTrue(result.output.contains("BUILD SUCCESSFUL"), "Expected build to succeed")
-        val partitionSchemaFile = File(projectDir, "build/viaduct/centralSchema/partition/test/graphql/schema.graphqls")
+        val partitionSchemaFile = File(projectDir, "build/viaduct/centralSchema/schema/module/test/source/schema.graphqls")
         assertTrue(partitionSchemaFile.isFile, "Expected same-project schema partition to be copied into central schema")
         assertTrue(partitionSchemaFile.readText().contains("field: String"))
     }
@@ -140,7 +140,7 @@ class ViaductModulePluginFunctionalTest {
             result.output.contains("generated-sources/viaduct/resolverBases/com/example/topology/topology"),
             "Expected resolver-base output path to use topology package values",
         )
-        assertTrue(result.output.contains("SCHEMA_PREFIX=topology/graphql"))
+        assertTrue(result.output.contains("SCHEMA_PREFIX=schema/module/topology/source"))
     }
 
     @Test
@@ -185,7 +185,7 @@ class ViaductModulePluginFunctionalTest {
             result.output.contains("generated-sources/viaduct/resolverBases/com/example/blank"),
             "Expected resolver-base output path to use topology package prefix",
         )
-        assertTrue(result.output.contains("SCHEMA_PREFIX=graphql"))
+        assertTrue(result.output.contains("SCHEMA_PREFIX=schema/module/com.example.blank/source"))
     }
 
     @Test

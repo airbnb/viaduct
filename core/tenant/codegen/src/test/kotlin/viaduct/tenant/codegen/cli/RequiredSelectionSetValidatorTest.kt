@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import viaduct.graphql.schema.ViaductSchema
 import viaduct.graphql.schema.graphqljava.extensions.fromTypeDefinitionRegistry
+import viaduct.graphql.schema.graphqljava.readTypesFromFiles
 import viaduct.tenant.codegen.ksp.ResolverParams
 
 class RequiredSelectionSetValidatorTest {
@@ -463,6 +464,27 @@ class RequiredSelectionSetValidatorTest {
             expandedSelections = "fragment Main on User { ...UserFields }\nfragment UserFields on User { tenantLocalFromOther }",
         )
         assertTrue(errors.any { it.contains("User.tenantLocalFromOther") }, errors.toString())
+    }
+
+    @Test
+    fun `dotted artifact module may select its own tenant-local fields`() {
+        val schemaFiles = listOf(
+            schemaFile("schema/module/catalog.pricing/source/schema.graphqls", FEATURE_SCHEMA_SDL),
+            schemaFile("schema/module/catalog.inventory/source/schema.graphqls", OTHER_SCHEMA_SDL),
+        )
+        val registry = readTypesFromFiles(schemaFiles, tempDir)
+        val validator = RequiredSelectionSetValidator(
+            tenantCompilationSchema = UnExecutableSchemaGenerator.makeUnExecutableSchema(registry),
+            currentTenantModule = "catalog/pricing",
+            tenantCompilationViaductSchema = ViaductSchema.fromTypeDefinitionRegistry(registry),
+        )
+        val errors = mutableListOf<String>()
+        validator.validate("fragment Main on User { tenantLocalName }", "fragment Main on User { tenantLocalName }", "User", false, field(), errors)
+        assertTrue(errors.isEmpty(), errors.toString())
+
+        validator.validate("fragment Main on User { tenantLocalFromOther }", "fragment Main on User { tenantLocalFromOther }", "User", false, field(), errors)
+        assertEquals(1, errors.size)
+        assertTrue(errors.single().contains("User.tenantLocalFromOther"), errors.toString())
     }
 
     @Test

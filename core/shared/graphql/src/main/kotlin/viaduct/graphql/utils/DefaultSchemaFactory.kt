@@ -27,6 +27,7 @@ import graphql.language.TypeDefinition
 import graphql.language.TypeName
 import graphql.parser.MultiSourceReader
 import graphql.schema.GraphQLScalarType
+import graphql.schema.idl.ScalarInfo
 import graphql.schema.idl.SchemaParser
 import graphql.schema.idl.TypeDefinitionRegistry
 import java.io.File
@@ -283,9 +284,10 @@ object DefaultSchemaFactory {
         includeNodeQueries: IncludeNodeSchema = IncludeNodeSchema.IfUsed,
         existingSDLFiles: List<File> = emptyList(),
         includePageInfo: Boolean = true,
-        includeRootTypes: Boolean = true
+        includeRootTypes: Boolean = true,
+        existingRegistry: TypeDefinitionRegistry? = null,
     ): String {
-        val extantRegistry = if (existingSDLFiles.isNotEmpty()) {
+        val extantRegistry = existingRegistry ?: if (existingSDLFiles.isNotEmpty()) {
             val reader = MultiSourceReader.newMultiSourceReader().let { readerBuilder ->
                 for (f in existingSDLFiles) {
                     readerBuilder.reader(FileReader(f), f.path)
@@ -305,7 +307,7 @@ object DefaultSchemaFactory {
             includeNodeDefinition = includeNodeDefinition,
             includeNodeQueries = includeNodeQueries,
             forceAddRootTypes = includeRootTypes,
-            allowExisting = existingSDLFiles.isNotEmpty(),
+            allowExisting = existingRegistry != null || existingSDLFiles.isNotEmpty(),
             includePageInfo = includePageInfo,
             includeRootTypes = includeRootTypes
         )
@@ -400,6 +402,11 @@ object DefaultSchemaFactory {
      * @return the set of default Viaduct scalars
      */
     fun defaultScalars(): Set<GraphQLScalarType> = Scalars.viaductStandardScalars
+
+    val graphqlScalarNames: Set<String> = ScalarInfo.GRAPHQL_SPECIFICATION_SCALARS_DEFINITIONS.keys.toSet()
+    val defaultScalarNames: Set<String> by lazy { graphqlScalarNames + defaultScalars().map { it.name } }
+
+    fun isDefaultScalar(name: String): Boolean = name in defaultScalarNames
 
     /**
      * Adds default Viaduct directives to the schema if they don't already exist.

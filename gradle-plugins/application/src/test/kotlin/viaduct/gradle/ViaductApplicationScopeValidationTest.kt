@@ -3,6 +3,8 @@ package viaduct.gradle
 import centralSchemaDirectoryName
 import io.kotest.matchers.string.shouldContain
 import java.io.File
+import java.util.zip.ZipEntry
+import java.util.zip.ZipOutputStream
 import org.gradle.testkit.runner.BuildResult
 import org.gradle.testkit.runner.GradleRunner
 import org.gradle.testkit.runner.TaskOutcome
@@ -84,16 +86,18 @@ class ViaductApplicationScopeValidationTest {
         File(projectDir, ViaductScopesYaml.RELATIVE_PATH).delete()
     }
 
-    private fun runner(): GradleRunner =
+    private fun runner(vararg additionalArguments: String): GradleRunner =
         GradleRunner.create()
             .withProjectDir(projectDir)
             .withPluginClasspath(
                 System.getProperty("java.class.path").split(File.pathSeparator).map { File(it) }
             )
             .withArguments(
-                "assembleViaductCentralSchema",
-                "--configuration-cache",
-                "--configuration-cache-problems=fail",
+                listOf(
+                    "assembleViaductCentralSchema",
+                    "--configuration-cache",
+                    "--configuration-cache-problems=fail",
+                ) + additionalArguments
             )
 
     private fun build(): BuildResult = runner().build()
@@ -177,7 +181,7 @@ class ViaductApplicationScopeValidationTest {
         assertEquals(
             emptyList<File>(),
             File(projectDir, "build/$centralSchemaDirectoryName").walkTopDown()
-                .filter { it.name == ViaductApplicationPlugin.BUILTIN_SCHEMA_FILE }
+                .filter { it.invariantSeparatorsPath.endsWith("/" + ViaductApplicationPlugin.BUILTIN_SCHEMA_FILE) }
                 .toList(),
         )
     }
@@ -286,5 +290,68 @@ class ViaductApplicationScopeValidationTest {
         writeScopes(validScopes.replace("PUBLIC_API", "RENAMED_API"))
 
         assertEquals(TaskOutcome.SUCCESS, build().task(":assembleViaductCentralSchema")?.outcome)
+    }
+
+    @Test
+    fun `plugin resources and generated inputs survive isolated configuration and build cache reuse`() {
+        writeSchema(scoped = false)
+        val directoryText = "\n\ndirective @directoryFixture on OBJECT\n"
+        File(projectDir, "directory.graphqls").writeText(directoryText)
+        val jarText = "\nscalar FixtureJson\ndirective @jarFixture(value: FixtureJson) on OBJECT\n"
+        ZipOutputStream(File(projectDir, "fixture.jar").outputStream()).use { output ->
+            output.putNextEntry(ZipEntry("nested/directives.graphqls"))
+            output.write(jarText.toByteArray(Charsets.UTF_8))
+            output.closeEntry()
+        }
+        val generatedInput = File(projectDir, "generated-input").apply { mkdirs() }
+        generatedInput.resolve("keep.graphqls").writeText("directive @keep on OBJECT")
+        val removed = generatedInput.resolve("removed.graphqls").apply { writeText("directive @removed on OBJECT") }
+        File(projectDir, "build.gradle.kts").appendText(
+            "\n" + """
+
+            val generated = tasks.register<Sync>("generateFixtureSchema") {
+                from(layout.projectDirectory.dir("generated-input"))
+                into(layout.buildDirectory.dir("fixture-schema"))
+            }
+            extensions.getByType<viaduct.gradle.ViaductApplicationConventions>().pluginSchema.apply {
+                into("dev.example.fixture/source/directory") {
+                    from(resources.text.fromUri(layout.projectDirectory.file("directory.graphqls").asFile.toURI())) {
+                        rename { "directives.graphqls" }
+                    }
+                }
+                into("dev.example.fixture/source/nested") {
+                    from(resources.text.fromUri("jar:" + layout.projectDirectory.file("fixture.jar").asFile.toURI() + "!/nested/directives.graphqls")) {
+                        rename { "directives.graphqls" }
+                    }
+                }
+                into("dev.example.fixture/generated/dev.example.generator") {
+                    from(generated.map { it.destinationDir })
+                }
+            }
+            """.trimIndent(),
+        )
+
+        fun run() = runner("--build-cache", "-Dorg.gradle.unsafe.isolated-projects=true").build()
+        val first = run()
+        assertEquals(TaskOutcome.SUCCESS, first.task(":generateFixtureSchema")?.outcome)
+        val schema = File(projectDir, "build/$centralSchemaDirectoryName")
+        assertEquals(directoryText, schema.resolve("schema/plugin/dev.example.fixture/source/directory/directives.graphqls").readText())
+        assertEquals(jarText, schema.resolve("schema/plugin/dev.example.fixture/source/nested/directives.graphqls").readText())
+        val generatedPath = "schema/plugin/dev.example.fixture/generated/dev.example.generator/removed.graphqls"
+        assertEquals(removed.readText(), schema.resolve(generatedPath).readText())
+
+        val repeated = run()
+        repeated.output shouldContain "Reusing configuration cache"
+        assertEquals(TaskOutcome.UP_TO_DATE, repeated.task(":assembleViaductCentralSchema")?.outcome)
+        removed.delete()
+        val changed = run()
+        changed.output shouldContain "Reusing configuration cache"
+        assertEquals(TaskOutcome.SUCCESS, changed.task(":assembleViaductCentralSchema")?.outcome)
+        assertEquals(false, schema.resolve(generatedPath).exists())
+        schema.deleteRecursively()
+        val restored = run()
+        assertEquals(TaskOutcome.FROM_CACHE, restored.task(":assembleViaductCentralSchema")?.outcome)
+        assertEquals(jarText, schema.resolve("schema/plugin/dev.example.fixture/source/nested/directives.graphqls").readText())
+        assertEquals(false, schema.resolve(generatedPath).exists())
     }
 }

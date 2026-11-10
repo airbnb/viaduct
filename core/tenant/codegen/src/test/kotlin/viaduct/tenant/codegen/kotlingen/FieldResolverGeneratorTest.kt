@@ -1,12 +1,15 @@
 package viaduct.tenant.codegen.kotlingen
 
+import graphql.parser.MultiSourceReader
 import graphql.schema.idl.SchemaParser
 import java.io.File
+import java.io.StringReader
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertDoesNotThrow
 import org.junit.jupiter.api.assertThrows
+import org.junit.jupiter.api.io.TempDir
 import viaduct.graphql.schema.ViaductSchema
 import viaduct.graphql.schema.graphqljava.extensions.fromTypeDefinitionRegistry
 import viaduct.tenant.codegen.bytecode.config.ViaductBaseTypeMapper
@@ -16,6 +19,66 @@ import viaduct.tenant.codegen.bytecode.config.mutationNamespaceTypeNames
 // While each test case makes only a small number of assertions, they are useful places
 // for setting a breakpoint to inspect the generated output before it gets compiled.
 class FieldResolverGeneratorTest {
+    @Test
+    fun `dotted module ownership generates only its field and node resolver bases`(
+        @TempDir outputDir: File
+    ) {
+        val sources = MultiSourceReader.newMultiSourceReader()
+            .reader(
+                StringReader(
+                    """
+                    directive @resolver on OBJECT | FIELD_DEFINITION
+                    interface Node { id: ID! }
+                    type Query { placeholder: String }
+                    """.trimIndent() + "\n",
+                ),
+                "schema/application/source/schema.graphqls",
+            )
+            .reader(
+                StringReader(
+                    """
+                    extend type Query { price: String @resolver }
+                    type Product implements Node @resolver { id: ID! }
+                    """.trimIndent() + "\n",
+                ),
+                "schema/module/catalog.pricing/generated/dev.example.plugin/schema.graphqls",
+            )
+            .reader(
+                StringReader(
+                    """
+                    extend type Query { stock: String @resolver }
+                    type Inventory implements Node @resolver { id: ID! }
+                    """.trimIndent() + "\n",
+                ),
+                "schema/module/catalog.inventory/source/schema.graphqls",
+            )
+            .build()
+        val schema = ViaductSchema.fromTypeDefinitionRegistry(SchemaParser().parse(sources))
+        listOf("pkg" to null, "" to null, "pkg" to "catalog", "viaduct.testapps" to null).forEachIndexed { index, (prefix, modulePrefix) ->
+            val generatedDir = outputDir.resolve("case$index").apply { mkdirs() }
+            val args = Args(
+                tenantPackage = listOf(prefix, "catalog.pricing").filter(String::isNotEmpty).joinToString("."),
+                tenantPackagePrefix = prefix,
+                tenantName = "catalog.pricing",
+                grtPackage = "pkg.grts",
+                modernModuleGeneratedDir = null,
+                metainfGeneratedDir = null,
+                resolverGeneratedDir = generatedDir,
+                baseTypeMapper = ViaductBaseTypeMapper(schema),
+                tenantSchemaModulePrefix = modulePrefix,
+            )
+            schema.generateFieldResolvers(args)
+            schema.generateNodeResolvers(args)
+
+            val fields = generatedDir.resolve("QueryResolvers.kt").readText()
+            val nodes = generatedDir.resolve("resolverbases/NodeResolvers.kt").readText()
+            assertTrue(fields.contains("class Price "))
+            assertTrue(nodes.contains("abstract class Product "))
+            assertTrue(fields.contains("class Stock ") == (modulePrefix != null))
+            assertTrue(nodes.contains("abstract class Inventory ") == (modulePrefix != null))
+        }
+    }
+
     private fun mkSchema(sdl: String): ViaductSchema {
         val tdr = SchemaParser().parse(sdl)
         return ViaductSchema.fromTypeDefinitionRegistry(tdr)
