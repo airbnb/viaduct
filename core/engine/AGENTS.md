@@ -6,6 +6,14 @@ This directory contains four subprojects: `api/` defines the top-level and intra
 
 Most of `engine/api` pertains to the intra-operation API used by the engine to invoke resolvers.  At the core of this API are the _executor_ Kotlin interfaces, for example [`viaduct.engine.api.spi.FieldResolverExecutor`](api/src/main/kotlin/viaduct/engine/api/spi/FieldResolverExecutor.kt).  The Tenant API (found in `../tenant`) is responsible for producing an implementation of this interface for each field resolver written by application developers.  When it's time to invoke a resolver, the engine calls the `FieldResolverExecutor.batchResolve` function to do so.
 
+## Engine API regression tests
+
+For FER (`runtime2`) regressions in behavior observable through the Engine API, prefer the [shared Engine API feature-test contracts](api/src/testFixtures/kotlin/viaduct/engine/runtime/execution/). These contracts keep regression coverage reusable across engine implementations and future resolution rewrites. Extend the narrowest existing contract that covers the behavior; if none fits, add a contract with corresponding engine runners.
+
+Keep reusable scenarios and assertions in the shared contract, using [QueryExecutionContract](api/src/testFixtures/kotlin/viaduct/engine/runtime/execution/QueryExecutionContract.kt). For example, [RequiredSelectionsContract](api/src/testFixtures/kotlin/viaduct/engine/runtime/execution/RequiredSelectionsContract.kt) has [a `runtime` runner](runtime/src/test/kotlin/viaduct/engine/runtime/execution/RequiredSelectionsContractTest.kt) and [a `runtime2` runner](runtime2/src/test/kotlin/viaduct/engine/runtime2/execution/Engine2RequiredSelectionsContractTest.kt). Keep engine selection and implementation-specific expectations in the runners, following their existing treatment of compatibility differences.
+
+Use focused tests for internal invariants or behavior the shared Engine API harness cannot express. Retain complementary tests that catch failures the shared contract does not.
+
 ## File-based tenant loading
 
 The engine owns bootstrap orchestration in `runtime/.../tenantloading/`. Service configuration and the `TenantModuleInjectorFactory` lifecycle are described in [service guidance](../service/AGENTS.md).
