@@ -31,7 +31,6 @@ import viaduct.errors.TenantUsageException
 import viaduct.java.api.context.NodeExecutionContext
 import viaduct.java.api.internal.BaseBatchedNodeResolver
 import viaduct.java.api.internal.BaseUnbatchedNodeResolver
-import viaduct.java.api.internal.InternalContext
 import viaduct.java.api.internal.ObjectBase
 import viaduct.java.api.resolvers.FieldValue
 import viaduct.java.api.types.NodeObject
@@ -40,28 +39,11 @@ import viaduct.service.api.spi.GlobalIDCodec
 import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
 
 private class TestNodeGRT : ObjectBase, NodeObject {
-    constructor(data: EngineObjectData.Sync, context: InternalContext? = null, isRequiredSelectionInput: Boolean = false) : super(context, data, isRequiredSelectionInput)
+    constructor(data: EngineObjectData.Sync) : super(null, data)
     constructor(ref: NodeReference) : super(null, ref)
 }
 
 class JavaNodeResolverExecutorTest {
-    @Test
-    fun `required selection node returns are attributed to their resolver`() =
-        runBlocking {
-            val input = TestNodeGRT(mockk<EngineObjectData.Sync>(), isRequiredSelectionInput = true)
-            val executor = JavaNodeResolverExecutorImpl(
-                resolver = nodeResolver { CompletableFuture.completedFuture(input) },
-                typeName = "TestType",
-                resolverName = "TestNodeResolver",
-            )
-
-            val result = executor.resolve(listOf(selector()), mockEngineContext()).values.single()
-
-            val error = result.exceptionOrNull().shouldBeInstanceOf<TenantResolverException>()
-            error.cause.shouldBeInstanceOf<TenantUsageException>()
-            assertEquals("TestType", error.resolver)
-        }
-
     private fun mockEngineContext(): EngineExecutionContext =
         mockk {
             every { requestContext } returns null

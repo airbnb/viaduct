@@ -239,8 +239,7 @@ internal class JavaEngineContextDelegate(
                 convertSyncEngineDataToJavaObject(
                     targetClass,
                     result,
-                    buildInternalContext(engineCtx, grtPackagePrefix),
-                    isRequiredSelectionInput = false,
+                    buildInternalContext(engineCtx, grtPackagePrefix)
                 ) as T
             }
         }

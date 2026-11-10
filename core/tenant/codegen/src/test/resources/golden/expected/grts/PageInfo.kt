@@ -10,11 +10,9 @@ import viaduct.engine.api.EngineObject
 import viaduct.engine.api.EngineObjectData
 
 @OptIn(InternalApi::class)
-class PageInfo(context: InternalContext, engineObject: EngineObject, isRequiredSelectionInput: Boolean)
-    : ObjectBase(context, engineObject, isRequiredSelectionInput), viaduct.api.types.Object
+class PageInfo(context: InternalContext, engineObject: EngineObject)
+    : ObjectBase(context, engineObject), viaduct.api.types.Object
 {
-    constructor(context: InternalContext, engineObject: EngineObject) : this(context, engineObject, false)
-
      fun getHasNextPageOrThrow(alias: String?): kotlin.Boolean = TODO()
      fun getHasNextPageOrThrow(): kotlin.Boolean = TODO()
      fun getHasNextPage(alias: String?): kotlin.Boolean? = TODO()
@@ -37,7 +35,7 @@ class PageInfo(context: InternalContext, engineObject: EngineObject, isRequiredS
 
 
     fun toBuilder(): Builder =
-        Builder(__context, __engineObject.type, toBuilderEOD(), __isRequiredSelectionInput)
+        Builder(__context, __engineObject.type, toBuilderEOD())
 
     object of {
         operator fun invoke(context: ExecutionContext, block: Builder.() -> Unit): PageInfo =
@@ -49,16 +47,14 @@ class PageInfo(context: InternalContext, engineObject: EngineObject, isRequiredS
             : super(
                 context as InternalContext,
                 TODO() as graphql.schema.GraphQLObjectType,
-                null,
-                false
+                null
             )
 
         internal constructor(
             context: InternalContext,
             type: graphql.schema.GraphQLObjectType,
-            baseEngineObjectData: EngineObjectData.Sync,
-            isRequiredSelectionInput: Boolean
-        ) : super(context, type, baseEngineObjectData, isRequiredSelectionInput)
+            baseEngineObjectData: EngineObjectData.Sync
+        ) : super(context, type, baseEngineObjectData)
 
                   fun hasNextPage(value: kotlin.Boolean): Builder = TODO()
 

@@ -32,6 +32,6 @@ class NodeReferenceGRTFactoryImpl(
             type,
         )
 
-        return nodeReference.toObjectGRT(internalContext, id.type.kcls, isRequiredSelectionInput = false)
+        return nodeReference.toObjectGRT(internalContext, id.type.kcls)
     }
 }

@@ -56,11 +56,7 @@ public class Order extends NodeObjectBase implements Node, Auditable, Timestampe
     }
 
     public Order(InternalContext context, EngineObjectData.Sync data) {
-        this(context, data, false);
-    }
-
-    public Order(InternalContext context, EngineObjectData.Sync data, boolean isRequiredSelectionInput) {
-        super(context, data, isRequiredSelectionInput);
+        super(context, data);
     }
 
     @SuppressWarnings("UnusedMethod")

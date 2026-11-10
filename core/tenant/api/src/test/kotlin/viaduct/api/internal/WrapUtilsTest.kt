@@ -5,7 +5,6 @@ package viaduct.api.internal
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
-import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import viaduct.api.mocks.MockInternalContext
@@ -13,9 +12,7 @@ import viaduct.api.testschema.ApiTestSchema
 import viaduct.api.testschema.E1
 import viaduct.api.testschema.Input2
 import viaduct.api.testschema.TestType
-import viaduct.engine.api.EngineObject
 import viaduct.engine.api.ResolvedEngineObjectData
-import viaduct.errors.TenantUsageException
 
 class WrapUtilsTest {
     private val schema = ApiTestSchema.schema
@@ -75,27 +72,4 @@ class WrapUtilsTest {
             )
             assertEquals("foo", obj.getIdOrThrow())
         }
-
-    @Test
-    fun `object construction keeps origin on the view rather than the backing data`() {
-        val data = ResolvedEngineObjectData(schema.schema.getObjectType("TestType"), mapOf("id" to "foo"))
-        val input = wrapOutputObject(internalContext, TestType.Reflection, data, isRequiredSelectionInput = true)
-        val output = wrapOutputObject(internalContext, TestType.Reflection, data, isRequiredSelectionInput = false)
-
-        assertThrows<TenantUsageException> { input.checkOutputValue() }
-        output.checkOutputValue()
-        assertSame(data, input.__engineObject)
-        assertSame(data, output.__engineObject)
-    }
-
-    class LegacyObject(context: InternalContext, data: EngineObject) : ObjectBase(context, data)
-
-    @Test
-    fun `object construction never falls back to an unmarked legacy constructor`() {
-        val data = ResolvedEngineObjectData(schema.schema.getObjectType("TestType"), emptyMap())
-
-        assertThrows<IllegalArgumentException> {
-            constructObjectGRT(internalContext, LegacyObject::class, data, isRequiredSelectionInput = true)
-        }
-    }
 }

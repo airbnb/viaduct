@@ -198,7 +198,6 @@ class EngineExecutionContextWrapperImplTest {
             val query = assertInstanceOf(FakeQuery::class.java, result)
             assertSame(ctx, query.ctx)
             assertSame(data, query.data)
-            assertFalse(query.__isRequiredSelectionInput)
         }
 
     @Test
@@ -240,7 +239,6 @@ class EngineExecutionContextWrapperImplTest {
             val mutation = assertInstanceOf(FakeMutation::class.java, result)
             assertSame(ctx, mutation.ctx)
             assertSame(data, mutation.data)
-            assertFalse(mutation.__isRequiredSelectionInput)
         }
 
     @Test

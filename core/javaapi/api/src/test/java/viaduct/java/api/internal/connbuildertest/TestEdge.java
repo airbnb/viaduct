@@ -10,12 +10,7 @@ import viaduct.java.api.types.Edge;
 /** Edge test GRT with both construction paths (engine + builder), like a generated @edge type. */
 final class TestEdge extends ObjectBase implements Edge<TestNode> {
   TestEdge(@Nullable InternalContext ctx, EngineObjectData.Sync data) {
-    this(ctx, data, false);
-  }
-
-  TestEdge(
-      @Nullable InternalContext ctx, EngineObjectData.Sync data, boolean isRequiredSelectionInput) {
-    super(ctx, data, isRequiredSelectionInput);
+    super(ctx, data);
   }
 
   TestEdge(@Nullable InternalContext ctx, Map<String, Object> data) {

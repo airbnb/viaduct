@@ -22,10 +22,7 @@ import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
-import org.junit.jupiter.params.ParameterizedTest
-import org.junit.jupiter.params.provider.ValueSource
 import viaduct.engine.api.EngineExecutionContext
-import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.spi.FieldResolverExecutor
 import viaduct.errors.ErroneousFieldException
 import viaduct.errors.FieldError
@@ -39,31 +36,6 @@ import viaduct.java.api.types.NodeCompositeOutput
 import viaduct.service.api.spi.GlobalIDCodec
 
 class JavaFieldBatchResolverExecutorTest {
-    @ParameterizedTest
-    @ValueSource(booleans = [false, true])
-    fun `returning object or query RSS values fails only the affected batch item`(queryValue: Boolean) =
-        runBlocking {
-            val data = mockk<EngineObjectData.Sync>()
-            val valueClass = JavaFieldResolverExecutorTest.RequiredSelectionValue::class.java
-            val executor = executor(
-                objectValueClass = if (queryValue) null else valueClass,
-                queryValueClass = if (queryValue) valueClass else null,
-            ) { contexts ->
-                val input = if (queryValue) contexts[0].queryValue else contexts[0].objectValue
-                CompletableFuture.completedFuture(
-                    mapOf(contexts[0] to FieldValue.ofValue(input), contexts[1] to FieldValue.ofValue("ok"))
-                )
-            }
-            val selectors = List(2) { FieldResolverExecutor.Selector(emptyMap(), null, { data }, { data }) }
-
-            val results = executor.batchResolve(selectors, engineContext())
-
-            val error = assertInstanceOf(TenantResolverException::class.java, results.getValue(selectors[0]).exceptionOrNull())
-            assertInstanceOf(TenantUsageException::class.java, error.cause)
-            assertEquals("Item.value", error.resolver)
-            assertEquals("ok", results.getValue(selectors[1]).getOrThrow())
-        }
-
     @Test
     fun `batched typed ID result uses the execution codec`(): Unit =
         runBlocking {
@@ -238,11 +210,7 @@ class JavaFieldBatchResolverExecutorTest {
             assertInstanceOf(TenantUsageException::class.java, error.cause)
         }
 
-    private fun executor(
-        objectValueClass: Class<*>? = null,
-        queryValueClass: Class<*>? = null,
-        resolve: (List<FieldExecutionContext<*, *, *, *>>) -> CompletableFuture<Map<FieldExecutionContext<*, *, *, *>, FieldValue<*>?>?>,
-    ): FieldBatchResolverExecutorImpl =
+    private fun executor(resolve: (List<FieldExecutionContext<*, *, *, *>>) -> CompletableFuture<Map<FieldExecutionContext<*, *, *, *>, FieldValue<*>?>?>): FieldBatchResolverExecutorImpl =
         FieldBatchResolverExecutorImpl(
             resolver = Provider {
                 object : BaseBatchedFieldResolver {
@@ -255,8 +223,6 @@ class JavaFieldBatchResolverExecutorTest {
             },
             resolverId = "Item.value",
             resolverName = "ValueResolver",
-            objectValueClass = objectValueClass,
-            queryValueClass = queryValueClass,
         )
 
     private fun selectors(count: Int) =

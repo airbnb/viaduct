@@ -158,17 +158,17 @@ class FieldBatchResolverExecutorImpl(
 
     private suspend fun createObjectValue(
         selector: FieldResolverExecutor.Selector,
-        internalContext: InternalContext
+        internalContext: InternalContext?
     ): Any? {
         if (objectValueClass == null) return null
-        return convertSyncEngineDataToJavaObject(objectValueClass, selector.syncObjectValueGetter(), internalContext, isRequiredSelectionInput = true)
+        return convertSyncEngineDataToJavaObject(objectValueClass, selector.syncObjectValueGetter(), internalContext)
     }
 
     private suspend fun createQueryValue(
         selector: FieldResolverExecutor.Selector,
-        internalContext: InternalContext
+        internalContext: InternalContext?
     ): Any? {
         if (queryValueClass == null) return null
-        return convertSyncEngineDataToJavaObject(queryValueClass, selector.syncQueryValueGetter(), internalContext, isRequiredSelectionInput = true)
+        return convertSyncEngineDataToJavaObject(queryValueClass, selector.syncQueryValueGetter(), internalContext)
     }
 }

@@ -3,9 +3,6 @@ package viaduct.java.api.internal;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.junit.jupiter.api.Assertions.assertSame;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import graphql.Scalars;
 import graphql.schema.GraphQLAppliedDirective;
@@ -24,7 +21,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
-import viaduct.engine.api.EngineObjectData;
 import viaduct.engine.api.EngineSchema;
 import viaduct.errors.TenantUsageException;
 import viaduct.java.api.globalid.GlobalID;
@@ -247,53 +243,6 @@ class OutputBuilderTypeCheckerTest {
                 OutputBuilderTypeChecker.checkField(
                     CONTEXT, "Container", "tags", List.of(wrongType)))
         .isInstanceOf(TenantUsageException.class);
-  }
-
-  @Test
-  void distinguishesInputAndOutputViewsOfTheSameEngineData() {
-    EngineObjectData.Sync data = ObjectBaseTest.engineData(NODE_VALUE_TYPE, Map.of("id", "123"));
-    ObjectBase input = new ObjectBaseTest.TestObject(CONTEXT, data, true);
-    ObjectBase output = new ObjectBaseTest.TestObject(CONTEXT, data, false);
-
-    TenantUsageException error =
-        assertThrows(
-            TenantUsageException.class,
-            () -> OutputBuilderTypeChecker.checkField(CONTEXT, "Query", "nodeValue", input));
-
-    assertTrue(error.getMessage().contains("required-selection GRT 'TestObject'"));
-    assertSame(output, OutputBuilderTypeChecker.checkField(CONTEXT, "Query", "nodeValue", output));
-  }
-
-  @Test
-  void rejectsRequiredSelectionObjectsInsideNestedLists() {
-    ObjectBase input =
-        new ObjectBaseTest.TestObject(
-            CONTEXT, ObjectBaseTest.engineData(TAG_TYPE, Map.of("name", "input")), true);
-
-    assertThrows(
-        TenantUsageException.class,
-        () ->
-            OutputBuilderTypeChecker.checkField(
-                CONTEXT,
-                "Container",
-                "nestedTags",
-                List.of(List.of(GeneratedGRTs.tag()), List.of(input))));
-  }
-
-  @Test
-  void rejectsCopiedRequiredSelectionObjectsForInterfaceAndUnionFields() {
-    ObjectBase input =
-        new ObjectBaseTest.TestObject(
-                CONTEXT, ObjectBaseTest.engineData(TAG_TYPE, Map.of("name", "input")), true)
-            .copy(Map.of("name", "changed"))
-            .copy(Map.of());
-
-    for (String field : List.of("namedValues", "searchResults")) {
-      assertThrows(
-          TenantUsageException.class,
-          () -> OutputBuilderTypeChecker.checkField(CONTEXT, "Container", field, List.of(input)),
-          field);
-    }
   }
 
   @Test

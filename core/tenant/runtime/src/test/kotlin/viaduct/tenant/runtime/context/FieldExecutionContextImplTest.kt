@@ -3,7 +3,6 @@
 package viaduct.tenant.runtime.context
 
 import io.mockk.mockk
-import kotlin.reflect.KClass
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -11,8 +10,6 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import viaduct.api.context.Caller
-import viaduct.api.internal.ObjectBase
-import viaduct.api.internal.checkOutputValue
 import viaduct.api.mocks.MockInternalContext
 import viaduct.api.mocks.MockReflectionLoader
 import viaduct.api.select.SelectionSet
@@ -21,40 +18,14 @@ import viaduct.api.types.CompositeOutput
 import viaduct.api.types.Object
 import viaduct.api.types.Query as QueryType
 import viaduct.engine.api.Caller as EngineCaller
-import viaduct.engine.api.EngineObjectDataBuilder
 import viaduct.errors.FrameworkException
-import viaduct.errors.TenantUsageException
 import viaduct.service.api.spi.GlobalIDCodec
 import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
-import viaduct.tenant.runtime.FakeQuery
 import viaduct.tenant.runtime.executioncontext.ExecutionContextTestSchema
 import viaduct.tenant.runtime.executioncontext.Query
 
 class FieldExecutionContextImplTest : ContextTestBase() {
     private val queryObject = mockk<Query>()
-
-    @Test
-    @Suppress("UNCHECKED_CAST")
-    fun `object and query RSS roots are input GRTs`() =
-        runTest {
-            val schema = ExecutionContextTestSchema.schema
-            val data = EngineObjectDataBuilder.from(schema.schema.queryType).build()
-            val ctx = FieldExecutionContextImpl(
-                MockInternalContext(schema),
-                createMockingWrapper(schema),
-                noSelections,
-                null,
-                Args,
-                syncObjectValueGetter = { data },
-                syncQueryValueGetter = { data },
-                objectCls = FakeQuery::class as KClass<Object>,
-                queryCls = FakeQuery::class,
-                ownedSelections = lazyOf(noSelections),
-            )
-
-            assertThrows<TenantUsageException> { (ctx.getObjectValue() as ObjectBase).checkOutputValue() }
-            assertThrows<TenantUsageException> { ctx.getQueryValue().checkOutputValue() }
-        }
 
     private fun mk(
         args: Arguments = Args,

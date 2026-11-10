@@ -63,7 +63,7 @@ internal class EODBuilderWrapper(
     private fun unwrap(
         field: GraphQLFieldDefinition,
         fieldType: GraphQLType,
-        value: Any?,
+        value: Any?
     ): Any? {
         if (value == null) {
             if (GraphQLTypeUtil.isNonNull(fieldType)) {
@@ -105,26 +105,23 @@ internal class EODBuilderWrapper(
     private fun unwrapList(
         field: GraphQLFieldDefinition,
         listType: GraphQLList,
-        value: Any,
+        value: Any
     ): List<*> {
         if (value !is List<*>) {
             throw TenantUsageException("Got non-list builder value $value for list type")
         }
-        return value.map { item ->
-            unwrap(field, GraphQLTypeUtil.unwrapOne(listType), item)
+        return value.map {
+            unwrap(field, GraphQLTypeUtil.unwrapOne(listType), it)
         }
     }
 
     @Suppress("SENSELESS_COMPARISON") // defensive null check
     private fun unwrapObject(
         expectedType: GraphQLCompositeType,
-        value: Any,
+        value: Any
     ): EngineObject {
         val engineObject = when (value) {
-            is ObjectBase -> {
-                value.checkOutputValue()
-                value.__engineObject
-            }
+            is ObjectBase -> value.__engineObject
             is EngineObjectData -> value
             else -> throw TenantUsageException("Expected ObjectBase or EngineObjectData for builder value, got $value")
         }

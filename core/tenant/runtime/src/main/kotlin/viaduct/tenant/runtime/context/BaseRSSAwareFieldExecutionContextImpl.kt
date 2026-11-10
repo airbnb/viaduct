@@ -47,7 +47,7 @@ sealed class BaseRSSAwareFieldExecutionContextImpl<Q : Query, A : Arguments, R :
                     "Sync object value is not available. " +
                         "This may indicate an internal error in Viaduct."
                 )
-            resolvedSyncObjectValue.toObjectGRT(this, objectCls, isRequiredSelectionInput = true)
+            resolvedSyncObjectValue.toObjectGRT(this, objectCls)
         }
 
     override suspend fun getQueryValue(): Q =
@@ -57,6 +57,6 @@ sealed class BaseRSSAwareFieldExecutionContextImpl<Q : Query, A : Arguments, R :
                     "Sync query value is not available. " +
                         "This may indicate an internal error in Viaduct."
                 )
-            resolvedSyncQueryValue.toObjectGRT(this, queryCls, isRequiredSelectionInput = true)
+            resolvedSyncQueryValue.toObjectGRT(this, queryCls)
         }
 }

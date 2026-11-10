@@ -9,7 +9,6 @@ import kotlin.reflect.full.primaryConstructor
 import kotlin.reflect.full.valueParameters
 import viaduct.api.internal.InputTypeFactory
 import viaduct.api.internal.InternalContext
-import viaduct.api.internal.constructObjectGRT
 import viaduct.api.types.Arguments
 import viaduct.api.types.Input
 import viaduct.api.types.InputLike
@@ -46,8 +45,7 @@ private fun <T : Any> KClass<out T>.getGRTConstructor(kind: KClass<*>): KFunctio
  */
 fun <T : Object> EngineObject.toObjectGRT(
     internalContext: InternalContext,
-    kcls: KClass<T>,
-    isRequiredSelectionInput: Boolean,
+    kcls: KClass<T>
 ): T {
     require(kcls.hasAnnotation<FakeGRT>() || kcls.simpleName == this.type.name) {
         "KClass name (${kcls.simpleName}) does not match object-type name (${this.type.name})."
@@ -55,8 +53,7 @@ fun <T : Object> EngineObject.toObjectGRT(
     require(kcls.isSubclassOf(Object::class)) {
         "KClass $kcls is not in { Object }."
     }
-    kcls.getGRTConstructor(Object::class)
-    return constructObjectGRT(internalContext, kcls, this, isRequiredSelectionInput)
+    return kcls.getGRTConstructor(Object::class).call(internalContext, this)
 }
 
 /**
@@ -123,10 +120,9 @@ private fun <T : Any> KFunction<T>.requireValidGRTConstructorFor(
     when {
         kind == Object::class -> {
             require(
-                classifiers.size == 3 &&
+                classifiers.size == 2 &&
                     classifiers[0].isSubclassOf(InternalContext::class) &&
-                    classifiers[1].isSubclassOf(EngineObject::class) &&
-                    classifiers[2] == Boolean::class
+                    classifiers[1].isSubclassOf(EngineObject::class)
             ) {
                 "Primary constructor ($this) for object type does not conform to expected signature."
             }

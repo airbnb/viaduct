@@ -1,15 +1,9 @@
 package viaduct.tenant.runtime.execution.requiredselections
 
-import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.params.ParameterizedTest
-import org.junit.jupiter.params.provider.ValueSource
 import viaduct.api.testing.TestSchema
 import viaduct.api.testing.featureapp.KotlinFeatureAppTestContractBase
 import viaduct.graphql.test.assertEquals
-import viaduct.service.api.spi.FlagManager
-import viaduct.service.api.spi.mocks.MockFlagManager
 
 /**
  * Contract test for required selection set (RSS) features:
@@ -31,29 +25,6 @@ import viaduct.service.api.spi.mocks.MockFlagManager
       string1: String @resolver
       "Return \"InitialValue\""
       initialString: String @resolver
-      inputObject: Baz @resolver
-      inputQuery: Baz @resolver
-      inputCopy: Baz @resolver
-      nestedInput: BazBox @resolver
-      subqueryOutput: Baz @resolver
-      subqueryCopy: Baz @resolver
-      scalarCopy: Baz @resolver
-      sourceConnection: BazConnection @resolver
-      inputConnectionCopy: BazConnection @resolver
-    }
-
-    type BazBox {
-      baz: Baz
-    }
-
-    type BazEdge @edge {
-      node: Baz
-      cursor: String
-    }
-
-    type BazConnection @connection {
-      edges: [BazEdge]
-      pageInfo: PageInfo
     }
 
     extend type Mutation {
@@ -75,67 +46,6 @@ import viaduct.service.api.spi.mocks.MockFlagManager
 """
 )
 abstract class RequiredSelectionsContractTest : KotlinFeatureAppTestContractBase() {
-    @ParameterizedTest
-    @ValueSource(booleans = [false, true])
-    fun `required selection GRTs cannot be returned even when output selections fit`(engine2: Boolean) {
-        configureEngine(engine2)
-        for (field in listOf("inputObject", "inputQuery", "inputCopy")) {
-            for (selection in listOf("x", "x y")) {
-                val result = execute("{ $field { $selection } }")
-                assertEquals(1, result.errors.size, "$field { $selection }")
-                assertEquals("viaduct.errors.TenantUsageException", result.errors.single().extensions["fullyQualifiedErrorClass"])
-                assertTrue(result.errors.single().message.contains("required-selection GRT"))
-            }
-        }
-    }
-
-    @ParameterizedTest
-    @ValueSource(booleans = [false, true])
-    fun `required selection GRTs cannot be embedded in fresh outputs`(engine2: Boolean) {
-        configureEngine(engine2)
-        val result = execute("{ nestedInput { baz { x } } }")
-        assertEquals(1, result.errors.size)
-        assertEquals("viaduct.errors.TenantUsageException", result.errors.single().extensions["fullyQualifiedErrorClass"])
-        assertTrue(
-            result.errors.single().message.contains(
-                "Cannot use required-selection GRT 'Baz' as output. Build a new GRT or use ctx.query() with the output selections."
-            )
-        )
-    }
-
-    @ParameterizedTest
-    @ValueSource(booleans = [false, true])
-    fun `subquery GRTs and explicitly copied scalars can be returned`(engine2: Boolean) {
-        configureEngine(engine2)
-        for (field in listOf("subqueryOutput", "subqueryCopy", "scalarCopy")) {
-            execute("{ $field { x y } }").assertEquals {
-                "data" to {
-                    field to {
-                        "x" to 100
-                        "y" to "B item with value 100"
-                    }
-                }
-            }
-        }
-    }
-
-    private fun configureEngine(engine2: Boolean) {
-        withViaductBuilder {
-            withFlagManager(if (engine2) MockFlagManager.create(FlagManager.Flags.ENGINE2_ENABLED) else MockFlagManager())
-        }
-    }
-
-    @ParameterizedTest
-    @ValueSource(booleans = [false, true])
-    fun `generated connection copies retain required selection origin`(engine2: Boolean) {
-        configureEngine(engine2)
-        val result = execute("{ inputConnectionCopy { __typename } }")
-
-        assertEquals(1, result.errors.size)
-        assertEquals("viaduct.errors.TenantUsageException", result.errors.single().extensions["fullyQualifiedErrorClass"])
-        assertTrue(result.errors.single().message.contains("required-selection GRT 'BazConnection'"))
-    }
-
     @Test
     fun `required selections use deep aliases via objectValueFragment`() {
         execute("{ string1 }").assertEquals {

@@ -63,8 +63,7 @@ class GRTConstructorExtensionsTest {
 
     class ValidObject(
         ctx: InternalContext,
-        eod: EngineObject,
-        isRequiredSelectionInput: Boolean
+        eod: EngineObject
     ) : Object
 
     @Test
@@ -213,7 +212,7 @@ class GRTConstructorExtensionsTest {
 
     @Test
     fun `toObjectGRT - succeeds for FakeObject`() {
-        val o = fakeEOD.toObjectGRT(ictx, FakeObject::class, isRequiredSelectionInput = false)
+        val o = fakeEOD.toObjectGRT(ictx, FakeObject::class)
         o.shouldBeInstanceOf<FakeObject>()
         runBlocking {
             assertEquals(42, o.get<Int>("i"))
@@ -222,7 +221,7 @@ class GRTConstructorExtensionsTest {
 
     @Test
     fun `toObjectGRT - succeeds for FakeQuery`() {
-        val o = fakeEOD.toObjectGRT(ictx, FakeQuery::class, isRequiredSelectionInput = false)
+        val o = fakeEOD.toObjectGRT(ictx, FakeQuery::class)
         o.shouldBeInstanceOf<FakeQuery>()
         runBlocking {
             assertEquals(true, o.get<Boolean>("s"))
@@ -232,7 +231,7 @@ class GRTConstructorExtensionsTest {
     @Test
     fun `toObjectGRT - throws IAE when kcls name does not match object type name`() {
         val exception = assertThrows<IllegalArgumentException> {
-            fakeEOD.toObjectGRT(ictx, ValidObject::class, isRequiredSelectionInput = false)
+            fakeEOD.toObjectGRT(ictx, ValidObject::class)
         }
         assertTrue(exception.message!!.contains("does not match"))
     }
@@ -248,7 +247,7 @@ class GRTConstructorExtensionsTest {
     fun `toObjectGRT - throws IAE when kcls is Input type with matching name (type erasure test)`() {
         val exception = assertThrows<IllegalArgumentException> {
             @Suppress("UNCHECKED_CAST")
-            fakeEOD.toObjectGRT(ictx, Type::class as KClass<Object>, isRequiredSelectionInput = false)
+            fakeEOD.toObjectGRT(ictx, Type::class as KClass<Object>)
         }
         assertTrue(exception.message!!.contains("is not in"))
     }

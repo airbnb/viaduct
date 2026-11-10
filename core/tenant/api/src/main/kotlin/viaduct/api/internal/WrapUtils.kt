@@ -6,7 +6,6 @@ import kotlin.reflect.KClass
 import kotlin.reflect.full.isSubclassOf
 import kotlin.reflect.full.primaryConstructor
 import viaduct.api.reflect.Type
-import viaduct.api.types.GRT
 import viaduct.api.types.Input
 import viaduct.api.types.Object
 import viaduct.apiannotations.InternalApi
@@ -61,20 +60,12 @@ fun <T : Input> wrapInputObject(
     return ctor.newInstance(ctx, value, graphQLType) as T
 }
 
-@InternalApi
-fun <T : Object> wrapOutputObject(
-    ctx: InternalContext,
-    type: Type<T>,
-    value: EngineObject,
-): T = wrapOutputObject(ctx, type, value, isRequiredSelectionInput = false)
-
 /** wrap the provided [value] in a GRT facade with type [T] */
 @InternalApi
 fun <T : Object> wrapOutputObject(
     ctx: InternalContext,
     type: Type<T>,
-    value: EngineObject,
-    isRequiredSelectionInput: Boolean,
+    value: EngineObject
 ): T {
     require(type.name == value.type.name) {
         "Expected value with GraphQL type ${type.name}, got ${value.type.name}"
@@ -85,19 +76,8 @@ fun <T : Object> wrapOutputObject(
         "Expected baseFieldTypeClass that's a subtype of ObjectBase, got $cls"
     }
 
-    return constructObjectGRT(ctx, cls, value, isRequiredSelectionInput)
+    return cls.primaryConstructor!!.call(ctx, value)
 }
-
-@InternalApi
-fun <T : GRT> constructObjectGRT(
-    ctx: InternalContext,
-    kcls: KClass<T>,
-    value: EngineObject,
-    isRequiredSelectionInput: Boolean,
-): T =
-    requireNotNull(kcls.primaryConstructor) {
-        "Primary constructor for type $kcls is not found."
-    }.call(ctx, value, isRequiredSelectionInput)
 
 @Suppress("UNCHECKED_CAST")
 @InternalApi

@@ -62,7 +62,6 @@ dependencies {
     implementation(libs.viaduct.shared.apiannotations)
 
     testFixturesCompileOnly(libs.junit)
-    testFixturesImplementation(libs.junit.params)
     testFixturesImplementation(libs.assertj.core)
     testFixturesImplementation(libs.viaduct.engine.api)
     testFixturesImplementation(testFixtures(libs.viaduct.shared.graphql))

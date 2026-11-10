@@ -138,7 +138,7 @@ private class ObjectBuilderGenV2(
             // "cannot find constructor" when the edge type is in a different build shard.
             "super($1, $schemaLookup, null, (${cfg.REFLECTED_TYPE}) $edgeReflectionClass.INSTANCE);"
         } else {
-            "super($contextCast, $schemaLookup, null, false);"
+            "super($contextCast, $schemaLookup, null);"
         }
     }
 
@@ -158,9 +158,6 @@ private class ObjectBuilderGenV2(
                     KmValueParameter("baseEngineObjectData").also {
                         it.type = cfg.ENGINE_OBJECT_DATA_SYNC.asKmName.asType()
                     },
-                    KmValueParameter("isRequiredSelectionInput").also {
-                        it.type = KmName("kotlin/Boolean").asType()
-                    },
                 )
             )
         }
@@ -168,9 +165,9 @@ private class ObjectBuilderGenV2(
         val superCall = if (connectionInfo != null) {
             val contextCast = castObjectExpression(cfg.EXECUTION_CONTEXT.asKmName.asType(), "$1")
             val edgeReflectionClass = KmName("$pkg/${connectionInfo.edgeTypeName}.${cfg.REFLECTION_NAME}").asJavaBinaryName
-            "super($contextCast, $2, $3, (${cfg.REFLECTED_TYPE}) $edgeReflectionClass.INSTANCE, $4);"
+            "super($contextCast, $2, $3, (${cfg.REFLECTED_TYPE}) $edgeReflectionClass.INSTANCE);"
         } else {
-            "super($1, $2, $3, $4);"
+            "super($1, $2, $3);"
         }
 
         this.addConstructor(
@@ -234,7 +231,7 @@ private class ObjectBuilderGenV2(
             kmFun,
             body = buildString {
                 append("{\n")
-                append("return new ${builderFor.name.asJavaBinaryName}(this.get__context(), this.buildEngineObjectData(), this.get__isRequiredSelectionInput());\n")
+                append("return new ${builderFor.name.asJavaBinaryName}(this.get__context(), this.buildEngineObjectData());\n")
                 append("}")
             },
             bridgeParameters = setOf(-1)

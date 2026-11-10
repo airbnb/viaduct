@@ -38,11 +38,7 @@ public class Mutation extends ObjectBase implements viaduct.java.api.types.Mutat
     }
 
     public Mutation(InternalContext context, EngineObjectData.Sync data) {
-        this(context, data, false);
-    }
-
-    public Mutation(InternalContext context, EngineObjectData.Sync data, boolean isRequiredSelectionInput) {
-        super(context, data, isRequiredSelectionInput);
+        super(context, data);
     }
 
     @SuppressWarnings("UnusedMethod")

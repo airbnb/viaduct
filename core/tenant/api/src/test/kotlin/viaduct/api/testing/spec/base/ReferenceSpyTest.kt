@@ -32,8 +32,7 @@ import viaduct.engine.api.mocks.MockSchema
 class ReferenceSpyTestResult(
     context: InternalContext,
     engineObjectData: EngineObjectData,
-    isRequiredSelectionInput: Boolean,
-) : ObjectBase(context, engineObjectData, isRequiredSelectionInput)
+) : ObjectBase(context, engineObjectData)
 
 class ReferenceSpyTest {
     private class FooParent : GRT

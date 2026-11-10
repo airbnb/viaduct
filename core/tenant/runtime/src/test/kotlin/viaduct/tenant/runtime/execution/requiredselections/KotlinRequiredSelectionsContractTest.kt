@@ -13,58 +13,7 @@ import viaduct.tenant.runtime.execution.requiredselections.resolverbases.QueryRe
 @GraphQLOperation("{ initialString }")
 object InitialStringQuery : QueryFromAnnotation()
 
-@GraphQLOperation("{ baz { id x y } }")
-object BazQuery : QueryFromAnnotation()
-
 class KotlinRequiredSelectionsContractTest : RequiredSelectionsContractTest() {
-    @Resolver
-    class Query_SourceConnectionResolver : QueryResolvers.SourceConnection() {
-        override suspend fun resolve(ctx: Context): BazConnection = BazConnection.Builder(ctx).build()
-    }
-
-    @Resolver(objectValueFragment = "fragment _ on Query { sourceConnection { __typename } }")
-    class Query_InputConnectionCopyResolver : QueryResolvers.InputConnectionCopy() {
-        override suspend fun resolve(ctx: Context): BazConnection = ctx.getObjectValue().getSourceConnectionOrThrow()!!.toBuilder().build()
-    }
-
-    @Resolver(objectValueFragment = "fragment _ on Query { baz { id x } }")
-    class Query_InputObjectResolver : QueryResolvers.InputObject() {
-        override suspend fun resolve(ctx: Context): Baz = ctx.getObjectValue().getBazOrThrow()!!
-    }
-
-    @Resolver(queryValueFragment = "fragment _ on Query { baz { id x } }")
-    class Query_InputQueryResolver : QueryResolvers.InputQuery() {
-        override suspend fun resolve(ctx: Context): Baz = ctx.getQueryValue().getBazOrThrow()!!
-    }
-
-    @Resolver(objectValueFragment = "fragment _ on Query { baz { id x } }")
-    class Query_InputCopyResolver : QueryResolvers.InputCopy() {
-        override suspend fun resolve(ctx: Context): Baz = ctx.getObjectValue().getBazOrThrow()!!.toBuilder().x(101).build()
-    }
-
-    @Resolver(queryValueFragment = "fragment _ on Query { baz { id x } }")
-    class Query_NestedInputResolver : QueryResolvers.NestedInput() {
-        override suspend fun resolve(ctx: Context): BazBox = BazBox.Builder(ctx).baz(ctx.getQueryValue().getBazOrThrow()).build()
-    }
-
-    @Resolver
-    class Query_SubqueryOutputResolver : QueryResolvers.SubqueryOutput() {
-        override suspend fun resolve(ctx: Context): Baz = ctx.query(BazQuery).getBazOrThrow()!!
-    }
-
-    @Resolver
-    class Query_SubqueryCopyResolver : QueryResolvers.SubqueryCopy() {
-        override suspend fun resolve(ctx: Context): Baz = ctx.query(BazQuery).getBazOrThrow()!!.toBuilder().build()
-    }
-
-    @Resolver(objectValueFragment = "fragment _ on Query { baz { id x } }")
-    class Query_ScalarCopyResolver : QueryResolvers.ScalarCopy() {
-        override suspend fun resolve(ctx: Context): Baz {
-            val input = ctx.getObjectValue().getBazOrThrow()!!
-            return Baz.Builder(ctx).id(input.getIdOrThrow()).x(input.getXOrThrow()).build()
-        }
-    }
-
     @Resolver
     class Query_GlobalConfigResolver : QueryResolvers.GlobalConfig() {
         override suspend fun resolve(ctx: Context): String = "B"

@@ -114,11 +114,13 @@ class JavaFieldResolverExecutorImpl(
         )
 
         // ── Tenant→Framework boundary: resolver call ──
-        return handleTenantErrorsSuspend(resolverId) {
-            val result = resolver.get().invokeFieldResolver(javaContext).await()
-            handleFrameworkErrors("$resolverId: convertResult") {
-                convertResult(result, graphqlSchema, context.globalIDCodec)
-            }
+        val result = handleTenantErrorsSuspend(resolverId) {
+            resolver.get().invokeFieldResolver(javaContext).await()
+        }
+
+        // ── Framework→Tenant boundary: result conversion ──
+        return handleFrameworkErrors("$resolverId: convertResult") {
+            convertResult(result, graphqlSchema, context.globalIDCodec)
         }
     }
 
@@ -133,10 +135,10 @@ class JavaFieldResolverExecutorImpl(
      */
     private suspend fun createQueryValue(
         selector: FieldResolverExecutor.Selector,
-        internalContext: InternalContext
+        internalContext: InternalContext?
     ): Any? {
         if (queryValueClass == null) return null
-        return convertSyncEngineDataToJavaObject(queryValueClass, selector.syncQueryValueGetter(), internalContext, isRequiredSelectionInput = true)
+        return convertSyncEngineDataToJavaObject(queryValueClass, selector.syncQueryValueGetter(), internalContext)
     }
 
     /**
@@ -151,10 +153,10 @@ class JavaFieldResolverExecutorImpl(
      */
     private suspend fun createObjectValue(
         selector: FieldResolverExecutor.Selector,
-        internalContext: InternalContext
+        internalContext: InternalContext?
     ): Any? {
         if (objectValueClass == null) return null
-        return convertSyncEngineDataToJavaObject(objectValueClass, selector.syncObjectValueGetter(), internalContext, isRequiredSelectionInput = true)
+        return convertSyncEngineDataToJavaObject(objectValueClass, selector.syncObjectValueGetter(), internalContext)
     }
 
     /**

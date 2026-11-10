@@ -4,15 +4,11 @@ package viaduct.tenant.codegen.bytecode.exercise
 
 import graphql.schema.GraphQLInputObjectType
 import java.time.ZoneOffset
-import kotlin.reflect.KClass
 import viaduct.api.globalid.GlobalID
-import viaduct.api.internal.constructObjectGRT
 import viaduct.api.mocks.MockExecutionContext
 import viaduct.api.reflect.Type
-import viaduct.api.types.GRT
 import viaduct.api.types.NodeObject
 import viaduct.codegen.km.setterName
-import viaduct.engine.api.EngineObject
 import viaduct.engine.api.EngineObjectDataBuilder
 import viaduct.engine.api.EngineSchema
 import viaduct.graphql.schema.ViaductSchema as ViaductGraphQLSchema
@@ -245,7 +241,7 @@ internal fun ViaductGraphQLSchema.HasDefaultValue.valueV2FromGenericValue(
                     data
                 } else {
                     val clazz = classResolver.mainClassFor(baseValue.concreteTypeDef.name)
-                    constructObjectGRT(context, clazz.kotlin as KClass<GRT>, data as EngineObject, isRequiredSelectionInput = false)
+                    clazz.constructors[0].newInstance(context, data)
                 }
             }
         }

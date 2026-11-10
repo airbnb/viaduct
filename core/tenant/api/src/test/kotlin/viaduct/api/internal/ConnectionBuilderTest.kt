@@ -39,7 +39,6 @@ import viaduct.engine.api.EngineObject
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.ResolvedEngineObjectData
 import viaduct.engine.api.mocks.MockSchema
-import viaduct.errors.TenantUsageException
 
 /**
  * Tests for ConnectionBuilder utilities.
@@ -95,7 +94,7 @@ class ConnectionBuilderTest {
 
     // GRT class matching schema "TestEdge" - used by ViaductObjectBuilder.dynamicBuilderFor
     // Not private: ViaductObjectBuilder.build() uses reflection to call the constructor
-    class TestEdge(context: InternalContext, eod: EngineObject, isRequiredSelectionInput: Boolean = false) : ObjectBase(context, eod, isRequiredSelectionInput), Edge<Any>
+    class TestEdge(context: InternalContext, eod: EngineObject) : ObjectBase(context, eod), Edge<Any>
 
     private interface TestConnection : Connection<TestEdge, Any>
 
@@ -184,8 +183,6 @@ class ConnectionBuilderTest {
 
         // Expose internal state for testing
         fun getBuiltEngineObjectData(): EngineObjectData = buildEngineObjectData()
-
-        fun paginationArguments(): ConnectionArguments = arguments
     }
 
     @Suppress("DEPRECATION")
@@ -215,18 +212,6 @@ class ConnectionBuilderTest {
     private fun createOrdinaryBuilder(): TestConnectionBuilder {
         val connectionType = testSchema.schema.getObjectType("TestConnection")
         return TestConnectionBuilder(MockExecutionContext(internalContext), connectionType)
-    }
-
-    @Test
-    fun `connections reject required selection edges`() {
-        val edge = createEdge(OffsetCursor.fromOffset(0).value, "1", "Node1")
-        val input = TestEdge(createContext(), edge.__engineObject, isRequiredSelectionInput = true)
-
-        val error = assertThrows(TenantUsageException::class.java) { createBuilder().fromEdges(listOf(input)) }
-        assertEquals(
-            "Cannot use required-selection GRT 'TestEdge' as output. Build a new GRT or use ctx.query() with the output selections.",
-            error.message
-        )
     }
 
     /**

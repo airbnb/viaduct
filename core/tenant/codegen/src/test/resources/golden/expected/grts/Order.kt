@@ -10,11 +10,9 @@ import viaduct.engine.api.EngineObject
 import viaduct.engine.api.EngineObjectData
 
 @OptIn(InternalApi::class)
-class Order(context: InternalContext, engineObject: EngineObject, isRequiredSelectionInput: Boolean)
-    : ObjectBase(context, engineObject, isRequiredSelectionInput), viaduct.api.types.Object,viaduct.api.grts.Node,viaduct.api.grts.Auditable,viaduct.api.grts.Timestamped,viaduct.api.grts.SearchHit,viaduct.api.types.NodeObject
+class Order(context: InternalContext, engineObject: EngineObject)
+    : ObjectBase(context, engineObject), viaduct.api.types.Object,viaduct.api.grts.Node,viaduct.api.grts.Auditable,viaduct.api.grts.Timestamped,viaduct.api.grts.SearchHit,viaduct.api.types.NodeObject
 {
-    constructor(context: InternalContext, engineObject: EngineObject) : this(context, engineObject, false)
-
           final override fun getIdOrThrow(alias: String?): viaduct.api.globalid.GlobalID<viaduct.api.grts.Order> = TODO()
           final override fun getIdOrThrow(): viaduct.api.globalid.GlobalID<viaduct.api.grts.Order> = TODO()
           final override fun getId(alias: String?): viaduct.api.globalid.GlobalID<viaduct.api.grts.Order>? = TODO()
@@ -52,7 +50,7 @@ class Order(context: InternalContext, engineObject: EngineObject, isRequiredSele
 
 
     fun toBuilder(): Builder =
-        Builder(__context, __engineObject.type, toBuilderEOD(), __isRequiredSelectionInput)
+        Builder(__context, __engineObject.type, toBuilderEOD())
 
     object of {
         operator fun invoke(context: ExecutionContext, block: Builder.() -> Unit): Order =
@@ -64,16 +62,14 @@ class Order(context: InternalContext, engineObject: EngineObject, isRequiredSele
             : super(
                 context as InternalContext,
                 TODO() as graphql.schema.GraphQLObjectType,
-                null,
-                false
+                null
             )
 
         internal constructor(
             context: InternalContext,
             type: graphql.schema.GraphQLObjectType,
-            baseEngineObjectData: EngineObjectData.Sync,
-            isRequiredSelectionInput: Boolean
-        ) : super(context, type, baseEngineObjectData, isRequiredSelectionInput)
+            baseEngineObjectData: EngineObjectData.Sync
+        ) : super(context, type, baseEngineObjectData)
 
                   fun id(value: viaduct.api.globalid.GlobalID<viaduct.api.grts.Order>): Builder = TODO()
 

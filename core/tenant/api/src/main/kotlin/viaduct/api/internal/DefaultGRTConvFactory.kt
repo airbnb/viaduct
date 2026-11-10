@@ -125,7 +125,7 @@ object DefaultGRTConvFactory : GRTConvFactory {
             },
             inverse = {
                 val eod = engineObjectDataConv.invert(it)
-                wrapOutputObject(ctx, type, eod, isRequiredSelectionInput = false)
+                wrapOutputObject(ctx, type, eod)
             },
         )
 

@@ -12,11 +12,9 @@ import viaduct.engine.api.EngineObject
 import viaduct.engine.api.EngineObjectData
 
 @OptIn(InternalApi::class, ExperimentalApi::class)
-class OrderConnection(context: InternalContext, engineObject: EngineObject, isRequiredSelectionInput: Boolean)
-    : ObjectBase(context, engineObject, isRequiredSelectionInput), viaduct.api.types.Object,viaduct.api.types.Connection<viaduct.api.grts.OrderEdge, viaduct.api.grts.Order>
+class OrderConnection(context: InternalContext, engineObject: EngineObject)
+    : ObjectBase(context, engineObject), viaduct.api.types.Object,viaduct.api.types.Connection<viaduct.api.grts.OrderEdge, viaduct.api.grts.Order>
 {
-    constructor(context: InternalContext, engineObject: EngineObject) : this(context, engineObject, false)
-
      fun getEdgesOrThrow(alias: String?): kotlin.collections.List<viaduct.api.grts.OrderEdge> = TODO()
      fun getEdgesOrThrow(): kotlin.collections.List<viaduct.api.grts.OrderEdge> = TODO()
      fun getEdges(alias: String?): kotlin.collections.List<viaduct.api.grts.OrderEdge>? = TODO()
@@ -29,7 +27,7 @@ class OrderConnection(context: InternalContext, engineObject: EngineObject, isRe
 
 
     fun toBuilder(): Builder =
-        Builder(__context, __engineObject.type, toBuilderEOD(), __isRequiredSelectionInput)
+        Builder(__context, __engineObject.type, toBuilderEOD())
 
     object of {
         operator fun invoke(context: ExecutionContext, block: Builder.() -> Unit): OrderConnection =
@@ -48,14 +46,12 @@ class OrderConnection(context: InternalContext, engineObject: EngineObject, isRe
         internal constructor(
             context: InternalContext,
             type: graphql.schema.GraphQLObjectType,
-            baseEngineObjectData: EngineObjectData.Sync,
-            isRequiredSelectionInput: Boolean
+            baseEngineObjectData: EngineObjectData.Sync
         ) : super(
                 context as ExecutionContext,
                 type,
                 baseEngineObjectData,
-                viaduct.api.grts.OrderEdge.Reflection,
-                isRequiredSelectionInput
+                viaduct.api.grts.OrderEdge.Reflection
             )
 
                   fun edges(value: kotlin.collections.List<viaduct.api.grts.OrderEdge>): Builder = TODO()

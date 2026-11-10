@@ -21,6 +21,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.BiFunction;
 import org.jspecify.annotations.Nullable;
 import viaduct.apiannotations.InternalApi;
 import viaduct.engine.api.EngineObjectData;
@@ -72,7 +73,6 @@ public abstract class ObjectBase implements GraphQLObject {
   @Nullable private final NodeReference nodeReference;
   @Nullable private final RootFieldReference rootFieldReference;
   private final ConcurrentHashMap<String, Object> fieldCache = new ConcurrentHashMap<>();
-  public final boolean __isRequiredSelectionInput;
 
   /**
    * Engine path constructor: wraps pre-resolved EngineObjectData.Sync.
@@ -83,15 +83,7 @@ public abstract class ObjectBase implements GraphQLObject {
    * may be null on the builder path (Java builders have no execution context).
    */
   protected ObjectBase(@Nullable InternalContext __context, EngineObjectData.Sync engineData) {
-    this(__context, engineData, false);
-  }
-
-  protected ObjectBase(
-      @Nullable InternalContext __context,
-      EngineObjectData.Sync engineData,
-      boolean isRequiredSelectionInput) {
     this.__context = __context;
-    this.__isRequiredSelectionInput = isRequiredSelectionInput;
     this.engineData = engineData;
     this.mapData = null;
     this.baseObject = null;
@@ -131,11 +123,7 @@ public abstract class ObjectBase implements GraphQLObject {
       @Nullable ObjectBase baseObject,
       Map<String, Object> mapData,
       @Nullable String graphQLTypeName) {
-    this.__context =
-        baseObject != null && baseObject.__isRequiredSelectionInput
-            ? baseObject.__context
-            : __context;
-    this.__isRequiredSelectionInput = baseObject != null && baseObject.__isRequiredSelectionInput;
+    this.__context = __context;
     this.engineData = null;
     this.mapData = mapData;
     this.baseObject = baseObject;
@@ -151,7 +139,6 @@ public abstract class ObjectBase implements GraphQLObject {
    */
   protected ObjectBase(@Nullable InternalContext __context, NodeReference nodeReference) {
     this.__context = __context;
-    this.__isRequiredSelectionInput = false;
     this.engineData = null;
     this.mapData = null;
     this.baseObject = null;
@@ -167,7 +154,6 @@ public abstract class ObjectBase implements GraphQLObject {
    */
   protected ObjectBase(@Nullable InternalContext __context, RootFieldReference rootFieldReference) {
     this.__context = __context;
-    this.__isRequiredSelectionInput = false;
     this.engineData = null;
     this.mapData = null;
     this.baseObject = null;
@@ -217,16 +203,6 @@ public abstract class ObjectBase implements GraphQLObject {
 
   public @Nullable ObjectBase getJavaBaseObject() {
     return baseObject;
-  }
-
-  public final void __checkOutputValue() throws TenantUsageException {
-    if (__isRequiredSelectionInput) {
-      throw new TenantUsageException(
-          "Cannot use required-selection GRT '"
-              + getClass().getSimpleName()
-              + "' as output. Build a new GRT or use ctx.query() with the output selections.",
-          null);
-    }
   }
 
   protected final ObjectBase toBuilderBase() {
@@ -645,24 +621,27 @@ public abstract class ObjectBase implements GraphQLObject {
    * wrapObject()}.
    *
    * <p>If the raw value is {@link EngineObjectData.Sync}, wraps it using the provided constructor,
-   * passing this GRT's context and required-selection origin to the nested GRT. If already a {@link
-   * ObjectBase} (builder path), returns as-is.
+   * passing this GRT's {@link InternalContext} so it propagates to the nested GRT. If already a
+   * {@link ObjectBase} (builder path), returns as-is.
    */
   @Nullable
   protected <T extends ObjectBase> T fetchObject(
       String fieldName,
       @Nullable String alias,
       Class<T> objectClass,
-      ObjectConstructor<T> constructor) {
+      BiFunction<InternalContext, EngineObjectData.Sync, T> constructor) {
     return fetchCached(
         "fetchObject", fieldName, alias, raw -> wrapObject(raw, objectClass, constructor));
   }
 
   private <T extends ObjectBase> Object wrapObject(
-      Object raw, Class<T> objectClass, ObjectConstructor<T> constructor) throws Exception {
+      Object raw,
+      Class<T> objectClass,
+      BiFunction<InternalContext, EngineObjectData.Sync, T> constructor)
+      throws Exception {
 
     if (raw instanceof EngineObjectData.Sync syncData) {
-      return constructor.create(__context, syncData, __isRequiredSelectionInput);
+      return constructor.apply(__context, syncData);
     }
     if (objectClass.isInstance(raw)) {
       return objectClass.cast(raw);
@@ -687,7 +666,7 @@ public abstract class ObjectBase implements GraphQLObject {
       String fieldName,
       @Nullable String alias,
       Class<T> objectClass,
-      ObjectConstructor<T> constructor) {
+      BiFunction<InternalContext, EngineObjectData.Sync, T> constructor) {
     return fetchObjectList(fieldName, alias, objectClass, constructor, 1);
   }
 
@@ -697,7 +676,7 @@ public abstract class ObjectBase implements GraphQLObject {
       String fieldName,
       @Nullable String alias,
       Class<T> objectClass,
-      ObjectConstructor<T> constructor,
+      BiFunction<InternalContext, EngineObjectData.Sync, T> constructor,
       int listDepth) {
     return fetchCached(
         "fetchObjectList",
@@ -731,8 +710,7 @@ public abstract class ObjectBase implements GraphQLObject {
       throws Exception {
 
     if (raw instanceof EngineObjectData.Sync syncData) {
-      return instantiateConcrete(
-          __context, syncData, interfaceClass, fieldName, __isRequiredSelectionInput);
+      return instantiateConcrete(__context, syncData, interfaceClass, fieldName);
     }
     if (interfaceClass.isInstance(raw)) {
       return raw;
@@ -768,21 +746,22 @@ public abstract class ObjectBase implements GraphQLObject {
    * Instantiates the concrete Java class for an interface/union-typed field from engine data.
    *
    * <p>Uses the GraphQL type name from the engine data to find the concrete class in the same
-   * package as the interface class, then calls its {@code (InternalContext, EngineObjectData.Sync,
-   * boolean)} constructor, passing the context so it propagates to the nested GRT.
+   * package as the interface class, then calls its {@code (InternalContext, EngineObjectData.Sync)}
+   * constructor, passing the context so it propagates to the nested GRT.
    */
   private static Object instantiateConcrete(
       @Nullable InternalContext context,
       EngineObjectData.Sync syncData,
       Class<?> interfaceClass,
-      String fieldName,
-      boolean isRequiredSelectionInput)
+      String fieldName)
       throws FrameworkException {
     String concreteTypeName = syncData.getType().getName();
     String fqcn = interfaceClass.getPackageName() + "." + concreteTypeName;
     try {
       Class<?> concreteClass = Class.forName(fqcn);
-      return constructGRT(concreteClass, context, syncData, isRequiredSelectionInput);
+      return concreteClass
+          .getDeclaredConstructor(InternalContext.class, EngineObjectData.Sync.class)
+          .newInstance(context, syncData);
     } catch (ReflectiveOperationException e) {
       throw new FrameworkException(
           "Failed to instantiate concrete type '"
@@ -792,25 +771,6 @@ public abstract class ObjectBase implements GraphQLObject {
               + "'",
           e);
     }
-  }
-
-  @FunctionalInterface
-  protected interface ObjectConstructor<T extends ObjectBase> {
-    T create(
-        @Nullable InternalContext context,
-        EngineObjectData.Sync data,
-        boolean isRequiredSelectionInput);
-  }
-
-  public static <T> T constructGRT(
-      Class<T> grtClass,
-      @Nullable InternalContext context,
-      EngineObjectData.Sync data,
-      boolean isRequiredSelectionInput)
-      throws ReflectiveOperationException {
-    return grtClass
-        .getDeclaredConstructor(InternalContext.class, EngineObjectData.Sync.class, boolean.class)
-        .newInstance(context, data, isRequiredSelectionInput);
   }
 
   /**
