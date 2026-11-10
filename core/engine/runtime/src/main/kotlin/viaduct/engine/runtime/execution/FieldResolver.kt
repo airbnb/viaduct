@@ -1002,6 +1002,10 @@ class FieldResolver(
                     lazyData = effectiveData,
                 )
 
+            effectiveData is EngineObjectData &&
+                !parameters.engineExecutionContext.materializedFieldValueReader.supportsMaterialization(effectiveData) ->
+                Value.fromValue(ObjectEngineResultImpl.newForType(fieldType))
+
             // selective field resolver
             isFieldMatBacked(parameters, field, effectiveData) ->
                 mkFieldMatOER(

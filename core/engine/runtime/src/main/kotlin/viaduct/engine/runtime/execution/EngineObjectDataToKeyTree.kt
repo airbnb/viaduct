@@ -45,7 +45,7 @@ internal suspend fun EngineObjectData?.toKeyTree(
             selections = selections,
             atOutputSelectionSetRoot = true,
             inheritedResolutionPolicy = resolutionPolicy,
-        )
+        ).toKeyTree().withoutEmptyTypeBranches()
 
 private class EngineObjectDataKeyTreeBuilder(
     private val schema: GraphQLSchema,
@@ -57,30 +57,30 @@ private class EngineObjectDataKeyTreeBuilder(
         selections: KeyTree,
         atOutputSelectionSetRoot: Boolean,
         inheritedResolutionPolicy: ResolutionPolicy,
-    ): KeyTree {
+    ): ReturnedCoverage {
         val resolutionPolicy = if (data == null || atOutputSelectionSetRoot) {
             inheritedResolutionPolicy
         } else {
             fieldValueReader.resolutionPolicy(data, inheritedResolutionPolicy)
         }
-        if (!atOutputSelectionSetRoot && inheritedResolutionPolicy == ResolutionPolicy.PARENT_MANAGED && resolutionPolicy == ResolutionPolicy.STANDARD) {
-            return KeyTree.empty
-        }
         if (data == null) {
-            return selections.withinOutputSelectionSet(atOutputSelectionSetRoot, resolutionPolicy)
+            return ReturnedCoverage.absent(selections.withinOutputSelectionSet(atOutputSelectionSetRoot, resolutionPolicy))
+        }
+        val type = schema.getObjectType(data.type.name) ?: return ReturnedCoverage.NoChildCoverage
+        if (!atOutputSelectionSetRoot && inheritedResolutionPolicy == ResolutionPolicy.PARENT_MANAGED && resolutionPolicy == ResolutionPolicy.STANDARD) {
+            return ReturnedCoverage.observed(type, emptyMap())
         }
         if (data is NodeEngineObjectData) {
             return buildNodeReference(data, selections, atOutputSelectionSetRoot, resolutionPolicy)
         }
         if (data is LazyEngineObjectData) {
             // Child traversal must resolve lazy data before its selections can be read.
-            return KeyTree.empty
+            return ReturnedCoverage.observed(type, emptyMap())
         }
 
-        val type = schema.getObjectType(data.type.name) ?: return KeyTree.empty
         val selectionsForType = selections.fieldsFor(type)
         val returnedFieldNames = data.fetchSelections().toSet()
-        val returnedFields = mutableMapOf<ObjectEngineResult.Key, KeyTree>()
+        val returnedFields = mutableMapOf<ObjectEngineResult.Key, ReturnedCoverage>()
 
         for (fieldName in returnedFieldNames) {
             val fieldDefinition = type.getFieldDefinition(fieldName) ?: continue
@@ -98,10 +98,10 @@ private class EngineObjectDataKeyTreeBuilder(
             for ((key, decision) in decisions) {
                 when (decision) {
                     DROP -> continue
-                    KEEP_WITHOUT_CHILDREN -> returnedFields[key] = KeyTree.empty
+                    KEEP_WITHOUT_CHILDREN -> returnedFields[key] = ReturnedCoverage.NoChildCoverage
                     KEEP_AND_RECURSE -> {
                         if (!isComposite) {
-                            returnedFields[key] = KeyTree.empty
+                            returnedFields[key] = ReturnedCoverage.NoChildCoverage
                             continue
                         }
                         val read = fieldValueReader.readForCoverage(data, key.name, key.responseKey) ?: continue
@@ -116,7 +116,7 @@ private class EngineObjectDataKeyTreeBuilder(
             }
         }
 
-        return KeyTree(mapOf(type to returnedFields)).withoutEmptyTypeBranches()
+        return ReturnedCoverage.observed(type, returnedFields)
     }
 
     private fun selectionsForReturnedField(
@@ -144,53 +144,45 @@ private class EngineObjectDataKeyTreeBuilder(
         value: Any?,
         selections: KeyTree,
         resolutionPolicy: ResolutionPolicy,
-    ): KeyTree =
+    ): ReturnedCoverage =
         when (value) {
-            null -> selections.withinOutputSelectionSet(atOutputSelectionSetRoot = false, resolutionPolicy)
+            null -> ReturnedCoverage.absent(selections.withinOutputSelectionSet(atOutputSelectionSetRoot = false, resolutionPolicy))
             is EngineObjectData -> build(value, selections, atOutputSelectionSetRoot = false, resolutionPolicy)
             is Iterable<*> -> buildIterable(value, selections, resolutionPolicy)
-            else -> KeyTree.empty
+            else -> ReturnedCoverage.NoChildCoverage
         }
 
     private suspend fun buildIterable(
         values: Iterable<*>,
         selections: KeyTree,
         resolutionPolicy: ResolutionPolicy,
-    ): KeyTree {
-        val commonFieldsByType = selections.withinOutputSelectionSet(
-            atOutputSelectionSetRoot = false,
-            resolutionPolicy = resolutionPolicy,
-        ).keysByType().toMutableMap()
-        val seenTypes = mutableSetOf<GraphQLObjectType>()
+    ): ReturnedCoverage {
+        var coverage = ReturnedCoverage.absent(
+            selections.withinOutputSelectionSet(
+                atOutputSelectionSetRoot = false,
+                resolutionPolicy = resolutionPolicy,
+            )
+        )
 
         suspend fun visit(value: Any?) {
             when (value) {
-                null -> Unit
                 is Iterable<*> -> value.forEach { visit(it) }
                 is EngineObjectData -> {
-                    val type = schema.getObjectType(value.type.name) ?: return
-                    val returnedFields = build(
-                        data = value,
-                        selections = selections,
-                        atOutputSelectionSetRoot = false,
-                        inheritedResolutionPolicy = resolutionPolicy,
-                    ).fieldsFor(type)
-                    commonFieldsByType[type] =
-                        if (seenTypes.add(type)) {
-                            returnedFields
-                        } else {
-                            intersectFields(
-                                type,
-                                commonFieldsByType[type].orEmpty(),
-                                returnedFields,
-                            )
-                        }
+                    if (schema.getObjectType(value.type.name) == null) return
+                    coverage = coverage.merge(
+                        build(
+                            data = value,
+                            selections = selections,
+                            atOutputSelectionSetRoot = false,
+                            inheritedResolutionPolicy = resolutionPolicy,
+                        )
+                    )
                 }
             }
         }
 
         visit(values)
-        return KeyTree(commonFieldsByType).withoutEmptyTypeBranches()
+        return coverage
     }
 
     private fun buildNodeReference(
@@ -198,17 +190,16 @@ private class EngineObjectDataKeyTreeBuilder(
         selections: KeyTree,
         atOutputSelectionSetRoot: Boolean,
         resolutionPolicy: ResolutionPolicy,
-    ): KeyTree {
-        val type = schema.getObjectType(data.type.name) ?: return KeyTree.empty
-        val idDefinition = type.getFieldDefinition("id") ?: return KeyTree.empty
+    ): ReturnedCoverage {
+        val type = schema.getObjectType(data.type.name) ?: return ReturnedCoverage.NoChildCoverage
+        val idDefinition = type.getFieldDefinition("id") ?: return ReturnedCoverage.observed(type, emptyMap())
         val returnedSelections = selectionsForReturnedField(
             fieldDefinition = idDefinition,
             selections = selections.fieldsFor(type),
         ).filterKeys { key ->
             coverageFilter(resolutionPolicy)(type, key, atOutputSelectionSetRoot) != DROP
         }
-        return KeyTree(mapOf(type to returnedSelections.mapValues { KeyTree.empty }))
-            .withoutEmptyTypeBranches()
+        return ReturnedCoverage.observed(type, returnedSelections.mapValues { ReturnedCoverage.NoChildCoverage })
     }
 
     private fun coverageFilter(resolutionPolicy: ResolutionPolicy): KeyTreeFilter =
@@ -226,19 +217,59 @@ private class EngineObjectDataKeyTreeBuilder(
             )
         }.withoutEmptyTypeBranches()
 
-    private fun intersectFields(
-        type: GraphQLObjectType,
-        left: Map<ObjectEngineResult.Key, KeyTree>,
-        right: Map<ObjectEngineResult.Key, KeyTree>,
-    ): Map<ObjectEngineResult.Key, KeyTree> =
-        KeyTree(mapOf(type to left))
-            .intersect(KeyTree(mapOf(type to right)))
-            .fieldsFor(type)
-
     private fun KeyTree.fieldsFor(type: GraphQLObjectType): Map<ObjectEngineResult.Key, KeyTree> {
         val fieldsByType = keysByType()
         return fieldsByType[type]
             ?: fieldsByType.entries.firstOrNull { it.key.name == type.name }?.value
             ?: emptyMap()
+    }
+}
+
+// Empty observed objects constrain coverage; nulls and absent concrete types do not.
+private class ReturnedCoverage private constructor(
+    private val fieldsByType: Map<GraphQLObjectType, Map<ObjectEngineResult.Key, ReturnedCoverage>> = emptyMap(),
+    private val absentSelections: KeyTree = KeyTree.empty,
+    private val blocksChildCoverage: Boolean = false,
+) {
+    fun merge(other: ReturnedCoverage): ReturnedCoverage = merge(other, IdentityHashMap())
+
+    private fun merge(
+        other: ReturnedCoverage,
+        memo: IdentityHashMap<ReturnedCoverage, IdentityHashMap<ReturnedCoverage, ReturnedCoverage>>,
+    ): ReturnedCoverage {
+        if (this === other) return this
+        if (blocksChildCoverage || other.blocksChildCoverage) return NoChildCoverage
+        val byOther = memo.getOrPut(this) { IdentityHashMap() }
+        byOther[other]?.let { return it }
+        val merged = fieldsByType.toMutableMap()
+        for ((type, right) in other.fieldsByType) {
+            val left = merged[type]
+            merged[type] = if (left == null) {
+                right
+            } else {
+                left.keys.intersect(right.keys).associateWith { key -> left.getValue(key).merge(right.getValue(key), memo) }
+            }
+        }
+        return ReturnedCoverage(merged, absentSelections + other.absentSelections).also { byOther[other] = it }
+    }
+
+    fun toKeyTree(): KeyTree = toKeyTree(IdentityHashMap())
+
+    private fun toKeyTree(memo: IdentityHashMap<ReturnedCoverage, KeyTree>): KeyTree {
+        memo[this]?.let { return it }
+        val fields = absentSelections.keysByType().toMutableMap()
+        fieldsByType.forEach { (type, returned) -> fields[type] = returned.mapValues { (_, children) -> children.toKeyTree(memo) } }
+        return KeyTree(fields).also { memo[this] = it }
+    }
+
+    companion object {
+        val NoChildCoverage = ReturnedCoverage(blocksChildCoverage = true)
+
+        fun absent(selections: KeyTree): ReturnedCoverage = ReturnedCoverage(absentSelections = selections)
+
+        fun observed(
+            type: GraphQLObjectType,
+            fields: Map<ObjectEngineResult.Key, ReturnedCoverage>,
+        ): ReturnedCoverage = ReturnedCoverage(fieldsByType = mapOf(type to fields))
     }
 }

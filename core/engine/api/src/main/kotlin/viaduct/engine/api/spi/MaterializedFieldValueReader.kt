@@ -7,6 +7,9 @@ import viaduct.engine.api.ResolutionPolicy
 /** Reads field values from materialized object data. */
 @Deprecated("For Airbnb use only", level = DeprecationLevel.WARNING)
 fun interface MaterializedFieldValueReader {
+    /** False keeps type-only objects on normal field execution, outside field and embedded mats. */
+    fun supportsMaterialization(source: EngineObjectData): Boolean = true
+
     /**
      * Returns the value of one field of [source].
      *

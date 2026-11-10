@@ -30,6 +30,38 @@ import viaduct.engine.runtime.mat.build
 class EngineObjectDataToKeyTreeTest {
     @ParameterizedTest
     @ValueSource(booleans = [false, true])
+    fun `lazy nested values constrain only their own concrete type`(reversed: Boolean) {
+        Fixture("type Foo { bars:[Bar] x:Int } type Bar { child:Item y:Int } union Item = Foo | Bar") {
+            val reference = ObjectRootFieldReference(listOf("factory", "create"), foo, emptyMap())
+            val values = listOf(
+                data(bar, "child" to data(foo, "x" to 1)),
+                data(bar, "child" to reference),
+                data(bar, "child" to data(bar, "y" to 2)),
+            )
+            val selections = tree {
+                field("Foo", key("bars")) {
+                    field("Bar", key("child")) {
+                        field("Foo", key("x"))
+                        field("Bar", key("y"))
+                    }
+                }
+            }
+            val expected = tree {
+                field("Foo", key("bars")) {
+                    field("Bar", key("child")) { field("Bar", key("y")) }
+                }
+            }
+            assertTree(
+                expected,
+                data(foo, "bars" to if (reversed) values.reversed() else values),
+                selections,
+                timeout = 2.seconds,
+            )
+        }
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = [false, true])
     fun `coverage discovery does not await nested root field references`(requested: Boolean) {
         Fixture("type Foo { bar: Bar } type Bar { x: Int }") {
             val reference = ObjectRootFieldReference(listOf("factory", "create"), bar, emptyMap())
@@ -44,6 +76,131 @@ class EngineObjectDataToKeyTreeTest {
                 selections,
                 timeout = 2.seconds,
             )
+        }
+    }
+
+    @Test
+    fun `nested polymorphic fields retain coverage across list items`() {
+        Fixture("type Foo { bars:[Bar] id:ID x:Int } type Bar { child:Item id:ID y:Int } union Item = Foo | Bar") {
+            val expected = tree {
+                field("Foo", key("bars")) {
+                    field("Bar", key("child")) {
+                        field("Foo", key("id"))
+                        field("Foo", key("x"))
+                        field("Bar", key("id"))
+                        field("Bar", key("y"))
+                    }
+                }
+            }
+            assertTree(
+                expected,
+                data(
+                    foo,
+                    "bars" to listOf(
+                        data(bar, "child" to data(foo, "id" to "a", "x" to 1)),
+                        data(bar, "child" to data(bar, "id" to "b", "y" to 2)),
+                    )
+                ),
+            )
+        }
+    }
+
+    @Test
+    fun `nested polymorphic coverage requires fields on every occurrence of their concrete type`() {
+        Fixture("type Foo { bars:[Bar] id:ID x:Int } type Bar { child:Item y:Int } union Item = Foo | Bar") {
+            for (missingFields in listOf(arrayOf("id" to "a"), emptyArray())) {
+                val expected = tree {
+                    field("Foo", key("bars")) {
+                        field("Bar", key("child")) {
+                            missingFields.forEach { (name, _) -> field("Foo", key(name)) }
+                            field("Bar", key("y"))
+                        }
+                    }
+                }
+                assertTree(
+                    expected,
+                    data(
+                        foo,
+                        "bars" to listOf(
+                            data(bar, "child" to data(foo, "id" to "a", "x" to 1)),
+                            data(bar, "child" to data(bar, "y" to 2)),
+                            data(bar, "child" to data(foo, *missingFields)),
+                        )
+                    ),
+                )
+            }
+        }
+    }
+
+    @Test
+    fun `nested nulls and empty lists do not restrict supplied fields`() {
+        Fixture("type Foo { bars:[Bar] x:Int } type Bar { children:[Item] y:Int } union Item = Foo | Bar") {
+            val selections = tree {
+                field("Foo", key("bars")) {
+                    field("Bar", key("children")) { field("Foo", key("x")) }
+                }
+            }
+            val expected = tree {
+                field("Foo", key("bars")) {
+                    field("Bar", key("children")) {
+                        field("Foo", key("x"))
+                        field("Bar", key("y"))
+                    }
+                }
+            }
+            assertTree(
+                expected,
+                data(
+                    foo,
+                    "bars" to listOf(
+                        data(bar, "children" to null),
+                        data(bar, "children" to emptyList<Any?>()),
+                        data(bar, "children" to listOf(data(foo, "x" to 1), data(bar, "y" to 2))),
+                    )
+                ),
+                selections,
+            )
+        }
+    }
+
+    @Test
+    fun `generated nested list coverage matches fields shared by each concrete type`() {
+        Fixture("type Foo { bars:[Bar] id:ID x:Int } type Bar { children:[[Item]] id:ID y:Int } union Item = Foo | Bar") {
+            val random = kotlin.random.Random(1171328)
+            repeat(200) {
+                val fieldsByType = mutableMapOf<GraphQLObjectType, MutableList<Set<String>>>()
+                val parents = List(random.nextInt(1, 8)) {
+                    val children = if (random.nextInt(4) == 0) {
+                        null
+                    } else {
+                        List(random.nextInt(4)) {
+                            List(random.nextInt(4)) {
+                                if (random.nextInt(4) == 0) {
+                                    null
+                                } else {
+                                    val type = if (random.nextBoolean()) foo else bar
+                                    val names = listOf("id", if (type == foo) "x" else "y").filter { random.nextBoolean() }.toSet()
+                                    fieldsByType.getOrPut(type) { mutableListOf() }.add(names)
+                                    data(type, *names.map { it to null }.toTypedArray())
+                                }
+                            }
+                        }
+                    }
+                    data(bar, "children" to children)
+                }
+                val expected = tree {
+                    field("Foo", key("bars")) {
+                        field("Bar", key("children")) {
+                            for ((type, occurrences) in fieldsByType) {
+                                val common = occurrences.reduce { left, right -> left intersect right }
+                                common.forEach { field(type.name, key(it)) }
+                            }
+                        }
+                    }
+                }
+                assertTree(expected, data(foo, "bars" to parents))
+                assertTree(expected, data(foo, "bars" to parents.reversed()))
+            }
         }
     }
 
@@ -109,6 +266,40 @@ class EngineObjectDataToKeyTreeTest {
                         value to ResolutionPolicy.PARENT_MANAGED,
                         independent to ResolutionPolicy.STANDARD,
                     ),
+                )
+            }
+        }
+
+        @Test
+        fun `nested standard children constrain siblings of the same concrete type`() {
+            Fixture("type Foo { bars:[Bar] x:Int } type Bar { child:Foo }") {
+                val independent = dataWithoutReadableSelections(foo)
+                val expected = tree { field("Foo", key("bars")) { field("Bar", key("child")) } }
+                assertTree(
+                    expected,
+                    data(
+                        foo,
+                        "bars" to listOf(
+                            data(bar, "child" to data(foo, "x" to 1)),
+                            data(bar, "child" to independent),
+                        )
+                    ),
+                    fieldValueReader = policyReader(independent to ResolutionPolicy.STANDARD),
+                    resolutionPolicy = ResolutionPolicy.PARENT_MANAGED,
+                )
+            }
+        }
+
+        @Test
+        fun `stopped traversal constrains children supplied by parent-managed siblings`() {
+            Fixture("type Foo { bars:[Bar] x:Int } type Bar { child:Foo }") {
+                val supplied = data(bar, "child" to data(foo, "x" to 1))
+                val expected = tree { field("Foo", key("bars")) { field("Bar", key("child")) } }
+                assertTree(
+                    expected,
+                    data(foo, "bars" to listOf(supplied, dataWithoutReadableValues(bar, "child"))),
+                    filter = { _, key, _ -> if (key.name == "child") KEEP_WITHOUT_CHILDREN else KEEP_AND_RECURSE },
+                    fieldValueReader = policyReader(supplied to ResolutionPolicy.PARENT_MANAGED),
                 )
             }
         }

@@ -4,7 +4,11 @@ package viaduct.engine.runtime.execution
 
 import graphql.analysis.QueryTraverser
 import graphql.execution.DataFetcherResult
+import graphql.execution.instrumentation.InstrumentationState
+import graphql.execution.instrumentation.SimplePerformantInstrumentation
+import graphql.execution.instrumentation.parameters.InstrumentationFieldFetchParameters
 import graphql.language.SelectionSet
+import graphql.schema.DataFetcher
 import graphql.schema.GraphQLCompositeType
 import io.kotest.property.Arb
 import io.kotest.property.arbitrary.arbitrary
@@ -17,6 +21,8 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.ValueSource
 import viaduct.arbitrary.common.CheckedArb
 import viaduct.arbitrary.common.Config
 import viaduct.arbitrary.common.DeepArbSuite
@@ -47,8 +53,10 @@ import viaduct.engine.api.EngineSelection
 import viaduct.engine.api.EngineSelectionSet
 import viaduct.engine.api.ParentManagedValue
 import viaduct.engine.api.ParentSuppliedValue
+import viaduct.engine.api.ResolutionPolicy
 import viaduct.engine.api.ResolvedEngineObjectData
 import viaduct.engine.api.StandardResolutionValue
+import viaduct.engine.api.instrumentation.transformDataFetcherResult
 import viaduct.engine.api.mocks.FeatureTest
 import viaduct.engine.api.mocks.MockFieldUnbatchedResolverExecutor
 import viaduct.engine.api.mocks.MockTenantModuleBootstrapper
@@ -78,6 +86,108 @@ import viaduct.service.api.spi.mocks.MockFlagManager
  * run modes
  */
 class SelectiveFieldExecutionContractTest : SelectiveFieldExecutionContract, Engine1QueryExecutionContract {
+    @ParameterizedTest
+    @ValueSource(booleans = [false, true])
+    fun `supplied nested polymorphic values do not rematerialize a selective connection`(parentSupplied: Boolean) {
+        val calls = AtomicInteger()
+        val suppliedTypes = setOf("Content", "Metadata", "A", "B")
+        val reader = object : MaterializedFieldValueReader {
+            override suspend fun read(
+                source: EngineObjectData,
+                fieldName: String,
+                responseKey: String
+            ) = MaterializedFieldValueReader.Default.read(source, fieldName, responseKey)
+
+            override fun resolutionPolicy(
+                source: EngineObjectData,
+                inherited: ResolutionPolicy
+            ) = if (!parentSupplied && source.type.name in suppliedTypes) ResolutionPolicy.PARENT_MANAGED else inherited
+        }
+        val instrumentation = object : SimplePerformantInstrumentation() {
+            override fun instrumentDataFetcher(
+                dataFetcher: DataFetcher<*>,
+                parameters: InstrumentationFieldFetchParameters,
+                state: InstrumentationState?,
+            ): DataFetcher<*> =
+                DataFetcher<Any?> { env ->
+                    transformDataFetcherResult(dataFetcher.get(env)) { value ->
+                        if (!parentSupplied && value is EngineObjectData && value.type.name in suppliedTypes) ParentManagedValue(value) else value
+                    }
+                }
+        }
+        MockTenantModuleBootstrapper(
+            """
+                extend type Query { search: Connection }
+                type Connection { edges: [Edge] }
+                type Edge { node: Content }
+                type Content { id: ID, metadata: Metadata, contentObject: Item }
+                type Metadata { id: String, dataAttachment: String, index: String, summary: String }
+                union Item = A | B
+                type A { id: ID, chunk: String }
+                type B { article: String, reference: String }
+            """.trimIndent(),
+        ) {
+            field("Query" to "search") {
+                resolverExecutor {
+                    MockFieldUnbatchedResolverExecutor(
+                        isSelective = true,
+                        resolverId = resolverId,
+                        unbatchedResolveFn = { _, _, _, _, _ ->
+                            calls.incrementAndGet()
+
+                            fun content(
+                                type: String,
+                                values: Map<String, Any?>
+                            ) = createEngineObjectData(
+                                "Content",
+                                mapOf(
+                                    "id" to type,
+                                    "metadata" to createEngineObjectData("Metadata", mapOf("id" to type, "index" to "search", "dataAttachment" to "data", "summary" to "summary")),
+                                    "contentObject" to createEngineObjectData(type, values),
+                                ),
+                            )
+                            val edges = listOf(
+                                createEngineObjectData("Edge", mapOf("node" to content("A", mapOf("id" to "a", "chunk" to "chunk")))),
+                                createEngineObjectData("Edge", mapOf("node" to content("B", mapOf("article" to "article", "reference" to "reference")))),
+                            )
+                            val connection = createEngineObjectData("Connection", mapOf("edges" to if (calls.get() == 1) edges else edges.reversed()))
+                            if (parentSupplied) ParentSuppliedValue(connection) { type, _ -> type.name in suppliedTypes } else connection
+                        },
+                    )
+                }
+            }
+            listOf("id", "metadata", "contentObject").forEach { name ->
+                field("Content" to name) {
+                    resolver { fn { _, _, _, _, _ -> error("Content.$name resolver must be suppressed") } }
+                }
+            }
+            field("A" to "chunk") {
+                checker {
+                    objectSelections("required", "id")
+                    fn { _, objects -> assertEquals("a", objects.getValue("required").fetchAs<String?>("id")) }
+                }
+            }
+            field("B" to "article") {
+                checker {
+                    objectSelections("required", "reference")
+                    fn { _, objects -> assertEquals("reference", objects.getValue("required").fetchAs<String?>("reference")) }
+                }
+            }
+        }.runFeatureTest(
+            EngineConfiguration.featureTestDefault.copy(
+                materializedFieldValueReader = reader,
+                additionalInstrumentation = instrumentation,
+                chainInstrumentationWithDefaults = true,
+            )
+        ) {
+            runQueryWithTimeout("{ search { edges { node { metadata { summary } contentObject { ... on A { chunk } ... on B { article } } } } } }")
+                .assertJson(
+                    """{data: {search: {edges: [{node: {metadata: {summary: "summary"}, contentObject: {chunk: "chunk"}}}, {node: {metadata: {summary: "summary"}, contentObject: {article: "article"}}}]}}}"""
+                )
+        }
+        assertEquals(1, calls.get())
+    }
+
     override val selectiveFieldConfig: EngineConfiguration =
         EngineConfiguration.featureTestDefault.copy(
             flagManager = MockFlagManager.create(FlagManager.Flags.ENABLE_MAT_RESOLUTION)
