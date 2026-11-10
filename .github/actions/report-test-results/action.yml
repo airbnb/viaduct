@@ -1,0 +1,34 @@
+name: Report Test Results
+description: Lists tests that passed only after a retry in the job summary, then uploads the JUnit XML
+
+inputs:
+  artifact-name:
+    description: 'Name of the uploaded JUnit XML artifact'
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-python@v6
+      if: always()
+      continue-on-error: true
+      with:
+        python-version: '3.x'
+
+    - name: Report tests that passed after a retry
+      if: always()
+      shell: bash
+      env:
+        PYTHONUTF8: "1"
+      run: |
+        python .github/scripts/report_retried_tests.py . >> "$GITHUB_STEP_SUMMARY" || {
+          echo "::warning::Could not report the tests that passed after a retry"
+        }
+
+    - name: Upload JUnit test results
+      if: always()
+      continue-on-error: true
+      uses: actions/upload-artifact@v6
+      with:
+        name: ${{ inputs.artifact-name }}
+        path: '**/build/test-results/**/*.xml'
