@@ -30,7 +30,7 @@ internal class CtGenContext(
 
     val fullContext: String get() = context.joinToString(".")
 
-    private var compilables: List<Pair<String, CtBehavior>> = mutableListOf()
+    private val compilables = mutableListOf<Pair<String, CtBehavior>>()
 
     /** Add a compilable function body to be compiled after all classes and their
      *  members have been declared.
@@ -41,7 +41,7 @@ internal class CtGenContext(
         body: String,
         behavior: CtBehavior
     ): CtGenContext {
-        compilables += body to behavior
+        compilables.add(body to behavior)
         return this
     }
 
