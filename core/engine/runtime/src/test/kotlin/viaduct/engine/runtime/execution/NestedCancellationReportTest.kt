@@ -23,6 +23,8 @@ import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.yield
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.ValueSource
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.EngineSchema
@@ -171,6 +173,43 @@ class NestedCancellationReportTest {
             assertEquals(mapOf("outer" to "done"), result.getData<Map<String, Any?>>())
         }
         return Reports(innerHandler.seen.toList(), innerInstrumentation.failures.toList())
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = [false, true])
+    fun `independent future cancellation reports a field error and preserves its sibling`(preCompleted: Boolean) {
+        runExecutionTest {
+            val source = CompletableFuture<String>()
+            val started = CompletableDeferred<Unit>()
+            val handler = RecordingHandler()
+            val instrumentation = RecordingFetchInstrumentation()
+            val schema = createSchema(
+                "type Query { cancelled: String, sibling: String }",
+                mapOf(
+                    "Query" to mapOf(
+                        "cancelled" to DataFetcher {
+                            started.complete(Unit)
+                            if (preCompleted) source.cancel(false)
+                            source
+                        },
+                        "sibling" to DataFetcher { "ok" },
+                    )
+                ),
+            )
+            withTimeout(5_000) {
+                val result = async {
+                    executeQuery(schema, graphQL(schema, handler, instrumentation), "{ cancelled sibling }", emptyMap())
+                }
+                started.await()
+                yield()
+                if (!preCompleted) source.cancel(false)
+                val response = result.await()
+                assertEquals(mapOf("cancelled" to null, "sibling" to "ok"), response.getData<Map<String, Any?>>())
+                assertEquals(listOf(listOf("cancelled")), response.errors.map { it.path })
+                assertEquals(1, handler.seen.size)
+                assertEquals(1, instrumentation.failures.size)
+            }
+        }
     }
 
     @Test

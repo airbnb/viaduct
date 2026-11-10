@@ -1,6 +1,8 @@
 package viaduct.engine.runtime
 
+import java.util.concurrent.atomic.AtomicReference
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import viaduct.deferred.CompletionCaller
@@ -11,6 +13,8 @@ import viaduct.deferred.exceptionalDeferred
 import viaduct.deferred.exceptionallyCompose
 import viaduct.deferred.handle
 import viaduct.deferred.maybeRethrowCompletionHandlerException
+import viaduct.deferred.propagateLocalFailure
+import viaduct.deferred.propagateUpstreamFailure
 import viaduct.deferred.thenApply
 import viaduct.deferred.thenCompose
 import viaduct.deferred.waitAllDeferreds
@@ -210,7 +214,77 @@ sealed interface Value<T> {
             }
         }
 
-        override fun <U> thenCompose(block: (T?, Throwable?) -> Value<U>): Value<U> = fromDeferred(deferred.handle(block).thenCompose { it.asDeferred() })
+        override fun <U> thenCompose(block: (T?, Throwable?) -> Value<U>): Value<U> {
+            if (deferred.isCompleted) {
+                return fromDeferred(deferred.handle(block).thenCompose { it.asDeferred() })
+            }
+            return thenComposePending(block)
+        }
+
+        /**
+         * Replaces `handle(block).thenCompose { it.asDeferred() }` for pending inputs. `handle` creates an
+         * intermediate `Deferred<Value<U>>`, and `thenCompose` creates the final `Deferred<U>`. Both register
+         * with the request parent. Completing one result directly avoids the intermediate child and the
+         * extra completed deferred that `asDeferred()` creates for synchronous callback results.
+         */
+        @OptIn(ExperimentalCoroutinesApi::class)
+        private fun <U> thenComposePending(block: (T?, Throwable?) -> Value<U>): Value<U> {
+            val caller = CompletionCaller.capture()
+            // Capture the caller's active parent; completion may run under a different request context.
+            val requestParent = currentRequestParentJobOrNull()?.takeIf { it.isActive }
+            val result = CompletableDeferred<U>(requestParent)
+            // The callback and result cancellation may run on different threads, so share the inner atomically.
+            val innerRef = AtomicReference<Deferred<U>?>(null)
+            result.invokeOnCompletion { cause ->
+                if (cause is CancellationException) {
+                    // An inner stored after this handler runs is left alone, matching the original thenCompose.
+                    innerRef.get()?.cancel(cause)
+                }
+            }
+
+            // Keep handle's inline execution; dispatching elsewhere would change the callback's thread and context.
+            deferred.invokeOnCompletion { cause ->
+                // Request cleanup skips the callback; cancelling only the returned result does not.
+                if (requestParent?.isCancelled == true) return@invokeOnCompletion
+                // An independently cancelled source is a field outcome while its caller remains active.
+                caller.controlFlowCancellation(cause)?.let {
+                    result.cancel(it)
+                    return@invokeOnCompletion
+                }
+                val next = try {
+                    if (cause != null) block(null, cause) else block(deferred.getCompleted(), null)
+                } catch (ex: Exception) {
+                    // CompletionHandlerException reports a failed completion handler, not an ordinary field failure.
+                    ex.maybeRethrowCompletionHandlerException()
+                    // After request cancellation, handle ignored CompletionException(Error); propagating it here would throw the Error.
+                    if (requestParent?.isCancelled != true) result.propagateUpstreamFailure(ex)
+                    return@invokeOnCompletion
+                }
+                // Request cancellation stopped handle from passing its Value to thenCompose; result-only cancellation did not.
+                if (requestParent?.isCancelled == true) return@invokeOnCompletion
+                when (next) {
+                    is SyncValue -> result.complete(next.value)
+                    is SyncThrow -> result.propagateUpstreamFailure(next.throwable)
+                    is AsyncDeferred -> {
+                        val inner = next.deferred
+                        innerRef.set(inner)
+                        inner.invokeOnCompletion { innerCause ->
+                            if (innerCause != null) {
+                                result.propagateUpstreamFailure(innerCause)
+                            } else {
+                                try {
+                                    result.complete(inner.getCompleted())
+                                } catch (ex: Exception) {
+                                    inner.propagateLocalFailure(result, ex)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            return fromDeferred(result)
+        }
     }
 
     companion object {
