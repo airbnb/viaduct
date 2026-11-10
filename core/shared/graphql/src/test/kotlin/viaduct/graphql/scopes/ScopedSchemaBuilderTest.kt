@@ -2,7 +2,9 @@ package viaduct.graphql.scopes
 
 import graphql.schema.idl.SchemaParser
 import graphql.schema.idl.UnExecutableSchemaGenerator
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
+import viaduct.graphql.schema.graphqljava.viaductSchema
 
 class ScopedSchemaBuilderTest {
     // GraphQL Java makes it difficult to inspect that GraphQLTypeReference's
@@ -60,6 +62,36 @@ class ScopedSchemaBuilderTest {
               enm: MyEnum
             }
             """
+        )
+    }
+
+    @Test
+    fun `full view preserves directive definitions for schema conversion`() {
+        val source = UnExecutableSchemaGenerator.makeUnExecutableSchema(
+            SchemaParser().parse(
+                """
+                directive @serviceBackedNode(service: String!, backend: Backend = FIRST, ttl: Int = 42) repeatable on OBJECT
+                enum Backend { FIRST SECOND }
+                type Query { item: Item }
+                type Item @serviceBackedNode(service: "first") { id: ID }
+                extend type Item @serviceBackedNode(service: "second", backend: SECOND, ttl: 7) { name: String }
+                """.trimIndent()
+            )
+        )
+        val expected = source.viaductSchema()
+
+        val transformed = ScopedSchemaBuilder(source, SchemaScopingMode.Unscoped, listOf())
+            .build(SchemaView.Full)
+            .filtered
+        val actual = transformed.viaductSchema()
+
+        assertEquals(
+            source.getDirective("serviceBackedNode").definition,
+            transformed.getDirective("serviceBackedNode").definition
+        )
+        assertEquals(
+            expected.types.getValue("Item").extensions.map { it.appliedDirectives.map { directive -> directive.arguments } },
+            actual.types.getValue("Item").extensions.map { it.appliedDirectives.map { directive -> directive.arguments } }
         )
     }
 

@@ -286,6 +286,8 @@ class ScopedSchemaBuilder(
     @Suppress("FunctionNaming")
     private fun _replaceDirectiveChildrenWithTypeReferences(dir: GraphQLDirective): GraphQLDirective =
         dir.transform {
+            // graphql-java 26.1 drops the AST definition when copying a directive.
+            it.definition(dir.definition)
             it.replaceArguments(
                 dir.arguments.map { arg ->
                     arg.transform {

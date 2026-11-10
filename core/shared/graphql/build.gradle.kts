@@ -25,4 +25,5 @@ dependencies {
     testImplementation(libs.io.mockk.jvm)
     testImplementation(libs.kotest.assertions.core.jvm)
     testImplementation(libs.viaduct.shared.invariants)
+    testImplementation(libs.viaduct.shared.viaductschema)
 }
