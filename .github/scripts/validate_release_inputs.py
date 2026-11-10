@@ -32,7 +32,7 @@ def validate_release_inputs(
     Returns:
         dict with keys:
             publish_mode (str): "rc" or "release"
-            published_version (str): X.Y.Z-rc.N or X.Y.Z
+            published_version (str): X.Y.Z-rc.N-SNAPSHOT or X.Y.Z
             source_ref (str): release/vX.Y.Z
             destination_branch (str): rc/vX.Y.Z-rc.N or main
             is_final (bool): whether this is a final release flow
@@ -88,7 +88,7 @@ def validate_release_inputs(
     if rc_ver:
         result.update({
             "publish_mode": "rc",
-            "published_version": f"{release_version}-{rc_ver}",
+            "published_version": f"{release_version}-{rc_ver}-SNAPSHOT",
             "source_ref": source_ref,
             "destination_branch": f"rc/v{release_version}-{rc_ver}",
             "is_final": False,

@@ -1,6 +1,6 @@
 name: Release
 # Orchestrates either a release candidate or a final Viaduct release.
-# RC flow: validate -> publish -> push RC demoapps -> verify.
+# RC flow: validate -> publish X.Y.Z-rc.N-SNAPSHOT to the Central snapshot repository -> push RC demoapps -> verify.
 # Final flow: validate -> publish -> push demoapps -> verify -> tag -> GitHub release.
 
 on:
@@ -106,7 +106,7 @@ jobs:
         shell: bash
 
   # ---------------------------------------------------------------------------
-  # Publish artifacts via publish-branch.yml (checks + Plugin Portal + Maven Central)
+  # Publish artifacts via publish-branch.yml (checks, then Plugin Portal + Maven Central, or the snapshot repository for an RC)
   # ---------------------------------------------------------------------------
   publish:
     needs: [preflight]
@@ -132,7 +132,7 @@ jobs:
     secrets: inherit
 
   # ---------------------------------------------------------------------------
-  # Wait for new artifacts to propagate to Maven Central / Plugin Portal CDNs.
+  # Wait for new artifacts to propagate to Maven Central / Plugin Portal CDNs, or to the snapshot repository for an RC.
   # Without this, verify-demoapps races the CDN and fails to resolve the
   # newly-published version even though publish succeeded.
   # ---------------------------------------------------------------------------
@@ -149,7 +149,7 @@ jobs:
           name: published-coordinates
           path: coordinates
 
-      - name: Probe Maven Central and Plugin Portal for ${{ needs.preflight.outputs.published_version }}
+      - name: Probe the published artifacts for ${{ needs.preflight.outputs.published_version }}
         env:
           VERSION: ${{ needs.preflight.outputs.published_version }}
         run: |
@@ -162,11 +162,11 @@ jobs:
   # Verify standalone repos build against published release artifacts
   # ---------------------------------------------------------------------------
   verify-demoapps:
-    needs: [push-demoapps, wait-for-new-artifacts]
+    needs: [preflight, push-demoapps, wait-for-new-artifacts]
     uses: ./.github/workflows/check-published-demoapps.yml
     with:
       ref: ${{ needs.push-demoapps.outputs.destination_branch }}
-      use_snapshot_repo: false
+      use_snapshot_repo: ${{ needs.preflight.outputs.is_final != 'true' }}
 
   # ---------------------------------------------------------------------------
   # Create tag and publish GitHub release

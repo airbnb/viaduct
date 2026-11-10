@@ -2,15 +2,23 @@
 """Waits for a release's published artifacts to become visible on their CDNs.
 
 Reads the coordinate files written by the `writePublishedCoordinates` Gradle
-task, derives one `.pom` URL per coordinate, and polls every URL that is not yet
+task, derives one URL per coordinate, and polls every URL that is not yet
 visible until a single global deadline expires. Deriving the list from the build
 keeps it from drifting away from what the release actually published.
 
-Usage: probe_published_artifacts.py --version 2.0.0 [--root .]
+A -SNAPSHOT version is probed in the Central snapshot repository, whatever
+repository its coordinate names.
+
+With --require-unpublished, checks once that no coordinate is published yet,
+so a release candidate is never overwritten.
+
+Usage: probe_published_artifacts.py --version 2.0.0 [--root .] [--require-unpublished]
 
 Exit codes:
-  0 - every derived artifact is visible
-  1 - the derived list is unusable, or artifacts are missing at the deadline
+  0 - every derived artifact is visible (or, with --require-unpublished, absent)
+  1 - the derived list is unusable, artifacts are missing at the deadline, or
+      (with --require-unpublished) an artifact is published or its absence
+      could not be confirmed
 """
 
 import argparse
@@ -29,6 +37,8 @@ REPOSITORY_BASES = {
     "central": "https://repo.maven.apache.org/maven2",
     "portal": "https://plugins.gradle.org/m2",
 }
+
+SNAPSHOT_REPOSITORY_BASE = "https://central.sonatype.com/repository/maven-snapshots"
 
 DEFAULT_TIMEOUT_SECONDS = 1800
 DEFAULT_SLEEP_SECONDS = 30
@@ -115,14 +125,32 @@ def find_problems(coordinates, expected_version):
     return problems
 
 
-def pom_url(coordinate):
-    base = REPOSITORY_BASES[coordinate.repository]
+def artifact_url(coordinate):
     group_path = coordinate.group.replace(".", "/")
-    file_name = f"{coordinate.artifact}-{coordinate.version}.pom"
+    if coordinate.version.endswith("-SNAPSHOT"):
+        # Snapshot file names carry a build timestamp; the metadata file does not.
+        base = SNAPSHOT_REPOSITORY_BASE
+        file_name = "maven-metadata.xml"
+    else:
+        base = REPOSITORY_BASES[coordinate.repository]
+        file_name = f"{coordinate.artifact}-{coordinate.version}.pom"
     return (
         f"{base}/{group_path}/{coordinate.artifact}/{coordinate.version}/"
         f"{file_name}"
     )
+
+
+def find_published(urls, fetch):
+    """Each URL whose absence a 404 does not confirm, with the status seen."""
+    found = []
+    for url in urls:
+        status = fetch(url)
+        if status == 404:
+            print(f"  ✅ HTTP 404 {url}")
+        else:
+            print(f"  ❌ HTTP {status} {url}")
+            found.append((url, status))
+    return found
 
 
 def http_status(url):
@@ -189,6 +217,11 @@ def main(argv=None, fetch=http_status):
     parser.add_argument(
         "--sleep-seconds", type=int, default=DEFAULT_SLEEP_SECONDS
     )
+    parser.add_argument(
+        "--require-unpublished",
+        action="store_true",
+        help="fail unless every artifact is absent (HTTP 404)",
+    )
     args = parser.parse_args(argv)
 
     paths = find_coordinate_files(args.root)
@@ -214,7 +247,19 @@ def main(argv=None, fetch=http_status):
     for path in paths:
         print(f"  {path}")
 
-    urls = [pom_url(coordinate) for coordinate in coordinates]
+    urls = [artifact_url(coordinate) for coordinate in coordinates]
+    if args.require_unpublished:
+        found = find_published(urls, fetch=fetch)
+        if found:
+            for url, status in found:
+                print(
+                    f"::error::{args.version} may already be published (HTTP"
+                    f" {status}, expected 404): {url}"
+                )
+            return 1
+        print(f"✅ none of the {len(urls)} artifacts is published yet")
+        return 0
+
     missing = probe(
         urls, args.timeout_seconds, args.sleep_seconds, fetch=fetch
     )

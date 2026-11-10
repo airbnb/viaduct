@@ -192,8 +192,10 @@ abstract class BumpSnapshotVersionTask : DefaultTask() {
 
         val base = match.groupValues[1]
         val rest = match.groupValues[3]
-        val chars = "abcdefghijklmnopqrstuvwxyz0123456789"
-        val tag = (1..4).map { chars.random() }.joinToString("")
+        val letters = "abcdefghijklmnopqrstuvwxyz"
+        val chars = letters + "0123456789"
+        // A leading letter keeps the tag out of the release candidate namespace, rc.N.
+        val tag = letters.random() + (1..3).map { chars.random() }.joinToString("")
         val newVersion = "$base-rc.$tag$rest-SNAPSHOT"
 
         vf.writeText(newVersion + "\n")
