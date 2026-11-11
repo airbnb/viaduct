@@ -280,6 +280,8 @@ def check_minimum_gradle(parent, repository, offline):
     text = re.sub(r"distributionUrl=.*", r"distributionUrl=https\\://services.gradle.org/distributions/gradle-8.11-bin.zip", text)
     text = re.sub(r"distributionSha256Sum=.*", "distributionSha256Sum=57dafb5c2622c6cc08b993c85b7c06956a2f53536432a30ead46166dbca0f1e9", text)
     properties.write_text(text)
+    # Gradle 8.11 cannot run on Java 25.
+    write(root / "gradle/gradle-daemon-jvm.properties", "toolchainVersion=21\n")
     invoke = lambda phase, **options: run(root, repository, phase, "assembleViaductFinalSchema", offline=offline, **options)
     baseline = invoke("minimum-version-assembly")
     assert "> Task :assembleViaductCentralSchema" in baseline, baseline
