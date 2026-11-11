@@ -375,7 +375,7 @@ Every count must be `0`. `buildtime` and `javaapi-buildtime` currently also ship
 
 > **Gradle trap:** after an `exclude(...)` change, `shadowJar` can report `UP-TO-DATE` and keep the old jar contents, with or without the build cache. Always pass `--rerun` when you inspect jar contents.
 
-**4. Check the `test-fixtures` jar,** right after step 3 so it reads the freshly built jar. This task fails if any entry contains `org/junit/`:
+**4. Check the `test-fixtures` jar,** right after step 3 so it reads the freshly built jar. This task fails if any entry contains `org/junit/`, or if the jar bundles any class that `engine-api`'s test fixtures put under `viaduct/engine/runtime/execution/` (the engine contract suites). It also fails if that package is empty there:
 
 ```bash
 ./gradlew -p publications :test-fixtures:checkTestFixturesPublication --no-build-cache
@@ -716,7 +716,7 @@ Push the branch to your fork and open a PR against main as in [Step 3](#3-bump-v
 | `bumpSnapshotVersion` | Inserts/replaces `-rc.XXXX` in a SNAPSHOT version, syncs demo apps |
 | `unbumpSnapshotVersion` | Removes the `-rc.XXXX` marker from a SNAPSHOT version, syncs demo apps |
 | `writePublishedCoordinates` | Records every published coordinate to `<module>/build/reports/publication/coordinates.txt`; `release.yml` probes these for CDN visibility |
-| `-p publications :test-fixtures:checkTestFixturesPublication` | Fails if the `test-fixtures` jar bundles JUnit |
+| `-p publications :test-fixtures:checkTestFixturesPublication` | Fails if the `test-fixtures` jar bundles JUnit or `engine-api`'s test-fixture classes under `viaduct/engine/runtime/execution/` |
 
 `bumpSnapshotVersion` / `unbumpSnapshotVersion` are only for ephemeral SNAPSHOT publication testing. Public release candidates use explicit versions like `X.Y.Z-rc.N-SNAPSHOT`.
 
