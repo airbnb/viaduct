@@ -38,17 +38,40 @@ tasks.named<ShadowJar>("shadowJar") {
     relocate("com.google.guava", "viaduct.shaded.guava")
     relocate("com.fasterxml.jackson", "viaduct.shaded.jackson")
     relocate("org.slf4j", "viaduct.shaded.slf4j")
+
+    // Engine contract suites only test engine implementations.
+    val engineApiTestFixtures = project.configurations.runtimeClasspath.get()
+        .filter { it.name.startsWith("engine-api-") && it.name.endsWith("-test-fixtures.jar") }
+    val engineContractPackage = "viaduct/engine/runtime/execution/"
+    inputs.property("excludedEngineApiTestFixturePackage", engineContractPackage)
+    var engineContractSuites: Set<String>? = null
+    exclude { element ->
+        val suites = engineContractSuites ?: ZipFile(engineApiTestFixtures.singleFile).use { archive ->
+            archive.entries().asSequence().map { it.name }
+                .filter { it.startsWith(engineContractPackage) && !it.endsWith("/") }.toSet()
+        }.also { engineContractSuites = it }
+        element.path in suites
+    }
 }
 
 val checkTestFixturesPublication = tasks.register("checkTestFixturesPublication") {
     group = "verification"
     val fixturesJar = tasks.named<ShadowJar>("shadowJar").flatMap { it.archiveFile }
+    val engineApiTestFixtures = configurations.runtimeClasspath.get()
+        .filter { it.name.startsWith("engine-api-") && it.name.endsWith("-test-fixtures.jar") }
     inputs.file(fixturesJar)
+    inputs.files(engineApiTestFixtures)
     doLast {
+        val engineContractSuites = ZipFile(engineApiTestFixtures.singleFile).use { archive ->
+            archive.entries().asSequence().map { it.name }
+                .filter { it.startsWith("viaduct/engine/runtime/execution/") && !it.endsWith("/") }.toSet()
+        }
+        check(engineContractSuites.isNotEmpty()) { "engine-api test fixtures no longer hold the engine contract suites" }
         ZipFile(fixturesJar.get().asFile).use { archive ->
             val entries = archive.entries().asSequence().map { it.name }.toList()
             check("viaduct/engine/runtime/execution/CoroutineContextContract.class" in entries)
             check(entries.none { "org/junit/" in it }) { "Test fixtures fat JAR bundles JUnit" }
+            check(entries.none { it in engineContractSuites }) { "Test fixtures fat JAR bundles engine contract suites" }
         }
     }
 }
