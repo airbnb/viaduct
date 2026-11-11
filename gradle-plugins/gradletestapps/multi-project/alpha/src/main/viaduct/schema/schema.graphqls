@@ -1,8 +1,10 @@
 extend type Query {
   greeting: String @resolver
   secretGreeting: String @tenantLocal @resolver
+  fixtureProduct: FixtureProduct @provides(fields: "name")
 }
 
-type FixtureProduct @fixture(payload: { items: [1, null, ENUM] }) @generatedFixture {
+type FixtureProduct @fixture(payload: { items: [1, null, ENUM] }) @generatedFixture @key(fields: "id") {
   id: ID
+  name: String @external
 }

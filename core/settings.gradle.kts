@@ -56,6 +56,8 @@ include(":javaapi:codegen")
 include(":javaapi:registry-apt")
 include(":javaapi:runtime")
 
+include(":x:federation:validation")
+
 // Include all shared modules
 include(":shared:apiannotations")
 include(":shared:arbitrary")

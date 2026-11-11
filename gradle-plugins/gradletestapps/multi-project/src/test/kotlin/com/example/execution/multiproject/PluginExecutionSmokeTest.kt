@@ -16,6 +16,19 @@ class PluginExecutionSmokeTest {
     private val betaResolverBasesDir = Path.of(System.getProperty("betaResolverBasesDir"))
 
     @Test
+    fun foundationCapabilitySuppliesSchemaToAssemblyAndRuntimePackaging() {
+        val relative = "schema/plugin/com.airbnb.viaduct.foundation-federation/source/viaduct/federation/foundation.graphqls"
+        val sdl = buildDir.resolve("viaduct/centralSchema/$relative").readText()
+        assertTrue(sdl.contains("directive @key(fields: FieldSelectionSet!) repeatable on OBJECT | INTERFACE"))
+        assertTrue(sdl.contains("directive @provides(fields: FieldSelectionSet!) on FIELD_DEFINITION"))
+        assertEquals(sdl, buildDir.resolve("viaduct/finalSchema/$relative").readText())
+        assertEquals(sdl, javaClass.getResource("/viaduct/centralSchema/$relative")!!.readText())
+        val schema = buildDir.resolve("viaduct/centralSchema/schema/module/alpha/source/schema.graphqls").readText()
+        assertTrue(schema.contains("@key(fields: \"id\")"))
+        assertTrue(schema.contains("@provides(fields: \"name\")"))
+    }
+
+    @Test
     fun finalAdditionsArePackagedWithoutChangingTheCentralSchema() {
         val relative = "schema/plugin/dev.example.fixture/generated/dev.example.final-generator/final.graphqls"
         assertFalse(buildDir.resolve("viaduct/centralSchema/$relative").exists())

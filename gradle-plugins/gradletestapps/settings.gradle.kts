@@ -16,6 +16,7 @@ plugins {
     id("com.airbnb.viaduct.settings-gradle-plugin")
     id("com.airbnb.viaduct.kotlinapi") apply false
     id("com.airbnb.viaduct.javaapi") apply false
+    id("com.airbnb.viaduct.foundation-federation") apply false
 }
 
 @Suppress("UnstableApiUsage")
@@ -55,6 +56,7 @@ includeViaductApplication {
 includeViaductApplication {
     usePlugin("com.airbnb.viaduct.kotlinapi")
     usePlugin("com.airbnb.viaduct.javaapi")
+    usePlugin("com.airbnb.viaduct.foundation-federation")
     project(":multi-project")
     modulePackagePrefix("com.example.execution.multiproject")
 

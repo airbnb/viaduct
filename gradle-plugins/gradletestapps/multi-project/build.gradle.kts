@@ -1,6 +1,10 @@
+@file:OptIn(viaduct.apiannotations.InternalApi::class)
+
 import fixtures.GenerateFinalSchema
 import fixtures.PluginSchemaResources
 import viaduct.gradle.ViaductApplicationConventions
+import viaduct.gradle.ViaductSchemaValidator
+import viaduct.gradle.task.AssembleCentralSchemaTask
 
 plugins {
     id("conventions.kotlin")
@@ -75,4 +79,47 @@ applicationConventions.pluginFinalSchema.into("dev.example.fixture/generated/dev
 }
 tasks.withType<Test>().configureEach {
     inputs.dir(applicationConventions.finalSchemaDirectory).withPropertyName("finalSchema").withPathSensitivity(PathSensitivity.RELATIVE)
+}
+
+abstract class VerifyFoundationValidation : DefaultTask() {
+    @get:InputDirectory
+    @get:PathSensitive(PathSensitivity.RELATIVE)
+    abstract val centralSchema: DirectoryProperty
+
+    @get:Classpath
+    abstract val validationClasspath: ConfigurableFileCollection
+
+    @TaskAction
+    fun verify() {
+        val cases = mapOf(
+            "KEY_INVALID_FIELDS" to "extend type FixtureProduct @key(fields: \"missing\")",
+            "PROVIDES_INVALID_FIELDS" to "extend type Query { invalidFixtureProduct: FixtureProduct @provides(fields: \"missing\") }",
+        )
+        cases.forEach { (code, declaration) ->
+            val sourceRoot = temporaryDir.resolve(code)
+            sourceRoot.deleteRecursively()
+            centralSchema.get().asFile.copyRecursively(sourceRoot)
+            val source = "schema/module/alpha/source/invalid-foundation.graphqls"
+            sourceRoot.resolve(source).writeText(declaration)
+            val errors = ViaductSchemaValidator(
+                logger,
+                sourceRoot = sourceRoot,
+                validationClasspath = validationClasspath.files,
+            ).validateSchema(sourceRoot.walkTopDown().filter { it.isFile && it.extension == "graphqls" }.toList())
+
+            check(errors.size == 1) { "Expected one $code failure through the resolved classpath, got $errors" }
+            val message = errors.single().message
+            check("[$code]" in message && source in message && "viaduct.gradle.federation.FoundationValidationRuleProvider" in message) {
+                "Expected an attributed $code failure from the Foundation provider, got $message"
+            }
+        }
+    }
+}
+
+val verifyFoundationValidation = tasks.register<VerifyFoundationValidation>("verifyFoundationValidation") {
+    centralSchema.set(applicationConventions.centralSchemaDirectory)
+    validationClasspath.from(tasks.named<AssembleCentralSchemaTask>("assembleViaductCentralSchema").map { it.schemaValidationClasspath })
+}
+tasks.withType<Test>().configureEach {
+    dependsOn(verifyFoundationValidation)
 }

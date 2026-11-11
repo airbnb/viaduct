@@ -1,0 +1,5 @@
+scalar FieldSelectionSet
+
+directive @key(fields: FieldSelectionSet!) repeatable on OBJECT | INTERFACE
+directive @provides(fields: FieldSelectionSet!) on FIELD_DEFINITION
+directive @external on FIELD_DEFINITION

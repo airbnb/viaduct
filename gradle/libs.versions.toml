@@ -116,6 +116,7 @@ viaduct-shared-viaductschema = { module = "com.airbnb.viaduct.shared:viaductsche
 viaduct-errors = { module = "com.airbnb.viaduct.shared:errors", version.ref = "project" }
 
 viaduct-gradle-plugins-common = { module = "com.airbnb.viaduct.gradle:common", version.ref = "project" }
+viaduct-federation-validation = { module = "com.airbnb.viaduct.federation:validation", version.ref = "project" }
 
 viaduct-api = { module = "com.airbnb.viaduct:api", version.ref = "project" }
 viaduct-runtime = { module = "com.airbnb.viaduct:runtime", version.ref = "project" }
