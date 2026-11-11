@@ -578,6 +578,17 @@ tasks.register<JavaExec>("materializeResolverTestSuites") {
     args(resourcesRoot.asFile.absolutePath)
 }
 
+tasks.register<JavaExec>("compareResolverTestSuites") {
+    group = "verification"
+    description = "Measures two resolver test suite candidates' RFC-271 coverage side by side; pass -PresolverSuiteCompare=\"<a> <b> [--json <path>]\"."
+    dependsOn("testFixturesClasses")
+    classpath = sourceSets["testFixtures"].runtimeClasspath
+    mainClass.set("viaduct.engine.runtime2.coverage.ResolverTestSuiteComparer")
+    maxHeapSize = "4g"
+    outputs.upToDateWhen { false }
+    args(providers.gradleProperty("resolverSuiteCompare").orElse("").get().split(" ").filter(String::isNotBlank))
+}
+
 val propertyTestLauncherJar =
     tasks.register<Jar>("propertyTestLauncherJar") {
         dependsOn("testFixturesClasses")

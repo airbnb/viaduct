@@ -15,10 +15,7 @@ object ResolverTestSuiteMaterializer {
         require(args.isNotEmpty()) {
             "Usage: ResolverTestSuiteMaterializer <resources-root> [suite-id...]"
         }
-        val resourcesRoot =
-            System.getenv("BUILD_WORKSPACE_DIRECTORY")
-                ?.let { workspace -> Path.of(workspace).resolve(args.first()) }
-                ?: Path.of(args.first())
+        val resourcesRoot = workspaceRelativePath(args.first())
         val selectedIds = args.drop(1).toSet()
         ResolverTestSuiteDefinition.entries
             .filter { definition -> selectedIds.isEmpty() || definition.id in selectedIds }
@@ -44,13 +41,7 @@ object ResolverTestSuiteMaterializer {
         val shards = linkedMapOf<String, ByteArray>()
         val sdlBySchema = linkedMapOf<String, ByteArray>()
         val batches =
-            generated.mapIndexed { offset, generatedBatch ->
-                val batch = ResolverTestShardCodec.withoutDuplicates(generatedBatch)
-                val batchId = resolverTestBatchId(offset + 1)
-                val ids = ResolverTestShardCodec.ids(batch)
-                check(ids.registries.allDistinct() && ids.queries.allDistinct()) {
-                    "Suite ${definition.id} batch $batchId has distinct registries or queries whose IDs collide"
-                }
+            definition.numberBatches(generated).map { (batchId, batch, ids) ->
                 val shard = ResolverTestShardCodec.encode(batchId, batch)
                 val reencoded = ResolverTestShardCodec.encode(batchId, ResolverTestShardCodec.decode(batchId, shard.sdl, shard.json))
                 check(reencoded.sdl.contentEquals(shard.sdl) && reencoded.json.contentEquals(shard.json)) {

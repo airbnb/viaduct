@@ -1,0 +1,307 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Suite coverage comparison</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+.viz-root {
+  color-scheme: light;
+  --page: #f9f9f7; --surface-1: #fcfcfb;
+  --text-primary: #0b0b0b; --text-secondary: #52514e; --text-muted: #898781;
+  --grid: #e1e0d9; --axis: #c3c2b7; --ring: rgba(11,11,11,0.10);
+  --sideA: #2a78d6; --sideB: #eb6834; --both: #1baf7a; --neither: #e1e0d9;
+  --seq-100: #cde2fb; --seq-250: #86b6ef; --seq-400: #3987e5; --seq-550: #1c5cab; --seq-700: #0d366b;
+}
+@media (prefers-color-scheme: dark) {
+  :root:where(:not([data-theme="light"])) .viz-root {
+    color-scheme: dark;
+    --page: #0d0d0d; --surface-1: #1a1a19;
+    --text-primary: #f0efec; --text-secondary: #c3c2b7; --text-muted: #898781;
+    --grid: #2c2c2a; --axis: #383835; --ring: rgba(255,255,255,0.10);
+    --sideA: #3987e5; --sideB: #d95926; --both: #199e70; --neither: #2c2c2a;
+    --seq-100: #104281; --seq-250: #184f95; --seq-400: #256abf; --seq-550: #5598e7; --seq-700: #9ec5f4;
+  }
+}
+:root[data-theme="dark"] .viz-root {
+  color-scheme: dark;
+  --page: #0d0d0d; --surface-1: #1a1a19;
+  --text-primary: #f0efec; --text-secondary: #c3c2b7; --text-muted: #898781;
+  --grid: #2c2c2a; --axis: #383835; --ring: rgba(255,255,255,0.10);
+  --sideA: #3987e5; --sideB: #d95926; --both: #199e70; --neither: #2c2c2a;
+  --seq-100: #104281; --seq-250: #184f95; --seq-400: #256abf; --seq-550: #5598e7; --seq-700: #9ec5f4;
+}
+body { margin: 0; }
+.viz-root { background: var(--page); color: var(--text-primary); font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; padding: 24px 32px 64px; min-height: 100vh; box-sizing: border-box; }
+h1 { font-size: 22px; margin: 0 0 4px; }
+h2 { font-size: 16px; margin: 0 0 4px; }
+.sub { color: var(--text-secondary); margin: 0 0 16px; }
+.card { background: var(--surface-1); border: 1px solid var(--ring); border-radius: 12px; padding: 20px; margin-bottom: 20px; }
+.kpis { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin-bottom: 20px; }
+.kpi { background: var(--surface-1); border: 1px solid var(--ring); border-radius: 12px; padding: 16px 20px; }
+.kpi .label { color: var(--text-secondary); display: flex; align-items: center; gap: 8px; }
+.kpi .value { font-size: 32px; font-weight: 600; margin-top: 4px; }
+.kpi .detail { color: var(--text-secondary); }
+.swatch { width: 10px; height: 10px; border-radius: 3px; display: inline-block; flex: none; }
+.legend { display: flex; gap: 16px; flex-wrap: wrap; color: var(--text-secondary); margin: 8px 0 12px; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.toolbar { display: flex; gap: 12px; align-items: center; margin-bottom: 16px; color: var(--text-secondary); }
+button, select { font: inherit; color: var(--text-primary); background: var(--surface-1); border: 1px solid var(--axis); border-radius: 8px; padding: 4px 10px; cursor: pointer; }
+svg text { fill: var(--text-secondary); font: 12px system-ui, -apple-system, "Segoe UI", sans-serif; }
+svg .value-label { fill: var(--text-primary); }
+.tooltip { position: fixed; pointer-events: none; background: var(--surface-1); color: var(--text-primary); border: 1px solid var(--ring); border-radius: 8px; padding: 8px 10px; box-shadow: 0 4px 16px rgba(0,0,0,0.15); font-size: 12px; max-width: 360px; display: none; z-index: 10; }
+.tooltip .strong { font-weight: 600; font-size: 14px; }
+.tooltip .row { display: flex; align-items: center; gap: 6px; }
+.tooltip .key { width: 12px; height: 2px; display: inline-block; }
+.grid-cells { display: grid; grid-template-columns: repeat(20, 1fr); gap: 2px; }
+.cell { aspect-ratio: 1; border-radius: 4px; border: none; padding: 0; font-size: 10px; color: var(--text-primary); cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.cell.sideA, .cell.sideB { color: #ffffff; }
+.cell:focus-visible, .cell.active { outline: 2px solid var(--text-primary); outline-offset: 1px; }
+.matrix { border-collapse: separate; border-spacing: 2px; font-size: 12px; }
+.matrix th { color: var(--text-secondary); font-weight: 500; }
+.matrix th.behavior { white-space: nowrap; vertical-align: bottom; padding: 0 0 6px; width: 20px; }
+.matrix th.behavior div { writing-mode: vertical-rl; transform: rotate(180deg); margin: 0 auto; }
+.matrix th.count { vertical-align: bottom; padding: 0 8px 6px; }
+.matrix td.dot { width: 18px; height: 18px; border-radius: 4px; background: var(--grid); }
+.matrix td.dot.on { background: var(--seq-550); }
+.matrix td.num { text-align: right; padding: 0 8px; font-variant-numeric: tabular-nums; }
+.matrix tr:hover td { filter: brightness(0.95); }
+.tag { border-radius: 4px; padding: 0 6px; font-size: 11px; color: var(--text-primary); border: 1px solid var(--axis); }
+.detail-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; }
+pre { background: var(--page); border: 1px solid var(--ring); border-radius: 8px; padding: 12px; overflow: auto; max-height: 420px; font-size: 12px; margin: 0; }
+table.data { border-collapse: collapse; width: 100%; font-size: 12px; }
+table.data th, table.data td { text-align: left; padding: 4px 8px; border-bottom: 1px solid var(--grid); vertical-align: top; }
+table.data th { color: var(--text-secondary); font-weight: 500; cursor: pointer; }
+table.data td.n { text-align: right; font-variant-numeric: tabular-nums; }
+.muted { color: var(--text-muted); }
+details summary { cursor: pointer; color: var(--text-secondary); }
+</style>
+</head>
+<body>
+<div class="viz-root">
+  <h1 id="title"></h1>
+  <p class="sub" id="subtitle"></p>
+  <p class="sub" id="cost-warning" hidden></p>
+  <div class="toolbar"><span>Theme</span><button id="theme">Toggle light / dark</button></div>
+  <div class="kpis" id="kpis"></div>
+
+  <div class="card">
+    <h2>Cases per behavior</h2>
+    <p class="sub">Distinct test cases showing each behavior. Behaviors neither candidate produced are listed underneath.</p>
+    <div class="legend" id="bar-legend"></div>
+    <div id="bars"></div>
+    <p class="muted" id="never"></p>
+  </div>
+
+  <div class="card">
+    <h2>Behavior combinations</h2>
+    <p class="sub">Each row is a set of behaviors seen together in one case. Filled cells mark the behaviors in that combination; counts are cases with exactly that combination.</p>
+    <div style="overflow:auto"><table class="matrix" id="matrix"></table></div>
+  </div>
+
+  <div class="card">
+    <h2>Batches</h2>
+    <p class="sub">Every batch of either candidate; a batch both candidates contain is drawn once. Select one to see its schema, object fragments, queries and cases.</p>
+    <div class="legend" id="grid-legend"></div>
+    <div class="grid-cells" id="grid"></div>
+  </div>
+
+  <div class="card" id="detail" hidden>
+    <h2 id="detail-title"></h2>
+    <p class="sub" id="detail-sub"></p>
+    <div class="detail-grid">
+      <div><h2>Schema</h2><pre id="detail-sdl"></pre></div>
+      <div><h2>Object fragments by registry</h2><pre id="detail-fragments"></pre></div>
+    </div>
+    <h2 style="margin-top:16px">Queries</h2>
+    <pre id="detail-queries"></pre>
+    <h2 style="margin-top:16px">Cases</h2>
+    <table class="data" id="detail-cases"></table>
+  </div>
+
+  <div class="card">
+    <details>
+      <summary>Table view of all batches</summary>
+      <table class="data" id="batch-table" style="margin-top:12px"></table>
+    </details>
+  </div>
+  <div class="tooltip" id="tooltip"></div>
+</div>
+<script type="application/json" id="data">__DATA__</script>
+<script>
+const data = JSON.parse(document.getElementById('data').textContent);
+const keyOf = b => `${b.id}/${b.schemaId}`;
+const sideA = new Set(data.batches.filter(b => b.side !== 'b').map(keyOf));
+const sideB = new Set(data.batches.filter(b => b.side !== 'a').map(keyOf));
+const behaviors = data.behaviors.map(b => b.id);
+const short = id => id.replace(/^object_fragment_/, 'fragment: ').replace(/_/g, ' ');
+const el = (tag, attrs = {}, text) => { const n = document.createElement(tag); for (const [k, v] of Object.entries(attrs)) n.setAttribute(k, v); if (text !== undefined) n.textContent = text; return n; };
+const svgEl = (tag, attrs = {}) => { const n = document.createElementNS('http://www.w3.org/2000/svg', tag); for (const [k, v] of Object.entries(attrs)) n.setAttribute(k, v); return n; };
+const membership = b => b.side === 'both' ? 'both' : b.side === 'a' ? 'sideA' : 'sideB';
+const membershipLabel = { sideA: 'A only', sideB: 'B only', both: 'A and B' };
+const comboKey = obligations => obligations.join('|');
+
+const sets = {
+  sideA: data.batches.filter(b => sideA.has(keyOf(b))),
+  sideB: data.batches.filter(b => sideB.has(keyOf(b))),
+  pool: data.batches,
+};
+const casesOf = batches => batches.flatMap(b => b.cases);
+const combosOf = batches => new Set(casesOf(batches).map(c => comboKey(c.obligations)));
+const supportOf = (batches, id) => casesOf(batches).filter(c => c.obligations.includes(id)).length;
+const poolCombos = combosOf(sets.pool);
+
+document.getElementById('title').textContent = `${data.a} vs ${data.b}`;
+document.getElementById('subtitle').textContent = `A: ${data.a} · B: ${data.b}`;
+if (!data.sameCost) { const w = document.getElementById('cost-warning'); w.hidden = false; w.textContent = 'A and B differ in cases or batches, so raw coverage favors the larger candidate.'; }
+
+const tooltip = document.getElementById('tooltip');
+function showTip(event, build) {
+  tooltip.replaceChildren(); build(tooltip); tooltip.style.display = 'block';
+  const x = Math.min(event.clientX + 14, window.innerWidth - tooltip.offsetWidth - 8);
+  const y = Math.min(event.clientY + 14, window.innerHeight - tooltip.offsetHeight - 8);
+  tooltip.style.left = `${x}px`; tooltip.style.top = `${y}px`;
+}
+const hideTip = () => { tooltip.style.display = 'none'; };
+const tipRow = (parent, color, value, label) => { const r = el('div', { class: 'row' }); const k = el('span', { class: 'key' }); k.style.background = color; r.append(k, el('span', { class: 'strong' }, value), el('span', {}, label)); parent.append(r); };
+
+// KPI tiles
+const kpis = document.getElementById('kpis');
+[['A', 'sideA', sets.sideA], ['B', 'sideB', sets.sideB], ['A and B together', null, sets.pool]].forEach(([label, key, batches]) => {
+  const tile = el('div', { class: 'kpi' });
+  const l = el('div', { class: 'label' });
+  if (key) { const s = el('span', { class: 'swatch' }); s.style.background = `var(--${key})`; l.append(s); }
+  l.append(document.createTextNode(label));
+  tile.append(l, el('div', { class: 'value' }, `${combosOf(batches).size} of ${poolCombos.size}`), el('div', { class: 'detail' }, `combinations · ${batches.length} batches · ${casesOf(batches).length} cases`));
+  kpis.append(tile);
+});
+
+// Grouped horizontal bars: A vs B per behavior
+const seen = behaviors.filter(id => supportOf(sets.pool, id) > 0);
+const never = behaviors.filter(id => supportOf(sets.pool, id) === 0);
+document.getElementById('never').textContent = never.length ? `Produced by neither: ${never.map(short).join(', ')}.` : '';
+const barLegend = document.getElementById('bar-legend');
+[['sideA', 'A'], ['sideB', 'B']].forEach(([key, label]) => { const s = el('span'); const w = el('span', { class: 'swatch' }); w.style.background = `var(--${key})`; s.append(w, document.createTextNode(label)); barLegend.append(s); });
+(function drawBars() {
+  const labelW = 400, plotW = 520, rowH = 34, barH = 12, top = 8;
+  const max = Math.max(...seen.map(id => Math.max(supportOf(sets.sideA, id), supportOf(sets.sideB, id))));
+  const height = top + seen.length * rowH + 24;
+  const svg = svgEl('svg', { width: labelW + plotW + 60, height, role: 'img', 'aria-label': 'Cases per behavior, A versus B' });
+  const x = v => labelW + (v / max) * plotW;
+  [0, 0.25, 0.5, 0.75, 1].forEach(t => {
+    const v = Math.round(max * t);
+    svg.append(svgEl('line', { x1: x(v), x2: x(v), y1: top, y2: height - 20, stroke: 'var(--grid)' }));
+    const tx = svgEl('text', { x: x(v), y: height - 6, 'text-anchor': 'middle' }); tx.textContent = v; svg.append(tx);
+  });
+  seen.forEach((id, i) => {
+    const y = top + i * rowH;
+    const label = svgEl('text', { x: labelW - 12, y: y + rowH / 2 + 4, 'text-anchor': 'end' }); label.textContent = short(id); svg.append(label);
+    const values = [['sideA', supportOf(sets.sideA, id)], ['sideB', supportOf(sets.sideB, id)]];
+    values.forEach(([key, v], j) => {
+      const by = y + 4 + j * (barH + 2);
+      const w = Math.max(v === 0 ? 0 : 2, x(v) - labelW);
+      svg.append(svgEl('rect', { x: labelW, y: by, width: w, height: barH, rx: 4, fill: `var(--${key})` }));
+      const vt = svgEl('text', { x: labelW + w + 6, y: by + barH - 2, class: 'value-label' }); vt.textContent = v; svg.append(vt);
+    });
+    const hit = svgEl('rect', { x: 0, y, width: labelW + plotW + 60, height: rowH, fill: 'transparent', tabindex: 0 });
+    const tip = e => showTip(e, t => { t.append(el('div', { class: 'muted' }, short(id))); tipRow(t, 'var(--sideA)', values[0][1], 'A'); tipRow(t, 'var(--sideB)', values[1][1], 'B'); });
+    hit.addEventListener('pointermove', tip); hit.addEventListener('pointerleave', hideTip);
+    hit.addEventListener('focus', e => { const r = hit.getBoundingClientRect(); tip({ clientX: r.left + labelW, clientY: r.top }); }); hit.addEventListener('blur', hideTip);
+    svg.append(hit);
+  });
+  document.getElementById('bars').append(svg);
+})();
+
+// Combination matrix
+(function drawMatrix() {
+  const counts = new Map();
+  const add = (setName, batches) => casesOf(batches).forEach(c => { const k = comboKey(c.obligations); const row = counts.get(k) || { obligations: c.obligations, sideA: 0, sideB: 0, pool: 0 }; row[setName]++; counts.set(k, row); });
+  add('sideA', sets.sideA); add('sideB', sets.sideB); add('pool', sets.pool);
+  const rows = [...counts.values()].sort((a, b) => b.pool - a.pool || a.obligations.length - b.obligations.length);
+  const table = document.getElementById('matrix');
+  const head = el('tr');
+  seen.forEach(id => { const th = el('th', { class: 'behavior' }); th.append(el('div', {}, short(id))); head.append(th); });
+  ['A', 'B', ''].forEach(h => head.append(el('th', { class: 'count' }, h)));
+  table.append(head);
+  rows.forEach(row => {
+    const tr = el('tr');
+    seen.forEach(id => tr.append(el('td', { class: row.obligations.includes(id) ? 'dot on' : 'dot', title: short(id) })));
+    tr.append(el('td', { class: 'num' }, row.sideA), el('td', { class: 'num' }, row.sideB));
+    const note = el('td');
+    if (row.sideA === 0) note.append(el('span', { class: 'tag' }, 'only B')); else if (row.sideB === 0) note.append(el('span', { class: 'tag' }, 'only A'));
+    if (row.obligations.length === 0) note.append(document.createTextNode(' no behaviors'));
+    tr.append(note);
+    tr.addEventListener('pointermove', e => showTip(e, t => { t.append(el('div', { class: 'muted' }, row.obligations.length ? row.obligations.map(short).join(' + ') : 'no behaviors')); tipRow(t, 'var(--sideA)', row.sideA, 'A cases'); tipRow(t, 'var(--sideB)', row.sideB, 'B cases'); }));
+    tr.addEventListener('pointerleave', hideTip);
+    table.append(tr);
+  });
+})();
+
+// Candidate grid
+const gridLegend = document.getElementById('grid-legend');
+['sideA', 'both', 'sideB'].forEach(key => { const s = el('span'); const w = el('span', { class: 'swatch' }); w.style.background = `var(--${key})`; s.append(w, document.createTextNode(`${membershipLabel[key]} (${data.batches.filter(b => membership(b) === key).length})`)); gridLegend.append(s); });
+const uniqueCombos = new Map();
+data.batches.forEach(b => {
+  const own = new Set(b.cases.map(c => comboKey(c.obligations)));
+  const others = new Set(data.batches.filter(o => o !== b).flatMap(o => o.cases.map(c => comboKey(c.obligations))));
+  uniqueCombos.set(keyOf(b), [...own].filter(k => !others.has(k)).length);
+});
+const grid = document.getElementById('grid');
+let activeCell = null;
+data.batches.forEach(b => {
+  const m = membership(b);
+  const cell = el('button', { class: `cell ${m}`, 'aria-label': `${b.id}, ${membershipLabel[m]}` }, b.id.slice(1));
+  cell.style.background = `var(--${m})`;
+  const tip = e => showTip(e, t => { t.append(el('div', { class: 'strong' }, b.id), el('div', {}, membershipLabel[m]), el('div', { class: 'muted' }, `${b.cases.length} cases · ${new Set(b.cases.map(c => comboKey(c.obligations))).size} combinations · ${uniqueCombos.get(keyOf(b))} only here`)); });
+  cell.addEventListener('pointermove', tip); cell.addEventListener('pointerleave', hideTip);
+  cell.addEventListener('click', () => { if (activeCell) activeCell.classList.remove('active'); activeCell = cell; cell.classList.add('active'); showDetail(b); });
+  grid.append(cell);
+});
+
+function showDetail(b) {
+  const panel = document.getElementById('detail');
+  panel.hidden = false;
+  document.getElementById('detail-title').textContent = `${b.id} · schema ${b.schemaId}`;
+  document.getElementById('detail-sub').textContent = `${membershipLabel[membership(b)]} · ${b.cases.length} cases · ${b.registries.length} registries × ${b.queries.length} queries`;
+  document.getElementById('detail-sdl').textContent = b.sdl;
+  document.getElementById('detail-fragments').textContent = b.registries.map(r => {
+    const entries = Object.entries(r.objectFragments);
+    return `registry ${r.id}\n` + (entries.length ? entries.map(([f, s]) => `  ${f}: ${s}`).join('\n') : '  (no object fragments)');
+  }).join('\n\n');
+  document.getElementById('detail-queries').textContent = b.queries.map(q => `# ${q.id}\n${q.source}`).join('\n\n');
+  const table = document.getElementById('detail-cases');
+  table.replaceChildren();
+  const head = el('tr'); ['Registry', 'Query', 'Behaviors', 'Fragment depths'].forEach(h => head.append(el('th', {}, h))); table.append(head);
+  b.cases.forEach(c => {
+    const tr = el('tr');
+    tr.append(el('td', {}, c.registry), el('td', {}, c.query), el('td', {}, c.obligations.map(short).join(', ') || '—'),
+      el('td', {}, c.attributes.filter(a => a.startsWith('object_fragment_depth:')).map(a => a.split(':')[1]).join(', ')));
+    table.append(tr);
+  });
+  panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// Table view
+(function drawTable() {
+  const table = document.getElementById('batch-table');
+  const columns = [['Batch', b => b.id], ['In', b => membershipLabel[membership(b)]], ['Cases', b => b.cases.length], ['Combinations', b => new Set(b.cases.map(c => comboKey(c.obligations))).size], ['Only here', b => uniqueCombos.get(keyOf(b))], ...seen.map(id => [short(id), b => supportOf([b], id)])];
+  let sortIndex = 0, ascending = true;
+  function render() {
+    table.replaceChildren();
+    const head = el('tr');
+    columns.forEach(([name], i) => { const th = el('th', {}, name); th.addEventListener('click', () => { ascending = sortIndex === i ? !ascending : false; sortIndex = i; render(); }); head.append(th); });
+    table.append(head);
+    const rows = [...data.batches].sort((a, b) => { const x = columns[sortIndex][1](a), y = columns[sortIndex][1](b); return (x < y ? -1 : x > y ? 1 : 0) * (ascending ? 1 : -1); });
+    rows.forEach(b => { const tr = el('tr'); columns.forEach(([, f], i) => tr.append(el('td', { class: i >= 2 ? 'n' : '' }, f(b)))); tr.addEventListener('click', () => showDetail(b)); table.append(tr); });
+  }
+  render();
+})();
+
+document.getElementById('theme').addEventListener('click', () => {
+  const root = document.documentElement;
+  const dark = root.dataset.theme ? root.dataset.theme === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
+  root.dataset.theme = dark ? 'light' : 'dark';
+});
+</script>
+</body>
+</html>

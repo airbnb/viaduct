@@ -1,6 +1,7 @@
 package viaduct.engine.runtime2.propertytest
 
 import java.io.ByteArrayOutputStream
+import java.nio.file.Path
 import java.time.LocalDateTime
 import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
@@ -209,19 +210,16 @@ class ResolverTestSuite private constructor(
         for ((offset, stored) in selectedBatches) {
             val schemaIndex = offset + 1
             attemptedCases +=
-                checkResolverTestBatch(
+                definition.checkNumberedBatch(
+                    batchId = stored.id,
                     batch = loadShard(stored.id),
+                    registries = stored.registries,
+                    queries = stored.queries,
                     schemaIndex = schemaIndex,
-                    execution = ResolverTestExecution(definition.counts, selected?.let { stored.caseCoordinate(schemaIndex, it) }),
-                    profile = definition.profile,
                     seed = definition.seed,
-                    selectiveNodeResolvers = definition.config[SelectiveNodeResolversEnabled],
-                    fieldCheckerMode = definition.fieldCheckerMode,
-                    typeCheckerMode = definition.typeCheckerMode,
+                    counts = definition.counts,
+                    selected = selected?.let { stored.caseCoordinate(schemaIndex, it) },
                     selectiveResolvers = selectiveResolvers,
-                    testCaseId = { registryIndex, queryIndex ->
-                        ResolverTestCaseId(definition.id, stored.id, stored.registries[registryIndex - 1], stored.queries[queryIndex - 1]).toString()
-                    },
                     property = property,
                 )
         }
@@ -388,6 +386,56 @@ private fun ResolverTestSuiteDefinition.readEntry(
 
 // Generation order is fixed by the suite's seed, so a batch keeps its ordinal when other batches are pruned from the manifest.
 internal fun resolverTestBatchId(ordinal: Int): String = "b" + ordinal.toString().padStart(3, '0')
+
+internal data class NumberedResolverTestBatch(
+    val id: String,
+    val batch: ResolverTestBatch,
+    val ids: ResolverTestShardIds,
+)
+
+/** Deduplicates and numbers generated batches exactly as they are stored. */
+internal fun ResolverTestSuiteDefinition.numberBatches(generated: List<ResolverTestBatch>): List<NumberedResolverTestBatch> =
+    generated.mapIndexed { offset, generatedBatch ->
+        val batch = ResolverTestShardCodec.withoutDuplicates(generatedBatch)
+        val batchId = resolverTestBatchId(offset + 1)
+        val ids = ResolverTestShardCodec.ids(batch)
+        check(ids.registries.allDistinct() && ids.queries.allDistinct()) {
+            "Suite $id batch $batchId has distinct registries or queries whose IDs collide"
+        }
+        NumberedResolverTestBatch(batchId, batch, ids)
+    }
+
+/** Checks one numbered batch, stamping each case with its stable [ResolverTestCaseId]. */
+internal suspend fun ResolverTestSuiteDefinition.checkNumberedBatch(
+    batchId: String,
+    batch: ResolverTestBatch,
+    registries: List<String>,
+    queries: List<String>,
+    schemaIndex: Int,
+    seed: Long,
+    counts: TestCaseCount,
+    selected: ResolverTestCaseCoordinate? = null,
+    selectiveResolvers: Boolean = true,
+    property: suspend (TestWorld, ResolverTestCase) -> Unit,
+): Int =
+    checkResolverTestBatch(
+        batch = batch,
+        schemaIndex = schemaIndex,
+        execution = ResolverTestExecution(counts, selected),
+        profile = profile,
+        seed = seed,
+        selectiveNodeResolvers = config[SelectiveNodeResolversEnabled],
+        fieldCheckerMode = fieldCheckerMode,
+        typeCheckerMode = typeCheckerMode,
+        selectiveResolvers = selectiveResolvers,
+        testCaseId = { registryIndex, queryIndex ->
+            ResolverTestCaseId(id, batchId, registries[registryIndex - 1], queries[queryIndex - 1]).toString()
+        },
+        property = property,
+    )
+
+// bazel run executes in the runfiles tree; relative paths are meant relative to the caller's workspace.
+internal fun workspaceRelativePath(path: String): Path = System.getenv("BUILD_WORKSPACE_DIRECTORY")?.let { Path.of(it).resolve(path) } ?: Path.of(path)
 
 private const val REGENERATE_HINT =
     "regenerate with ./gradlew :core:engine:runtime2:materializeResolverTestSuites " +

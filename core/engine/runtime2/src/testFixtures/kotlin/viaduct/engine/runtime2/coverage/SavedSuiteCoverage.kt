@@ -1,12 +1,10 @@
 package viaduct.engine.runtime2.coverage
 
 import java.util.UUID
-import viaduct.engine.runtime2.arbitrary.ResolverTestCase
 import viaduct.engine.runtime2.contract.GeneratedCaseAssertions
 import viaduct.engine.runtime2.contract.ResolverContract
 import viaduct.engine.runtime2.contract.assertAll
 import viaduct.engine.runtime2.contract.observeGeneratedCase
-import viaduct.engine.runtime2.model.testing.TestWorld
 import viaduct.engine.runtime2.propertytest.ResolverTestCaseId
 import viaduct.engine.runtime2.propertytest.ResolverTestSuite
 
@@ -16,23 +14,21 @@ suspend fun ResolverContract.measureSavedSuiteCoverage(
     runId: String = UUID.randomUUID().toString(),
     selectedCase: ResolverTestCaseId? = null,
     selectedBatchId: String? = null,
+): ResolverCoverageMeasurement = measureCoverage(CoverageCandidate.Stored(suite, selectedCase, selectedBatchId), runId)
+
+/** Failure or interruption yields no measurement. */
+suspend fun ResolverContract.measureCoverage(
+    candidate: CoverageCandidate,
+    runId: String = UUID.randomUUID().toString(),
 ): ResolverCoverageMeasurement {
     require(runId.isNotBlank())
-    require(selectedCase == null || selectedBatchId == null) { "Select either one case or one batch, not both" }
     val executions = mutableListOf<CoverageExecution>()
     val rows = mutableListOf<ResolverCoverageRow>()
     val dependencies = mutableListOf<ResolverDependencyRow>()
-
-    suspend fun recordCase(
-        world: TestWorld,
-        testCase: ResolverTestCase,
-    ) {
+    val expectedCases = candidate.replay { world, testCase, test ->
         val observation = observeGeneratedCase(world, testCase).assertAll(
             GeneratedCaseAssertions.defaultGeneratedContract + GeneratedCaseAssertions.fromFieldBindings,
         )
-        val testCaseId = ResolverTestCaseId.parse(requireNotNull(testCase.testCaseId) { "Saved test case has no stable ID" })
-        val schemaId = suite.batches.single { it.id == testCaseId.batch }.schema
-        val test = CoverageTestId.from(testCaseId, schemaId)
         val execution = CoverageExecution(runId, "execution-${executions.size + 1}", test)
         executions += execution
         // The permutation execution validates correctness; it is not another supporting test.
@@ -40,26 +36,7 @@ suspend fun ResolverContract.measureSavedSuiteCoverage(
         rows += records.occurrences
         dependencies += records.dependencies
     }
-
-    if (selectedBatchId == null) {
-        val run = suite.replay(selected = selectedCase, property = ::recordCase)
-        check(run.attemptedCases == run.expectedCases) { "Incomplete saved-suite measurement" }
-    } else {
-        val expectedCases = suite.testCaseIds().count { it.batch == selectedBatchId }
-        require(expectedCases > 0) { "Resolver test suite ${suite.definition.id} holds no test cases in batch $selectedBatchId" }
-        val run = suite.replay(selectedBatchId = selectedBatchId, property = ::recordCase)
-        check(run.attemptedCases == expectedCases) {
-            "Saved-suite batch $selectedBatchId replayed ${run.attemptedCases} cases; expected $expectedCases"
-        }
-    }
-
-    val expectedCases =
-        when {
-            selectedBatchId != null -> suite.testCaseIds().count { it.batch == selectedBatchId }
-            selectedCase != null -> 1
-            else -> suite.caseCount
-        }
-    check(executions.size == expectedCases) { "Incomplete saved-suite measurement: ran ${executions.size} cases; expected $expectedCases" }
+    check(executions.size == expectedCases) { "Incomplete ${candidate.label} measurement: ${executions.size} of $expectedCases cases" }
     return ResolverCoverageMeasurement(executions, rows, dependencies = dependencies)
 }
 
