@@ -1546,6 +1546,7 @@ class ExecutorRegistryInputsTest {
                     emptyMap(),
                 ),
                 outputAdapter = ResolverOutputAdapter { value, sourceType, selections, context ->
+                    assertSame(fixture.dispatcherContext, context)
                     assertSame(raw, value)
                     assertEquals("Item", (sourceType as GraphQLObjectType).name)
                     assertSame(demand, selections)
@@ -1554,6 +1555,7 @@ class ExecutorRegistryInputsTest {
                     adapted
                 },
                 selectionSetConverter = { selections, selectedType, context ->
+                    assertSame(fixture.dispatcherContext, context)
                     assertSame(demand, selections)
                     assertSame(type, selectedType)
                     assertSame(fixture.engineSchema.schema, context.fullSchema.schema)

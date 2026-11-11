@@ -179,6 +179,7 @@ private fun executorRegistryInputs(
                 arguments: Arguments.Resolved,
                 selections: EngineSelectionSet?,
                 executorContext: EngineExecutionContext,
+                adapterContext: EngineExecutionContext,
                 demand: SelectionForest,
             ): ResolverOutputData? {
                 val selector =
@@ -198,7 +199,7 @@ private fun executorRegistryInputs(
                 return output.fold(
                     onSuccess = {
                         if (outputAdapter != null) {
-                            outputAdapter.adapt(it, sourceField.type, demand, executorContext)
+                            outputAdapter.adapt(it, sourceField.type, demand, adapterContext)
                         } else {
                             it
                         }
@@ -215,7 +216,7 @@ private fun executorRegistryInputs(
                         (field.type.baseTypeDef as? ViaductSchema.CompositeTypeDef)?.let {
                                 type ->
                             type.takeIf { fullSchema.schema.getType(it.name) != null }
-                                ?.let { selectionSetConverter?.invoke(selections, it, executorContext) ?: selections.toEngineSelectionSet(it, fullSchema) }
+                                ?.let { selectionSetConverter?.invoke(selections, it, contextForInvocation(resolutionContext)) ?: selections.toEngineSelectionSet(it, fullSchema) }
                         }
                     invokeExecutor(
                         input,
@@ -223,6 +224,7 @@ private fun executorRegistryInputs(
                         arguments,
                         selectionSet,
                         executorContext,
+                        contextForInvocation(resolutionContext),
                         selections,
                     )
                 }
@@ -1025,6 +1027,7 @@ private fun nodeResolversFromExecutors(
                 id: String,
                 selections: EngineSelectionSet,
                 executorContext: EngineExecutionContext,
+                adapterContext: EngineExecutionContext,
                 demand: SelectionForest,
             ): ResolverOutputData? {
                 if (
@@ -1046,7 +1049,7 @@ private fun nodeResolversFromExecutors(
                         )
                 return output.fold(
                     onSuccess = {
-                        val adapted = if (outputAdapter != null) outputAdapter.adapt(it, fullSchema.schema.getObjectType(typeName), demand, executorContext) else it
+                        val adapted = if (outputAdapter != null) outputAdapter.adapt(it, fullSchema.schema.getObjectType(typeName), demand, adapterContext) else it
                         val value = adapted.rootFieldReferenceDataOrNull() ?: adapted
                         when (value) {
                             null, is EngineErrorData, is RootFieldReferenceData -> value
@@ -1073,6 +1076,7 @@ private fun nodeResolversFromExecutors(
                                 schemas,
                                 resolutionContext,
                             ),
+                            contextForInvocation(resolutionContext),
                             selections,
                         )
                     }
@@ -1090,6 +1094,7 @@ private fun nodeResolversFromExecutors(
                                 schemas,
                                 resolutionContext,
                             ),
+                            contextForInvocation(resolutionContext),
                             selectionForestOf(),
                         )
                     }
