@@ -42,18 +42,18 @@ object SuiteCoverageComparisonPage {
                     "id" to candidate.id,
                     "schemaId" to candidate.ids.schema,
                     "sdl" to candidate.batch.schema.sdl,
-                    "registries" to
-                        candidate.ids.registries.zip(candidate.batch.registries).map { (id, registry) ->
-                            mapOf(
-                                "id" to id,
-                                "objectFragments" to
-                                    registry.objectFragmentSources.filterValues(String::isNotEmpty).mapKeys { (coordinate, _) -> "${coordinate.typeName}.${coordinate.fieldName}" },
-                            )
-                        },
+                    "registry" to
+                        mapOf(
+                            "id" to candidate.ids.registry,
+                            "objectFragments" to
+                                candidate.batch.registry.objectFragmentSources
+                                    .filterValues(String::isNotEmpty)
+                                    .mapKeys { (coordinate, _) -> "${coordinate.typeName}.${coordinate.fieldName}" },
+                        ),
                     "queries" to candidate.ids.queries.zip(candidate.batch.queries).map { (id, query) -> mapOf("id" to id, "source" to query.source) },
                     "cases" to
                         casesByBatch[candidate.id].orEmpty().map { case ->
-                            mapOf("registry" to case.test.registryId, "query" to case.test.queryId, "obligations" to case.obligations.sorted(), "attributes" to case.attributes.sorted())
+                            mapOf("query" to case.test.queryId, "obligations" to case.obligations.sorted(), "attributes" to case.attributes.sorted())
                         },
                 )
         }

@@ -8,7 +8,6 @@ import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.runBlocking
 import viaduct.engine.runtime2.arbitrary.RESOLVER_TEST_CASE_PROPERTY
 import viaduct.engine.runtime2.arbitrary.ResolutionWitness
-import viaduct.engine.runtime2.arbitrary.TestCaseCount
 import viaduct.engine.runtime2.arbitrary.checkResolverTestCases
 import viaduct.engine.runtime2.arbitrary.encodeResolverBenchmarkCorpus
 import viaduct.engine.runtime2.contract.registeredResolverApplicationIdentityCounts
@@ -25,7 +24,9 @@ import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
 
 object PropertyTestBenchmarkCorpusWriter {
     private const val CAMPAIGN_ROUND = 46
-    private const val SELECTED_CASE = "10:4:3"
+
+    // S:R:Q generation produced the frozen corpus case (S=10 R=4 Q=3); S:Q generation cannot reproduce it.
+    private val SELECTED_CASE: String? = null
     private const val EXPECTED_RESOLVER_APPLICATIONS = 12_763
 
     @JvmStatic
@@ -33,6 +34,10 @@ object PropertyTestBenchmarkCorpusWriter {
         require(arguments.size == 1) {
             "Expected arguments: <output-directory>"
         }
+        val selectedCase =
+            checkNotNull(SELECTED_CASE) {
+                "The frozen property-test benchmark corpus predates S:Q generation; search campaign round $CAMPAIGN_ROUND for a new S:Q case and set SELECTED_CASE and EXPECTED_RESOLVER_APPLICATIONS"
+            }
         val outputDirectory = Path.of(arguments.single())
         val campaignRun =
             ResolutionBroadStressCampaign
@@ -42,7 +47,7 @@ object PropertyTestBenchmarkCorpusWriter {
                     run.profile == ResolutionBroadStressProfile.SYMBOLIC_IDENTITY
                 }
         val previousCase = System.getProperty(RESOLVER_TEST_CASE_PROPERTY)
-        System.setProperty(RESOLVER_TEST_CASE_PROPERTY, SELECTED_CASE)
+        System.setProperty(RESOLVER_TEST_CASE_PROPERTY, selectedCase)
         try {
             ResolutionDispatcherFactory.create(configuredResolutionThreadCount()).use { dispatcher ->
                 runBlocking {
@@ -112,8 +117,6 @@ object PropertyTestBenchmarkCorpusWriter {
                                         "propertySeed" to campaignRun.seed,
                                         "queryIndex" to
                                             coordinates.queryIndex.toLong(),
-                                        "registryIndex" to
-                                            coordinates.registryIndex.toLong(),
                                         "resolverApplications" to
                                             witness.applications.size.toLong(),
                                         "schemaIndex" to
@@ -132,7 +135,7 @@ object PropertyTestBenchmarkCorpusWriter {
                                 appendLine("profile=${campaignRun.propertyProfile}")
                                 appendLine("propertySeed=${campaignRun.seed}")
                                 appendLine("campaignSize=${campaignRun.counts.summary()}")
-                                appendLine("selectedCase=$SELECTED_CASE")
+                                appendLine("selectedCase=$selectedCase")
                                 appendLine(
                                     "resolverApplications=${witness.applications.size}",
                                 )
@@ -141,7 +144,7 @@ object PropertyTestBenchmarkCorpusWriter {
                         captured = true
                     }
                     check(captured) {
-                        "Property-test benchmark case $SELECTED_CASE was not captured"
+                        "Property-test benchmark case $selectedCase was not captured"
                     }
                 }
             }
@@ -154,6 +157,4 @@ object PropertyTestBenchmarkCorpusWriter {
         }
         println("Wrote frozen property-test benchmark corpus to $outputDirectory")
     }
-
-    private fun TestCaseCount.summary(): String = "$schemas:$registriesPerSchema:$queriesPerSchema"
 }

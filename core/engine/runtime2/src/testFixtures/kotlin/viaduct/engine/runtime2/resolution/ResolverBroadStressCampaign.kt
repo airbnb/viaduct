@@ -59,7 +59,7 @@ data class ResolutionBroadStressCampaignRun(
     val seed: Long,
 ) {
     val expectedCases: Int =
-        counts.schemas * counts.registriesPerSchema * counts.queriesPerSchema
+        counts.caseCount()
 }
 
 // Varies which generator dimension receives most of a round's sampling budget.
@@ -71,26 +71,26 @@ enum class ResolutionBroadStressCampaignPhase(
 ) {
     SCHEMA_BREADTH(
         id = "schema-breadth",
-        commonCounts = TestCaseCount(200, 2, 5),
-        multipleOwnerCounts = TestCaseCount(200, 2, 5),
+        commonCounts = TestCaseCount(400, 5),
+        multipleOwnerCounts = TestCaseCount(400, 5),
         largeDeep = false,
     ),
     REGISTRY_DIVERSITY(
         id = "registry-diversity",
-        commonCounts = TestCaseCount(40, 25, 2),
-        multipleOwnerCounts = TestCaseCount(40, 25, 2),
+        commonCounts = TestCaseCount(1_000, 2),
+        multipleOwnerCounts = TestCaseCount(1_000, 2),
         largeDeep = false,
     ),
     QUERY_INTERACTIONS(
         id = "query-interactions",
-        commonCounts = TestCaseCount(10, 4, 50),
-        multipleOwnerCounts = TestCaseCount(40, 25, 2),
+        commonCounts = TestCaseCount(40, 50),
+        multipleOwnerCounts = TestCaseCount(1_000, 2),
         largeDeep = false,
     ),
     LARGE_DEEP(
         id = "large-deep",
-        commonCounts = TestCaseCount(20, 10, 10),
-        multipleOwnerCounts = TestCaseCount(40, 25, 2),
+        commonCounts = TestCaseCount(200, 10),
+        multipleOwnerCounts = TestCaseCount(1_000, 2),
         largeDeep = true,
     ),
     ;
@@ -106,7 +106,7 @@ enum class ResolutionBroadStressCampaignPhase(
     }
 }
 
-// Returns sampling dimensions that retain registry diversity for registry-shape profiles.
+// Gives profiles that need many distinct schemas the many-schema, few-query dimensions.
 private fun ResolutionBroadStressCampaignPhase.countsFor(profile: ResolutionBroadStressProfile): TestCaseCount =
     when {
         profile == ResolutionBroadStressProfile.MULTIPLE_OWNERS -> multipleOwnerCounts

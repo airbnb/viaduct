@@ -770,9 +770,6 @@ suspend fun runResolutionBroadStress(
     }
 }
 
-// Returns compact S:R:Q dimensions for diagnostics.
-private fun TestCaseCount.summary(): String = "$schemas:$registriesPerSchema:$queriesPerSchema"
-
 private fun <K> MutableMap<K, Int>.increment(key: K) {
     this[key] = getOrDefault(key, 0) + 1
 }

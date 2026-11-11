@@ -55,17 +55,17 @@ Within each tier, use Resolver06/21 for empty object fragments, Resolver07/22 fo
 
 ## Replay Before Debugging
 
-Generated failures report a stable profile ID, seed, one-based `S:R:Q` coordinate, schema, registry, and query. Replay the exact coordinate before rerunning a class or campaign:
+Generated failures report a stable profile ID, seed, one-based `S:Q` coordinate, schema, registry, and query. Replay the exact coordinate before rerunning a class or campaign:
 
 ```shell
 ./gradlew :core:engine:runtime2:resolverPropertyReplay \
   -PresolverPropertyClass=viaduct.engine.runtime2.resolution.ResolverGeneratedTest \
   -PresolverPropertyProfile=feature-interaction \
   -PresolverPropertySeed=424242 \
-  -PresolverPropertyCase=2:2:1
+  -PresolverPropertyCase=2:1
 ```
 
-Coordinate replay regenerates preceding schema state so the random stream remains identical, executes only the selected case, and suppresses aggregate activation guards. Preserve `-PresolverPropertySize=S:R:Q` when the failure came from a stress task because registry and query counts affect generation before the selected coordinate. Use `-PresolverPropertyCase=all` only for aggregate guard failures.
+Coordinate replay regenerates preceding schema state so the random stream remains identical, executes only the selected case, and suppresses aggregate activation guards. Preserve `-PresolverPropertySize=S:Q` when the failure came from a stress task because query counts affect generation before the selected coordinate. Use `-PresolverPropertyCase=all` only for aggregate guard failures.
 
 ## Classify The Failure
 

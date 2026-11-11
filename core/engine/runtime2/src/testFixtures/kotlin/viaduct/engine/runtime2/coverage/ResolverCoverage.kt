@@ -3,6 +3,7 @@ package viaduct.engine.runtime2.coverage
 import java.io.Reader
 import viaduct.engine.runtime2.propertytest.PropertyTestJson
 import viaduct.engine.runtime2.propertytest.ResolverTestCaseId
+import viaduct.engine.runtime2.propertytest.ResolverTestShardIds
 import viaduct.engine.runtime2.resolution.framework.ProviderCellOutcome
 
 /** Version of the RFC-271 coverage data and companion report, independent of saved-suite storage versions. */
@@ -23,17 +24,17 @@ enum class DeclaredOutputShape { SCALAR, OBJECT, LIST }
 
 enum class OutputKind { SCALAR, OBJECT, LIST, NULL, ERROR }
 
-/** Saved batch identity is suite-scoped; registry and query IDs are batch-local. */
+/** Saved batch identity is suite-scoped; query IDs are batch-local, and each batch holds one registry. */
 data class CoverageTestId(val batchId: String, val schemaId: String, val registryId: String, val queryId: String) {
     companion object {
         fun from(
             testCaseId: ResolverTestCaseId,
-            schemaId: String
+            batch: ResolverTestShardIds,
         ): CoverageTestId =
             CoverageTestId(
                 batchId = "${testCaseId.suite}/${testCaseId.batch}",
-                schemaId = schemaId,
-                registryId = testCaseId.registry,
+                schemaId = batch.schema,
+                registryId = batch.registry,
                 queryId = testCaseId.query,
             )
     }

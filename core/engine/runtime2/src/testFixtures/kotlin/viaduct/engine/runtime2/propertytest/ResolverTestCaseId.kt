@@ -7,28 +7,27 @@ import java.nio.file.Path
 import viaduct.engine.runtime2.arbitrary.RESOLVER_TEST_CASE_ID_PROPERTY
 import viaduct.engine.runtime2.arbitrary.RESOLVER_TEST_CASE_MARKER_PROPERTY
 
-/** One stored case as `<suite>/<batch>/<registry>/<query>`; batches are stipulated, registries and queries are content IDs within their batch. */
+/** One stored case as `<suite>/<batch>/<query>`; a batch is stipulated and holds one registry, and a query is a content ID within its batch. */
 data class ResolverTestCaseId(
     val suite: String,
     val batch: String,
-    val registry: String,
     val query: String,
 ) {
     init {
-        require(listOf(suite, batch, registry, query).all { part -> part.isNotBlank() && '/' !in part }) {
-            "Resolver test case ID parts must be non-blank and contain no '/': $suite, $batch, $registry, $query"
+        require(listOf(suite, batch, query).all { part -> part.isNotBlank() && '/' !in part }) {
+            "Resolver test case ID parts must be non-blank and contain no '/': $suite, $batch, $query"
         }
     }
 
-    override fun toString(): String = "$suite/$batch/$registry/$query"
+    override fun toString(): String = "$suite/$batch/$query"
 
     companion object {
         fun parse(value: String): ResolverTestCaseId {
             val parts = value.split('/')
-            require(parts.size == 4) {
-                "$RESOLVER_TEST_CASE_ID_PROPERTY must have suite/batch/registry/query form: $value"
+            require(parts.size == 3) {
+                "$RESOLVER_TEST_CASE_ID_PROPERTY must have suite/batch/query form: $value"
             }
-            return ResolverTestCaseId(parts[0], parts[1], parts[2], parts[3])
+            return ResolverTestCaseId(parts[0], parts[1], parts[2])
         }
     }
 }

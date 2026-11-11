@@ -64,7 +64,7 @@ val resolutionOverheadProfileOutput =
 val resolverBenchmarkCorpusSeed =
     providers.gradleProperty("resolverBenchmarkCorpusSeed").orElse("1")
 val resolverBenchmarkCorpusSize =
-    providers.gradleProperty("resolverBenchmarkCorpusSize").orElse("10:5:10")
+    providers.gradleProperty("resolverBenchmarkCorpusSize").orElse("50:10")
 val resolverBenchmarkCorpusDirectory =
     layout.projectDirectory.dir("src/jmh/resources/viaduct/engine/runtime2/benchmark/current-profile")
 val resolverBenchmarkQueriesFile =
@@ -725,10 +725,11 @@ val resolverPropertyReplayCase =
     providers.gradleProperty("resolverPropertyCase").orElse("all")
 val resolverPropertyReplaySize = providers.gradleProperty("resolverPropertySize")
 val jvmClassNamePattern = Regex("""[A-Za-z_$][A-Za-z0-9_.$]*""")
+val resolverDimensionsPattern = Regex("""[1-9][0-9]*:[1-9][0-9]*""")
 
 tasks.register<org.gradle.api.tasks.testing.Test>("resolverPropertyReplay") {
     group = "verification"
-    description = "Replays one generated resolver profile or S:R:Q case."
+    description = "Replays one generated resolver profile or S:Q case."
     maxHeapSize = "2g"
     testClassesDirs = sourceSets["test"].output.classesDirs
     classpath = sourceSets["test"].runtimeClasspath
@@ -762,16 +763,16 @@ tasks.register<org.gradle.api.tasks.testing.Test>("resolverPropertyReplay") {
         val case = resolverPropertyReplayCase.get()
         require(
             case.equals("all", ignoreCase = true) ||
-                case.matches(Regex("""[1-9][0-9]*:[1-9][0-9]*:[1-9][0-9]*""")),
+                case.matches(resolverDimensionsPattern),
         ) {
-            "resolverPropertyCase must be all or S:R:Q with positive integers: $case"
+            "resolverPropertyCase must be all or S:Q with positive integers: $case"
         }
         val size = resolverPropertyReplaySize.orNull
         require(
             size == null ||
-                size.matches(Regex("""[1-9][0-9]*:[1-9][0-9]*:[1-9][0-9]*""")),
+                size.matches(resolverDimensionsPattern),
         ) {
-            "resolverPropertySize must have S:R:Q form with positive integers: $size"
+            "resolverPropertySize must have S:Q form with positive integers: $size"
         }
 
         filter.includeTestsMatching("$className.$method")
@@ -788,7 +789,7 @@ val resolverTestCaseMarker = layout.buildDirectory.file("resolver-test-case/ran.
 
 tasks.register<org.gradle.api.tasks.testing.Test>("resolverTestCase") {
     group = "verification"
-    description = "Replays one stored resolver test case by its suite/batch/registry/query ID."
+    description = "Replays one stored resolver test case by its suite/batch/query ID."
     maxHeapSize = "2g"
     testClassesDirs = sourceSets["test"].output.classesDirs
     classpath = sourceSets["test"].runtimeClasspath
@@ -798,7 +799,7 @@ tasks.register<org.gradle.api.tasks.testing.Test>("resolverTestCase") {
     doFirst {
         val testCase =
             resolverTestCase.orNull
-                ?: throw GradleException("Set -PresolverTestCase=<suite/batch/registry/query>")
+                ?: throw GradleException("Set -PresolverTestCase=<suite/batch/query>")
         val className = resolverPropertyReplayClass.orNull
         if (className == null) {
             listOf("*GeneratedTest", "*WitnessTest", "*MutationTest", "*.ResolverStressTest", "*.ResolverBroadStressTest", "*.ResolverBroadStressCampaignTest").forEach(filter::includeTestsMatching)
@@ -943,12 +944,12 @@ val resolutionBroadStressProfile =
         .orElse("balanced")
 val resolutionBroadStressProfiles =
     mapOf(
-        "balanced" to Pair("resolution-broad-stress", "10:20:50"),
+        "balanced" to Pair("resolution-broad-stress", "200:10"),
         "descendant-variables" to
-            Pair("resolution-broad-descendant-variables", "40:25:10"),
-        "nullable-errors" to Pair("resolution-broad-nullable-errors", "10:20:50"),
-        "symbolic-identity" to Pair("resolution-broad-symbolic-identity", "10:20:50"),
-        "multiple-owners" to Pair("resolution-broad-multiple-owners", "10:50:20"),
+            Pair("resolution-broad-descendant-variables", "200:10"),
+        "nullable-errors" to Pair("resolution-broad-nullable-errors", "200:10"),
+        "symbolic-identity" to Pair("resolution-broad-symbolic-identity", "200:10"),
+        "multiple-owners" to Pair("resolution-broad-multiple-owners", "200:10"),
     )
 
 val resolutionParentFocusedSeed =
@@ -1069,8 +1070,8 @@ tasks.register<org.gradle.api.tasks.testing.Test>("resolutionBroadStress") {
         seed.toLongOrNull()
             ?: throw GradleException("resolutionBroadStressSeed must be a Long: $seed")
         val size = resolutionBroadStressSize.orNull ?: profileConfiguration.second
-        require(size.matches(Regex("""[1-9][0-9]*:[1-9][0-9]*:[1-9][0-9]*"""))) {
-            "resolutionBroadStressSize must have S:R:Q form with positive integers: $size"
+        require(size.matches(resolverDimensionsPattern)) {
+            "resolutionBroadStressSize must have S:Q form with positive integers: $size"
         }
         systemProperty("resolution.broad.stress.size", size)
         systemProperty("resolution.broad.stress.seed", seed)
@@ -1128,9 +1129,9 @@ tasks.register<org.gradle.api.tasks.testing.Test>("resolutionBroadStressCampaign
         val case = resolverPropertyReplayCase.get()
         require(
             case.equals("all", ignoreCase = true) ||
-                case.matches(Regex("""[1-9][0-9]*:[1-9][0-9]*:[1-9][0-9]*""")),
+                case.matches(resolverDimensionsPattern),
         ) {
-            "resolverPropertyCase must be all or S:R:Q with positive integers: $case"
+            "resolverPropertyCase must be all or S:Q with positive integers: $case"
         }
         require(case.equals("all", ignoreCase = true) || profile != null) {
             "Set -PresolutionBroadStressCampaignProfile=<profile> for coordinate replay"
@@ -1235,7 +1236,7 @@ tasks.register<org.gradle.api.tasks.testing.Test>("resolutionTypeCheckerStress")
     }
 }
 
-// A configured <stem>Seed generates live at <stem>Size (default 50:5:10); otherwise the stored stress suites replay.
+// A configured <stem>Seed generates live at <stem>Size (default 250:10); otherwise the stored stress suites replay.
 fun org.gradle.api.tasks.testing.Test.checkerStressSuites(
     stem: String,
     seedSetting: Provider<String> = providers.gradleProperty("${stem}Seed"),
@@ -1252,5 +1253,5 @@ fun org.gradle.api.tasks.testing.Test.checkerStressSuites(
     seed.toLongOrNull() ?: throw GradleException("${stem}Seed must be a Long: $seed")
     systemProperty("resolver.property.seed", seed)
     systemProperty("kotest.proptest.default.seed", seed)
-    systemProperty("resolver.property.size", size.orElse("50:5:10").get())
+    systemProperty("resolver.property.size", size.orElse("250:10").get())
 }

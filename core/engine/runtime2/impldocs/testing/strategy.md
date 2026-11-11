@@ -148,31 +148,31 @@ Generated tests exercise the shared semantic contracts over reproducible product
 
 ### Profile Catalog
 
-| Profile ID | Scope | Resolvers | Normal `S:R:Q` |
+| Profile ID | Scope | Resolvers | Normal `S:Q` |
 | --- | --- | --- | --- |
-| `empty-object-fragment` | Empty fragments | Resolver06–08, Resolver21-23, Resolution | `10:3:5` |
-| `node` | Node values represented by canonical `Query.node` references with concrete-type dispatch | Resolver06–08, Resolver21-23, Resolution | `10:3:5` |
-| `root-field-reference` | Base-tier demanded references with fixed empty target fragments | Resolver06–08, Resolver21-23, Resolution | `10:3:5` |
-| `selective-node` | Selection-aware `Query.node` dispatch with explicit test-support output projection and supplied-demand evidence | Resolution | `10:3:5` |
-| `sometimes-passive` | Source-owned argumentless active fields | Resolver06–08, Resolver21-23, Resolution | `10:3:5` |
-| `object-fragment` | Nonempty fragments | Resolver07–08, Resolver22-23, Resolution | `10:3:5` |
-| `object-fragment-from-argument` | `FromArgument` variables, including nested and nullable input paths | Resolver07–08, Resolver22-23, Resolution | `10:3:5` |
-| `from-provider` | One-shot `FromProvider` callback variables with argument-sensitive values | Resolution | `10:3:5` |
-| `query-fragment` | Query-rooted resolver inputs shared within each orchestration | Resolver07–08, Resolver22-23, Resolution | `10:3:5` |
-| `resolver23-field-checker-success` | Grounded paired checker inputs, `FromArgument`, successful checks, correctness replay, and exact applications | Resolver23 | `10:3:5` |
-| `resolver23-field-checker-denial` | The same grounded checker input space with access denial and exact error propagation | Resolver23 | `10:3:5` |
-| `resolver23-field-checker-mixed` | Mixed checked/unchecked coordinates and mixed successful/denying checker outcomes | Resolver23 | `10:3:5` |
-| `resolver23-type-checker-success` | Raw object/Query value resolvers, checked dependency restoration, mixed field checks | Resolver23 | `10:3:5` |
-| `resolver23-type-checker-denial` | The same type-checker input space with denying type results | Resolver23 | `10:3:5` |
-| `resolver23-type-checker-mixed` | Successful and denying concrete types with mixed field checks | Resolver23 | `10:3:5` |
-| `resolver23-field-checker-passive` | Source-supplied checked fields with skipped standard resolvers | Resolver23 | `10:3:5`, fixed seed `1` |
-| `resolver23-field-checker-root-reference` | Checkers beneath root-reference publication roots and paths | Resolver23 | `10:3:5`, fixed seed `424242` |
-| `resolution-type-checker-*` | Mixed field/type outcomes, grounded activation guards plus a coordinate-seeded runtime-variable witness family | Resolution | `10:3:5` |
-| `resolution-field-checker-*` | Success, denial, mixed, passive, and root-reference checker profiles; all runtime variable sources and exact symbolic applications | Resolution | `10:3:5` |
-| `object-fragment-from-object-field` | `FromObjectField` variables | Resolution | `10:3:5` |
+| `empty-object-fragment` | Empty fragments | Resolver06–08, Resolver21-23, Resolution | `30:5` |
+| `node` | Node values represented by canonical `Query.node` references with concrete-type dispatch | Resolver06–08, Resolver21-23, Resolution | `30:5` |
+| `root-field-reference` | Base-tier demanded references with fixed empty target fragments | Resolver06–08, Resolver21-23, Resolution | `30:5` |
+| `selective-node` | Selection-aware `Query.node` dispatch with explicit test-support output projection and supplied-demand evidence | Resolution | `30:5` |
+| `sometimes-passive` | Source-owned argumentless active fields | Resolver06–08, Resolver21-23, Resolution | `30:5` |
+| `object-fragment` | Nonempty fragments | Resolver07–08, Resolver22-23, Resolution | `30:5` |
+| `object-fragment-from-argument` | `FromArgument` variables, including nested and nullable input paths | Resolver07–08, Resolver22-23, Resolution | `30:5` |
+| `from-provider` | One-shot `FromProvider` callback variables with argument-sensitive values | Resolution | `30:5` |
+| `query-fragment` | Query-rooted resolver inputs shared within each orchestration | Resolver07–08, Resolver22-23, Resolution | `30:5` |
+| `resolver23-field-checker-success` | Grounded paired checker inputs, `FromArgument`, successful checks, correctness replay, and exact applications | Resolver23 | `30:5` |
+| `resolver23-field-checker-denial` | The same grounded checker input space with access denial and exact error propagation | Resolver23 | `30:5` |
+| `resolver23-field-checker-mixed` | Mixed checked/unchecked coordinates and mixed successful/denying checker outcomes | Resolver23 | `30:5` |
+| `resolver23-type-checker-success` | Raw object/Query value resolvers, checked dependency restoration, mixed field checks | Resolver23 | `30:5` |
+| `resolver23-type-checker-denial` | The same type-checker input space with denying type results | Resolver23 | `30:5` |
+| `resolver23-type-checker-mixed` | Successful and denying concrete types with mixed field checks | Resolver23 | `30:5` |
+| `resolver23-field-checker-passive` | Source-supplied checked fields with skipped standard resolvers | Resolver23 | `30:5`, fixed seed `1` |
+| `resolver23-field-checker-root-reference` | Checkers beneath root-reference publication roots and paths | Resolver23 | `30:5`, fixed seed `424242` |
+| `resolution-type-checker-*` | Mixed field/type outcomes, grounded activation guards plus a coordinate-seeded runtime-variable witness family | Resolution | `30:5` |
+| `resolution-field-checker-*` | Success, denial, mixed, passive, and root-reference checker profiles; all runtime variable sources and exact symbolic applications | Resolution | `30:5` |
+| `object-fragment-from-object-field` | `FromObjectField` variables | Resolution | `30:5` |
 | `mixed-variables` | Both variable sources | Resolution | fixed aggregate corpus |
-| `feature-interaction` | Full ordinary interaction | Resolver07–08, Resolver22-23, Resolution | `20:3:5` |
-| `construction-witness` | Construction witness | Resolver08, Resolution | `12:2:4` |
+| `feature-interaction` | Full ordinary interaction | Resolver07–08, Resolver22-23, Resolution | `60:5` |
+| `construction-witness` | Construction witness | Resolver08, Resolution | `24:4` |
 | `resolution-broad-*` | Heterogeneous symbolic-resolution profiles | Resolution | opt-in profile-specific products |
 
 Ordinary generated profiles check whole-result value correctness and completed-result equivalence for permutation-equivalent queries. Resolver23's field-checker profiles install generated checkers at supported resolver coordinates; each checker retains duplicate `left` and `right` resolver-template pairs, adds an empty pair, and adds independent object-only and Query-only aliased `__typename` pairs. Both query permutations run through checker-aware `correctResolution` and a separate duplicate-preserving observer judgment reconstructed from completed checker slots across primary and associated Query OERs. The success and denial profiles hard-require generated and activated evidence for checker presence, nonempty object and Query inputs, ordinary/nested/nullable `FromArgument`, parent demand, duplicate and empty named pairs, checker-only object and Query demand, multiple owners sharing one Query OER, checker execution inside an associated Query OER, list-element occurrences, repeated coordinates, and argument-distinct occurrences. The mixed profile additionally requires successful and denying applications plus resolver applications at deliberately unchecked coordinates. Each profile runs its sampled seed for correctness and exact application accounting; when that sample misses an aggregate coverage signature, fixed seed `424242` supplies the required activation corpus. Fixed-seed directed profiles require source-supplied passive checked fields and checker applications beneath root-reference publication roots and paths. The deterministic query-fragment contract separately proves that checker-only unchecked demand restores checked materialization when an unchecked-demanded resolver consumes a protected dependency. Inclusion remains deterministic rather than generated: `GroundedFieldCheckerQueryFragmentContract` executes both true and false `FromArgument` inclusion branches because arbitrary fragments and queries still do not generate inclusion conditions. Checked client and resolver-input selections require registered checker slots, claimed checker object fragments participate in value closure, each associated Query OER is validated once as the union of its owners' checked and unchecked demand, and every named raw checker input pair is reconstructed from its owner-local projection before the checker relation is replayed. The replayed success/error variant must match the stored checker slot; a checked occurrence at which no checker can run instead requires null. Observed object and Query values passed to field resolvers must equal correctness replay's checked materializations, including access errors at exact Engine value locations. Resolver06–08 and the ordinary Resolution profiles generate checker-free worlds; the dedicated Resolution checker profiles below exercise runtime checks.
@@ -188,17 +188,17 @@ Run the opt-in Resolver23 access-check campaign from the repository root. It rep
   -Presolver23AccessCheckerStressSeed=424242
 ```
 
-The default `all` campaign runs six profiles: `success`, `denial`, and `mixed` field checks, plus `type-success`, `type-denial`, and `type-mixed` type checks with mixed field checks. Each profile runs `50:5:10` (2,500 cases), totaling 15,000 generated cases and two fresh executions per case for permutation comparison. Select one with `-Presolver23AccessCheckerStressProfile=type-denial`; with a seed, override the product with `-Presolver23AccessCheckerStressSize=50:5:10`. The older `resolver23FieldCheckerStress` task and its existing seed/profile properties remain supported with their original default `success`; it also accepts the six profiles and `all`. Both entry points accept the corresponding system properties (`resolver23.access.checker.stress.*` or `resolver23.field.checker.stress.*`) and environment variables (`RESOLVER23_ACCESS_CHECKER_STRESS_*` or `RESOLVER23_FIELD_CHECKER_STRESS_*`).
+The default `all` campaign runs six profiles: `success`, `denial`, and `mixed` field checks, plus `type-success`, `type-denial`, and `type-mixed` type checks with mixed field checks. Each profile runs `250:10` (2,500 cases), totaling 15,000 generated cases and two fresh executions per case for permutation comparison. Select one with `-Presolver23AccessCheckerStressProfile=type-denial`; with a seed, override the product with `-Presolver23AccessCheckerStressSize=250:10`. The older `resolver23FieldCheckerStress` task and its existing seed/profile properties remain supported with their original default `success`; it also accepts the six profiles and `all`. Both entry points accept the corresponding system properties (`resolver23.access.checker.stress.*` or `resolver23.field.checker.stress.*`) and environment variables (`RESOLVER23_ACCESS_CHECKER_STRESS_*` or `RESOLVER23_FIELD_CHECKER_STRESS_*`).
 
-Failures report the stable generated profile ID, actual seed, and exact `S:R:Q` coordinate. Preserve the original product size when replaying a stress coordinate:
+Failures report the stable generated profile ID, actual seed, and exact `S:Q` coordinate. Preserve the original product size when replaying a stress coordinate:
 
 ```shell
 ./gradlew :core:engine:runtime2:resolverPropertyReplay \
   -PresolverPropertyClass=viaduct.engine.runtime2.resolvers.resolver23.ResolverGeneratedTest \
   -PresolverPropertyProfile=resolver23-type-checker-denial \
   -PresolverPropertySeed=424242 \
-  -PresolverPropertySize=50:5:10 \
-  -PresolverPropertyCase=1:1:1
+  -PresolverPropertySize=250:10 \
+  -PresolverPropertyCase=1:1
 ```
 
 The `root-field-reference` profile disables fragments and variables so it is valid at the base capability tier, then requires both generated and observed references. Its fixed consumer supplies active field values and therefore intentionally omits Resolution's exact ordinary-application-count assertion: those registered standard resolvers are dynamically passive. Whole-result correctness, permutation equivalence, activation evidence, and Resolution from-field binding validation remain enabled.
@@ -211,19 +211,19 @@ Profile IDs are part of the replay interface and must remain stable.
 
 ### Replaying Failures
 
-For a failure reporting concrete `S`, `R`, and `Q`, replay that coordinate:
+For a failure reporting concrete `S` and `Q`, replay that coordinate:
 
 ```shell
 ./gradlew :core:engine:runtime2:resolverPropertyReplay \
   -PresolverPropertyClass=viaduct.engine.runtime2.resolvers.resolver07.ResolverGeneratedTest \
   -PresolverPropertyProfile=node \
   -PresolverPropertySeed=424242 \
-  -PresolverPropertyCase=2:2:1
+  -PresolverPropertyCase=2:1
 ```
 
 Coordinate replay regenerates through schema iteration `S` to preserve the random stream, but executes only the selected case and suppresses whole-profile sample and activation guards.
 
-For an aggregate `S=all R=all Q=all` failure, replay the full profile:
+For an aggregate `S=all Q=all` failure, replay the full profile:
 
 ```shell
 ./gradlew :core:engine:runtime2:resolverPropertyReplay \
@@ -233,7 +233,7 @@ For an aggregate `S=all R=all Q=all` failure, replay the full profile:
   -PresolverPropertyCase=all
 ```
 
-`Case=all` retains aggregate guards. `-PresolverPropertySize=S:R:Q` overrides profile dimensions for either a complete product or one selected case. Replaying a stress coordinate must retain its original product size because registry/query counts affect generation. A small complete product can legitimately miss the promised feature and fail activation.
+`Case=all` retains aggregate guards. `-PresolverPropertySize=S:Q` overrides profile dimensions for either a complete product or one selected case. Replaying a stress coordinate must retain its original product size because query counts affect generation. A small complete product can legitimately miss the promised feature and fail activation.
 
 Every failure reports its profile, seed, coordinates, schema, registry, and query. `ResolverTestReplayTest` verifies that coordinate replay reproduces the generated inputs and metadata.
 
@@ -251,7 +251,7 @@ Equivalent seed inputs are `RESOLVER_PROPERTY_SEED` and `-Dresolver.property.see
 
 Resolution's broad tests use five directed distributions: balanced worlds, symbolic list descendants, nullable and error providers, equal grounded arguments from distinct symbolic keys, and multiple from-field owners. Every distribution admits query fragments and `FromProvider` variables at bounded density and requires generated and activated query-fragment evidence. The balanced profile additionally requires runtime application of a generated provider-variable owner. Their structural coverage is classified only from completed OER paths and symbolic keys, resolver-application witnesses, and generated registry metadata. Separate request-local binding validation compares the exact required and completed from-field binding sets for every observed application across the primary and Query-fragment roots. No test observes scheduler events, coroutine ordering, or internal demand phases.
 
-The separate `resolutionParentFocused` task runs a fixed `40:5:5` generated product and divides the resulting 1,000 cases into four consecutive 250-case slices. Random parent chains begin beneath an ordinary root object, preserving three-to-four parent-link depth while excluding backedges to Query; feature counts include only actual parent fields. Parent-enabled cases must include resolver outputs that supply `@parent` fields as well as resolver inputs that traverse them. The profile also enables sometimes-passive generation and uses exact occurrence IDs to count source-supplied active fields whose skipped standard resolver has parent input demand; their maximum parent-demand depths are reported, and at least one such occurrence is a hard aggregate requirement. Runtime materialization and occurrence evidence produces per-slice and combined `HIT`/`MISS` reports plus, for each of nine parent-specific coverage criteria, the number of slices that completely hit it and the number of generated cases that contributed any evidence, both combined and by slice. Individual-slice misses remain diagnostic, but a combined miss across all four slices fails the task; semantic correctness, application accounting, binding validation, and forbidden direct variables beneath parent selections remain independent hard assertions. Deterministic contract tests separately require a resolver reached beneath one parent to demand its own parent while consuming a Query-fragment argument variable from each of `FromArgument`, `FromObjectField`, and `FromQueryField`.
+The separate `resolutionParentFocused` task runs a fixed `200:5` generated product and divides the resulting 1,000 cases into four consecutive 250-case slices. Random parent chains begin beneath an ordinary root object, preserving three-to-four parent-link depth while excluding backedges to Query; feature counts include only actual parent fields. Parent-enabled cases must include resolver outputs that supply `@parent` fields as well as resolver inputs that traverse them. The profile also enables sometimes-passive generation and uses exact occurrence IDs to count source-supplied active fields whose skipped standard resolver has parent input demand; their maximum parent-demand depths are reported, and at least one such occurrence is a hard aggregate requirement. Runtime materialization and occurrence evidence produces per-slice and combined `HIT`/`MISS` reports plus, for each of nine parent-specific coverage criteria, the number of slices that completely hit it and the number of generated cases that contributed any evidence, both combined and by slice. Individual-slice misses remain diagnostic, but a combined miss across all four slices fails the task; semantic correctness, application accounting, binding validation, and forbidden direct variables beneath parent selections remain independent hard assertions. Deterministic contract tests separately require a resolver reached beneath one parent to demand its own parent while consuming a Query-fragment argument variable from each of `FromArgument`, `FromObjectField`, and `FromQueryField`.
 
 Every generated case checks exact attempted/resolved/completed accounting, root-and-path-qualified application identities, `correctResolution`, and independently reconstructed from-field bindings. Sometimes-passive occurrences form the independently counted difference between registered result occurrences and standard resolver applications. Ordinary broad profiles require general sometimes-passive generation and activation but do not require its incidental intersection with parent demand; that stronger obligation belongs to the random-parent-focused profile, whose generator provides a dedicated witness field. A profile's aggregate run must also observe its required Resolution structural signatures.
 
@@ -271,7 +271,7 @@ Replay one profile or exact coordinate from that round with:
 ./gradlew :core:engine:runtime2:resolutionBroadStressCampaign \
   -PresolutionBroadStressCampaignRound=21 \
   -PresolutionBroadStressCampaignProfile=multiple-owners \
-  -PresolverPropertyCase=18:4:1
+  -PresolverPropertyCase=18:1
 ```
 
 Coordinate replay suppresses aggregate structural-coverage requirements while preserving the recorded profile, seed, and generator dimensions. A failing generated case should be reduced to a small deterministic regression test after determining whether the defect belongs to the generator, an independent oracle, or Resolution.
@@ -317,7 +317,7 @@ Resolver23 profiles establish the grounded checker boundary, while production Re
 
 The runtime checker distributions use `ResolverFragmentDepth=1`: two independently bound named pairs can multiply symbolic dependency trees, so copying depth-two fragments at every registered coordinate produced a case with over 129,000 resolver invocations before the 15-second request bound. This limit bounds random workload construction without changing request timeouts, per-case oracles, or required activation signatures. Fixed parent spines still exercise multilevel parent demand, and deterministic contracts retain nested fragment and named-provider combinations. The grounded Resolver23 distributions retain depth two.
 
-Run the stress task from the repository root: `./gradlew :core:engine:runtime2:resolutionFieldCheckerStress` replays the stored suite, and `-PresolutionFieldCheckerStressSeed=424242` generates it live. Its size is `50:5:10` (2,500 cases), its profile defaults to `success`, and `-PresolutionFieldCheckerStressProfile=denial` selects denial. It also accepts `mixed`, `passive`, and `root-reference`, and a `-PresolutionFieldCheckerStressSize=<schemas>:<registries>:<queries>` override. Set `-Pviaduct.resolution.threadcount=100` for concurrent execution with the same oracle and exactness assertions. Failures use the ordinary `resolverPropertyReplay` task with the reported `resolution-field-checker-*` profile, seed, size, and coordinates.
+Run the stress task from the repository root: `./gradlew :core:engine:runtime2:resolutionFieldCheckerStress` replays the stored suite, and `-PresolutionFieldCheckerStressSeed=424242` generates it live. Its size is `250:10` (2,500 cases), its profile defaults to `success`, and `-PresolutionFieldCheckerStressProfile=denial` selects denial. It also accepts `mixed`, `passive`, and `root-reference`, and a `-PresolutionFieldCheckerStressSize=<schemas>:<queries>` override. Set `-Pviaduct.resolution.threadcount=100` for concurrent execution with the same oracle and exactness assertions. Failures use the ordinary `resolverPropertyReplay` task with the reported `resolution-field-checker-*` profile, seed, size, and coordinates.
 
 ### Grounded Type-Checker Profiles
 

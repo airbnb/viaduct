@@ -40,7 +40,7 @@ class PropertyTestSerializationTest {
                             subjectProfileId = RESOLUTION_BROAD_CORRECTNESS_SUBJECT_ID,
                             testInputProfileId = "resolution-balanced-standard",
                             seed = 42,
-                            counts = TestCaseCount(2, 3, 4),
+                            counts = TestCaseCount(6, 4),
                             requiredCoverage = setOf("nested-variable-use"),
                         ),
                     ),
@@ -77,7 +77,7 @@ class PropertyTestSerializationTest {
                         "standard" to
                             PropertyTestCampaignPhaseConfig(
                                 testInputVariant = "standard",
-                                counts = TestCaseCount(2, 3, 4),
+                                counts = TestCaseCount(6, 4),
                             ),
                     ),
                 rounds =

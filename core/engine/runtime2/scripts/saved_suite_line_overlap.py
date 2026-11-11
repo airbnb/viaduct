@@ -111,7 +111,7 @@ def main() -> int:
     )
     combined_report = execution_root / "bazel-out/_coverage/_coverage_report.dat"
     case_counts = {
-        str(batch["id"]): len(batch["registries"]) * len(batch["queries"])
+        str(batch["id"]): len(batch["queries"])
         for batch in batches
     }
     line_sets: dict[str, set[str]] = {}

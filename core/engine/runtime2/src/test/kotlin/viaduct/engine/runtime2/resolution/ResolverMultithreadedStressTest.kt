@@ -20,6 +20,7 @@ import viaduct.engine.runtime2.arbitrary.ResolverTestRun
 import viaduct.engine.runtime2.arbitrary.ResolverVariableSingletonCoercionEnabled
 import viaduct.engine.runtime2.arbitrary.TestCaseCount
 import viaduct.engine.runtime2.arbitrary.executeResolverTestCases
+import viaduct.engine.runtime2.arbitrary.parseResolverTestSize
 import viaduct.engine.runtime2.contract.GeneratedTypeCheckerContract
 import viaduct.engine.runtime2.contract.validateFromFieldBindings
 import viaduct.engine.runtime2.correctresolution.CorrectnessResolverObserver
@@ -125,27 +126,8 @@ class ResolverMultithreadedStressTest : GeneratedTypeCheckerContract, Resolution
     // Returns the fixed dispatcher size selected for this run.
     private fun configuredThreadCount(): Int = configuredResolutionThreadCount()
 
-    // Returns fixed S:R:Q dimensions, or null to retain each campaign profile's dimensions.
-    private fun configuredCounts(): TestCaseCount? {
-        val configured: String =
-            System.getProperty(SIZE_PROPERTY)
-                ?: DEFAULT_SIZE
-        if (configured == CAMPAIGN_SIZE) return null
-        val dimensions: List<Int> =
-            configured.split(':').map { value ->
-                value.toIntOrNull()
-                    ?.takeIf { dimension -> dimension > 0 }
-                    ?: error("$SIZE_PROPERTY must have positive S:R:Q dimensions")
-            }
-        require(dimensions.size == 3) {
-            "$SIZE_PROPERTY must have S:R:Q form"
-        }
-        return TestCaseCount(
-            schemas = dimensions[0],
-            registriesPerSchema = dimensions[1],
-            queriesPerSchema = dimensions[2],
-        )
-    }
+    // Returns fixed S:Q dimensions, or null to retain each campaign profile's dimensions.
+    private fun configuredCounts(): TestCaseCount? = (System.getProperty(SIZE_PROPERTY) ?: DEFAULT_SIZE).takeUnless { it == CAMPAIGN_SIZE }?.let { size -> parseResolverTestSize(size, SIZE_PROPERTY) }
 
     // Returns the distinct persisted campaign rounds supplying seeds and configurations.
     private fun configuredRounds(): List<Int> {
@@ -267,6 +249,3 @@ private suspend fun checkCampaignRunCases(
         )
     }
 }
-
-// Returns compact S:R:Q dimensions for diagnostics.
-private fun TestCaseCount.summary(): String = "$schemas:$registriesPerSchema:$queriesPerSchema"

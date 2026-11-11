@@ -341,7 +341,7 @@ enum class ResolverTestSuiteDefinition(
     CONSTRUCTION_WITNESS(
         id = "construction-witness",
         seed = 1L,
-        counts = TestCaseCount(schemas = 12, registriesPerSchema = 2, queriesPerSchema = 4),
+        counts = TestCaseCount(schemas = 24, queriesPerSchema = 4),
         config =
             Config.default +
                 (SchemaObjectCount to 4..6) +
@@ -357,7 +357,7 @@ enum class ResolverTestSuiteDefinition(
     LIST_PASSIVE_DEEPENING(
         id = "list-passive-deepening",
         seed = 817_206L,
-        counts = TestCaseCount(schemas = 12, registriesPerSchema = 2, queriesPerSchema = 4),
+        counts = TestCaseCount(schemas = 24, queriesPerSchema = 4),
         config =
             Config.default +
                 (SchemaObjectCount to 4..6) +
@@ -377,7 +377,7 @@ enum class ResolverTestSuiteDefinition(
     RESOLVER_MUTATION(
         id = "resolver-mutation",
         seed = 303_303L,
-        counts = TestCaseCount(schemas = 12, registriesPerSchema = 3, queriesPerSchema = 5),
+        counts = TestCaseCount(schemas = 36, queriesPerSchema = 5),
         config =
             Config.default +
                 (SchemaObjectCount to 4..6) +
@@ -432,13 +432,13 @@ enum class ResolverTestSuiteDefinition(
     RESOLUTION_ROOT_FIELD_REFERENCES(
         id = "resolution-root-field-references",
         seed = 2026091001L,
-        counts = TestCaseCount(schemas = 10, registriesPerSchema = 5, queriesPerSchema = 5),
+        counts = TestCaseCount(schemas = 50, queriesPerSchema = 5),
         config = rootFieldReferenceFocusedConfig(),
     ),
     RESOLUTION_PARENT_FIELDS(
         id = "resolution-parent-fields",
         seed = 2026090403L,
-        counts = TestCaseCount(schemas = 40, registriesPerSchema = 5, queriesPerSchema = 5),
+        counts = TestCaseCount(schemas = 200, queriesPerSchema = 5),
         config = parentFocusedConfig(),
     ),
     RESOLUTION_BROAD_STRESS(ResolutionBroadStressProfile.BALANCED),
@@ -456,7 +456,7 @@ enum class ResolverTestSuiteDefinition(
     RESOLVER_BENCHMARK_FULL_CHECKER_ROOTS(
         id = "resolver-benchmark-full-checker-roots",
         config = resolverBenchmarkFullConfig(),
-        counts = TestCaseCount(schemas = 1, registriesPerSchema = 2, queriesPerSchema = 5),
+        counts = TestCaseCount(schemas = 2, queriesPerSchema = 5),
         fieldCheckerMode = GeneratedFieldCheckerMode.RUNTIME_SUCCESS,
         typeCheckerMode = GeneratedTypeCheckerMode.RUNTIME_SUCCESS,
         profile = "resolver-benchmark-full",
@@ -522,17 +522,17 @@ enum class ResolverTestSuiteDefinition(
     }
 }
 
-private val GENERATED_PROFILE_COUNTS = TestCaseCount(schemas = 10, registriesPerSchema = 3, queriesPerSchema = 5)
+private val GENERATED_PROFILE_COUNTS = TestCaseCount(schemas = 30, queriesPerSchema = 5)
 
-private val FEATURE_INTERACTION_PROFILE_COUNTS = TestCaseCount(schemas = 20, registriesPerSchema = 3, queriesPerSchema = 5)
+private val FEATURE_INTERACTION_PROFILE_COUNTS = TestCaseCount(schemas = 60, queriesPerSchema = 5)
 
 private val RESOLUTION_CONFIG_OVERRIDES = Config.default + (ResolverVariableSingletonCoercionEnabled to true)
 
-private val CHECKER_STRESS_COUNTS = TestCaseCount(schemas = 50, registriesPerSchema = 5, queriesPerSchema = 10)
+private val CHECKER_STRESS_COUNTS = TestCaseCount(schemas = 250, queriesPerSchema = 10)
 
 private const val CHECKER_STRESS_SEED = 2026093001L
 
-private val DEEP_STRESS_COUNTS = TestCaseCount(schemas = 1_000, registriesPerSchema = 2, queriesPerSchema = 5)
+private val DEEP_STRESS_COUNTS = TestCaseCount(schemas = 2_000, queriesPerSchema = 5)
 
 val RESOLUTION_STRESS_CONFIG_OVERRIDES: Config =
     Config.default +

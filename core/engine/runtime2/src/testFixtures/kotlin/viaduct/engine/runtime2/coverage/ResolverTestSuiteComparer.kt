@@ -23,7 +23,7 @@ import viaduct.engine.runtime2.resolution.resolve
 object ResolverTestSuiteComparer {
     private const val USAGE =
         "Usage: ResolverTestSuiteComparer <candidate-a> <candidate-b> [--json <path>] [--html <path>]\n" +
-            "  candidate: <suite-id> replays the stored suite; <suite-id>@seed=<n>,size=<S:R:Q> regenerates it with either override"
+            "  candidate: <suite-id> replays the stored suite; <suite-id>@seed=<n>,size=<S:Q> regenerates it with either override"
 
     @JvmStatic
     fun main(args: Array<String>) {

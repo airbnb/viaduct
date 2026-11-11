@@ -139,7 +139,7 @@ class SuiteCoverageComparisonTest : CorrectResolutionPostTestPolicy, ResolutionD
     @Test
     fun `the comparison page keeps each candidate's own batches and cases`(): Unit =
         runTest {
-            val candidate = CoverageCandidate.Generated(definition, seed = 2, counts = TestCaseCount(2, 1, 2))
+            val candidate = CoverageCandidate.Generated(definition, seed = 2, counts = TestCaseCount(2, 2))
             val comparison = ResolverTestSuiteComparer.compare(stored, candidate)
 
             val page = SuiteCoverageComparisonPage.render(comparison, stored.batches(), candidate.batches())
@@ -153,9 +153,9 @@ class SuiteCoverageComparisonTest : CorrectResolutionPostTestPolicy, ResolutionD
     @Test
     fun `candidate specs name a stored suite or regenerate it with seed and size overrides`() {
         assertInstanceOf(CoverageCandidate.Stored::class.java, CoverageCandidate.parse(definition.id))
-        val generated = assertInstanceOf(CoverageCandidate.Generated::class.java, CoverageCandidate.parse("${definition.id}@seed=7,size=2:1:3"))
+        val generated = assertInstanceOf(CoverageCandidate.Generated::class.java, CoverageCandidate.parse("${definition.id}@seed=7,size=2:3"))
         assertEquals(7L, generated.seed)
-        assertEquals(TestCaseCount(2, 1, 3), generated.counts)
+        assertEquals(TestCaseCount(2, 3), generated.counts)
         assertEquals(definition.counts, (CoverageCandidate.parse("${definition.id}@seed=7") as CoverageCandidate.Generated).counts)
         assertThrows<IllegalArgumentException> { CoverageCandidate.parse("no-such-suite") }
         assertThrows<IllegalArgumentException> { CoverageCandidate.parse("${definition.id}@colour=7") }
@@ -164,12 +164,12 @@ class SuiteCoverageComparisonTest : CorrectResolutionPostTestPolicy, ResolutionD
 
     @Test
     fun `the comparer measures a stored suite against a regenerated candidate`() {
-        val candidate = CoverageCandidate.Generated(definition, seed = 2, counts = TestCaseCount(2, 1, 2))
+        val candidate = CoverageCandidate.Generated(definition, seed = 2, counts = TestCaseCount(2, 2))
 
         val comparison = ResolverTestSuiteComparer.compare(stored, candidate)
 
         assertEquals(definition.id, comparison.left.label)
-        assertEquals("${definition.id}@seed=2,size=2:1:2", comparison.right.label)
+        assertEquals("${definition.id}@seed=2,size=2:2", comparison.right.label)
         assertEquals(2, comparison.right.batches)
         assertTrue(comparison.right.cases in 1..4)
     }

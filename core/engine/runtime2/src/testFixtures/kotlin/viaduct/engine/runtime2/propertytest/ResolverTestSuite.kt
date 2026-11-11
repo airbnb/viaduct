@@ -25,10 +25,10 @@ import viaduct.engine.runtime2.model.testing.TestWorld
 import viaduct.engine.runtime2.resolution.ResolutionBroadStressCases
 import viaduct.utils.string.sha256Hash
 
-const val RESOLVER_TEST_SUITE_FORMAT_VERSION = 2
+const val RESOLVER_TEST_SUITE_FORMAT_VERSION = 3
 const val RESOLVER_TEST_SUITES_RESOURCE_ROOT = "viaduct/engine/runtime2/property-tests/suites"
 
-/** [counts] is the generated size; duplicate registries and queries are dropped before storing, so [batches] may hold fewer cases. */
+/** [counts] is the generated size; duplicate queries are dropped before storing, so [batches] may hold fewer cases. */
 data class ResolverTestSuiteManifest(
     val formatVersion: Int,
     val id: String,
@@ -47,14 +47,16 @@ data class ResolverTestSuiteSchema(
     val sdlSha256: String,
 )
 
-/** A stored batch: its stipulated [id], the ID of its schema, and the content IDs of its registries and queries, in order. */
+/** A stored batch: its stipulated [id], the ID of its schema, and the content IDs of its registry and of its queries, in order. */
 data class ResolverTestSuiteBatch(
     val id: String,
     val schema: String,
     val shardSha256: String,
-    val registries: List<String>,
+    val registry: String,
     val queries: List<String>,
-)
+) {
+    fun ids(): ResolverTestShardIds = ResolverTestShardIds(schema, registry, queries)
+}
 
 /**
  * Replays [definition]'s stored suite, or generates it live when a seed or size is configured for exploration.
@@ -82,8 +84,8 @@ suspend fun checkResolverTestSuite(
             )
         } else {
             require(configuredResolverTestExecution(definition.counts, definition.profile).selectedCase == null) {
-                "Stored suite ${definition.id} selects one case by test-case ID; set $RESOLVER_TEST_CASE_ID_PROPERTY=<suite/batch/registry/query>, " +
-                    "or configure a seed to select S:R:Q from live generation"
+                "Stored suite ${definition.id} selects one case by test-case ID; set $RESOLVER_TEST_CASE_ID_PROPERTY=<suite/batch/query>, " +
+                    "or configure a seed to select S:Q from live generation"
             }
             replayResolverTestSuite(definition, selected, selectiveResolvers, property)
         }
@@ -140,14 +142,9 @@ class ResolverTestSuite private constructor(
     private val sdlSha256BySchema: Map<String, String> = manifest.schemas.associate { schema -> schema.id to schema.sdlSha256 }
 
     val caseCount: Int
-        get() = batches.sumOf { batch -> batch.registries.size * batch.queries.size }
+        get() = batches.sumOf { batch -> batch.queries.size }
 
-    fun testCaseIds(): List<ResolverTestCaseId> =
-        batches.flatMap { batch ->
-            batch.registries.flatMap { registry ->
-                batch.queries.map { query -> ResolverTestCaseId(definition.id, batch.id, registry, query) }
-            }
-        }
+    fun testCaseIds(): List<ResolverTestCaseId> = batches.flatMap { batch -> batch.queries.map { query -> ResolverTestCaseId(definition.id, batch.id, query) } }
 
     fun loadShard(batchId: String): ResolverTestBatch {
         val stored =
@@ -162,7 +159,7 @@ class ResolverTestSuite private constructor(
             } catch (failure: IllegalArgumentException) {
                 throw IllegalStateException("Could not decode resolver test suite ${definition.id} batch $batchId from ${suiteArchiveResource(definition.id)}!${shardEntry(batchId)}", failure)
             }
-        check(ResolverTestShardCodec.ids(batch) == ResolverTestShardIds(stored.schema, stored.registries, stored.queries)) {
+        check(ResolverTestShardCodec.ids(batch) == stored.ids()) {
             "Resolver test suite ${definition.id} batch $batchId content does not match the IDs in its manifest; $REGENERATE_HINT"
         }
         return batch
@@ -213,7 +210,6 @@ class ResolverTestSuite private constructor(
                 definition.checkNumberedBatch(
                     batchId = stored.id,
                     batch = loadShard(stored.id),
-                    registries = stored.registries,
                     queries = stored.queries,
                     schemaIndex = schemaIndex,
                     seed = definition.seed,
@@ -242,15 +238,11 @@ class ResolverTestSuite private constructor(
         schemaIndex: Int,
         selected: ResolverTestCaseId,
     ): ResolverTestCaseCoordinate {
-        val registryIndex = registries.indexOf(selected.registry) + 1
         val queryIndex = queries.indexOf(selected.query) + 1
-        require(registryIndex > 0) {
-            "Resolver test suite ${definition.id} batch $id holds no registry ${selected.registry} for test case $selected; it was removed or never existed"
-        }
         require(queryIndex > 0) {
             "Resolver test suite ${definition.id} batch $id holds no query ${selected.query} for test case $selected; it was removed or never existed"
         }
-        return ResolverTestCaseCoordinate(schemaIndex, registryIndex, queryIndex)
+        return ResolverTestCaseCoordinate(schemaIndex, queryIndex)
     }
 
     companion object {
@@ -271,8 +263,8 @@ class ResolverTestSuite private constructor(
                 "Resolver test suite ${definition.id} must list each schema once, and exactly the schemas its batches use"
             }
             manifest.batches.forEach { batch ->
-                require(batch.registries.isNotEmpty() && batch.queries.isNotEmpty() && batch.registries.allDistinct() && batch.queries.allDistinct()) {
-                    "Resolver test suite ${definition.id} batch ${batch.id} must list registries and queries, each with a distinct ID"
+                require(batch.queries.isNotEmpty() && batch.queries.allDistinct()) {
+                    "Resolver test suite ${definition.id} batch ${batch.id} must list queries, each with a distinct ID"
                 }
             }
             return ResolverTestSuite(definition, manifest, entries)
@@ -399,8 +391,8 @@ internal fun ResolverTestSuiteDefinition.numberBatches(generated: List<ResolverT
         val batch = ResolverTestShardCodec.withoutDuplicates(generatedBatch)
         val batchId = resolverTestBatchId(offset + 1)
         val ids = ResolverTestShardCodec.ids(batch)
-        check(ids.registries.allDistinct() && ids.queries.allDistinct()) {
-            "Suite $id batch $batchId has distinct registries or queries whose IDs collide"
+        check(ids.queries.allDistinct()) {
+            "Suite $id batch $batchId has distinct queries whose IDs collide"
         }
         NumberedResolverTestBatch(batchId, batch, ids)
     }
@@ -409,7 +401,6 @@ internal fun ResolverTestSuiteDefinition.numberBatches(generated: List<ResolverT
 internal suspend fun ResolverTestSuiteDefinition.checkNumberedBatch(
     batchId: String,
     batch: ResolverTestBatch,
-    registries: List<String>,
     queries: List<String>,
     schemaIndex: Int,
     seed: Long,
@@ -428,9 +419,7 @@ internal suspend fun ResolverTestSuiteDefinition.checkNumberedBatch(
         fieldCheckerMode = fieldCheckerMode,
         typeCheckerMode = typeCheckerMode,
         selectiveResolvers = selectiveResolvers,
-        testCaseId = { registryIndex, queryIndex ->
-            ResolverTestCaseId(id, batchId, registries[registryIndex - 1], queries[queryIndex - 1]).toString()
-        },
+        testCaseId = { queryIndex -> ResolverTestCaseId(id, batchId, queries[queryIndex - 1]).toString() },
         property = property,
     )
 

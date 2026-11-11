@@ -5,15 +5,13 @@
     "large-deep" : {
       "counts" : {
         "queriesPerSchema" : 10,
-        "registriesPerSchema" : 10,
-        "schemas" : 20
+        "schemas" : 200
       },
       "profileOverrides" : {
         "multiple-owners" : {
           "counts" : {
             "queriesPerSchema" : 2,
-            "registriesPerSchema" : 25,
-            "schemas" : 40
+            "schemas" : 1000
           }
         },
         "symbolic-identity" : {
@@ -25,15 +23,13 @@
     "large-deep-low-duplicates" : {
       "counts" : {
         "queriesPerSchema" : 10,
-        "registriesPerSchema" : 10,
-        "schemas" : 20
+        "schemas" : 200
       },
       "profileOverrides" : {
         "multiple-owners" : {
           "counts" : {
             "queriesPerSchema" : 2,
-            "registriesPerSchema" : 25,
-            "schemas" : 40
+            "schemas" : 1000
           }
         }
       },
@@ -42,29 +38,25 @@
     "query-interactions" : {
       "counts" : {
         "queriesPerSchema" : 50,
-        "registriesPerSchema" : 4,
-        "schemas" : 10
+        "schemas" : 40
       },
       "profileOverrides" : {
         "descendant-variables" : {
           "counts" : {
             "queriesPerSchema" : 2,
-            "registriesPerSchema" : 25,
-            "schemas" : 40
+            "schemas" : 1000
           }
         },
         "multiple-owners" : {
           "counts" : {
             "queriesPerSchema" : 2,
-            "registriesPerSchema" : 25,
-            "schemas" : 40
+            "schemas" : 1000
           }
         },
         "nullable-errors" : {
           "counts" : {
             "queriesPerSchema" : 2,
-            "registriesPerSchema" : 25,
-            "schemas" : 40
+            "schemas" : 1000
           }
         }
       },
@@ -73,16 +65,14 @@
     "registry-diversity" : {
       "counts" : {
         "queriesPerSchema" : 2,
-        "registriesPerSchema" : 25,
-        "schemas" : 40
+        "schemas" : 1000
       },
       "testInputVariant" : "standard"
     },
     "schema-breadth" : {
       "counts" : {
         "queriesPerSchema" : 5,
-        "registriesPerSchema" : 2,
-        "schemas" : 200
+        "schemas" : 400
       },
       "testInputVariant" : "standard"
     }

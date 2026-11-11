@@ -11,7 +11,7 @@ class RuntimeTypeCheckerWitnessTest : ResolutionDispatcherResource {
             for (query in 1..2) {
                 validateRuntimeTypeCheckerCase(
                     mode,
-                    ResolverTestCoordinates("directed-type-bindings", 424242L, 1, 1, query),
+                    ResolverTestCoordinates("directed-type-bindings", 424242L, 1, query),
                     resolverDispatcher,
                 )
             }

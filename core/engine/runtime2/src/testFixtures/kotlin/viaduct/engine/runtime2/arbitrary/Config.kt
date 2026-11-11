@@ -288,14 +288,17 @@ object ConfigKeys {
     }
 }
 
+/** An `S:Q` generated product: [schemas] schemas, each with one registry and [queriesPerSchema] queries. */
 data class TestCaseCount(
-    val schemas: Int = 10,
-    val registriesPerSchema: Int = 3,
+    val schemas: Int = 30,
     val queriesPerSchema: Int = 5,
 ) {
     init {
         require(schemas > 0)
-        require(registriesPerSchema > 0)
         require(queriesPerSchema > 0)
     }
+
+    fun caseCount(): Int = schemas * queriesPerSchema
+
+    fun summary(): String = "$schemas:$queriesPerSchema"
 }

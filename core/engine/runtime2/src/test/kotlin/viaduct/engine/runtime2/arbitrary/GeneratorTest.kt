@@ -776,15 +776,15 @@ class GeneratorTest {
     }
 
     @Test
-    fun `batch dimensions produce the full registry query product`() {
-        val counts = TestCaseCount(schemas = 7, registriesPerSchema = 4, queriesPerSchema = 6)
+    fun `batch dimensions pair one registry with every query`() {
+        val counts = TestCaseCount(schemas = 7, queriesPerSchema = 6)
         val batch =
             Arb.resolverTestBatch(counts)
                 .next(RandomSource.seeded(1234L))
 
-        assertEquals(4, batch.registries.size)
         assertEquals(6, batch.queries.size)
-        assertEquals(24, batch.cases.count())
+        assertEquals(6, batch.cases.count())
+        assertTrue(batch.cases.all { case -> case.registry == batch.registry })
     }
 
     @Test

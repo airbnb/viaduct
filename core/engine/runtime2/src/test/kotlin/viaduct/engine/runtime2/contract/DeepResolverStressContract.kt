@@ -75,13 +75,12 @@ interface DeepResolverStressContract : ResolverContract {
                     val cases =
                         configuredCases?.toIntOrNull()
                             ?: error("$stressCasesProperty/$stressCasesEnvironment must be an integer")
-                    require(cases >= MINIMUM_STRESS_CASES && cases % CASES_PER_SCHEMA == 0) {
+                    require(cases >= MINIMUM_STRESS_CASES && cases % QUERIES_PER_SCHEMA == 0) {
                         "$stressCasesProperty/$stressCasesEnvironment must be at least " +
-                            "$MINIMUM_STRESS_CASES and a multiple of $CASES_PER_SCHEMA"
+                            "$MINIMUM_STRESS_CASES and a multiple of $QUERIES_PER_SCHEMA"
                     }
                     TestCaseCount(
-                        schemas = cases / CASES_PER_SCHEMA,
-                        registriesPerSchema = REGISTRIES_PER_SCHEMA,
+                        schemas = cases / QUERIES_PER_SCHEMA,
                         queriesPerSchema = QUERIES_PER_SCHEMA,
                     )
                 } else {
@@ -568,9 +567,7 @@ interface DeepResolverStressContract : ResolverContract {
         get() = "$resolverName.stress.seed"
 
     private companion object {
-        const val REGISTRIES_PER_SCHEMA = 2
         const val QUERIES_PER_SCHEMA = 5
-        const val CASES_PER_SCHEMA = REGISTRIES_PER_SCHEMA * QUERIES_PER_SCHEMA
         const val MINIMUM_STRESS_CASES = 10_000
     }
 }

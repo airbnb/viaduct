@@ -51,7 +51,7 @@ object ResolverTestSuiteMaterializer {
                     "Suite ${definition.id} has distinct schemas whose IDs collide at ${ids.schema}"
                 }
                 shards[shardEntry(batchId)] = shard.json
-                ResolverTestSuiteBatch(batchId, ids.schema, shard.json.sha256Hash(), ids.registries, ids.queries)
+                ResolverTestSuiteBatch(batchId, ids.schema, shard.json.sha256Hash(), ids.registry, ids.queries)
             }
         val schemas = sdlBySchema.map { (schemaId, sdl) -> ResolverTestSuiteSchema(schemaId, sdl.sha256Hash()) }
         val entries =

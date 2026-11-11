@@ -50,20 +50,19 @@ sealed interface CoverageCandidate {
         override val label: String get() = definition.id
 
         override suspend fun replay(property: suspend (TestWorld, ResolverTestCase, CoverageTestId) -> Unit): Int {
-            val schemaByBatch = suite.batches.associate { it.id to it.schema }
+            val idsByBatch = suite.batches.associate { it.id to it.ids() }
             suite.replay(selected = selected, selectedBatchId = selectedBatchId) { world, testCase ->
                 val id = ResolverTestCaseId.parse(requireNotNull(testCase.testCaseId) { "Saved test case has no stable ID" })
-                property(world, testCase, CoverageTestId.from(id, schemaByBatch.getValue(id.batch)))
+                property(world, testCase, CoverageTestId.from(id, idsByBatch.getValue(id.batch)))
             }
             return when {
-                selectedBatchId != null -> suite.testCaseIds().count { it.batch == selectedBatchId }
+                selectedBatchId != null -> idsByBatch.getValue(selectedBatchId).queries.size
                 selected != null -> 1
                 else -> suite.caseCount
             }
         }
 
-        override suspend fun batches(): List<CandidateBatch> =
-            suite.batches.map { stored -> CandidateBatch(stored.id, ResolverTestShardIds(stored.schema, stored.registries, stored.queries), suite.loadShard(stored.id)) }
+        override suspend fun batches(): List<CandidateBatch> = suite.batches.map { stored -> CandidateBatch(stored.id, stored.ids(), suite.loadShard(stored.id)) }
     }
 
     /** Numbers batches as the materializer does, so a promoted candidate keeps the batch IDs measured here. */
@@ -72,7 +71,7 @@ sealed interface CoverageCandidate {
         val seed: Long = definition.seed,
         val counts: TestCaseCount = definition.counts,
     ) : CoverageCandidate {
-        override val label: String get() = "${definition.id}@seed=$seed,size=${counts.schemas}:${counts.registriesPerSchema}:${counts.queriesPerSchema}"
+        override val label: String get() = "${definition.id}@seed=$seed,size=${counts.summary()}"
 
         private var generated: List<NumberedResolverTestBatch>? = null
 
@@ -87,16 +86,15 @@ sealed interface CoverageCandidate {
                 definition.checkNumberedBatch(
                     batchId = numbered.id,
                     batch = numbered.batch,
-                    registries = numbered.ids.registries,
                     queries = numbered.ids.queries,
                     schemaIndex = offset + 1,
                     seed = seed,
                     counts = counts,
                 ) { world, testCase ->
-                    property(world, testCase, CoverageTestId.from(ResolverTestCaseId.parse(requireNotNull(testCase.testCaseId)), numbered.ids.schema))
+                    property(world, testCase, CoverageTestId.from(ResolverTestCaseId.parse(requireNotNull(testCase.testCaseId)), numbered.ids))
                 }
             }
-            return batches.sumOf { it.batch.registries.size * it.batch.queries.size }
+            return batches.sumOf { it.batch.queries.size }
         }
 
         override suspend fun batches(): List<CandidateBatch> {
@@ -106,7 +104,7 @@ sealed interface CoverageCandidate {
     }
 
     companion object {
-        /** Parses `<suite-id>` for the stored suite, or `<suite-id>@seed=<n>,size=<S:R:Q>` with either override to regenerate it. */
+        /** Parses `<suite-id>` for the stored suite, or `<suite-id>@seed=<n>,size=<S:Q>` with either override to regenerate it. */
         fun parse(spec: String): CoverageCandidate {
             val id = spec.substringBefore('@')
             val definition =

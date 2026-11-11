@@ -41,8 +41,7 @@ internal fun validateRuntimeTypeCheckerCase(
     dispatcher: CoroutineContext,
 ) {
     val random = Random(
-        coordinates.seed xor (coordinates.schemaIndex.toLong() shl 32) xor
-            (coordinates.registryIndex.toLong() shl 16) xor coordinates.queryIndex.toLong()
+        coordinates.seed xor (coordinates.schemaIndex.toLong() shl 32) xor coordinates.queryIndex.toLong()
     )
     val token = random.nextInt(1, 1000) * 2
     val viewer = random.nextInt(1, 1000)

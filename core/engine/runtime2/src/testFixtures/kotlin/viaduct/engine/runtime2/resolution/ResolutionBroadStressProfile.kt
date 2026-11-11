@@ -61,7 +61,7 @@ enum class ResolutionBroadStressProfile(
     BALANCED(
         id = "balanced",
         propertyProfile = "resolution-broad-stress",
-        defaultSize = "10:20:50",
+        defaultSize = "200:10",
         requiredSignatures =
             setOf(
                 ResolutionStructuralSignature.SYMBOLIC_RESOLVER_INSTANCE,
@@ -76,7 +76,7 @@ enum class ResolutionBroadStressProfile(
     DESCENDANT_VARIABLES(
         id = "descendant-variables",
         propertyProfile = "resolution-broad-descendant-variables",
-        defaultSize = "40:25:10",
+        defaultSize = "200:10",
         requiredSignatures =
             setOf(
                 ResolutionStructuralSignature.NESTED_VARIABLE_USE,
@@ -97,7 +97,7 @@ enum class ResolutionBroadStressProfile(
     NULLABLE_ERRORS(
         id = "nullable-errors",
         propertyProfile = "resolution-broad-nullable-errors",
-        defaultSize = "10:20:50",
+        defaultSize = "200:10",
         requiredSignatures =
             setOf(
                 ResolutionStructuralSignature.NESTED_PROVIDER_PATH,
@@ -115,7 +115,7 @@ enum class ResolutionBroadStressProfile(
     SYMBOLIC_IDENTITY(
         id = "symbolic-identity",
         propertyProfile = "resolution-broad-symbolic-identity",
-        defaultSize = "10:20:50",
+        defaultSize = "200:10",
         requiredSignatures =
             setOf(
                 ResolutionStructuralSignature.EQUAL_SYMBOLIC_ARGUMENTS,
@@ -132,7 +132,7 @@ enum class ResolutionBroadStressProfile(
     MULTIPLE_OWNERS(
         id = "multiple-owners",
         propertyProfile = "resolution-broad-multiple-owners",
-        defaultSize = "10:50:20",
+        defaultSize = "200:10",
         requiredSignatures =
             setOf(
                 ResolutionStructuralSignature.MULTIPLE_OBJECT_PATH_OWNERS,

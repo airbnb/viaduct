@@ -123,7 +123,7 @@ class ResolverBroadStressCampaignConfigurationTest {
         assertTrue(descendants[ListTypeWeight] > balanced[ListTypeWeight])
         assertEquals(1..2, descendants[ListValueSize])
         assertEquals(
-            "40:25:10",
+            "200:10",
             ResolutionBroadStressProfile.DESCENDANT_VARIABLES.defaultSize,
         )
         assertTrue(nullableErrors[ErrorValueWeight] > balanced[ErrorValueWeight])
@@ -288,7 +288,6 @@ class ResolverBroadStressCampaignConfigurationTest {
                             selectedCase =
                                 ResolverTestCaseCoordinate(
                                     schemaIndex = 1,
-                                    registryIndex = 1,
                                     queryIndex = 1,
                                 ),
                         ),

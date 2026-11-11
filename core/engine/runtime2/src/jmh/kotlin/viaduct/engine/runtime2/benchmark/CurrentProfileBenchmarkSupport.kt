@@ -507,8 +507,7 @@ internal class CurrentProfileBenchmarkSupport(
 
         val FULL_COUNTS =
             TestCaseCount(
-                schemas = 100,
-                registriesPerSchema = 2,
+                schemas = 200,
                 queriesPerSchema = 5,
             )
     }

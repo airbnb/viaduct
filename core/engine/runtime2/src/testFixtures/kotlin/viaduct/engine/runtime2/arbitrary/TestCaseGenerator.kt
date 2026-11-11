@@ -21,34 +21,30 @@ const val RESOLVER_TEST_CASE_MARKER_PROPERTY = "resolver.testCase.marker"
 
 data class ResolverTestCaseCoordinate(
     val schemaIndex: Int,
-    val registryIndex: Int,
     val queryIndex: Int,
 ) {
     init {
         require(schemaIndex > 0)
-        require(registryIndex > 0)
         require(queryIndex > 0)
     }
 
-    fun summary(): String = "$schemaIndex:$registryIndex:$queryIndex"
+    fun summary(): String = "$schemaIndex:$queryIndex"
 }
 
-/** Stable replay coordinates for one case in an `S x R x Q` generated product. */
+/** Stable replay coordinates for one case in an `S x Q` generated product. */
 data class ResolverTestCoordinates(
     val profile: String,
     val seed: Long,
     val schemaIndex: Int,
-    val registryIndex: Int,
     val queryIndex: Int,
 ) {
     init {
         require(profile.isNotBlank())
         require(schemaIndex > 0)
-        require(registryIndex > 0)
         require(queryIndex > 0)
     }
 
-    fun summary(): String = "profile=$profile seed=$seed S=$schemaIndex R=$registryIndex Q=$queryIndex"
+    fun summary(): String = "profile=$profile seed=$seed S=$schemaIndex Q=$queryIndex"
 
     fun replaySeedArgument(): String = "-PresolverPropertySeed=$seed"
 }
@@ -125,7 +121,7 @@ data class ResolverTestRun(
             if (singleCase) {
                 1
             } else {
-                storedCases ?: (counts.schemas * counts.registriesPerSchema * counts.queriesPerSchema)
+                storedCases ?: counts.caseCount()
             }
 
     fun warnCoverage(
@@ -166,7 +162,7 @@ data class ResolverTestRun(
         } else {
             """
             |$message
-            |Coordinates: profile=$profile seed=$seed S=all R=all Q=all
+            |Coordinates: profile=$profile seed=$seed S=all Q=all
             |Size: ${counts.summary()}
             |Replay seed: -PresolverPropertySeed=$seed
             """.trimMargin()
@@ -175,22 +171,17 @@ data class ResolverTestRun(
 
 data class ResolverTestBatch(
     val schema: ArbitrarySchema,
-    val registries: List<ArbitraryRegistry>,
+    val registry: ArbitraryRegistry,
     val queries: List<ArbitraryQuery>,
 ) {
     val cases: Sequence<ResolverTestCase>
-        get() =
-            registries.asSequence().flatMap { registry ->
-                queries.asSequence().map { query ->
-                    ResolverTestCase(schema, registry, query)
-                }
-            }
+        get() = queries.asSequence().map { query -> ResolverTestCase(schema, registry, query) }
 }
 
 /**
- * Generates one schema together with independent registry and query samples for its full product.
+ * Generates one schema with one registry and independent query samples.
  *
- * Kotest's outer property iteration count is `S`; [counts] supplies `R` and `Q`.
+ * Kotest's outer property iteration count is `S`; [counts] supplies `Q`.
  */
 fun Arb.Companion.resolverTestBatch(
     counts: TestCaseCount,
@@ -198,24 +189,21 @@ fun Arb.Companion.resolverTestBatch(
 ): Arb<ResolverTestBatch> =
     Arb.schema(config).flatMap { schema ->
         Arb.bind(
-            Arb.list(
-                schema.registry(config),
-                counts.registriesPerSchema..counts.registriesPerSchema,
-            ),
+            schema.registry(config),
             Arb.list(
                 schema.query(config),
                 counts.queriesPerSchema..counts.queriesPerSchema,
             ),
-        ) { registries, queries ->
-            ResolverTestBatch(schema, registries, queries)
+        ) { registry, queries ->
+            ResolverTestBatch(schema, registry, queries)
         }
     }
 
 /**
- * Runs the full `S x R x Q` product while reusing one assembled world per generated registry.
+ * Runs the full `S x Q` product while reusing one assembled world per generated schema.
  *
  * Every invocation chooses an explicit seed and returns it in [ResolverTestRun]. A failure inside
- * [property] includes the seed plus one-based `S`, `R`, and `Q` coordinates.
+ * [property] includes the seed plus one-based `S` and `Q` coordinates.
  *
  * A callback that performs more than one independent resolution must create a fresh semantic
  * operation context for each resolution so request-local bindings are not shared.
@@ -309,52 +297,45 @@ suspend fun checkResolverTestBatch(
     fieldCheckerMode: GeneratedFieldCheckerMode,
     typeCheckerMode: GeneratedTypeCheckerMode,
     selectiveResolvers: Boolean = true,
-    testCaseId: ((registryIndex: Int, queryIndex: Int) -> String)? = null,
+    testCaseId: ((queryIndex: Int) -> String)? = null,
     property: suspend (TestWorld, ResolverTestCase) -> Unit,
 ): Int {
     val selectedCase = execution.selectedCase
     if (selectedCase != null && schemaIndex != selectedCase.schemaIndex) return 0
     var attemptedCases = 0
-    batch.registries.forEachIndexed { registryOffset, registry ->
-        val registryIndex = registryOffset + 1
-        if (selectedCase != null && registryIndex != selectedCase.registryIndex) {
-            return@forEachIndexed
+    val world =
+        batch.registry.world(
+            schema = batch.schema,
+            selectiveNodeResolvers = selectiveNodeResolvers,
+            fieldCheckerMode = fieldCheckerMode,
+            typeCheckerMode = typeCheckerMode,
+            selectiveResolvers = selectiveResolvers,
+        )
+    batch.queries.forEachIndexed query@{ queryOffset, query ->
+        val queryIndex = queryOffset + 1
+        if (selectedCase != null && queryIndex != selectedCase.queryIndex) {
+            return@query
         }
-        val world =
-            registry.world(
+        attemptedCases += 1
+        val testCase =
+            ResolverTestCase(
                 schema = batch.schema,
-                selectiveNodeResolvers = selectiveNodeResolvers,
-                fieldCheckerMode = fieldCheckerMode,
-                typeCheckerMode = typeCheckerMode,
-                selectiveResolvers = selectiveResolvers,
+                registry = batch.registry,
+                query = query,
+                coordinates =
+                    ResolverTestCoordinates(
+                        profile = profile,
+                        seed = seed,
+                        schemaIndex = schemaIndex,
+                        queryIndex = queryIndex,
+                    ),
+                testCaseId = testCaseId?.invoke(queryIndex),
             )
-        batch.queries.forEachIndexed query@{ queryOffset, query ->
-            val queryIndex = queryOffset + 1
-            if (selectedCase != null && queryIndex != selectedCase.queryIndex) {
-                return@query
-            }
-            attemptedCases += 1
-            val testCase =
-                ResolverTestCase(
-                    schema = batch.schema,
-                    registry = registry,
-                    query = query,
-                    coordinates =
-                        ResolverTestCoordinates(
-                            profile = profile,
-                            seed = seed,
-                            schemaIndex = schemaIndex,
-                            registryIndex = registryIndex,
-                            queryIndex = queryIndex,
-                        ),
-                    testCaseId = testCaseId?.invoke(registryIndex, queryIndex),
-                )
-            try {
-                property(world, testCase)
-            } catch (failure: Throwable) {
-                val replaySize = if (testCase.testCaseId == null) "\nReplay size: -PresolverPropertySize=${execution.counts.summary()}" else ""
-                throw AssertionError("${testCase.failureContext()}$replaySize", failure)
-            }
+        try {
+            property(world, testCase)
+        } catch (failure: Throwable) {
+            val replaySize = if (testCase.testCaseId == null) "\nReplay size: -PresolverPropertySize=${execution.counts.summary()}" else ""
+            throw AssertionError("${testCase.failureContext()}$replaySize", failure)
         }
     }
     return attemptedCases
@@ -386,17 +367,18 @@ fun parseResolverTestCase(value: String): ResolverTestCaseCoordinate =
     parseResolverTestDimensions(value, RESOLVER_TEST_CASE_PROPERTY).let { dimensions ->
         ResolverTestCaseCoordinate(
             schemaIndex = dimensions.first,
-            registryIndex = dimensions.second,
-            queryIndex = dimensions.third,
+            queryIndex = dimensions.second,
         )
     }
 
-fun parseResolverTestSize(value: String): TestCaseCount =
-    parseResolverTestDimensions(value, RESOLVER_TEST_SIZE_PROPERTY).let { dimensions ->
+fun parseResolverTestSize(
+    value: String,
+    property: String = RESOLVER_TEST_SIZE_PROPERTY,
+): TestCaseCount =
+    parseResolverTestDimensions(value, property).let { dimensions ->
         TestCaseCount(
             schemas = dimensions.first,
-            registriesPerSchema = dimensions.second,
-            queriesPerSchema = dimensions.third,
+            queriesPerSchema = dimensions.second,
         )
     }
 
@@ -409,9 +391,6 @@ data class ResolverTestExecution(
         selectedCase?.let { selected ->
             require(selected.schemaIndex <= counts.schemas) {
                 "Selected schema ${selected.schemaIndex} exceeds profile size ${counts.summary()}"
-            }
-            require(selected.registryIndex <= counts.registriesPerSchema) {
-                "Selected registry ${selected.registryIndex} exceeds profile size ${counts.summary()}"
             }
             require(selected.queryIndex <= counts.queriesPerSchema) {
                 "Selected query ${selected.queryIndex} exceeds profile size ${counts.summary()}"
@@ -451,20 +430,12 @@ fun configuredResolverTestExecution(
 private fun parseResolverTestDimensions(
     value: String,
     property: String,
-): Triple<Int, Int, Int> {
-    val parts = value.split(':')
-    require(parts.size == 3) {
-        "$property must have S:R:Q form with positive integers: $value"
+): Pair<Int, Int> {
+    val dimensions = value.split(':').map { part -> part.toIntOrNull()?.takeIf { dimension -> dimension > 0 } }
+    require(dimensions.size == 2 && dimensions.all { dimension -> dimension != null }) {
+        "$property must have S:Q form with positive integers: $value"
     }
-    val dimensions =
-        parts.map { part ->
-            part.toIntOrNull()
-                ?.takeIf { dimension -> dimension > 0 }
-                ?: throw IllegalArgumentException(
-                    "$property must have S:R:Q form with positive integers: $value",
-                )
-        }
-    return Triple(dimensions[0], dimensions[1], dimensions[2])
+    return dimensions[0]!! to dimensions[1]!!
 }
 
 private fun configuredResolverTestSeed(): Long =
@@ -478,8 +449,6 @@ private fun configuredResolverTestSeed(): Long =
         }
         ?: PropertyTesting.defaultSeed
         ?: Random.nextLong()
-
-private fun TestCaseCount.summary(): String = "$schemas:$registriesPerSchema:$queriesPerSchema"
 
 /** Runs [block] with [properties] set, restoring their previous values afterward. */
 suspend fun <T> withResolverProperties(

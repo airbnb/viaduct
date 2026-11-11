@@ -132,7 +132,7 @@ Resolver10 remains a negative design lesson rather than a maintained family. Rea
 
 Keep separate evidence for completed-result correctness, exact and occurrence-aware application identities, from-field bindings, lifecycle invariants, mutation tests, structural activation, and scheduling behavior. An expected-application oracle derived from the completed result under test is not fully independent and must be described accordingly.
 
-Generated presence is weaker than runtime activation. Directed profiles must require the target interaction to execute, and broad campaigns must record enough information to replay one exact `S:R:Q` coordinate. Large green campaigns remain finite evidence and do not override a focused counterexample.
+Generated presence is weaker than runtime activation. Directed profiles must require the target interaction to execute, and broad campaigns must record enough information to replay one exact `S:Q` coordinate. Large green campaigns remain finite evidence and do not override a focused counterexample.
 
 ## Preserve The Engine API Boundary
 

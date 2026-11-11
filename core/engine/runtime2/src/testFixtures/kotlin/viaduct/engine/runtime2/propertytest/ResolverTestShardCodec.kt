@@ -19,17 +19,17 @@ import viaduct.engine.runtime2.arbitrary.toRegistry
 import viaduct.engine.runtime2.arbitrary.toRegistryDocument
 import viaduct.utils.string.sha256Hash
 
-const val RESOLVER_TEST_SHARD_FORMAT_VERSION = 2
+const val RESOLVER_TEST_SHARD_FORMAT_VERSION = 3
 
 class ResolverTestShard(
     val sdl: ByteArray,
     val json: ByteArray,
 )
 
-/** Content IDs of a schema and of its registries and queries, in shard order. */
+/** Content IDs of a schema, its registry, and its queries in shard order. */
 data class ResolverTestShardIds(
     val schema: String,
-    val registries: List<String>,
+    val registry: String,
     val queries: List<String>,
 )
 
@@ -48,7 +48,7 @@ object ResolverTestShardCodec {
                         rootFieldReferenceFamily = batch.schema.rootFieldReferenceFamily,
                         features = batch.schema.features,
                     ),
-                registries = batch.registries.map(ArbitraryRegistry::toRegistryDocument),
+                registry = batch.registry.toRegistryDocument(),
                 queries = batch.queries.map(ArbitraryQuery::toQueryDocument),
             )
         return ResolverTestShard(gzip("${batch.schema.sdl}\n".toByteArray()), gzip(shardMapper.writeValueAsBytes(document)))
@@ -74,7 +74,7 @@ object ResolverTestShardCodec {
             }
         return ResolverTestBatch(
             schema = schema,
-            registries = document.registries.map { registry -> registry.toRegistry(schema) },
+            registry = document.registry.toRegistry(schema),
             queries = document.queries.map(QueryDocument::toArbitraryQuery),
         )
     }
@@ -82,16 +82,12 @@ object ResolverTestShardCodec {
     fun ids(batch: ResolverTestBatch): ResolverTestShardIds =
         ResolverTestShardIds(
             schema = schemaSha256(batch).take(SCHEMA_ID_LENGTH),
-            registries = batch.registries.map { registry -> registrySha256(registry).take(CASE_PART_ID_LENGTH) },
+            registry = registrySha256(batch.registry).take(CASE_PART_ID_LENGTH),
             queries = batch.queries.map { query -> querySha256(query).take(CASE_PART_ID_LENGTH) },
         )
 
-    /** Keeps the first of each identical registry and query; identical content is the same case. */
-    fun withoutDuplicates(batch: ResolverTestBatch): ResolverTestBatch =
-        batch.copy(
-            registries = batch.registries.distinctBy(::registrySha256),
-            queries = batch.queries.distinctBy(::querySha256),
-        )
+    /** Keeps the first of each identical query; identical content is the same case. */
+    fun withoutDuplicates(batch: ResolverTestBatch): ResolverTestBatch = batch.copy(queries = batch.queries.distinctBy(::querySha256))
 
     private fun schemaSha256(batch: ResolverTestBatch): String = batch.schema.sdl.sha256Hash()
 
@@ -119,7 +115,7 @@ private data class ShardPlansDocument(
     val formatVersion: Int,
     val batchId: String,
     val schema: SchemaMetadataDocument,
-    val registries: List<RegistryDocument>,
+    val registry: RegistryDocument,
     val queries: List<QueryDocument>,
 )
 

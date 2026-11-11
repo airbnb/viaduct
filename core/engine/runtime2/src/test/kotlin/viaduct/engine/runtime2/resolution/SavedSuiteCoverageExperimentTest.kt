@@ -116,11 +116,15 @@ class SavedSuiteCoverageExperimentTest : CorrectResolutionPostTestPolicy, Resolu
     fun `coverage measurement keeps intermediate query fragment rows without treating them as standalone validated results`() =
         runTest {
             val suite = ResolverTestSuite.load(ResolverTestSuiteDefinition.QUERY_FRAGMENT)
-            val failingCase = ResolverTestCaseId.parse("query-fragment/b001/b31e8e/96f651")
+            val (batch, fragmentRow) =
+                suite.batches.firstNotNullOf { batch ->
+                    measureSavedSuiteCoverage(suite, selectedBatchId = batch.id).rows.firstOrNull { it.resultPath.contains("queryFragment-") }?.let { batch to it }
+                }
+            val selectedCase = ResolverTestCaseId(suite.definition.id, batch.id, fragmentRow.test.queryId)
 
-            val measurement = measureSavedSuiteCoverage(suite, selectedCase = failingCase)
+            val measurement = measureSavedSuiteCoverage(suite, selectedCase = selectedCase)
 
             assertEquals(1, measurement.executions.size)
-            assertTrue(measurement.rows.any { it.test.queryId == failingCase.query && it.resultPath.contains("queryFragment-") })
+            assertTrue(measurement.rows.any { it.test.queryId == selectedCase.query && it.resultPath.contains("queryFragment-") })
         }
 }

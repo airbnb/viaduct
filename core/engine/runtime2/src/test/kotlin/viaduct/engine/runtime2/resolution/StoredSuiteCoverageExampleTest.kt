@@ -77,8 +77,11 @@ class StoredSuiteCoverageExampleTest : CorrectResolutionPostTestPolicy, Resoluti
             val example = measurement.rows.first()
             val replayed = replayRecordsFor(example).occurrences
             val expected = measurement.rows.filter { it.test == example.test }
-            assertEquals(expected, replayed)
+            assertEquals(expected.withoutObservationOrder(), replayed.withoutObservationOrder())
         }
+
+    // Resolution may observe concurrent occurrences in a different order, and occurrence IDs number them in that order.
+    private fun List<ResolverCoverageRow>.withoutObservationOrder(): List<ResolverCoverageRow> = map { it.copy(occurrenceId = "occurrence") }.sortedBy(ResolverCoverageRow::toString)
 
     @Test
     fun `replaying a test preserves its saved suite ID`() {
@@ -114,7 +117,7 @@ class StoredSuiteCoverageExampleTest : CorrectResolutionPostTestPolicy, Resoluti
     private fun coverageTestId(testCaseId: ResolverTestCaseId): CoverageTestId =
         CoverageTestId.from(
             testCaseId,
-            suite.batches.single { it.id == testCaseId.batch }.schema,
+            suite.batches.single { it.id == testCaseId.batch }.ids(),
         )
 
     private suspend fun replayRecordsFor(example: ResolverCoverageRow): ResolverCoverageRecords {

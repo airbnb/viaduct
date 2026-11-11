@@ -7,13 +7,14 @@ import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
 import viaduct.engine.runtime2.arbitrary.TestCaseCount
 import viaduct.engine.runtime2.arbitrary.configuredResolverTestExecution
+import viaduct.engine.runtime2.arbitrary.parseResolverTestSize
 import viaduct.engine.runtime2.arbitrary.resolverTestGenerationConfigured
 import viaduct.engine.runtime2.propertytest.ResolverTestSuiteDefinition
 import viaduct.engine.runtime2.propertytest.broadStressCases
 import viaduct.engine.runtime2.propertytest.configuredResolverTestCaseId
 
 /**
- * Unfiltered Resolution stress: every generated registry/query product is resolved and validated.
+ * Unfiltered Resolution stress: every generated schema's queries are resolved and validated.
  */
 @Tag("BazelIgnore")
 class ResolverBroadStressTest : ResolutionDispatcherResource {
@@ -90,32 +91,15 @@ class ResolverBroadStressTest : ResolutionDispatcherResource {
             selectedSuite = configuredResolverTestCaseId()?.suite,
         )
 
-    // Returns the configured S:R:Q product dimensions.
-    private fun configuredCounts(broadProfile: ResolutionBroadStressProfile): TestCaseCount {
-        val configured: String =
+    // Returns the configured S:Q product dimensions.
+    private fun configuredCounts(broadProfile: ResolutionBroadStressProfile): TestCaseCount =
+        parseResolverTestSize(
             System.getProperty(SIZE_PROPERTY)
                 ?: System.getenv(SIZE_ENVIRONMENT)
                 ?: System.getProperty("resolver.property.size")
-                ?: broadProfile.defaultSize
-        val dimensions: List<String> = configured.split(':')
-        require(dimensions.size == 3) {
-            "$SIZE_PROPERTY/$SIZE_ENVIRONMENT must have S:R:Q form: $configured"
-        }
-        val parsed: List<Int> =
-            dimensions.map { dimension ->
-                dimension.toIntOrNull()
-                    ?.takeIf { it > 0 }
-                    ?: error(
-                        "$SIZE_PROPERTY/$SIZE_ENVIRONMENT must have positive dimensions: " +
-                            configured,
-                    )
-            }
-        return TestCaseCount(
-            schemas = parsed[0],
-            registriesPerSchema = parsed[1],
-            queriesPerSchema = parsed[2],
+                ?: broadProfile.defaultSize,
+            "$SIZE_PROPERTY/$SIZE_ENVIRONMENT",
         )
-    }
 
     // Returns the configured seed for live generation, if any.
     private fun configuredSeed(): Long? {

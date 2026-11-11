@@ -25,6 +25,7 @@ import viaduct.engine.runtime2.arbitrary.ResolverTestCase
 import viaduct.engine.runtime2.arbitrary.TestCaseCount
 import viaduct.engine.runtime2.arbitrary.checkResolverTestCases
 import viaduct.engine.runtime2.arbitrary.encodeResolverBenchmarkCorpus
+import viaduct.engine.runtime2.arbitrary.parseResolverTestSize
 import viaduct.engine.runtime2.arbitrary.resolverBenchmarkCorpusSearchConfig
 import viaduct.engine.runtime2.arbitrary.resolverBenchmarkOverheadQueryConfig
 import viaduct.engine.runtime2.model.EngineResult
@@ -49,12 +50,12 @@ object ResolverBenchmarkCorpusSearch {
     @JvmStatic
     fun main(arguments: Array<String>) {
         require(arguments.size == 5) {
-            "Expected arguments: <output-directory> <seed> <schemas:registries:queries> " +
+            "Expected arguments: <output-directory> <seed> <schemas:queries> " +
                 "<benchmark-query-count> <benchmark-query-seed>"
         }
         val outputDirectory = Path.of(arguments[0])
         val seed = arguments[1].toLong()
-        val counts = parseCounts(arguments[2])
+        val counts = parseResolverTestSize(arguments[2])
         val benchmarkQueryCount = arguments[3].toInt()
         val benchmarkQuerySeed = arguments[4].toLong()
         val winner =
@@ -104,7 +105,7 @@ object ResolverBenchmarkCorpusSearch {
         counts: TestCaseCount,
         resolverCoroutineContext: CoroutineContext,
     ): Candidate {
-        val candidates = linkedMapOf<Pair<Int, Int>, Candidate>()
+        val candidates = linkedMapOf<Int, Candidate>()
         checkResolverTestCases(
             counts = counts,
             config = resolverBenchmarkCorpusSearchConfig(),
@@ -114,9 +115,8 @@ object ResolverBenchmarkCorpusSearch {
             typeCheckerMode = GeneratedTypeCheckerMode.RUNTIME_SUCCESS,
         ) { testWorld, testCase ->
             val coordinates = requireNotNull(testCase.coordinates)
-            val key = coordinates.schemaIndex to coordinates.registryIndex
             val candidate =
-                candidates.getOrPut(key) {
+                candidates.getOrPut(coordinates.schemaIndex) {
                     Candidate(testCase.schema, testCase.registry)
                 }
             if (!candidate.disqualified) {
@@ -281,18 +281,6 @@ object ResolverBenchmarkCorpusSearch {
             }
             else -> ResultShape()
         }
-
-    private fun parseCounts(value: String): TestCaseCount {
-        val dimensions = value.split(':').map(String::toInt)
-        require(dimensions.size == 3 && dimensions.all { dimension -> dimension > 0 }) {
-            "Corpus search size must have positive S:R:Q form: $value"
-        }
-        return TestCaseCount(
-            schemas = dimensions[0],
-            registriesPerSchema = dimensions[1],
-            queriesPerSchema = dimensions[2],
-        )
-    }
 
     private data class ResultShape(
         val fields: Long = 0,
@@ -516,7 +504,6 @@ object ResolverBenchmarkCorpusSearch {
             sortedMapOf(
                 "searchSeed" to seed,
                 "searchSchemas" to counts.schemas.toLong(),
-                "searchRegistriesPerSchema" to counts.registriesPerSchema.toLong(),
                 "sampledQueries" to queryCount.toLong(),
                 "score" to score(),
                 "averageResultFields" to

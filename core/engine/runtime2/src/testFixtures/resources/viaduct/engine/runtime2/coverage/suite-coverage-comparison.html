@@ -111,7 +111,7 @@ details summary { cursor: pointer; color: var(--text-secondary); }
     <p class="sub" id="detail-sub"></p>
     <div class="detail-grid">
       <div><h2>Schema</h2><pre id="detail-sdl"></pre></div>
-      <div><h2>Object fragments by registry</h2><pre id="detail-fragments"></pre></div>
+      <div><h2>Registry object fragments</h2><pre id="detail-fragments"></pre></div>
     </div>
     <h2 style="margin-top:16px">Queries</h2>
     <pre id="detail-queries"></pre>
@@ -262,19 +262,17 @@ function showDetail(b) {
   const panel = document.getElementById('detail');
   panel.hidden = false;
   document.getElementById('detail-title').textContent = `${b.id} · schema ${b.schemaId}`;
-  document.getElementById('detail-sub').textContent = `${membershipLabel[membership(b)]} · ${b.cases.length} cases · ${b.registries.length} registries × ${b.queries.length} queries`;
+  document.getElementById('detail-sub').textContent = `${membershipLabel[membership(b)]} · ${b.cases.length} cases · registry ${b.registry.id} × ${b.queries.length} queries`;
   document.getElementById('detail-sdl').textContent = b.sdl;
-  document.getElementById('detail-fragments').textContent = b.registries.map(r => {
-    const entries = Object.entries(r.objectFragments);
-    return `registry ${r.id}\n` + (entries.length ? entries.map(([f, s]) => `  ${f}: ${s}`).join('\n') : '  (no object fragments)');
-  }).join('\n\n');
+  const fragments = Object.entries(b.registry.objectFragments);
+  document.getElementById('detail-fragments').textContent = fragments.length ? fragments.map(([f, s]) => `${f}: ${s}`).join('\n') : '(no object fragments)';
   document.getElementById('detail-queries').textContent = b.queries.map(q => `# ${q.id}\n${q.source}`).join('\n\n');
   const table = document.getElementById('detail-cases');
   table.replaceChildren();
-  const head = el('tr'); ['Registry', 'Query', 'Behaviors', 'Fragment depths'].forEach(h => head.append(el('th', {}, h))); table.append(head);
+  const head = el('tr'); ['Query', 'Behaviors', 'Fragment depths'].forEach(h => head.append(el('th', {}, h))); table.append(head);
   b.cases.forEach(c => {
     const tr = el('tr');
-    tr.append(el('td', {}, c.registry), el('td', {}, c.query), el('td', {}, c.obligations.map(short).join(', ') || '—'),
+    tr.append(el('td', {}, c.query), el('td', {}, c.obligations.map(short).join(', ') || '—'),
       el('td', {}, c.attributes.filter(a => a.startsWith('object_fragment_depth:')).map(a => a.split(':')[1]).join(', ')));
     table.append(tr);
   });

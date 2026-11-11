@@ -8,8 +8,7 @@ These generators and correctness replays exercise Query resolution, not stateful
 
 ```kotlin
 val counts = TestCaseCount(
-    schemas = 20,
-    registriesPerSchema = 3,
+    schemas = 60,
     queriesPerSchema = 5,
 )
 val config =
@@ -22,7 +21,7 @@ checkResolverTestCases(counts, config) { testWorld, testCase ->
 }
 ```
 
-`checkResolverTestCases` uses `S` as its outer Kotest iteration count. Each schema sample contains `R` independently generated registries and `Q` independently generated queries, and the runner evaluates their Cartesian product while reusing one canonical world per registry.
+`checkResolverTestCases` uses `S` as its outer Kotest iteration count. Each schema sample contains one generated registry and `Q` independently generated queries, and the runner evaluates every query against one canonical world per schema.
 
 ## Generated Worlds
 
@@ -74,9 +73,9 @@ Each generator document is a complete `GeneratorConfigData` value rather than a 
 
 ## Stored Suites
 
-A stored suite checks in the generated cases themselves rather than a seed. `ResolverTestSuiteDefinition` names each suite's ID, seed, `S:R:Q` dimensions, `Config`, and checker modes; `materializeResolverTestSuites` (or `bazel run //projects/viaduct/oss/core/engine/runtime2:materialize_resolver_test_suites`) writes each suite as `src/testFixtures/resources/viaduct/engine/runtime2/property-tests/suites/<id>.zip`, continued in `<id>.part2.zip`, `<id>.part3.zip`, and so on when it exceeds 4.5 MB so every checked-in file stays under git.musta.ch's recommended 5 MB; the parts together hold a manifest plus one gzipped shard per batch and one gzipped SDL per distinct schema. A batch is one schema with its registries and queries; batches may share a schema, which is then stored once. Identical registries and queries within a batch are the same test, so only the first copy is stored. Loading verifies every entry digest and rejects a manifest whose definition has changed; `ResolverTestSuiteTest` also requires each suite to match live generation from its seed.
+A stored suite checks in the generated cases themselves rather than a seed. `ResolverTestSuiteDefinition` names each suite's ID, seed, `S:Q` dimensions, `Config`, and checker modes; `materializeResolverTestSuites` (or `bazel run //projects/viaduct/oss/core/engine/runtime2:materialize_resolver_test_suites`) writes each suite as `src/testFixtures/resources/viaduct/engine/runtime2/property-tests/suites/<id>.zip`, continued in `<id>.part2.zip`, `<id>.part3.zip`, and so on when it exceeds 4.5 MB so every checked-in file stays under git.musta.ch's recommended 5 MB; the parts together hold a manifest plus one gzipped shard per batch and one gzipped SDL per distinct schema. A batch is one schema with its registry and queries; batches may share a schema, which is then stored once. Identical queries within a batch are the same test, so only the first copy is stored. Loading verifies every entry digest and rejects a manifest whose definition has changed; `ResolverTestSuiteTest` also requires each suite to match live generation from its seed.
 
-Every stored case has a test-case ID, `<suite>/<batch>/<registry>/<query>` such as `node/b004/9c1e03/77ab12`. Suite and batch IDs are stipulated: a batch ID is its generation ordinal, fixed by the suite's seed, so batches can later be grouped by theme rather than by content. The registry and query parts are prefixes of the SHA-256 of their shard JSON. The manifest lists each schema once by the SHA-256 prefix of its SDL, and every batch with its ID, its schema's ID, and its registry and query IDs; shards are named `batch-<id>`, SDL files `schema-<sha>`, and loading checks that content still hashes to its listed IDs. Deleting a batch, registry, or query renames nothing else and its ID can only fail as not found. Stored-case failures print the ID and its rerun command: `./gradlew :core:engine:runtime2:resolverTestCase -PresolverTestCase=<id>` runs the generated, witness, and mutation test classes (or only `-PresolverPropertyClass=<fqcn>`) with `resolver.testCase` set, so the suite holding the case replays just that case and every other suite runs nothing. The task fails if no selected test class uses the case's suite. With Bazel, pass `--jvmopt=-Dresolver.testCase=<id>` to a family's test target; Bazel has no such check, so a target whose family does not use the suite passes without running the case. Live generation keeps positional `S:R:Q` coordinates; a stored suite rejects them.
+Every stored case has a test-case ID, `<suite>/<batch>/<query>` such as `node/b004/77ab12`. Suite and batch IDs are stipulated: a batch ID is its generation ordinal, fixed by the suite's seed, so batches can later be grouped by theme rather than by content. The query part is a prefix of the SHA-256 of its shard JSON. The manifest lists each schema once by the SHA-256 prefix of its SDL, and every batch with its ID, its schema's ID, its registry's content ID, and its query IDs; shards are named `batch-<id>`, SDL files `schema-<sha>`, and loading checks that content still hashes to its listed IDs. Deleting a batch or query renames nothing else and its ID can only fail as not found. Stored-case failures print the ID and its rerun command: `./gradlew :core:engine:runtime2:resolverTestCase -PresolverTestCase=<id>` runs the generated, witness, and mutation test classes (or only `-PresolverPropertyClass=<fqcn>`) with `resolver.testCase` set, so the suite holding the case replays just that case and every other suite runs nothing. The task fails if no selected test class uses the case's suite. With Bazel, pass `--jvmopt=-Dresolver.testCase=<id>` to a family's test target; Bazel has no such check, so a target whose family does not use the suite passes without running the case. Live generation keeps positional `S:Q` coordinates; a stored suite rejects them.
 
 Each suite-backed run either replays stored cases or generates live ones:
 
@@ -86,7 +85,7 @@ flowchart TD
     stress["Deep, focused, and broad stress tests"] --> configured
     checker["Checker stress tasks<br/>(resolver.testSuite.variant=stress)"] --> variant["forProfile picks the 2,500-case -stress suite,<br/>or a selected case's own suite"]
     variant --> configured
-    campaign["resolutionBroadStressCampaign"] --> campaignSuite{"Run's own seed, size, and config<br/>match a stored suite (round 1)<br/>and no S:R:Q coordinate selected?"}
+    campaign["resolutionBroadStressCampaign"] --> campaignSuite{"Run's own seed, size, and config<br/>match a stored suite (round 1)<br/>and no S:Q coordinate selected?"}
     multithreaded["resolutionMultithreadedStress"] --> campaignSize{"Run has a stored suite (round 1)<br/>and runs at campaign size?"}
     configured -- no --> stored["Replay the stored suite<br/>coverage gaps fail"]
     configured -- yes --> live["Generate live cases from the seed<br/>coverage gaps warn"]
@@ -104,13 +103,13 @@ The stress tests store `resolution-stress`, `resolver23-stress`, `resolution-roo
 
 ## Runs, Rounds, And Campaigns
 
-A property-test run has two independent profile inputs. `testInputProfileId` selects a versioned, fully resolved generator configuration; `subjectProfileId` selects executable behavior and oracles. The run also fixes the seed, `S:R:Q` dimensions, and required coverage-signature IDs. A `PropertyTestRoundConfigFile` gives the round a versioned ID and an ordered list of runs.
+A property-test run has two independent profile inputs. `testInputProfileId` selects a versioned, fully resolved generator configuration; `subjectProfileId` selects executable behavior and oracles. The run also fixes the seed, `S:Q` dimensions, and required coverage-signature IDs. A `PropertyTestRoundConfigFile` gives the round a versioned ID and an ordered list of runs.
 
 `PropertyTestCampaignConfigFile` is the compact serialized form for a complete campaign. It names one subject profile, declares its test-input profiles and coverage obligations, defines reusable phases, and assigns consecutive seed ranges to those phases. For round `n`, the range's `baseSeed` advances from its first round and each profile receives `(baseSeed + n - first) * seedMultiplier + seedOffset`. Expanding a campaign therefore produces the same ordinary round configuration consumed by the runner.
 
 `PropertyTestRoundRunner` resolves both profile IDs and calls `executeResolverTestCases`, the generated-product entry point that does not inspect process properties. It owns one production Resolution dispatcher for the round and closes it after the selected runs. `resolution-broad-correctness` is the maintained standalone subject profile, and each run supplies its required structural signatures.
 
-Campaign JUnit tests deserialize and expand the same campaign resources before calling the same runner. Their runtime-only `PropertyTestRoundExecution` may select one input profile and one `S:R:Q` coordinate. This preserves the JUnit replay interface without adding ephemeral selection state to serialized campaign or round data.
+Campaign JUnit tests deserialize and expand the same campaign resources before calling the same runner. Their runtime-only `PropertyTestRoundExecution` may select one input profile and one `S:Q` coordinate. This preserves the JUnit replay interface without adding ephemeral selection state to serialized campaign or round data.
 
 ## Running Campaigns
 
@@ -156,7 +155,7 @@ Review and check in the resulting generator JSON with the schema or profile chan
 
 ## Replay And Failure Reduction
 
-Every semantic failure reports the profile, seed, one-based `S:R:Q` coordinate, schema, registry, and query. Replay the exact coordinate through `:core:engine:runtime2:resolverPropertyReplay` before changing generator or resolver code. [Testing strategy](strategy.md#generated-tests) defines the stable profile IDs and replay interface.
+Every semantic failure reports the profile, seed, one-based `S:Q` coordinate, schema, registry, and query. Replay the exact coordinate through `:core:engine:runtime2:resolverPropertyReplay` before changing generator or resolver code. [Testing strategy](strategy.md#generated-tests) defines the stable profile IDs and replay interface.
 
 A persisted broad-campaign failure can be replayed through its recorded round, profile, and coordinate:
 
@@ -164,10 +163,10 @@ A persisted broad-campaign failure can be replayed through its recorded round, p
 ./gradlew :core:engine:runtime2:resolutionBroadStressCampaign \
   -PresolutionBroadStressCampaignRound=21 \
   -PresolutionBroadStressCampaignProfile=multiple-owners \
-  -PresolverPropertyCase=18:4:1
+  -PresolverPropertyCase=18:1
 ```
 
-Preserve the original `S:R:Q` dimensions when replaying a coordinate because registry and query counts affect generation before the selected case. Coordinate replay suppresses aggregate coverage obligations; use a complete profile replay when the failure is itself a missing aggregate signature.
+Preserve the original `S:Q` dimensions when replaying a coordinate because query counts affect generation before the selected case. Coordinate replay suppresses aggregate coverage obligations; use a complete profile replay when the failure is itself a missing aggregate signature.
 
 After exact replay is stable, classify the failure as resolver, generator, oracle, campaign, or resource-envelope behavior. First reduce execution to the one recorded coordinate. Then remove irrelevant selections, registry entries, schema types, and enabled features while retaining the same violated assertion; when possible, preserve the result as a deterministic feature contract or focused regression. Do not replace an exact application, binding, or occurrence failure with a timeout-only reproduction. A generated world that contains a feature but never activates it is a coverage defect, not evidence about that feature.
 

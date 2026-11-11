@@ -17,7 +17,7 @@ class ResolverTestReplayTest {
             profile = "coverage-warning",
             seed = 31415926L,
             attemptedCases = 8,
-            counts = TestCaseCount(schemas = 2, registriesPerSchema = 2, queriesPerSchema = 2),
+            counts = TestCaseCount(schemas = 4, queriesPerSchema = 2),
             selectedCase = null,
             sizeOverridden = false,
         )
@@ -29,7 +29,7 @@ class ResolverTestReplayTest {
         assertEquals(1, warnings.size)
         assertContains(warnings.single(), "WARNING: Generated coverage gap")
         assertContains(warnings.single(), "No activated query fragments")
-        assertContains(warnings.single(), "profile=coverage-warning seed=31415926 S=all R=all Q=all")
+        assertContains(warnings.single(), "profile=coverage-warning seed=31415926 S=all Q=all")
         assertContains(warnings.single(), "Size: ${run.counts.summary()}")
         assertContains(warnings.single(), "-PresolverPropertySeed=31415926")
         assertFailsWith<AssertionError> {
@@ -43,8 +43,8 @@ class ResolverTestReplayTest {
             profile = "coverage-warning",
             seed = 31415926L,
             attemptedCases = 1,
-            counts = TestCaseCount(schemas = 2, registriesPerSchema = 2, queriesPerSchema = 2),
-            selectedCase = ResolverTestCaseCoordinate(1, 1, 1),
+            counts = TestCaseCount(schemas = 4, queriesPerSchema = 2),
+            selectedCase = ResolverTestCaseCoordinate(1, 1),
             sizeOverridden = false,
         )
         val warnings = mutableListOf<String>()
@@ -60,7 +60,7 @@ class ResolverTestReplayTest {
             profile = "stored-coverage",
             seed = 1L,
             attemptedCases = 8,
-            counts = TestCaseCount(schemas = 2, registriesPerSchema = 2, queriesPerSchema = 2),
+            counts = TestCaseCount(schemas = 4, queriesPerSchema = 2),
             selectedCase = null,
             sizeOverridden = false,
             storedSuite = "stored-coverage",
@@ -84,7 +84,7 @@ class ResolverTestReplayTest {
             profile = "live-coverage",
             seed = 31415926L,
             attemptedCases = 8,
-            counts = TestCaseCount(schemas = 2, registriesPerSchema = 2, queriesPerSchema = 2),
+            counts = TestCaseCount(schemas = 4, queriesPerSchema = 2),
             selectedCase = null,
             sizeOverridden = false,
         )
@@ -102,8 +102,8 @@ class ResolverTestReplayTest {
             profile = "stored-coverage",
             seed = 1L,
             attemptedCases = 1,
-            counts = TestCaseCount(schemas = 2, registriesPerSchema = 2, queriesPerSchema = 2),
-            selectedCase = ResolverTestCaseCoordinate(1, 1, 1),
+            counts = TestCaseCount(schemas = 4, queriesPerSchema = 2),
+            selectedCase = ResolverTestCaseCoordinate(1, 1),
             sizeOverridden = false,
             storedSuite = "stored-coverage",
         )
@@ -123,11 +123,11 @@ class ResolverTestReplayTest {
             assertEquals(first, replay)
             assertEquals(8, first.size)
             assertEquals(
-                "profile=replay-determinism seed=8675309 S=1 R=1 Q=1",
+                "profile=replay-determinism seed=8675309 S=1 Q=1",
                 first.first().coordinates,
             )
             assertEquals(
-                "profile=replay-determinism seed=8675309 S=2 R=2 Q=2",
+                "profile=replay-determinism seed=8675309 S=4 Q=2",
                 first.last().coordinates,
             )
         }
@@ -141,14 +141,12 @@ class ResolverTestReplayTest {
                 val counts =
                     TestCaseCount(
                         schemas = random.nextInt(1, 5),
-                        registriesPerSchema = random.nextInt(1, 4),
                         queriesPerSchema = random.nextInt(1, 4),
                     )
                 val seed = random.nextLong()
                 val selected =
                     ResolverTestCaseCoordinate(
                         schemaIndex = random.nextInt(1, counts.schemas + 1),
-                        registryIndex = random.nextInt(1, counts.registriesPerSchema + 1),
                         queryIndex = random.nextInt(1, counts.queriesPerSchema + 1),
                     )
                 var expected: GeneratedCaseIdentity? = null
@@ -202,7 +200,6 @@ class ResolverTestReplayTest {
                         counts =
                             TestCaseCount(
                                 schemas = 2,
-                                registriesPerSchema = 2,
                                 queriesPerSchema = 2,
                             ),
                         config = REPLAY_CONFIG,
@@ -212,7 +209,6 @@ class ResolverTestReplayTest {
                         val coordinates = requireNotNull(testCase.coordinates)
                         if (
                             coordinates.schemaIndex == 2 &&
-                            coordinates.registryIndex == 2 &&
                             coordinates.queryIndex == 1
                         ) {
                             error("deliberate replay failure")
@@ -223,7 +219,7 @@ class ResolverTestReplayTest {
 
             assertContains(
                 failureText,
-                "profile=replay-case seed=11235813 S=2 R=2 Q=1",
+                "profile=replay-case seed=11235813 S=2 Q=1",
             )
             assertContains(failureText, "-PresolverPropertySeed=11235813")
             assertContains(failureText, "deliberate replay failure")
@@ -237,7 +233,6 @@ class ResolverTestReplayTest {
                     counts =
                         TestCaseCount(
                             schemas = 1,
-                            registriesPerSchema = 1,
                             queriesPerSchema = 1,
                         ),
                     config = REPLAY_CONFIG,
@@ -252,7 +247,7 @@ class ResolverTestReplayTest {
 
             assertContains(
                 failure.message.orEmpty(),
-                "profile=replay-aggregate seed=31415926 S=all R=all Q=all",
+                "profile=replay-aggregate seed=31415926 S=all Q=all",
             )
             assertContains(
                 failure.message.orEmpty(),
@@ -265,7 +260,7 @@ class ResolverTestReplayTest {
         runBlocking {
             withResolverProperties(
                 RESOLVER_TEST_PROFILE_PROPERTY to "replay-single",
-                RESOLVER_TEST_CASE_PROPERTY to "2:2:1",
+                RESOLVER_TEST_CASE_PROPERTY to "2:1",
             ) {
                 val coordinates = mutableListOf<String>()
                 val run =
@@ -273,7 +268,6 @@ class ResolverTestReplayTest {
                         counts =
                             TestCaseCount(
                                 schemas = 3,
-                                registriesPerSchema = 2,
                                 queriesPerSchema = 2,
                             ),
                         config = REPLAY_CONFIG,
@@ -284,11 +278,11 @@ class ResolverTestReplayTest {
                     }
 
                 assertEquals(
-                    listOf("profile=replay-single seed=27182818 S=2 R=2 Q=1"),
+                    listOf("profile=replay-single seed=27182818 S=2 Q=1"),
                     coordinates,
                 )
                 assertEquals(1, run.attemptedCases)
-                assertEquals(ResolverTestCaseCoordinate(2, 2, 1), run.selectedCase)
+                assertEquals(ResolverTestCaseCoordinate(2, 1), run.selectedCase)
                 run.assertAggregate(false, "single-case replay suppresses aggregate guards")
             }
         }
@@ -299,15 +293,14 @@ class ResolverTestReplayTest {
             withResolverProperties(
                 RESOLVER_TEST_PROFILE_PROPERTY to "replay-sized",
                 RESOLVER_TEST_CASE_PROPERTY to "all",
-                RESOLVER_TEST_SIZE_PROPERTY to "2:1:2",
+                RESOLVER_TEST_SIZE_PROPERTY to "2:2",
             ) {
                 val coordinates = mutableListOf<String>()
                 val run =
                     checkResolverTestCases(
                         counts =
                             TestCaseCount(
-                                schemas = 10,
-                                registriesPerSchema = 3,
+                                schemas = 30,
                                 queriesPerSchema = 5,
                             ),
                         config = REPLAY_CONFIG,
@@ -318,11 +311,11 @@ class ResolverTestReplayTest {
                     }
 
                 assertEquals(4, run.attemptedCases)
-                assertEquals(TestCaseCount(2, 1, 2), run.counts)
+                assertEquals(TestCaseCount(2, 2), run.counts)
                 assertEquals(4, run.expectedCases)
                 assertEquals(null, run.selectedCase)
                 assertEquals(
-                    "profile=replay-sized seed=16180339 S=2 R=1 Q=2",
+                    "profile=replay-sized seed=16180339 S=2 Q=2",
                     coordinates.last(),
                 )
                 assertFailsWith<AssertionError> {
@@ -336,25 +329,25 @@ class ResolverTestReplayTest {
         runBlocking {
             withResolverProperties(
                 RESOLVER_TEST_CASE_PROPERTY to "all",
-                RESOLVER_TEST_SIZE_PROPERTY to "2:2:2",
+                RESOLVER_TEST_SIZE_PROPERTY to "2:2",
             ) {
                 val full = mutableListOf<GeneratedCaseIdentity>()
                 checkResolverTestCases(
-                    counts = TestCaseCount(1, 1, 1),
+                    counts = TestCaseCount(1, 1),
                     config = REPLAY_CONFIG,
                     profile = "replay-sized-single",
                     seed = 42L,
                 ) { _, testCase -> full += testCase.identity() }
-                withResolverProperties(RESOLVER_TEST_CASE_PROPERTY to "2:2:2") {
+                withResolverProperties(RESOLVER_TEST_CASE_PROPERTY to "2:2") {
                     val replayed = mutableListOf<GeneratedCaseIdentity>()
                     val run = checkResolverTestCases(
-                        counts = TestCaseCount(1, 1, 1),
+                        counts = TestCaseCount(1, 1),
                         config = REPLAY_CONFIG,
                         profile = "replay-sized-single",
                         seed = 42L,
                     ) { _, testCase -> replayed += testCase.identity() }
                     assertEquals(listOf(full.last()), replayed)
-                    assertEquals(TestCaseCount(2, 2, 2), run.counts)
+                    assertEquals(TestCaseCount(2, 2), run.counts)
                     assertEquals(1, run.attemptedCases)
                     run.assertAggregate(false, "single-case replay still suppresses aggregate guards")
                 }
@@ -362,17 +355,17 @@ class ResolverTestReplayTest {
         }
 
     @Test
-    fun `coordinate parsers require positive S R Q dimensions`() {
+    fun `coordinate parsers require positive S Q dimensions`() {
         assertEquals(
-            ResolverTestCaseCoordinate(3, 2, 1),
-            parseResolverTestCase("3:2:1"),
+            ResolverTestCaseCoordinate(3, 1),
+            parseResolverTestCase("3:1"),
         )
-        assertEquals(TestCaseCount(4, 3, 2), parseResolverTestSize("4:3:2"))
+        assertEquals(TestCaseCount(4, 2), parseResolverTestSize("4:2"))
         assertFailsWith<IllegalArgumentException> {
-            parseResolverTestCase("0:2:1")
+            parseResolverTestCase("0:1")
         }
         assertFailsWith<IllegalArgumentException> {
-            parseResolverTestSize("2:1")
+            parseResolverTestSize("4:3:2")
         }
     }
 
@@ -382,8 +375,7 @@ class ResolverTestReplayTest {
             checkResolverTestCases(
                 counts =
                     TestCaseCount(
-                        schemas = 2,
-                        registriesPerSchema = 2,
+                        schemas = 4,
                         queriesPerSchema = 2,
                     ),
                 config = REPLAY_CONFIG,
@@ -434,11 +426,8 @@ class ResolverTestReplayTest {
     private fun ResolverTestCoordinates.caseCoordinate(): ResolverTestCaseCoordinate =
         ResolverTestCaseCoordinate(
             schemaIndex = schemaIndex,
-            registryIndex = registryIndex,
             queryIndex = queryIndex,
         )
-
-    private fun TestCaseCount.summary(): String = "$schemas:$registriesPerSchema:$queriesPerSchema"
 
     private companion object {
         val REPLAY_CONFIG =
