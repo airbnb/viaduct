@@ -77,6 +77,9 @@ class EngineImpl(
     private val additionalInstrumentation: Instrumentation? = config.additionalInstrumentation
     private val flagManager: FlagManager = config.flagManager
 
+    override val supportsIncrementalExecution: Boolean
+        get() = flagManager.isEnabled(FlagManager.Flags.ENABLE_INCREMENTAL_EXECUTION)
+
     private val resolverDataFetcherInstrumentation = ResolverDataFetcherInstrumentation(
         dispatcherRegistry,
         config.resolverInstrumentation,

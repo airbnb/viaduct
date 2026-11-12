@@ -6,6 +6,7 @@ import graphql.execution.instrumentation.SimplePerformantInstrumentation
 import graphql.schema.DataFetchingEnvironment
 import io.mockk.every
 import io.mockk.mockk
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNotSame
 import org.junit.jupiter.api.Assertions.assertNull
@@ -13,6 +14,7 @@ import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.CsvSource
 import org.junit.jupiter.params.provider.ValueSource
 import viaduct.engine.api.Coordinate
 import viaduct.engine.api.Engine
@@ -186,6 +188,23 @@ class EngineExecutionContextImplTest {
         assertFalse(engineExecutionContext(flagManager).matResolutionEnabled)
     }
 
+    @ParameterizedTest
+    @CsvSource("false, false", "false, true", "true, false", "true, true")
+    fun `incremental execution requires engine capability and request permission`(
+        supportsIncrementalExecution: Boolean,
+        incrementalExecution: Boolean,
+    ) {
+        val engine = mockk<Engine>()
+        every { engine.supportsIncrementalExecution } returns supportsIncrementalExecution
+        val context = engineExecutionContext(
+            MockFlagManager.Enabled,
+            engine = engine,
+            incrementalExecution = incrementalExecution,
+        )
+
+        assertEquals(supportsIncrementalExecution && incrementalExecution, context.incrementalExecutionEnabled)
+    }
+
     @Test
     fun `incremental execution flag is latched per request and preserved in copies and shadow executions`() {
         var enabled = true
@@ -221,6 +240,10 @@ class EngineExecutionContextImplTest {
         globalIDCodec: GlobalIDCodec = GlobalIDCodecDefault,
         dispatcherRegistry: DispatcherRegistry = DispatcherRegistry.Empty,
         fieldValueReader: MaterializedFieldValueReader = MaterializedFieldValueReader.Default,
+        engine: Engine = mockk {
+            every { supportsIncrementalExecution } answers { flagManager.isEnabled(FlagManager.Flags.ENABLE_INCREMENTAL_EXECUTION) }
+        },
+        incrementalExecution: Boolean = true,
     ): EngineExecutionContextImpl {
         val factory =
             EngineExecutionContextFactory(
@@ -228,7 +251,7 @@ class EngineExecutionContextImplTest {
                 dispatcherRegistry,
                 SimplePerformantInstrumentation(),
                 flagManager,
-                mockk<Engine>(),
+                engine,
                 globalIDCodec,
                 meterRegistry = null,
                 materializedFieldValueReader = fieldValueReader,
@@ -237,6 +260,6 @@ class EngineExecutionContextImplTest {
                 },
             )
 
-        return factory.create(fullSchema, requestContext = null) as EngineExecutionContextImpl
+        return factory.create(fullSchema, requestContext = null, incrementalExecution = incrementalExecution) as EngineExecutionContextImpl
     }
 }

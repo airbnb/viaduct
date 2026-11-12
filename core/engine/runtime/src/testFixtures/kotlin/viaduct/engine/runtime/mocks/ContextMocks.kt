@@ -60,7 +60,7 @@ class ContextMocks(
     val dispatcherRegistry: DispatcherRegistry = myDispatcherRegistry ?: DispatcherRegistry.Empty
     val resolverInstrumentation: Instrumentation = myResolverInstrumentation ?: SimplePerformantInstrumentation()
     val flagManager: FlagManager = myFlagManager ?: MockFlagManager.Enabled
-    val engine: Engine = myEngine ?: NoOpEngine
+    val engine: Engine = myEngine ?: NoOpEngine(flagManager)
     val globalIDCodec: GlobalIDCodec = myGlobalIDCodec ?: GlobalIDCodecDefault
 
     val engineExecutionContext: EngineExecutionContext get() =
@@ -101,7 +101,10 @@ class ContextMocks(
     }
 }
 
-private object NoOpEngine : Engine {
+private class NoOpEngine(private val flagManager: FlagManager) : Engine {
+    override val supportsIncrementalExecution: Boolean
+        get() = flagManager.isEnabled(FlagManager.Flags.ENABLE_INCREMENTAL_EXECUTION)
+
     override val schema: EngineSchema get() = error("NoOpEngine: schema not configured")
 
     override suspend fun execute(

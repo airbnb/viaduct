@@ -100,7 +100,7 @@ class EngineExecutionContextFactory(
             isFieldMatEligible,
             ownedSelectionProjector,
             materializedFieldValueReader,
-            incrementalExecutionEnabled = incrementalExecution && flagManager.isEnabled(FlagManager.Flags.ENABLE_INCREMENTAL_EXECUTION),
+            incrementalExecutionEnabled = incrementalExecution && engine.supportsIncrementalExecution,
             nodeResolverCachingEnabled = nodeResolverCachingEnabled,
         )
     }

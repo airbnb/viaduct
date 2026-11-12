@@ -92,6 +92,7 @@ class JavaBatchInvocationContextTest {
             val nodeCallers = mutableListOf<Caller?>()
             val rootCallers = mutableListOf<Caller?>()
             val engine = mockk<Engine> {
+                every { supportsIncrementalExecution } returns false
                 coEvery { resolveSelectionSet(any(), any(), any()) } answers {
                     subqueries[firstArg()] = thirdArg<ResolveSelectionSetOptions>().attribution
                     queryData

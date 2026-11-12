@@ -10,6 +10,13 @@ interface Engine {
     val schema: EngineSchema
 
     /**
+     * Whether this engine's current configuration supports incremental delivery for eligible operations.
+     * If this returns `false`, [execute] must return a single, non-incremental [ExecutionResult]
+     * containing the operation's final data and errors.
+     */
+    val supportsIncrementalExecution: Boolean get() = false
+
+    /**
      * Executes a GraphQL operation, permitting incremental delivery when [incrementalExecution]
      * and the engine's feature gate allow it. Otherwise, treats @defer as if it were absent.
      * Engines without incremental support execute the operation to completion.
