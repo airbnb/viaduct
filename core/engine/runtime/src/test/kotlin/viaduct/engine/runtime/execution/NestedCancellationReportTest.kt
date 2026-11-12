@@ -6,10 +6,16 @@ import graphql.execution.DataFetcherExceptionHandlerParameters
 import graphql.execution.DataFetcherExceptionHandlerResult
 import graphql.execution.SimpleDataFetcherExceptionHandler
 import graphql.execution.instrumentation.FieldFetchingInstrumentationContext
+import graphql.execution.instrumentation.InstrumentationContext
 import graphql.execution.instrumentation.InstrumentationState
+import graphql.execution.instrumentation.SimpleInstrumentationContext
+import graphql.execution.instrumentation.parameters.InstrumentationExecutionStrategyParameters
 import graphql.execution.instrumentation.parameters.InstrumentationFieldFetchParameters
 import graphql.schema.DataFetcher
 import graphql.schema.GraphQLObjectType
+import graphql.schema.GraphQLTypeUtil
+import io.mockk.every
+import io.mockk.mockk
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CopyOnWriteArrayList
 import kotlinx.coroutines.CompletableDeferred
@@ -19,11 +25,15 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.future.await
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.yield
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertInstanceOf
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.CsvSource
 import org.junit.jupiter.params.provider.ValueSource
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
@@ -31,10 +41,18 @@ import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.EngineSelectionSet
 import viaduct.engine.api.instrumentation.ChainedModernGJInstrumentation
 import viaduct.engine.api.instrumentation.ViaductModernGJInstrumentation
+import viaduct.engine.api.instrumentation.transformDataFetcherResult
+import viaduct.engine.api.mocks.createEngineObjectData
+import viaduct.engine.runtime.DispatcherRegistry
+import viaduct.engine.runtime.FieldResolverDispatcher
 import viaduct.engine.runtime.LazyEngineObjectData
+import viaduct.engine.runtime.ResolverVariableDefinitions
+import viaduct.engine.runtime.execution.ExecutionTestHelpers.createExecutionInput
 import viaduct.engine.runtime.execution.ExecutionTestHelpers.createSchema
 import viaduct.engine.runtime.execution.ExecutionTestHelpers.executeQuery
 import viaduct.engine.runtime.execution.ExecutionTestHelpers.runExecutionTest
+import viaduct.service.api.spi.FlagManager
+import viaduct.service.api.spi.mocks.MockFlagManager
 
 class NestedCancellationReportTest {
     private class RecordingHandler : DataFetcherExceptionHandler {
@@ -89,7 +107,7 @@ class NestedCancellationReportTest {
     private fun graphQL(
         schema: EngineSchema,
         handler: DataFetcherExceptionHandler,
-        instrumentation: RecordingFetchInstrumentation = RecordingFetchInstrumentation(),
+        instrumentation: ViaductModernGJInstrumentation = RecordingFetchInstrumentation(),
     ): GraphQL {
         @Suppress("DEPRECATION")
         val factory = ViaductExecutionStrategy.Factory.Impl(
@@ -173,6 +191,190 @@ class NestedCancellationReportTest {
             assertEquals(mapOf("outer" to "done"), result.getData<Map<String, Any?>>())
         }
         return Reports(innerHandler.seen.toList(), innerInstrumentation.failures.toList())
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = [false, true])
+    fun `cancelled nested query does not report asynchronous scalar transformation errors`(mat: Boolean) {
+        val handler = RecordingHandler()
+        val recording = RecordingFetchInstrumentation()
+        runExecutionTest {
+            val started = CompletableDeferred<Unit>()
+            val cancelled = CompletableDeferred<Unit>()
+            val moderation = object : ViaductModernGJInstrumentation {
+                override fun instrumentDataFetcher(
+                    dataFetcher: DataFetcher<*>,
+                    parameters: InstrumentationFieldFetchParameters,
+                    state: InstrumentationState?,
+                ): DataFetcher<*> {
+                    if (parameters.environment.fieldDefinition.name != "messages") return dataFetcher
+                    return DataFetcher<Any?> { env ->
+                        transformDataFetcherResult(dataFetcher.get(env)) {
+                            scopedFuture<String> {
+                                started.complete(Unit)
+                                try {
+                                    awaitCancellation()
+                                } finally {
+                                    cancelled.complete(Unit)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            val dispatcher = mockk<FieldResolverDispatcher>(relaxed = true) {
+                every { isSelective } returns true
+                every { objectSelectionSet } returns null
+                every { querySelectionSet } returns null
+                every { hasRequiredSelectionSets } returns false
+                every { variableDefinitions } returns ResolverVariableDefinitions.EMPTY
+            }
+            val registry = DispatcherRegistry.Impl(
+                mapOf(("Query" to "node") to dispatcher),
+                emptyMap(),
+                emptyMap(),
+                emptyMap(),
+            )
+            val schema = createSchema(
+                "type Query { node: Node } type Node { messages: String! }",
+                mapOf(
+                    "Query" to mapOf("node" to DataFetcher { createEngineObjectData(it.graphQLSchema.getObjectType("Node"), mapOf("messages" to "value")) }),
+                    "Node" to mapOf("messages" to DataFetcher { "value" }),
+                ),
+            )
+            val inner = graphQL(schema, handler, ChainedModernGJInstrumentation(listOf(recording, moderation)))
+            val outerSchema = createSchema(
+                "type Query { outer: String }",
+                mapOf(
+                    "Query" to mapOf(
+                        "outer" to DataFetcher {
+                            scopedFuture {
+                                val prefetch = Job(coroutineContext[Job])
+                                val nested = CoroutineScope(coroutineContext + prefetch).async {
+                                    inner.executeAsync(
+                                        createExecutionInput(
+                                            schema,
+                                            "{ node { messages } }",
+                                            dispatcherRegistry = registry,
+                                            flagManager = if (mat) MockFlagManager.create(FlagManager.Flags.ENABLE_MAT_RESOLUTION) else FlagManager.Disabled,
+                                        ),
+                                    ).await()
+                                }
+                                started.await()
+                                prefetch.cancel()
+                                runCatching { nested.await() }
+                                cancelled.await()
+                                delay(200)
+                                "done"
+                            }
+                        }
+                    )
+                ),
+            )
+            val result = withTimeout(5_000) {
+                executeQuery(outerSchema, graphQL(outerSchema, RecordingHandler()), "{ outer }", emptyMap())
+            }
+            assertEquals(mapOf("outer" to "done"), result.getData<Map<String, Any?>>())
+        }
+        assertEquals(emptyList<String>(), handler.seen)
+        assertEquals(emptyList<String>(), recording.failures)
+    }
+
+    @ParameterizedTest
+    @CsvSource("false, false", "false, true", "true, false", "true, true")
+    fun `object fetch completion failures follow existing recovery behavior`(
+        mat: Boolean,
+        isList: Boolean
+    ) {
+        runExecutionTest {
+            val objectCompleted = CompletableDeferred<Unit>()
+            val failure = IllegalStateException("object fetch completion failed")
+            val instrumentation = object : ViaductModernGJInstrumentation {
+                override fun beginFetchObject(
+                    parameters: InstrumentationExecutionStrategyParameters,
+                    state: InstrumentationState?,
+                ): InstrumentationContext<Unit> {
+                    if (GraphQLTypeUtil.unwrapAll(parameters.executionStrategyParameters.executionStepInfo.type).name != "Node") {
+                        return super.beginFetchObject(parameters, state)
+                    }
+                    return SimpleInstrumentationContext.whenCompleted { _, _ ->
+                        objectCompleted.complete(Unit)
+                        throw failure
+                    }
+                }
+
+                override fun instrumentDataFetcher(
+                    dataFetcher: DataFetcher<*>,
+                    parameters: InstrumentationFieldFetchParameters,
+                    state: InstrumentationState?,
+                ): DataFetcher<*> {
+                    if (parameters.environment.fieldDefinition.name != "messages") return dataFetcher
+                    return DataFetcher<Any?> { env ->
+                        transformDataFetcherResult(dataFetcher.get(env)) { value ->
+                            scopedFuture {
+                                yield()
+                                value
+                            }
+                        }
+                    }
+                }
+            }
+            val dispatcher = mockk<FieldResolverDispatcher>(relaxed = true) {
+                every { isSelective } returns true
+                every { objectSelectionSet } returns null
+                every { querySelectionSet } returns null
+                every { hasRequiredSelectionSets } returns false
+                every { variableDefinitions } returns ResolverVariableDefinitions.EMPTY
+            }
+            val registry = DispatcherRegistry.Impl(
+                mapOf(("Query" to "node") to dispatcher),
+                emptyMap(),
+                emptyMap(),
+                emptyMap(),
+            )
+            val schema = createSchema(
+                "type Query { node: ${if (isList) "[Node]" else "Node"} sibling: String } type Node { messages: String }",
+                mapOf(
+                    "Query" to mapOf(
+                        "node" to DataFetcher {
+                            val node = createEngineObjectData(it.graphQLSchema.getObjectType("Node"), mapOf("messages" to "value"))
+                            if (isList) listOf(node) else node
+                        },
+                        "sibling" to DataFetcher {
+                            scopedFuture {
+                                objectCompleted.await()
+                                yield()
+                                "ok"
+                            }
+                        },
+                    ),
+                    "Node" to mapOf("messages" to DataFetcher { "value" }),
+                ),
+            )
+            val response = runCatching {
+                withTimeout(5_000) {
+                    graphQL(schema, RecordingHandler(), instrumentation).executeAsync(
+                        createExecutionInput(
+                            schema,
+                            "{ node { messages } sibling }",
+                            dispatcherRegistry = registry,
+                            flagManager = if (mat) MockFlagManager.create(FlagManager.Flags.ENABLE_MAT_RESOLUTION) else FlagManager.Disabled,
+                        ),
+                    ).await()
+                }
+            }
+            if (isList) {
+                val result = response.getOrThrow()
+                assertEquals(
+                    mapOf("node" to listOf(mapOf("messages" to "value")), "sibling" to "ok"),
+                    result.getData<Map<String, Any?>>(),
+                )
+                assertTrue(result.errors.isEmpty(), result.errors.toString())
+            } else {
+                val exception = assertInstanceOf(IllegalStateException::class.java, response.exceptionOrNull())
+                assertEquals(failure.message, exception.message)
+            }
+        }
     }
 
     @ParameterizedTest

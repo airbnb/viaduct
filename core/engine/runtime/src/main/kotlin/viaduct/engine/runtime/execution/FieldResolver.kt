@@ -167,10 +167,22 @@ class FieldResolver(
         objectType: GraphQLObjectType,
         parameters: ExecutionParameters,
         executionMode: ExecutionMode = ExecutionMode.Normal,
-    ): Value<Unit> =
-        prepareLedgerReader(parameters).flatMap { ledgerReader ->
-            fetchObjectInternal(objectType, parameters, ledgerReader, executionMode)
+    ): Value<Unit> {
+        val ledgerReader = prepareLedgerReader(parameters)
+        if (parameters.currentObjectEngineResult.matSource == null) {
+            return ledgerReader.flatMap { fetchObjectInternal(objectType, parameters, it, executionMode) }
         }
+        // Keep query cancellation while returning object failures through Value's recovery path.
+        return Value.fromDeferred(
+            coroutineInterop.scopedAsync(parameters.constants.rootCoroutineContext) {
+                runCatching {
+                    withThreadLocalCoroutineContext {
+                        fetchObjectInternal(objectType, parameters, ledgerReader.await(), executionMode).await()
+                    }
+                }
+            }
+        ).flatMap { Value.fromResult(it) }
+    }
 
     /** Fetches the current object using the prepared scope and the plan's execution mode. */
     private fun fetchObject(parameters: ExecutionParameters): Value<Unit> {
