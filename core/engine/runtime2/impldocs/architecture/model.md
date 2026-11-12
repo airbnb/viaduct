@@ -56,6 +56,8 @@ The narrower implementation requirement would prohibit a descendant-owned variab
 
 Runtime2 deliberately applies the stronger rule to every parent traversal. Tenants do not need to inspect every edge in a multi-level parent chain to determine whether an argument is valid, and the restriction can be relaxed backward-compatibly if real use cases justify more dynamic planning. Beginning with the narrower rule and later tightening it would instead invalidate registries that had already been accepted.
 
+An access-checker input may not select a field declared `@parent`, at any depth of either input root. This matches the Engine API startup validation. A checker may still select a field whose resolver reads `@parent`.
+
 `ObjectEngineResult.Key` is an open selection key. `ObjectEngineResult.ObjectKey` refines it to a concrete object field while retaining symbolic arguments and is admitted to OER cells and exact paths. `ObjectEngineResult.GroundKey` additionally requires resolved arguments and remains the checked boundary for materialization operations, dependency ordering, and resolver invocation that need concrete input values.
 
 `ObjectEngineResult.Key` equality compares its field by schema-canonical identity and its arguments by structural value equality, with `MutationKey` additionally comparing its response key. A symbolic key's recursively contained variables carry their resolver-occurrence identity, so equal uses of the same variable instance coalesce while uses of different variable instances remain distinct. Ordinary keys do not carry a separate occurrence discriminator. Completing variable bindings never changes key equality or requires rekeying an OER cell.

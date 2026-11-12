@@ -25,7 +25,7 @@ enum class GeneratedFieldCheckerCoverageSignature {
     FROM_PROVIDER_VARIABLE,
     NESTED_FROM_ARGUMENT_VARIABLE,
     NULLABLE_FROM_ARGUMENT_TRAVERSAL,
-    PARENT_FIELD_DEMAND,
+    PARENT_READING_RESOLVER_INPUT,
     DUPLICATE_NAMED_PAIR_PROJECTIONS,
     EMPTY_NAMED_PAIR,
     CHECKER_ONLY_OBJECT_DEMAND,
@@ -365,6 +365,7 @@ private fun <T> List<T>.startsWith(prefix: List<T>): Boolean = size >= prefix.si
 private fun ArbitraryRegistry.generatedCheckerSignatures(sourceField: FieldCoordinate): Set<GeneratedFieldCheckerCoverageSignature> =
     buildSet {
         add(GeneratedFieldCheckerCoverageSignature.FIELD_CHECKER)
+        if (sourceField in parentSelectingFragmentOwnerFields) return@buildSet
         if (objectFragmentSources.getValue(sourceField).isNotEmpty()) {
             add(GeneratedFieldCheckerCoverageSignature.NONEMPTY_OBJECT_FRAGMENT)
         }
@@ -383,8 +384,8 @@ private fun ArbitraryRegistry.generatedCheckerSignatures(sourceField: FieldCoord
         if (sourceField in nullableTraversalFromArgumentVariableOwnerFields) {
             add(GeneratedFieldCheckerCoverageSignature.NULLABLE_FROM_ARGUMENT_TRAVERSAL)
         }
-        if (sourceField in parentDemandOwnerFields) {
-            add(GeneratedFieldCheckerCoverageSignature.PARENT_FIELD_DEMAND)
+        if (sourceField in parentReadingResolverInputOwnerFields) {
+            add(GeneratedFieldCheckerCoverageSignature.PARENT_READING_RESOLVER_INPUT)
         }
     }
 

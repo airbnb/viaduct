@@ -109,6 +109,31 @@ class FieldCheckerRuntimeVariablesTest {
     }
 
     @Test
+    fun `checker inputs reject a selected parent field on both input roots`() {
+        val schemas = TestWorld.fromSDL(
+            """
+            directive @parent on FIELD_DEFINITION
+            type Query { root: Root checked: Int }
+            type Root { id: Int child: Child }
+            type Child { parent: Root @parent }
+            """.trimIndent(),
+        ).schemas
+        val checked = schemas.loweredSchema.requireObjectField("Query", "checked")
+        val input = schemas.fragmentFrom("fragment Input on Query { root { child { parent { id } } } }").materializeSelections
+        for (root in ProviderFragment.entries) {
+            val empty = materializeSelectionForestOf()
+            val pair = ResolverFragmentTemplates(
+                if (root == ProviderFragment.OBJECT) input else empty,
+                if (root == ProviderFragment.QUERY) input else empty,
+            )
+            val failure = assertFailsWith<IllegalArgumentException> {
+                FieldCheckerResolver.of(checked, schemas.loweredSchema.requireQueryTypeDef(), mapOf("input" to pair)) { _, _, _ -> CheckerResult.Success }
+            }
+            assertEquals("Checker input for Query/checked must not select @parent field Child/parent", failure.message, "root=$root")
+        }
+    }
+
+    @Test
     fun `provider names remain independent between named pairs`(): Unit =
         runBlocking {
             fun pair(value: Int) =

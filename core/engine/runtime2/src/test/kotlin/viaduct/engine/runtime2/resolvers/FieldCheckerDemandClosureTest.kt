@@ -250,12 +250,12 @@ class FieldCheckerDemandClosureTest {
     }
 
     @Test
-    fun `raw parent reads do not request checks but raw active resolver parent inputs do`() {
-        val world = parentWorld(aInput = "children { parent { rawAncestor } derived }")
+    fun `raw checker reads do not request checks but raw active resolver parent inputs do`() {
+        val world = parentWorld(aInput = "children { derived }")
         assertDemand(
             close(world, checked = "a"),
             checked = setOf("a", "checkedAncestor"),
-            unchecked = setOf("children", "rawAncestor", "audit"),
+            unchecked = setOf("children", "audit"),
         )
     }
 
@@ -270,12 +270,12 @@ class FieldCheckerDemandClosureTest {
     }
 
     @Test
-    fun `descendant checker inputs lift raw ancestor demand before passive descent`() {
+    fun `descendant checker inputs lift ancestor demand through a resolver before passive descent`() {
         val world = parentWorld(aInput = "audit")
         assertDemand(
             close(world, checked = "children { protected }"),
-            checked = setOf("children"),
-            unchecked = setOf("rawAncestor", "forbidden"),
+            checked = setOf("children", "checkedAncestor"),
+            unchecked = setOf("forbidden", "audit"),
         )
     }
 
@@ -326,8 +326,7 @@ class FieldCheckerDemandClosureTest {
             type Box {
               a: Int
               children: [Child]
-              rawA: Int
-              rawB: Int
+              checkedA: Int
               checkedB: Int
               audit: Int
             }
@@ -335,12 +334,13 @@ class FieldCheckerDemandClosureTest {
               parent: Box @parent
               a: Int
               b: Int @resolver(of: "parent { checkedB }", result: 1)
+              c: Int @resolver(of: "parent { checkedA }", result: 1)
             }
             """.trimIndent(),
             fieldCheckers = { schema ->
                 mapOf(
-                    checker(schema, "Child", "a", "b parent { rawA }"),
-                    checker(schema, "Child", "b", "parent { rawB }"),
+                    checker(schema, "Child", "a", "b"),
+                    checker(schema, "Child", "b", "c"),
                     checker(schema, "Box", "checkedB", "audit"),
                 )
             },
@@ -349,8 +349,8 @@ class FieldCheckerDemandClosureTest {
         for (fields in listOf("a b", "b a")) {
             assertDemand(
                 close(world, checked = "children { $fields }"),
-                checked = setOf("children", "checkedB"),
-                unchecked = setOf("rawA", "rawB", "audit"),
+                checked = setOf("children", "checkedA", "checkedB"),
+                unchecked = setOf("audit"),
             )
         }
     }
@@ -389,7 +389,6 @@ class FieldCheckerDemandClosureTest {
           a: Int
           b: Int @resolver(of: "$bInput", result: 1)
           children: [[Child]]
-          rawAncestor: Int
           checkedAncestor: Int
           audit: Int
           forbidden: Int
@@ -398,6 +397,7 @@ class FieldCheckerDemandClosureTest {
           parent: Box @parent
           protected: Int
           derived: Int @resolver(of: "parent { checkedAncestor }", result: 1)
+          forbiddenProbe: Int @resolver(of: "parent { forbidden }", result: 1)
           grandchildren: [[Grandchild]]
           checkedLocal: Int
           localAudit: Int
@@ -412,10 +412,9 @@ class FieldCheckerDemandClosureTest {
                 mapOf(
                     checker(schema, "Box", "a", aInput),
                     checker(schema, "Box", "children", "forbidden"),
-                    checker(schema, "Box", "rawAncestor", "forbidden"),
                     checker(schema, "Box", "checkedAncestor", "audit"),
-                    checker(schema, "Child", "derived", "parent { forbidden }"),
-                    checker(schema, "Child", "protected", "parent { rawAncestor }"),
+                    checker(schema, "Child", "derived", "forbiddenProbe"),
+                    checker(schema, "Child", "protected", "derived"),
                     checker(schema, "Child", "checkedLocal", "localAudit"),
                 )
             },

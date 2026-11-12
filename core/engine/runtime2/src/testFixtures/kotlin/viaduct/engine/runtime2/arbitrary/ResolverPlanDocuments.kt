@@ -191,6 +191,8 @@ internal fun RegistryDocument.toRegistry(schema: ArbitrarySchema): ArbitraryRegi
         variableProviders = variableProviders,
         resolverPrograms = resolverPrograms,
         parentDemandOwnerFields = schema.parentDemandOwnerFields(objectFragments),
+        parentSelectingFragmentOwnerFields = schema.parentSelectingFragmentOwnerFields(objectFragments, queryFragments),
+        parentReadingResolverInputOwnerFields = schema.parentReadingResolverInputOwnerFields(objectFragments, queryFragments),
         schemaRootFieldReferenceFamily = schema.rootFieldReferenceFamily,
         features = features,
     )

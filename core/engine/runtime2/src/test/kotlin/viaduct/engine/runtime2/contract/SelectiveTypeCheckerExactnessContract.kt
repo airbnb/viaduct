@@ -361,24 +361,27 @@ interface SelectiveTypeCheckerExactnessContract {
     }
 
     @Test
-    fun `type checker parent input lifts ancestor demand through nested list occurrences`() {
+    fun `type checker input whose resolver reads a parent lifts ancestor demand through nested list occurrences`() {
         val worldFixture =
             TestWorld.fromSDL(
                 schemaSDL = """
                 directive @parent on FIELD_DEFINITION
                 type Query { root: Root! marker: Int! }
                 type Root { children: [[Child!]!]! secret: Int! }
-                type Child { parent: Root! @parent value: Int! }
+                type Child { parent: Root! @parent value: Int! probe: Int! }
                 """.trimIndent(),
                 fieldResolvers = { schema ->
                     mapOf(
                         schema.loweredSchema.requireObjectField("Query", "root") to fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
                             schema.loweredSchema.objectOf("Root") {
-                                "secret" setTo 7
                                 "children" setTo listOf(listOf(schema.loweredSchema.objectOf("Child") { "value" setTo 1 }, schema.loweredSchema.objectOf("Child") { "value" setTo 1 }))
                             }
                         },
                         schema.loweredSchema.requireObjectField("Query", "marker") to fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ -> 9 },
+                        schema.loweredSchema.requireObjectField("Root", "secret") to fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Root")) { _, _ -> 7 },
+                        schema.loweredSchema.requireObjectField("Child", "probe") to fieldResolverOf(
+                            schema.fragmentFrom("fragment Input on Child { parent { secret } }"),
+                        ) { input, _ -> (input.get("parent") as EngineObjectData.Sync).get("secret") },
                     )
                 },
                 typeCheckers = { schema ->
@@ -387,17 +390,17 @@ interface SelectiveTypeCheckerExactnessContract {
                         type to TypeCheckerResolver.of(
                             type,
                             schema.loweredSchema.requireQueryTypeDef(),
-                            mapOf("input" to schema.t4Pair(name, if (name == "Child") "parent { secret }" else "", "marker"))
+                            mapOf("input" to schema.t4Pair(name, if (name == "Child") "probe" else "", "marker"))
                         ) { inputs, _ ->
                             assertEquals(9, inputs.getValue("input").queryValue.get("marker"))
-                            if (name == "Child") assertEquals(7, (inputs.getValue("input").objectValue.get("parent") as EngineObjectData.Sync).get("secret"))
+                            if (name == "Child") assertEquals(7, inputs.getValue("input").objectValue.get("probe"))
                             CheckerResult.Success
                         }
                     }
                 },
             )
         val world = worldFixture.assumptions
-        listOf("{ root { children { value } } }", "{ root { children { value parent { secret } } } }").forEach { query ->
+        listOf("{ root { children { value } } }", "{ root { children { value probe } } }").forEach { query ->
             val run = resolveTypeExactness(worldFixture, query)
             val rootKey = world.t4Key("Query", "root")
             val children = world.t4Key("Root", "children")

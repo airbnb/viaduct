@@ -339,9 +339,9 @@ object ResolverBenchmarkFeaturePartition {
                 leaf,
                 schema.requireQueryTypeDef(),
                 mapOf(
-                    "ancestor" to ResolverFragmentTemplates(
+                    "parentReader" to ResolverFragmentTemplates(
                         schemas.fragmentFrom(
-                            "fragment Input on CoverageLeaf { parent { parent { parent { seed } } } }",
+                            "fragment Input on CoverageLeaf { second }",
                             variableTarget = ResolverTarget.FieldCheckerTarget(leaf)
                         ).materializeSelections,
                         materializeSelectionForestOf(),

@@ -312,7 +312,18 @@ class ResolverBenchmarkCoverage {
                     }
                 }
             )
-            hit(ResolverBenchmarkFeature.CHECKER_PARENT_DEMAND, inputs.values.any { parentDepth(it.objectValue) > 0 })
+            val checkerObjectType = if (application.checkerKind == CheckerKind.FIELD) application.checkedCoordinate.containingDef else application.checkedType
+            hit(
+                ResolverBenchmarkFeature.CHECKER_PARENT_DEMAND,
+                inputs.values.any { input ->
+                    input.objectValue.getSelections().any { name ->
+                        checkerObjectType.field(name)?.let { field ->
+                            field in operation.world.resolverRegistry &&
+                                operation.world.resolverRegistry.resolver(field).declaredDependencies.objectFragment.keys().any { it is ObjectEngineResult.ParentKey }
+                        } == true
+                    }
+                }
+            )
             hit(ResolverBenchmarkFeature.CHECKER_ARGUMENT_ERROR, inputs.values.any { it.objectValue.getSelections().contains("other") && it.objectValue.outputValue("other") is EngineErrorData })
             hit(
                 ResolverBenchmarkFeature.CHECKER_PROVIDER_BOTH_INPUTS,
@@ -324,12 +335,7 @@ class ResolverBenchmarkCoverage {
             hit(
                 ResolverBenchmarkFeature.CHECKER_RAW_RESOLVER_INPUT,
                 inputs.values.any {
-                    it.objectValue.getSelections().any {
-                            name ->
-                        (if (application.checkerKind == CheckerKind.FIELD) application.checkedCoordinate.containingDef else application.checkedType).field(
-                            name
-                        )?.let { it in operation.world.resolverRegistry } == true
-                    }
+                    it.objectValue.getSelections().any { name -> checkerObjectType.field(name)?.let { it in operation.world.resolverRegistry } == true }
                 }
             )
             definition.fragmentTemplates.forEach { (name, templates) ->

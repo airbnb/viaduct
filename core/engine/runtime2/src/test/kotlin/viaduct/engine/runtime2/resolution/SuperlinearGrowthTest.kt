@@ -143,13 +143,13 @@ class SuperlinearGrowthTest : ResolutionDispatcherResource {
                 TestWorld.fromDSL(
                     """
                     extend type Query { root: Parent @resolver(result: {}) }
-                    type Parent { seed: Int child: Child }
-                    type Child { parent: Parent @parent $fields }
+                    type Parent { seed: Int tag: Int child: Child }
+                    type Child { parent: Parent @parent leaf: Int @resolver(of: "parent { tag }", result: 1) $fields }
                     """.trimIndent(),
                     fieldCheckers = { schema ->
                         val pair =
                             ResolverFragmentTemplates(
-                                schema.fragmentFrom("fragment CheckerInput on Child { parent { seed } }").materializeSelections,
+                                schema.fragmentFrom("fragment CheckerInput on Child { leaf }").materializeSelections,
                                 materializeSelectionForestOf(),
                             )
                         (0..depth).associate { index ->
@@ -174,9 +174,9 @@ class SuperlinearGrowthTest : ResolutionDispatcherResource {
                     .single()
                     .subselections
             val distinct = demand.merge(world.schema.requireObjectField("Parent", "seed").containingDef).size
-            assertEquals(1, distinct)
+            assertEquals(2, distinct)
             assertTrue(
-                demand.size <= 2,
+                demand.size <= 2 * distinct,
                 "Parent lifting expanded ${demand.size} seed selections across ${depth + 1} fields",
             )
         }
@@ -187,7 +187,7 @@ class SuperlinearGrowthTest : ResolutionDispatcherResource {
         for (depth in listOf(5, 10, 20, 40)) {
             val fields = (0..depth).joinToString("\n") { index ->
                 val inputs = if (index == depth) {
-                    "parent { seed { value other } }"
+                    "parent { seed { other } }"
                 } else {
                     ((index + 1)..minOf(index + 2, depth)).joinToString(" ") { "field$it" }
                 }
@@ -198,11 +198,11 @@ class SuperlinearGrowthTest : ResolutionDispatcherResource {
                 extend type Query { root: Parent @resolver(result: {seed: {value: 7 other: 8} child: {}}) }
                 type Parent { seed: Seed child: Child }
                 type Seed { value: Int other: Int }
-                type Child { parent: Parent @parent $fields }
+                type Child { parent: Parent @parent leaf: Int @resolver(of: "parent { seed { value } }", result: 1) $fields }
                 """.trimIndent(),
                 fieldCheckers = { schema ->
                     val pair = ResolverFragmentTemplates(
-                        schema.fragmentFrom("fragment FC on Child { parent { seed { value other } } }").materializeSelections,
+                        schema.fragmentFrom("fragment FC on Child { leaf }").materializeSelections,
                         materializeSelectionForestOf(),
                     )
                     (0..depth).associate { index ->
@@ -213,7 +213,7 @@ class SuperlinearGrowthTest : ResolutionDispatcherResource {
                 typeCheckers = { schema ->
                     val child = schema.loweredSchema.requireObjectField("Child", "parent").containingDef
                     val pair = ResolverFragmentTemplates(
-                        schema.fragmentFrom("fragment TC on Child { field0 field1 parent { seed { value other } } }").materializeSelections,
+                        schema.fragmentFrom("fragment TC on Child { field0 field1 leaf }").materializeSelections,
                         materializeSelectionForestOf(),
                     )
                     mapOf(child to TypeCheckerResolver.of(child, schema.loweredSchema.requireQueryTypeDef(), mapOf("input" to pair)) { _, _ -> CheckerResult.Success })
@@ -222,13 +222,11 @@ class SuperlinearGrowthTest : ResolutionDispatcherResource {
             val world = fixture.assumptions
             val input = fixture.schemas.fragmentFrom("fragment F on Query { root { child { field0 } } }").subselections
             val lifted = Demand.checked(input).liftParentConstructionDemand(world, engineExecutionContext = null)
-            // Each provenance has one seed key, whose descendants are normalized as well.
-            for (component in listOf(lifted.checked, lifted.unchecked)) {
-                assertEquals(1, component.size)
-                val seeds = component.single().subselections
-                assertEquals(1, seeds.size, "depth=$depth")
-                assertEquals(2, seeds.single().subselections.size, "Nested requirements multiplied at depth=$depth")
-            }
+            assertEquals(1, lifted.checked.size)
+            val seeds = lifted.checked.single().subselections
+            assertEquals(1, seeds.size, "depth=$depth")
+            assertEquals(2, seeds.single().subselections.size, "Nested requirements multiplied at depth=$depth")
+            assertTrue(lifted.unchecked.isEmpty(), "depth=$depth")
             if (depth == 20) {
                 val applications = AtomicInteger()
                 val observer = object : ResolutionObserver {
@@ -241,9 +239,9 @@ class SuperlinearGrowthTest : ResolutionDispatcherResource {
                 val childKey = parent.keys.single { it.field.name == "child" }
                 val child = parent.getCell(childKey).value.get() as ObjectEngineResult
                 val ordinary = child.keys.filter { it.field.name != "parent" }
-                assertEquals(depth + 1, ordinary.size)
+                assertEquals(depth + 2, ordinary.size)
                 ordinary.forEach { assertEquals(1, child.getCell(it).value.get()) }
-                assertEquals(depth + 2, applications.get(), "Shared paths must not duplicate resolver applications")
+                assertEquals(depth + 3, applications.get(), "Shared paths must not duplicate resolver applications")
             }
         }
     }

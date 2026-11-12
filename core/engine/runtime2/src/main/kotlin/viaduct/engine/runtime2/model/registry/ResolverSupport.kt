@@ -13,6 +13,7 @@ import viaduct.engine.runtime2.model.Selection
 import viaduct.engine.runtime2.model.SelectionForest
 import viaduct.engine.runtime2.model.containsVariables
 import viaduct.engine.runtime2.model.instantiateVariables
+import viaduct.engine.runtime2.model.isParentField
 import viaduct.engine.runtime2.model.mapSelections
 import viaduct.engine.runtime2.model.materializeSelectionForestOf
 import viaduct.engine.runtime2.model.toSelectionForest
@@ -177,6 +178,15 @@ internal fun MaterializeSelectionForest.requireNoVariablesBeneathParent(inputOwn
                 "${selection.key.field.containingDef.name}/${selection.key.field.name}"
         }
         selection.subselections.requireNoVariablesBeneathParent(inputOwner)
+    }
+}
+
+internal fun MaterializeSelectionForest.requireNoParentFieldSelections(inputOwner: String) {
+    forEach { selection ->
+        require(!selection.key.field.isParentField()) {
+            "$inputOwner must not select @parent field ${selection.key.field.containingDef.name}/${selection.key.field.name}"
+        }
+        selection.subselections.requireNoParentFieldSelections(inputOwner)
     }
 }
 

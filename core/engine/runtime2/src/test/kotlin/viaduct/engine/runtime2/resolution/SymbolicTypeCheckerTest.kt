@@ -319,7 +319,7 @@ open class SymbolicTypeCheckerTest : ResolutionDispatcherResource {
     }
 
     @Test
-    fun `type checker parent inputs are lifted before the ancestor freezes`() {
+    fun `type checker inputs whose resolver reads a parent are lifted before the ancestor freezes`() {
         val world = TestWorld.fromDSL(
             """
             extend type Query { root: Root! @resolver(result: {}) }
@@ -327,7 +327,7 @@ open class SymbolicTypeCheckerTest : ResolutionDispatcherResource {
               item: Item! @resolver(result: {id: 7})
               token: Int! @resolver(result: 11)
             }
-            type Item { id: Int! parent: Root! @parent }
+            type Item { id: Int! parent: Root! @parent probe: Int! @resolver(of: "parent { token }", result: 5) }
             """.trimIndent(),
             typeCheckers = { schema ->
                 val type = schema.loweredSchema.requireType("Item") as ViaductSchema.Object
@@ -337,12 +337,12 @@ open class SymbolicTypeCheckerTest : ResolutionDispatcherResource {
                         schema.loweredSchema.requireQueryTypeDef(),
                         mapOf(
                             "input" to ResolverFragmentTemplates(
-                                schema.fragmentFrom("fragment Input on Item { parent { token } }").materializeSelections,
+                                schema.fragmentFrom("fragment Input on Item { probe }").materializeSelections,
                                 viaduct.engine.runtime2.model.materializeSelectionForestOf(),
                             ),
                         )
                     ) { inputs, _ ->
-                        assertEquals(11, (inputs.getValue("input").objectValue.get("parent") as viaduct.engine.api.EngineObjectData.Sync).get("token"))
+                        assertEquals(5, inputs.getValue("input").objectValue.get("probe"))
                         CheckerResult.Success
                     }
                 )

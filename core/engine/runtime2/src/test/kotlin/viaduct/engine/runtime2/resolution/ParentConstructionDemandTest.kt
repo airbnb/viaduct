@@ -308,7 +308,7 @@ class ParentConstructionDemandTest : ResolutionDispatcherResource {
     }
 
     @Test
-    fun `rejects potential type checker cycles through parents even with source supplied values`() {
+    fun `rejects potential type checker cycles through a parent-reading resolver even with source supplied values`() {
         val failure = assertFailsWith<IllegalArgumentException> {
             TestWorld.fromDSL(
                 """
@@ -320,7 +320,7 @@ class ParentConstructionDemandTest : ResolutionDispatcherResource {
                   child: Child @resolver(result: {})
                   seed: Int @resolver(of: "child { leaf }", result: 1)
                 }
-                type Child { parent: Root @parent leaf: Int }
+                type Child { parent: Root @parent leaf: Int probe: Int @resolver(of: "parent { seed }", result: 1) }
                 """.trimIndent(),
                 typeCheckers = { schemas ->
                     val type = schemas.loweredSchema.requireObjectField("Child", "leaf").containingDef
@@ -330,7 +330,7 @@ class ParentConstructionDemandTest : ResolutionDispatcherResource {
                             schemas.loweredSchema.requireQueryTypeDef(),
                             fragmentTemplates = mapOf(
                                 "input" to ResolverFragmentTemplates(
-                                    objectFragmentTemplate = schemas.fragmentFrom("fragment F on Child { parent { seed } }").materializeSelections,
+                                    objectFragmentTemplate = schemas.fragmentFrom("fragment F on Child { probe }").materializeSelections,
                                     queryFragmentTemplate = materializeSelectionForestOf(),
                                 ),
                             ),

@@ -66,6 +66,8 @@ abstract class CheckerResolverBase<out T : ResolverTarget> internal constructor(
             templates.queryFragmentTemplate.collect(queryType)
             templates.requireVariablesBelongTo(target)
             templates.requireCheckerVariableDependencies()
+            templates.objectFragmentTemplate.requireNoParentFieldSelections(inputOwner)
+            templates.queryFragmentTemplate.requireNoParentFieldSelections(inputOwner)
             templates.objectFragmentTemplate.requireNoVariablesBeneathParent(inputOwner)
             templates.queryFragmentTemplate.requireNoVariablesBeneathParent(inputOwner)
         }
