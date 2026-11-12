@@ -28,20 +28,6 @@ import viaduct.graphql.schema.ViaductSchema
  * object-field paths belong to that same field. An object-field path must terminate at an
  * input-compatible value whose effective nullability and list shape can be coerced at every
  * argument position consuming the variable.
- *
- * ### Invariant: resolver-registry-depth-first-variable-stratification
- *
- * For every concrete object type, form one graph whose vertices are its canonical object fields,
- * interpreted as argument-insensitive structural branches. The graph contains each ordinary
- * resolver-input edge from a required sibling branch to its consuming resolver branch. For each
- * object-field variable, its production branches are the provider's root branch and every
- * transitive branch prerequisite of that root; every production branch has an edge to each branch
- * of the defining resolver's fixed object-fragment envelope whose subtree contains a use of that
- * variable. Argument-defined variables add no branch edge because their values are resolver
- * inputs. The least graph closed under the object-field variable edges is acyclic. Consequently,
- * one topological branch order binds every object-field variable used in a branch before resolution
- * enters that branch. This prevents circular provider/use waits even when a particular request
- * would exclude a use or supply different arguments on the same structural branch.
  */
 interface ResolverRegistry {
     /** Creates the root Query input. Every Query field is supplied by a registered resolver. */

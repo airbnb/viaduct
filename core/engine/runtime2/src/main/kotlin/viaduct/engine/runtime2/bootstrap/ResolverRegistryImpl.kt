@@ -26,7 +26,6 @@ import viaduct.engine.runtime2.model.matchingVariableTypes
 import viaduct.engine.runtime2.model.merge
 import viaduct.engine.runtime2.model.mutationNamespaceTypes
 import viaduct.engine.runtime2.model.registry.Assumptions
-import viaduct.engine.runtime2.model.registry.BranchOrderValidator
 import viaduct.engine.runtime2.model.registry.CheckerParentConstructionDemand
 import viaduct.engine.runtime2.model.registry.CheckerResolverBase
 import viaduct.engine.runtime2.model.registry.ConstructionDemandTemplate
@@ -649,9 +648,6 @@ private class ResolverRegistryImpl(
             }
         }
         this.fieldResolvers = assembledResolvers
-        BranchOrderValidator(
-            fieldResolvers = assembledResolvers,
-        ).validate()
         val parentCompiler = ParentConstructionDemandCompiler(Assumptions.of(schema, this))
         parentCompiler.prepare(assembledResolvers.values, fieldCheckers.values + typeCheckers.values)
         precomputedDemand = precomputeConstructionDemand(parentCompiler)

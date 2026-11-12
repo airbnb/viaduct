@@ -94,7 +94,7 @@ Duplicate claims, duplicate writers, repeated lifecycle transitions, undeclared 
 
 `FromArgument` values are available from the defining resolver occurrence. `FromObjectField` and `FromQueryField` values require reading resolved provider paths and can reveal an exact consumer key only later. `FromProvider` values come from one occurrence-local provider invocation.
 
-Provider paths are compiled and validated before semantic reasoning, but provider evaluation occurs at runtime in Resolution. Provider containment, inclusion, and branch ordering are domain restrictions; they are not themselves an execution algorithm.
+Provider paths are compiled and validated before semantic reasoning, but provider evaluation occurs at runtime in Resolution. Provider containment and inclusion are domain restrictions. A provider and its consumer may share structural branches; occurrence-local promises make the consumer wait for its binding without imposing a depth-first branch order.
 
 Registry construction requires one acyclic structural branch order per concrete object type. Ordinary resolver inputs order prerequisites before consumers. For each object-field variable, its provider branch and every transitive prerequisite of that provider must precede every branch whose subtree uses the variable; validation closes these edges to a fixed point. This provider-before-use discipline allows argument bindings, inclusion conditions, and materialized inputs to become ready before resolution enters a consuming branch. Coroutine scheduling and symbolic key identity cannot supply a value whose producer is waiting on that same consumer.
 

@@ -1,9 +1,12 @@
 package viaduct.engine.runtime.execution
 
+import java.util.concurrent.ConcurrentLinkedQueue
+import kotlinx.coroutines.yield
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.FromArgumentVariable
 import viaduct.engine.api.FromObjectFieldVariable
 import viaduct.engine.api.FromQueryFieldVariable
@@ -149,6 +152,617 @@ interface FromFieldVariablesContract : QueryExecutionContract {
             fieldWithValue("Query" to "z", 2)
         }.runContractTest {
             runQuery("{x}").assertJson("{data: {x: 30}}")
+        }
+    }
+
+    @Test
+    fun `from object field -- provider prerequisite shares a branch with variable use`() {
+        EngineTestModule(
+            """
+                type Listing { value: Int consume(ids: Int): Int }
+                extend type Query { listing: Listing ids: Int result: Int }
+            """.trimIndent()
+        ) {
+            field("Query" to "listing") {
+                resolver {
+                    fn { _, _, _, _, _ ->
+                        createEngineObjectData(schema.schema.getObjectType("Listing"), mapOf("value" to 9))
+                    }
+                }
+            }
+            fieldWithFromFieldVariables(
+                coord = "Query" to "ids",
+                objectSelectionsText = "listing { value }",
+            ) { _, obj, _, _, _ ->
+                obj.fetchAs<EngineObjectData>("listing").fetchAs<Int>("value")
+            }
+            field("Listing" to "consume") {
+                resolver { fn { args, _, _, _, _ -> args.getAs<Int>("ids") } }
+            }
+            fieldWithFromFieldVariables(
+                coord = "Query" to "result",
+                objectSelectionsText = "ids listing { consume(ids: \$ids) }",
+                variables = listOf(FromObjectFieldVariable("ids", "ids")),
+            ) { _, obj, _, _, _ ->
+                obj.fetchAs<EngineObjectData>("listing").fetchAs<Int>("consume")
+            }
+        }.runContractTest {
+            withTimeout("{ result }", timeoutMillis = 5_000).assertJson("{data: {result: 9}}")
+        }
+    }
+
+    @Test
+    fun `from object field -- shared branch waits for a suspended provider`() {
+        val consumed = ConcurrentLinkedQueue<Int>()
+        EngineTestModule(
+            """
+                type Branch { value: Int! consume(value: Int!): Int! }
+                extend type Query { branch: Branch! result: Int! }
+            """.trimIndent()
+        ) {
+            field("Query" to "branch") {
+                resolver { fn { _, _, _, _, _ -> createEngineObjectData(schema.schema.getObjectType("Branch"), emptyMap()) } }
+            }
+            field("Branch" to "value") {
+                resolver {
+                    fn { _, _, _, _, _ ->
+                        yield()
+                        9
+                    }
+                }
+            }
+            field("Branch" to "consume") {
+                resolver {
+                    fn { args, _, _, _, _ ->
+                        val value = args.getAs<Int>("value")
+                        consumed.add(value)
+                        value * 2
+                    }
+                }
+            }
+            fieldWithFromFieldVariables(
+                coord = "Query" to "result",
+                objectSelectionsText = "branch { consume(value: \$value) value }",
+                variables = listOf(FromObjectFieldVariable("value", "branch.value")),
+            ) { _, obj, _, _, _ -> obj.fetchAs<EngineObjectData>("branch").fetchAs<Int>("consume") }
+        }.runContractTest {
+            withTimeout("{ result }", timeoutMillis = 5_000).assertJson("{data: {result: 18}}")
+        }
+        assertEquals(listOf(9), consumed.toList())
+    }
+
+    @Test
+    fun `from object field -- shared branch under a non-root object can be source supplied`() {
+        EngineTestModule(
+            """
+                type Branch { value: Int! consume(value: Int!): Int! }
+                type Parent { shared: Branch! result: Int! }
+                extend type Query { parent: Parent! }
+            """.trimIndent()
+        ) {
+            field("Query" to "parent") {
+                resolver {
+                    fn { _, _, _, _, _ ->
+                        val branch = createEngineObjectData(schema.schema.getObjectType("Branch"), mapOf("value" to 23))
+                        createEngineObjectData(schema.schema.getObjectType("Parent"), mapOf("shared" to branch))
+                    }
+                }
+            }
+            field("Branch" to "consume") {
+                resolver { fn { args, _, _, _, _ -> args.getAs<Int>("value") * 2 } }
+            }
+            fieldWithFromFieldVariables(
+                coord = "Parent" to "result",
+                objectSelectionsText = "shared { consume(value: \$value) value }",
+                variables = listOf(FromObjectFieldVariable("value", "shared.value")),
+            ) { _, obj, _, _, _ -> obj.fetchAs<EngineObjectData>("shared").fetchAs<Int>("consume") }
+        }.runContractTest {
+            withTimeout("{ parent { result } }", timeoutMillis = 5_000).assertJson("{data: {parent: {result: 46}}}")
+        }
+    }
+
+    @Test
+    fun `from object field -- shared branch variables resolve through parent demand`() {
+        val consumed = ConcurrentLinkedQueue<Pair<Int, Int>>()
+        EngineTestModule(
+            """
+                type Shared { value: Int! consume(value: Int!): Int! }
+                type Parent { shared: Shared! child: Child! bridge: Int! }
+                type Child { parent: Parent @parent result: Int! }
+                extend type Query { parents: [Parent!]! }
+            """.trimIndent()
+        ) {
+            field("Query" to "parents") {
+                resolver {
+                    fn { _, _, _, _, _ ->
+                        listOf(3, 7).map { value ->
+                            val shared = createEngineObjectData(schema.schema.getObjectType("Shared"), mapOf("value" to value))
+                            createEngineObjectData(schema.schema.getObjectType("Parent"), mapOf("shared" to shared))
+                        }
+                    }
+                }
+            }
+            field("Parent" to "child") {
+                resolver { fn { _, _, _, _, _ -> createEngineObjectData(schema.schema.getObjectType("Child"), emptyMap()) } }
+            }
+            fieldWithFromFieldVariables(
+                coord = "Shared" to "consume",
+                objectSelectionsText = "value",
+            ) { args, obj, _, _, _ ->
+                yield()
+                val ownValue = obj.fetchAs<Int>("value")
+                val argument = args.getAs<Int>("value")
+                consumed.add(ownValue to argument)
+                ownValue * 100 + argument
+            }
+            fieldWithFromFieldVariables(
+                coord = "Parent" to "bridge",
+                objectSelectionsText = "shared { consume(value: \$value) value }",
+                variables = listOf(FromObjectFieldVariable("value", "shared.value")),
+            ) { _, obj, _, _, _ -> obj.fetchAs<EngineObjectData>("shared").fetchAs<Int>("consume") }
+            fieldWithFromFieldVariables(
+                coord = "Child" to "result",
+                objectSelectionsText = "parent { bridge }",
+            ) { _, obj, _, _, _ -> obj.fetchAs<EngineObjectData>("parent").fetchAs<Int>("bridge") }
+        }.runContractTest {
+            withTimeout("{ parents { child { result } } }", timeoutMillis = 5_000)
+                .assertJson("{data: {parents: [{child: {result: 303}}, {child: {result: 707}}]}}")
+        }
+        assertEquals(mapOf((3 to 3) to 1, (7 to 7) to 1), consumed.groupingBy { it }.eachCount())
+    }
+
+    @Test
+    fun `from object field -- shared branches can consume each other's independent providers`() {
+        val consumed = ConcurrentLinkedQueue<Pair<Int, Int>>()
+        EngineTestModule(
+            """
+                type Branch { value: Int! consume(value: Int!): Int! }
+                extend type Query { a: Branch! b: Branch! result: String! }
+            """.trimIndent()
+        ) {
+            for ((name, value) in listOf("a" to 3, "b" to 7)) {
+                field("Query" to name) {
+                    resolver {
+                        fn { _, _, _, _, _ -> createEngineObjectData(schema.schema.getObjectType("Branch"), mapOf("value" to value)) }
+                    }
+                }
+            }
+            fieldWithFromFieldVariables(
+                coord = "Branch" to "consume",
+                objectSelectionsText = "value",
+            ) { args, obj, _, _, _ ->
+                val ownValue = obj.fetchAs<Int>("value")
+                val argument = args.getAs<Int>("value")
+                consumed.add(ownValue to argument)
+                ownValue * 100 + argument
+            }
+            fieldWithFromFieldVariables(
+                coord = "Query" to "result",
+                objectSelectionsText = "a { consume(value: \$right) value } b { consume(value: \$left) value }",
+                variables = listOf(
+                    FromObjectFieldVariable("left", "a.value"),
+                    FromObjectFieldVariable("right", "b.value"),
+                ),
+            ) { _, obj, _, _, _ ->
+                val a = obj.fetchAs<EngineObjectData>("a").fetchAs<Int>("consume")
+                val b = obj.fetchAs<EngineObjectData>("b").fetchAs<Int>("consume")
+                "$a,$b"
+            }
+        }.runContractTest {
+            withTimeout("{ result }", timeoutMillis = 5_000).assertJson("{data: {result: '307,703'}}")
+        }
+        assertEquals(mapOf((3 to 7) to 1, (7 to 3) to 1), consumed.groupingBy { it }.eachCount())
+    }
+
+    @Test
+    fun `from object field -- shared branch keeps argument-distinct provider and consumer objects separate`() {
+        EngineTestModule(
+            """
+                type Branch { value: Int! consume(value: Int!): Int! }
+                extend type Query { child(id: Int!): Branch! result: Int! }
+            """.trimIndent()
+        ) {
+            field("Query" to "child") {
+                resolver {
+                    fn { args, _, _, _, _ ->
+                        createEngineObjectData(schema.schema.getObjectType("Branch"), mapOf("value" to args.getAs<Int>("id") * 10))
+                    }
+                }
+            }
+            fieldWithFromFieldVariables(
+                coord = "Branch" to "consume",
+                objectSelectionsText = "value",
+            ) { args, obj, _, _, _ -> obj.fetchAs<Int>("value") * 100 + args.getAs<Int>("value") }
+            fieldWithFromFieldVariables(
+                coord = "Query" to "result",
+                objectSelectionsText = "consumer: child(id: 2) { consume(value: \$value) } provider: child(id: 1) { value }",
+                variables = listOf(FromObjectFieldVariable("value", "provider.value")),
+            ) { _, obj, _, _, _ -> obj.fetchAs<EngineObjectData>("consumer").fetchAs<Int>("consume") }
+        }.runContractTest {
+            withTimeout("{ result }", timeoutMillis = 5_000).assertJson("{data: {result: 2010}}")
+        }
+    }
+
+    @Test
+    fun `from object field -- variable on the shared branch field waits for its provider`() {
+        val requestedIds = ConcurrentLinkedQueue<Int>()
+        EngineTestModule(
+            """
+                type Branch { value: Int! }
+                extend type Query { child(id: Int!): Branch! result: Int! }
+            """.trimIndent()
+        ) {
+            field("Query" to "child") {
+                resolver {
+                    fn { args, _, _, _, _ ->
+                        yield()
+                        val id = args.getAs<Int>("id")
+                        requestedIds.add(id)
+                        createEngineObjectData(schema.schema.getObjectType("Branch"), mapOf("value" to id * 10))
+                    }
+                }
+            }
+            fieldWithFromFieldVariables(
+                coord = "Query" to "result",
+                objectSelectionsText = "consumer: child(id: \$id) { value } provider: child(id: 1) { value }",
+                variables = listOf(FromObjectFieldVariable("id", "provider.value")),
+            ) { _, obj, _, _, _ -> obj.fetchAs<EngineObjectData>("consumer").fetchAs<Int>("value") }
+        }.runContractTest {
+            withTimeout("{ result }", timeoutMillis = 5_000).assertJson("{data: {result: 100}}")
+        }
+        assertEquals(mapOf(1 to 1, 10 to 1), requestedIds.groupingBy { it }.eachCount())
+    }
+
+    @Test
+    fun `from object field -- variable on the shared branch field can match the provider's argument values`() {
+        val requestedIds = ConcurrentLinkedQueue<Int>()
+        EngineTestModule(
+            """
+                type Branch { value: Int! }
+                extend type Query { child(id: Int!): Branch! result: Int! }
+            """.trimIndent()
+        ) {
+            field("Query" to "child") {
+                resolver {
+                    fn { args, _, _, _, _ ->
+                        yield()
+                        val id = args.getAs<Int>("id")
+                        requestedIds.add(id)
+                        createEngineObjectData(schema.schema.getObjectType("Branch"), mapOf("value" to id))
+                    }
+                }
+            }
+            fieldWithFromFieldVariables(
+                coord = "Query" to "result",
+                objectSelectionsText = "consumer: child(id: \$id) { value } provider: child(id: 1) { value }",
+                variables = listOf(FromObjectFieldVariable("id", "provider.value")),
+            ) { _, obj, _, _, _ -> obj.fetchAs<EngineObjectData>("consumer").fetchAs<Int>("value") }
+        }.runContractTest {
+            withTimeout("{ result }", timeoutMillis = 5_000).assertJson("{data: {result: 1}}")
+        }
+        assertEquals(setOf(1), requestedIds.toSet())
+    }
+
+    @Test
+    fun `from object field -- variable on the shared branch field is bound per list occurrence`() {
+        val requested = ConcurrentLinkedQueue<Pair<Int, Int>>()
+        EngineTestModule(
+            """
+                type Branch { value: Int! }
+                type Parent { seed: Int! child(id: Int!): Branch! result: Int! }
+                extend type Query { parents: [Parent!]! }
+            """.trimIndent()
+        ) {
+            field("Query" to "parents") {
+                resolver {
+                    fn { _, _, _, _, _ ->
+                        listOf(1, 2).map { seed ->
+                            createEngineObjectData(schema.schema.getObjectType("Parent"), mapOf("seed" to seed))
+                        }
+                    }
+                }
+            }
+            fieldWithFromFieldVariables(
+                coord = "Parent" to "child",
+                objectSelectionsText = "seed",
+            ) { args, obj, _, _, _ ->
+                yield()
+                val seed = obj.fetchAs<Int>("seed")
+                val id = args.getAs<Int>("id")
+                requested.add(seed to id)
+                createEngineObjectData(schema.schema.getObjectType("Branch"), mapOf("value" to id * 10 + seed))
+            }
+            fieldWithFromFieldVariables(
+                coord = "Parent" to "result",
+                objectSelectionsText = "consumer: child(id: \$id) { value } provider: child(id: 1) { value }",
+                variables = listOf(FromObjectFieldVariable("id", "provider.value")),
+            ) { _, obj, _, _, _ -> obj.fetchAs<EngineObjectData>("consumer").fetchAs<Int>("value") }
+        }.runContractTest {
+            withTimeout("{ parents { result } }", timeoutMillis = 5_000)
+                .assertJson("{data: {parents: [{result: 111}, {result: 122}]}}")
+        }
+        assertEquals(
+            mapOf((1 to 1) to 1, (1 to 11) to 1, (2 to 1) to 1, (2 to 12) to 1),
+            requested.groupingBy { it }.eachCount()
+        )
+    }
+
+    @Test
+    fun `from object field -- variable on the shared branch field accepts a null provider value`() {
+        EngineTestModule(
+            """
+                type Branch { value: Int }
+                extend type Query { child(id: Int): Branch! result: Int! }
+            """.trimIndent()
+        ) {
+            field("Query" to "child") {
+                resolver {
+                    fn { args, _, _, _, _ ->
+                        val id = args["id"] as? Int
+                        createEngineObjectData(schema.schema.getObjectType("Branch"), mapOf("value" to if (id == 1) null else id ?: -1))
+                    }
+                }
+            }
+            fieldWithFromFieldVariables(
+                coord = "Query" to "result",
+                objectSelectionsText = "consumer: child(id: \$id) { value } provider: child(id: 1) { value }",
+                variables = listOf(FromObjectFieldVariable("id", "provider.value")),
+            ) { _, obj, _, _, _ -> obj.fetchAs<EngineObjectData>("consumer").fetchAs<Int>("value") }
+        }.runContractTest {
+            withTimeout("{ result }", timeoutMillis = 5_000).assertJson("{data: {result: -1}}")
+        }
+    }
+
+    @Test
+    fun `from object field -- variable on the shared branch field reports a failed provider instead of hanging`() {
+        val requestedIds = ConcurrentLinkedQueue<Int>()
+        EngineTestModule(
+            """
+                type Branch { value: Int! }
+                extend type Query { child(id: Int!): Branch! result: Int }
+            """.trimIndent()
+        ) {
+            field("Query" to "child") {
+                resolver {
+                    fn { args, _, _, _, _ ->
+                        val id = args.getAs<Int>("id")
+                        requestedIds.add(id)
+                        check(id != 1) { "provider failed" }
+                        createEngineObjectData(schema.schema.getObjectType("Branch"), mapOf("value" to id * 10))
+                    }
+                }
+            }
+            fieldWithFromFieldVariables(
+                coord = "Query" to "result",
+                objectSelectionsText = "consumer: child(id: \$id) { value } provider: child(id: 1) { value }",
+                variables = listOf(FromObjectFieldVariable("id", "provider.value")),
+            ) { _, obj, _, _, _ -> obj.fetchAs<EngineObjectData>("consumer").fetchAs<Int>("value") }
+        }.runContractTest {
+            val result = withTimeout("{ result }", timeoutMillis = 5_000)
+            assertTrue(result.errors.isNotEmpty(), "A failed provider must surface as an error")
+            assertEquals(null, result.getData<Map<String, Any?>>()["result"])
+        }
+        assertEquals(listOf(1), requestedIds.toList(), "Only the provider may run when its value fails")
+    }
+
+    @Test
+    fun `from object field -- variable on the shared branch field resolves through parent demand`() {
+        EngineTestModule(
+            """
+                type Branch { value: Int! }
+                type Parent { seed: Int! lookup(id: Int!): Branch! bridge: Int! child: Child! }
+                type Child { parent: Parent @parent result: Int! }
+                extend type Query { parents: [Parent!]! }
+            """.trimIndent()
+        ) {
+            field("Query" to "parents") {
+                resolver {
+                    fn { _, _, _, _, _ ->
+                        listOf(3, 7).map { seed ->
+                            createEngineObjectData(schema.schema.getObjectType("Parent"), mapOf("seed" to seed))
+                        }
+                    }
+                }
+            }
+            field("Parent" to "child") {
+                resolver { fn { _, _, _, _, _ -> createEngineObjectData(schema.schema.getObjectType("Child"), emptyMap()) } }
+            }
+            fieldWithFromFieldVariables(
+                coord = "Parent" to "lookup",
+                objectSelectionsText = "seed",
+            ) { args, obj, _, _, _ ->
+                yield()
+                createEngineObjectData(
+                    schema.schema.getObjectType("Branch"),
+                    mapOf("value" to args.getAs<Int>("id") * 100 + obj.fetchAs<Int>("seed"))
+                )
+            }
+            fieldWithFromFieldVariables(
+                coord = "Parent" to "bridge",
+                objectSelectionsText = "consumer: lookup(id: \$v) { value } provider: lookup(id: 1) { value }",
+                variables = listOf(FromObjectFieldVariable("v", "provider.value")),
+            ) { _, obj, _, _, _ -> obj.fetchAs<EngineObjectData>("consumer").fetchAs<Int>("value") }
+            fieldWithFromFieldVariables(
+                coord = "Child" to "result",
+                objectSelectionsText = "parent { bridge }",
+            ) { _, obj, _, _, _ -> obj.fetchAs<EngineObjectData>("parent").fetchAs<Int>("bridge") }
+        }.runContractTest {
+            withTimeout("{ parents { child { result } } }", timeoutMillis = 5_000)
+                .assertJson("{data: {parents: [{child: {result: 10303}}, {child: {result: 10707}}]}}")
+        }
+    }
+
+    @Test
+    fun `from object field -- variable on the shared branch field resolves inside a nested input value`() {
+        val requestedIds = ConcurrentLinkedQueue<Int>()
+        EngineTestModule(
+            """
+                input Filter { id: Int! }
+                type Branch { value: Int! }
+                extend type Query { child(filter: Filter!): Branch! result: Int! }
+            """.trimIndent()
+        ) {
+            field("Query" to "child") {
+                resolver {
+                    fn { args, _, _, _, _ ->
+                        yield()
+                        val id = args.getAs<Map<String, Any>>("filter").getAs<Int>("id")
+                        requestedIds.add(id)
+                        createEngineObjectData(schema.schema.getObjectType("Branch"), mapOf("value" to id * 10))
+                    }
+                }
+            }
+            fieldWithFromFieldVariables(
+                coord = "Query" to "result",
+                objectSelectionsText = "consumer: child(filter: {id: \$id}) { value } provider: child(filter: {id: 1}) { value }",
+                variables = listOf(FromObjectFieldVariable("id", "provider.value")),
+            ) { _, obj, _, _, _ -> obj.fetchAs<EngineObjectData>("consumer").fetchAs<Int>("value") }
+        }.runContractTest {
+            withTimeout("{ result }", timeoutMillis = 5_000).assertJson("{data: {result: 100}}")
+        }
+        assertEquals(mapOf(1 to 1, 10 to 1), requestedIds.groupingBy { it }.eachCount())
+    }
+
+    @Test
+    fun `from object field -- shared branch field variable and a variable on its leaf resolve together`() {
+        EngineTestModule(
+            """
+                type Branch { value: Int! consume(value: Int!): Int! }
+                extend type Query { child(id: Int!): Branch! result: Int! }
+            """.trimIndent()
+        ) {
+            field("Query" to "child") {
+                resolver {
+                    fn { args, _, _, _, _ ->
+                        yield()
+                        createEngineObjectData(schema.schema.getObjectType("Branch"), mapOf("value" to args.getAs<Int>("id") * 10))
+                    }
+                }
+            }
+            fieldWithFromFieldVariables(
+                coord = "Branch" to "consume",
+                objectSelectionsText = "value",
+            ) { args, obj, _, _, _ -> obj.fetchAs<Int>("value") * 1000 + args.getAs<Int>("value") }
+            fieldWithFromFieldVariables(
+                coord = "Query" to "result",
+                objectSelectionsText = "consumer: child(id: \$a) { consume(value: \$b) } first: child(id: 1) { value } second: child(id: 2) { value }",
+                variables = listOf(
+                    FromObjectFieldVariable("a", "first.value"),
+                    FromObjectFieldVariable("b", "second.value"),
+                ),
+            ) { _, obj, _, _, _ -> obj.fetchAs<EngineObjectData>("consumer").fetchAs<Int>("consume") }
+        }.runContractTest {
+            withTimeout("{ result }", timeoutMillis = 5_000).assertJson("{data: {result: 100020}}")
+        }
+    }
+
+    @Test
+    fun `from object field -- statically excluded variable use on the shared branch field does not execute`() {
+        for (directive in listOf("@skip(if: true)", "@include(if: false)")) {
+            val requestedIds = ConcurrentLinkedQueue<Int>()
+            EngineTestModule(
+                """
+                    type Branch { value: Int! }
+                    extend type Query { child(id: Int!): Branch! result: Int! }
+                """.trimIndent()
+            ) {
+                field("Query" to "child") {
+                    resolver {
+                        fn { args, _, _, _, _ ->
+                            val id = args.getAs<Int>("id")
+                            requestedIds.add(id)
+                            createEngineObjectData(schema.schema.getObjectType("Branch"), mapOf("value" to id * 10))
+                        }
+                    }
+                }
+                fieldWithFromFieldVariables(
+                    coord = "Query" to "result",
+                    objectSelectionsText = "consumer: child(id: \$id) $directive { value } provider: child(id: 1) { value }",
+                    variables = listOf(FromObjectFieldVariable("id", "provider.value")),
+                ) { _, obj, _, _, _ -> obj.fetchAs<EngineObjectData>("provider").fetchAs<Int>("value") }
+            }.runContractTest {
+                withTimeout("{ result }", timeoutMillis = 5_000).assertJson("{data: {result: 10}}")
+            }
+            assertEquals(listOf(1), requestedIds.toList())
+        }
+    }
+
+    @Test
+    fun `from object field -- shared branch resolves chained providers through nested input values`() {
+        val consumed = ConcurrentLinkedQueue<List<Int>>()
+        EngineTestModule(
+            """
+                input Config { values: [Int!]! }
+                type Branch { value: Int! consume(config: Config!): Int! }
+                extend type Query { branch: Branch! result: Int! }
+            """.trimIndent()
+        ) {
+            field("Query" to "branch") {
+                resolver {
+                    fn { _, _, _, _, _ -> createEngineObjectData(schema.schema.getObjectType("Branch"), mapOf("value" to 9)) }
+                }
+            }
+            field("Branch" to "consume") {
+                resolver {
+                    fn { args, _, _, _, _ ->
+                        val values = args.getAs<Map<String, Any>>("config").getAs<List<Int>>("values")
+                        consumed.add(values)
+                        values.sum()
+                    }
+                }
+            }
+            fieldWithFromFieldVariables(
+                coord = "Query" to "result",
+                objectSelectionsText = """
+                    branch {
+                      last: consume(config: {values: [2, ${'$'}second]})
+                      middle: consume(config: {values: [1, ${'$'}first]})
+                      value
+                    }
+                """.trimIndent(),
+                variables = listOf(
+                    FromObjectFieldVariable("first", "branch.value"),
+                    FromObjectFieldVariable("second", "branch.middle"),
+                ),
+            ) { _, obj, _, _, _ -> obj.fetchAs<EngineObjectData>("branch").fetchAs<Int>("last") }
+        }.runContractTest {
+            withTimeout("{ result }", timeoutMillis = 5_000).assertJson("{data: {result: 12}}")
+        }
+        assertEquals(listOf(listOf(1, 9), listOf(2, 10)), consumed.toList())
+    }
+
+    @Test
+    fun `from object field -- shared branch does not invoke statically excluded consumers`() {
+        for (directive in listOf("@skip(if: true)", "@include(if: false)")) {
+            val consumed = ConcurrentLinkedQueue<Int>()
+            EngineTestModule(
+                """
+                    type Branch { value: Int! consume(value: Int!): Int! }
+                    extend type Query { branch: Branch! result: Int! }
+                """.trimIndent()
+            ) {
+                field("Query" to "branch") {
+                    resolver {
+                        fn { _, _, _, _, _ -> createEngineObjectData(schema.schema.getObjectType("Branch"), mapOf("value" to 9)) }
+                    }
+                }
+                field("Branch" to "consume") {
+                    resolver {
+                        fn { args, _, _, _, _ ->
+                            consumed.add(args.getAs<Int>("value"))
+                            0
+                        }
+                    }
+                }
+                fieldWithFromFieldVariables(
+                    coord = "Query" to "result",
+                    objectSelectionsText = "branch { consume(value: \$value) $directive value }",
+                    variables = listOf(FromObjectFieldVariable("value", "branch.value")),
+                ) { _, obj, _, _, _ -> obj.fetchAs<EngineObjectData>("branch").fetchAs<Int>("value") }
+            }.runContractTest {
+                withTimeout("{ result }", timeoutMillis = 5_000).assertJson("{data: {result: 9}}")
+            }
+            assertTrue(consumed.isEmpty(), "Excluded consumer must not execute")
         }
     }
 

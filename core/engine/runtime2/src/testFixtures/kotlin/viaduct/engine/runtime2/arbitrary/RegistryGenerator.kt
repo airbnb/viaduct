@@ -2359,17 +2359,7 @@ private class RegistryGenerator(
             }
             val candidate =
                 orderedOccurrences.firstNotNullOfOrNull { locatedOccurrence ->
-                    val fragment = fragments.fragment(locatedOccurrence.location)
                     val occurrence = locatedOccurrence.occurrence
-                    val useField = fragment.topLevelField(occurrence)
-                    val passiveUse = useField !in fieldSites
-                    val useBranch = fragment.selections[occurrence.selectionPath.first()]
-                    val useRank =
-                        if (locatedOccurrence.location == providerLocation) {
-                            structuralBranchRank(providerOwnerName, useBranch, ranks)
-                        } else {
-                            null
-                        }
                     occurrence.target
                         .let { target ->
                             variableProviderPaths(
@@ -2384,16 +2374,6 @@ private class RegistryGenerator(
                         .filter { provider ->
                             provider.pathLength() in
                                 config[ResolverFromFieldProviderPathLength]
-                        }.filter { provider ->
-                            if (locatedOccurrence.location != providerLocation) {
-                                true
-                            } else {
-                                val providerField = provider.topLevelField(providerOwnerName)
-                                (!passiveUse || providerField !in fieldSites) &&
-                                    providerField != useField &&
-                                    structuralBranchRank(providerOwnerName, provider, ranks) <
-                                    requireNotNull(useRank)
-                            }
                         }.chooseProviderPath(
                             config[ResolverFromFieldProviderArgumentVariableWeight],
                         )?.let { provider ->
@@ -2431,19 +2411,7 @@ private class RegistryGenerator(
                             )
                     }.shuffled(random)
                     .firstOrNull { locatedOccurrence ->
-                        val orderedAfterProvider =
-                            if (locatedOccurrence.location != providerLocation) {
-                                true
-                            } else {
-                                val useBranch =
-                                    fragments.fragment(providerLocation).selections[
-                                        locatedOccurrence.occurrence.selectionPath.first()
-                                    ]
-                                structuralBranchRank(providerOwnerName, providerSelection, ranks) <
-                                    structuralBranchRank(providerOwnerName, useBranch, ranks)
-                            }
-                        orderedAfterProvider &&
-                            locatedOccurrence.occurrence.selectionPath.size in
+                        locatedOccurrence.occurrence.selectionPath.size in
                             config[ResolverFromFieldVariableUseDepth] &&
                             locatedOccurrence.occurrence.target.let { target ->
                                 providerSelection.isCompatibleProviderFor(providerOwnerName, target)
@@ -2591,12 +2559,6 @@ private class RegistryGenerator(
         return false
     }
 
-    private fun FragmentSelectionPlan.topLevelField(ownerName: String): FieldCoordinate =
-        FieldCoordinate(
-            typeName = typeCondition ?: ownerName,
-            fieldName = fieldName,
-        )
-
     /** Prefers argument-bearing providers when a profile requests provider-argument dependencies. */
     private fun List<FragmentSelectionPlan>.chooseProviderPath(
         providerArgumentVariableWeight: Double =
@@ -2620,27 +2582,6 @@ private class RegistryGenerator(
         } else {
             direct.firstOrNull() ?: nested.firstOrNull()
         }
-    }
-
-    /**
-     * Registered branches use the rank that makes ordinary generated resolver demand acyclic.
-     * Passive branches have a stable schema order below every registered branch. Variable
-     * production therefore always advances through one total order, including between two passive
-     * branches generated for different resolver owners.
-     */
-    private fun structuralBranchRank(
-        ownerName: String,
-        selection: FragmentSelectionPlan,
-        ranks: Map<FieldCoordinate, Int>,
-    ): Int {
-        val fields: List<FieldDefinitionSpec> = schema.fieldsOn(ownerName)
-        val fieldIndex: Int =
-            fields.indexOfFirst { candidate -> candidate.name == selection.fieldName }
-        check(fieldIndex >= 0) {
-            "Generated branch ${selection.fieldName} does not belong to $ownerName"
-        }
-        val field: FieldDefinitionSpec = fields[fieldIndex]
-        return ranks[field.coordinate] ?: fieldIndex - fields.size
     }
 
     private fun FragmentPlan.argumentOccurrences(): List<ArgumentOccurrence> =

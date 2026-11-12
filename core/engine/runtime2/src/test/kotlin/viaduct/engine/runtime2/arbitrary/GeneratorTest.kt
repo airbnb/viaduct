@@ -19,6 +19,7 @@ import kotlin.test.assertNotSame
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 import kotlinx.coroutines.runBlocking
+import org.junit.jupiter.api.assertAll
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.runtime2.model.Arguments
 import viaduct.engine.runtime2.model.conformsToResolverOutputSchemaType
@@ -540,7 +541,9 @@ class GeneratorTest {
         val random = RandomSource.seeded(2026090402L)
         val schema = Arb.schema(config).next(random)
         val registry = schema.registry(config).next(random)
-        val query = schema.query(config).next(random)
+        val query = schema.query(
+            config + (MinimumSelectionDepth to 4) + (NestedQueryFieldCount to 2..3),
+        ).next(random)
         val resultOwner =
             FieldCoordinate(
                 GENERATED_PARENT_GREAT_GRANDCHILD_TYPE,
@@ -1379,6 +1382,81 @@ class GeneratorTest {
         assertTrue(
             registriesWithNestedProviders >= 10,
             "Expected nested providers regularly, found $registriesWithNestedProviders/100",
+        )
+    }
+
+    @Test
+    fun `from-field variables can cross branches and ground shared branch arguments`() {
+        val config =
+            Config.default +
+                (SchemaObjectCount to 4..6) +
+                (ObjectFieldCount to 4..6) +
+                (FieldArgumentWeight to 0.8) +
+                (ExplicitFieldResolverWeight to 0.8) +
+                (ListTypeWeight to 0.0) +
+                (NodeResolversEnabled to false) +
+                (ResolverFragmentWeight to 1.0) +
+                (ResolverFragmentDepth to 3) +
+                (ResolverQueryFragmentsEnabled to true) +
+                (ResolverQueryFragmentWeight to 1.0) +
+                (ResolverVariablesEnabled to true) +
+                (ResolverFromArgumentVariablesEnabled to false) +
+                (ResolverFromProviderVariablesEnabled to false) +
+                (ResolverFromQueryFieldVariablesEnabled to true) +
+                (ResolverVariableWeight to 1.0) +
+                (ResolverVariableCount to 3..5) +
+                (ResolverFromFieldProviderPathLength to 2..3) +
+                (ResolverFromFieldVariableUseDepth to 1..3)
+        val random = RandomSource.seeded(86427L)
+        val generatedSharedBranches = mutableSetOf<ProviderFragment>()
+        val generatedBranchArguments = mutableSetOf<ProviderFragment>()
+        val generatedCrossedBranches = mutableSetOf<ProviderFragment>()
+
+        repeat(100) {
+            val schema = Arb.schema(config).next(random)
+            val registry = schema.registry(config).next(random)
+            registry.world(schema)
+
+            val branchDependencies = mutableMapOf<Pair<FieldCoordinate, ProviderFragment>, MutableSet<Pair<FieldCoordinate, FieldCoordinate>>>()
+            registry.variableProviders.filterIsInstance<FromFieldVariableProviderPlan>().forEach { provider ->
+                val fragment = when (provider.providerFragment) {
+                    ProviderFragment.OBJECT -> registry.objectFragments.getValue(provider.owner)
+                    ProviderFragment.QUERY -> registry.queryFragments.getValue(provider.owner)
+                }
+                val uses = fragment.selections.filter { selection ->
+                    selection.source("").contains("\$${provider.variableName}")
+                }
+                val providerField = FieldCoordinate(provider.selection.typeCondition ?: fragment.ownerName, provider.selection.fieldName)
+                val sharedBranchUses = uses.filter { selection ->
+                    FieldCoordinate(selection.typeCondition ?: fragment.ownerName, selection.fieldName) == providerField
+                }
+                if (sharedBranchUses.isNotEmpty()) {
+                    generatedSharedBranches += provider.providerFragment
+                }
+                if (sharedBranchUses.any { selection ->
+                        selection.arguments.values.any { value ->
+                            value.source().contains("\$${provider.variableName}")
+                        }
+                    }
+                ) {
+                    generatedBranchArguments += provider.providerFragment
+                }
+                val dependencies = branchDependencies.getOrPut(provider.owner to provider.providerFragment) { mutableSetOf() }
+                uses.filterNot(sharedBranchUses::contains).forEach { use ->
+                    dependencies += providerField to FieldCoordinate(use.typeCondition ?: fragment.ownerName, use.fieldName)
+                }
+            }
+            branchDependencies.forEach { (owner, dependencies) ->
+                if (dependencies.any { (provider, consumer) -> consumer to provider in dependencies }) {
+                    generatedCrossedBranches += owner.second
+                }
+            }
+        }
+
+        assertAll(
+            { assertEquals(ProviderFragment.entries.toSet(), generatedSharedBranches, "shared branches") },
+            { assertEquals(ProviderFragment.entries.toSet(), generatedBranchArguments, "shared branch arguments") },
+            { assertEquals(ProviderFragment.entries.toSet(), generatedCrossedBranches, "crossed branches") },
         )
     }
 
