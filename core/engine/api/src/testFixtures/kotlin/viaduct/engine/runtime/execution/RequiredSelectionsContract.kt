@@ -209,6 +209,37 @@ interface RequiredSelectionsContract : QueryExecutionContract {
     }
 
     @Test
+    fun `required fragments accept repeatable metadata on definitions`() {
+        fun selections(
+            alias: String,
+            value: Int
+        ) = """
+            fragment Main on Query @metadata(id: "first") @metadata(id: "second") {
+              ...Input
+            }
+            fragment Input on Query @metadata(id: "input") { $alias: source(x: $value) }
+            """.trimIndent()
+
+        EngineTestModule(
+            """
+            directive @metadata(id: String!) repeatable on FRAGMENT_DEFINITION
+            extend type Query { source(x: Int!): Int result: Int }
+            """.trimIndent(),
+        ) {
+            field("Query" to "source") { resolver { fn { args, _, _, _, _ -> args.getValue("x") } } }
+            field("Query" to "result") {
+                resolver {
+                    objectSelections(selections("objectSource", 9))
+                    querySelections(selections("querySource", 4))
+                    fn { _, obj, query, _, _ -> obj.getAs<Int>("objectSource") + query.getAs<Int>("querySource") }
+                }
+            }
+        }.runContractTest {
+            runQuery("{ result }").assertJson("{data: {result: 13}}")
+        }
+    }
+
+    @Test
     fun `child RSS keeps pruned fragments separate from operation fragments`() {
         val module = EngineTestModule(
             """

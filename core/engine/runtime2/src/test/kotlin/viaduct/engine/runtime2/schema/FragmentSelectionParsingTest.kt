@@ -114,6 +114,39 @@ class FragmentSelectionParsingTest {
     }
 
     @Test
+    fun `fragment metadata still requires valid directives and arguments`() {
+        val metadataSchemas = ViaductAndGJSchema.fromGraphQLSchema(
+            UnExecutableSchemaGenerator.makeUnExecutableSchema(
+                SchemaParser().parse(
+                    """
+                    directive @metadata(id: String!) repeatable on FRAGMENT_DEFINITION
+                    type Query { echo: String }
+                    """.trimIndent(),
+                ),
+            ),
+        )
+        for (directive in listOf("@unknown", "@metadata", "@metadata(id: 1)", "@metadata(id: \"valid\", unknown: true)")) {
+            val failure = assertThrows<IllegalArgumentException> {
+                metadataSchemas.specFragmentFromDocument(Parser.parse("fragment Main on Query $directive { echo }"))
+            }
+            assertTrue(failure.message.orEmpty().contains("Invalid GraphQL fragment"))
+        }
+    }
+
+    @Test
+    fun `GraphQL validation rejects misplaced conditional directives`() {
+        for (directive in listOf("@include(if: true)", "@skip(if: false)")) {
+            for (source in listOf(
+                "fragment Main on Query $directive { echo }",
+                "fragment Main on Query { ...Input } fragment Input on Query $directive { echo }",
+            )) {
+                val failure = assertThrows<IllegalArgumentException> { schemas.specFragmentFromDocument(Parser.parse(source)) }
+                assertTrue(failure.message.orEmpty().startsWith("Invalid GraphQL fragment"))
+            }
+        }
+    }
+
+    @Test
     fun `fragment documents reject missing duplicate and cyclic definitions`() {
         for (source in listOf(
             "fragment Main on Query { ...Missing }",

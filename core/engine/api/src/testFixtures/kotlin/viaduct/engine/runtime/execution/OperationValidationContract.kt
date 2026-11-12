@@ -2,9 +2,13 @@
 
 package viaduct.engine.runtime.execution
 
+import java.util.concurrent.atomic.AtomicInteger
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.CsvSource
 import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.mocks.EngineTestModule
 import viaduct.graphql.scopes.SchemaScopingMode
@@ -44,6 +48,63 @@ interface OperationValidationContract : QueryExecutionContract {
         operationValidationModule().runContractTest {
             runQuery("{ f1 @bypassPolicyCheck }")
                 .assertJson("""{ "data": {"f1": 1} }""")
+        }
+    }
+
+    @Test
+    fun `client fragments accept repeatable metadata on definitions`() {
+        EngineTestModule(
+            """
+            directive @metadata(id: String!) repeatable on FRAGMENT_DEFINITION
+            extend type Query { source: Int }
+            """.trimIndent(),
+        ) {
+            fieldWithValue("Query" to "source", 9)
+        }.runContractTest {
+            runQuery(
+                """
+                { ...Client }
+                fragment Client on Query @metadata(id: "first") @metadata(id: "second") { ...Input }
+                fragment Input on Query @metadata(id: "input") { result: source }
+                """.trimIndent(),
+            ).assertJson("{data: {result: 9}}")
+        }
+    }
+
+    @ParameterizedTest
+    @CsvSource(
+        "@include(if: true), Client",
+        "@include(if: true), Input",
+        "@skip(if: false), Client",
+        "@skip(if: false), Input",
+    )
+    fun `client fragments reject conditional directives on definitions`(
+        directive: String,
+        fragmentName: String,
+    ) {
+        val resolverCalls = AtomicInteger()
+        EngineTestModule("extend type Query { source: Int }") {
+            field("Query" to "source") {
+                resolver {
+                    fn { _, _, _, _, _ ->
+                        resolverCalls.incrementAndGet()
+                        9
+                    }
+                }
+            }
+        }.runContractTest {
+            val result = runQuery(
+                """
+                { ...Client }
+                fragment Client on Query ${if (fragmentName == "Client") directive else ""} { ...Input }
+                fragment Input on Query ${if (fragmentName == "Input") directive else ""} { source }
+                """.trimIndent(),
+            )
+
+            assertEquals(1, result.errors.size)
+            assertEquals("ValidationError", result.errors.single().errorType.toString())
+            assertFalse(result.isDataPresent)
+            assertEquals(0, resolverCalls.get())
         }
     }
 

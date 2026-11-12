@@ -120,9 +120,6 @@ internal class GJSelectionParser(
         require(fragmentsByName.size == fragments.size) {
             "A resolver selection document may not contain duplicate fragment definitions"
         }
-        require(fragments.all { it.directives.isEmpty() }) {
-            "Fragment definitions cannot be conditional"
-        }
         validateFragment(document)
         val definition = SelectionsParserUtils.findEntryPointFragment(fragments)
 
@@ -283,7 +280,6 @@ internal class GJSelectionParser(
         mode: TranslationMode,
         fragmentsByName: Map<String, FragmentDefinition>,
     ): SpecSelection.InlineFragment? {
-        require(fragment.directives.isEmpty()) { "Fragment definitions cannot be conditional" }
         val typeConditionName = fragment.typeCondition.name!!
         val graphQLTypeCondition =
             sourceSchema.getType(typeConditionName) as GraphQLCompositeType
