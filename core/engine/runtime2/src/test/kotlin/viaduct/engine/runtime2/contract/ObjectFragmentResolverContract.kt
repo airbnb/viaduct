@@ -246,16 +246,16 @@ interface ObjectFragmentResolverContract : ResolverContract {
                 schemaSDL =
                     """
                     extend type Query {
-                      viewer: User! @resolver(result: {first: 2, last: 3})
+                      viewer: User! @resolver(script: "{'first': 2, 'last': 3}")
                     }
 
                     type User {
                       first: Int!
                       last: Int!
                       display: Int!
-                        @resolver(of: "first last", result: "sum(first, last)")
+                        @resolver(of: "first last", script: "objectValue.first + objectValue.last")
                       greeting: Int!
-                        @resolver(of: "display", result: "sumplus1(display)")
+                        @resolver(of: "display", script: "objectValue.display + 1")
                     }
                     """.trimIndent(),
             )
@@ -449,7 +449,7 @@ interface ObjectFragmentResolverContract : ResolverContract {
                     """
                     extend type Query {
                       items: [Item]
-                        @resolver(result: [null, "ERROR", {seed: 3}])
+                        @resolver(script: "[null, error, {'seed': 3}]")
                     }
 
                     type Item {

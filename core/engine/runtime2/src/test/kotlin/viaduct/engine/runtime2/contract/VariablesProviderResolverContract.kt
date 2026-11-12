@@ -265,11 +265,11 @@ interface VariablesProviderResolverContract : QueryFragmentVariablesResolverCont
                       result(seed: Int!): Int!
                         @resolver(
                           of: "left(value: ${'$'}double) right(value: ${'$'}constant)"
-                          providerVars: {
-                            double: "sum(${'$'}seed, ${'$'}seed)"
-                            constant: 3
+                          vars: {
+                            names: ["double", "constant"]
+                            script: "{'double': seed * 2, 'constant': 3}"
                           }
-                          result: "sum(left, right)"
+                          script: "objectValue.left + objectValue.right"
                         )
                       left(value: Int!): Int! @resolver(result: "sum(${'$'}value)")
                       right(value: Int!): Int! @resolver(result: "sum(${'$'}value)")

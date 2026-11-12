@@ -148,10 +148,19 @@ internal class ResolverTestDsl private constructor(
                                 QF_ARGUMENT,
                                 PATH_VARS_ARGUMENT,
                                 PROVIDER_VARS_ARGUMENT,
+                                VARS_ARGUMENT,
                                 RESULT_ARGUMENT,
+                                SCRIPT_ARGUMENT,
                             ),
                         )
-                        val result = directive.requiredArgument(RESULT_ARGUMENT)
+                        require(directive.arguments.count { it.name == RESULT_ARGUMENT || it.name == SCRIPT_ARGUMENT } == 1) {
+                            "@$RESOLVER_DIRECTIVE requires exactly one of result or script, including when result is null"
+                        }
+                        val result = directive.argument(RESULT_ARGUMENT)
+                        val script = directive.argument(SCRIPT_ARGUMENT)?.let { value ->
+                            require(value is StringValue) { "@$RESOLVER_DIRECTIVE.$SCRIPT_ARGUMENT must be a string" }
+                            value.requiredValue()
+                        }
                         val of =
                             directive.argument(OF_ARGUMENT)?.let { value ->
                                 require(value is StringValue) {
@@ -174,6 +183,10 @@ internal class ResolverTestDsl private constructor(
                             directive.argument(PROVIDER_VARS_ARGUMENT)
                                 ?.let(::parseProviderVariables)
                                 .orEmpty()
+                        val variablesProvider = directive.argument(VARS_ARGUMENT)?.let(::parseVariablesProvider)
+                        require(variablesProvider == null || directive.argument(PROVIDER_VARS_ARGUMENT) == null) {
+                            "@$RESOLVER_DIRECTIVE may not combine $VARS_ARGUMENT and $PROVIDER_VARS_ARGUMENT"
+                        }
                         fields +=
                             DslFieldResolver(
                                 typeName = typeName,
@@ -182,7 +195,9 @@ internal class ResolverTestDsl private constructor(
                                 qf = qf,
                                 pathVariables = pathVariables,
                                 providerVariables = providerVariables,
+                                variablesProvider = variablesProvider,
                                 result = result,
+                                script = script,
                             )
                     }
             }
@@ -262,6 +277,22 @@ internal class ResolverTestDsl private constructor(
             }
         }
 
+        private fun parseVariablesProvider(value: GraphQLValue<*>): DslVariablesProvider {
+            require(value is ObjectValue) { "@$RESOLVER_DIRECTIVE.$VARS_ARGUMENT must be an object" }
+            val fields = value.uniqueFields(VARS_ARGUMENT)
+            require(fields.keys == setOf("names", SCRIPT_ARGUMENT)) { "$VARS_ARGUMENT requires exactly names and script" }
+            val names = fields.getValue("names")
+            require(names is ArrayValue && names.values.isNotEmpty()) { "$VARS_ARGUMENT.names must be a nonempty list" }
+            val parsedNames = names.values.map { name ->
+                require(name is StringValue && GRAPHQL_NAME.matches(name.requiredValue())) { "$VARS_ARGUMENT.names must contain GraphQL names" }
+                name.requiredValue()
+            }
+            require(parsedNames.distinct().size == parsedNames.size) { "$VARS_ARGUMENT.names must be unique" }
+            val script = fields.getValue(SCRIPT_ARGUMENT)
+            require(script is StringValue) { "$VARS_ARGUMENT.script must be a string" }
+            return DslVariablesProvider(parsedNames.toSet(), script.requiredValue())
+        }
+
         private fun stripDslDirectives(definition: Definition<*>): Definition<*> =
             when (definition) {
                 is ObjectTypeExtensionDefinition ->
@@ -291,6 +322,9 @@ internal class ResolverTestDsl private constructor(
             directive: Directive,
             allowed: Set<String>,
         ) {
+            require(directive.arguments.map { it.name }.distinct().size == directive.arguments.size) {
+                "@${directive.name} contains duplicate arguments"
+            }
             val unexpected = directive.arguments.map { it.name }.filterNot(allowed::contains)
             require(unexpected.isEmpty()) {
                 "Unexpected @${
@@ -371,26 +405,43 @@ private class Compiler(
             val objectFragment = fragment(field, definition.of)
             val queryFragment = fragment(field, definition.qf, "Query")
             val resolver =
-                fieldResolverOf(objectFragment, queryFragment) { input, queryValue, arguments ->
-                    evaluator.evaluateFieldResult(
-                        field = field,
-                        result = definition.result,
-                        input = input,
-                        queryValue = queryValue,
-                        arguments = arguments,
+                if (definition.script != null) {
+                    fieldResolverOf(
+                        objectFragment,
+                        queryFragment,
+                        createJEXLNonselectiveFieldResolverFunction(
+                            schemas = schemas,
+                            field = field,
+                            script = definition.script,
+                            hasObjectFragment = definition.of.isNotBlank(),
+                            hasQueryFragment = definition.qf.isNotBlank(),
+                        ),
                     )
+                } else {
+                    fieldResolverOf(objectFragment, queryFragment) { input, queryValue, arguments ->
+                        evaluator.evaluateFieldResult(
+                            field = field,
+                            result = checkNotNull(definition.result),
+                            input = input,
+                            queryValue = queryValue,
+                            arguments = arguments,
+                        )
+                    }
                 }
             compiled[field] =
-                if (definition.providerVariables.isEmpty()) {
-                    resolver
-                } else {
-                    resolver.withVariablesProvider(definition.providerVariables.keys) { arguments ->
+                when {
+                    definition.variablesProvider != null -> resolver.withVariablesProvider(
+                        definition.variablesProvider.names,
+                        createJEXLVariablesProviderFunction(field, definition.variablesProvider.names, definition.variablesProvider.script),
+                    )
+                    definition.providerVariables.isNotEmpty() -> resolver.withVariablesProvider(definition.providerVariables.keys) { arguments ->
                         evaluator.evaluateProviderVariables(
                             field = field,
                             variables = definition.providerVariables,
                             arguments = arguments,
                         )
                     }
+                    else -> resolver
                 }
         }
 
@@ -420,7 +471,8 @@ private class Compiler(
                 require(field is ViaductSchema.ObjectField)
                 val argumentNames = field.args.mapTo(linkedSetOf(), ViaductSchema.FieldArg::name)
                 val pathVariables = definition.pathVariables.associateBy(DslPathVariable::name)
-                val providerVariableNames = definition.providerVariables.keys
+                val providerVariableNames = definition.variablesProvider?.names ?: definition.providerVariables.keys
+                val providerArgument = if (definition.variablesProvider != null) VARS_ARGUMENT else PROVIDER_VARS_ARGUMENT
                 require(pathVariables.keys.intersect(argumentNames).isEmpty()) {
                     "${definition.typeName}.${definition.fieldName} $PATH_VARS_ARGUMENT may not " +
                         "redefine field arguments"
@@ -428,7 +480,7 @@ private class Compiler(
                 require(
                     providerVariableNames.intersect(argumentNames + pathVariables.keys).isEmpty(),
                 ) {
-                    "${definition.typeName}.${definition.fieldName} $PROVIDER_VARS_ARGUMENT may " +
+                    "${definition.typeName}.${definition.fieldName} $providerArgument may " +
                         "not redefine field arguments or $PATH_VARS_ARGUMENT variables"
                 }
                 val usedVariables = variablesIn(definition, field)
@@ -439,7 +491,7 @@ private class Compiler(
                 }
                 val unusedProviderVariables = providerVariableNames - usedVariables
                 require(unusedProviderVariables.isEmpty()) {
-                    "Unused $PROVIDER_VARS_ARGUMENT variables on ${definition.typeName}." +
+                    "Unused $providerArgument variables on ${definition.typeName}." +
                         "${definition.fieldName}: ${unusedProviderVariables.sorted().joinToString()}"
                 }
                 usedVariables.forEach { name ->
@@ -464,7 +516,7 @@ private class Compiler(
                                 "Variable \$$name on ${definition.typeName}." +
                                     "${definition.fieldName} is neither an argument, a " +
                                     "$PATH_VARS_ARGUMENT definition, nor a " +
-                                    "$PROVIDER_VARS_ARGUMENT definition",
+                                    "$PROVIDER_VARS_ARGUMENT or $VARS_ARGUMENT definition",
                             )
                     }
                 }
@@ -1036,7 +1088,14 @@ private data class DslFieldResolver(
     val qf: String,
     val pathVariables: List<DslPathVariable>,
     val providerVariables: Map<String, GraphQLValue<*>>,
-    val result: GraphQLValue<*>,
+    val variablesProvider: DslVariablesProvider?,
+    val result: GraphQLValue<*>?,
+    val script: String?,
+)
+
+private data class DslVariablesProvider(
+    val names: Set<String>,
+    val script: String,
 )
 
 private data class DslPathVariable(
@@ -1084,11 +1143,13 @@ private fun Node<*>.visitRecursively(visitor: (Node<*>) -> Unit) {
 private const val RESOLVER_DIRECTIVE = "resolver"
 private const val NODE_RESOLVER_DIRECTIVE = "nodeResolver"
 private const val RESULT_ARGUMENT = "result"
+private const val SCRIPT_ARGUMENT = "script"
 private const val OF_ARGUMENT = "of"
 private const val QF_ARGUMENT = "qf"
 private const val QUERY_PATH_PREFIX = "query:"
 private const val PATH_VARS_ARGUMENT = "pathVars"
 private const val PROVIDER_VARS_ARGUMENT = "providerVars"
+private const val VARS_ARGUMENT = "vars"
 private const val NAME_FIELD = "name"
 private const val PATH_FIELD = "path"
 private const val ID_FIELD = "id"

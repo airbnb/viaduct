@@ -47,16 +47,23 @@ directive @resolver(
   qf: String
   pathVars: [VariableDefinition!]! = []
   providerVars: JSON
+  vars: VariablesProvider
   result: JSON
+  script: String
 ) on FIELD_DEFINITION
 
 input VariableDefinition {
   name: String!
   path: [String!]!
 }
+
+input VariablesProvider {
+  names: [String!]!
+  script: String!
+}
 ```
 
-`result` must be present even when its value is `null`. The compiler reads the directives from the source AST, builds the ordinary resolver registry, and strips the directives before constructing the retained GraphQL schema. The model schema therefore does not acquire a JSON leaf type or DSL metadata.
+Exactly one of `result` or `script` must be present. `result: null` remains an explicit literal result; `script` must be a string. The compiler reads the directives from the source AST, builds the ordinary resolver registry, and strips the directives before constructing the retained GraphQL schema. The model schema therefore does not acquire a JSON leaf type or DSL metadata.
 
 ## Field Resolvers
 
@@ -87,8 +94,8 @@ Every variable used by `of` or `qf` is defined exactly once, including names sha
 
 - A variable whose name matches an argument of the resolver field is inferred as `FromArgument`.
 - A name in `pathVars` is compiled as `FromObjectField`.
-- A name in the `providerVars` object is compiled as `FromProvider` and returned by the resolver's one variables-provider function.
-- `pathVars` and `providerVars` names may not shadow field arguments or each other.
+- A name declared by `vars.names` or in the legacy `providerVars` object is compiled as `FromProvider` and returned by the resolver's one variables-provider function.
+- Provider names and `pathVars` names may not shadow field arguments or each other.
 - Unused, missing, and duplicate variable definitions are rejected.
 
 ```graphql
@@ -124,6 +131,28 @@ extend type Query {
 
   consume(value: Int!): Int!
     @resolver(result: "sum($value)")
+}
+```
+
+`vars` supplies a scripted variables provider and is mutually exclusive with `providerVars` on one resolver. Its `names` must be a nonempty list of unique GraphQL names used in `of` or `qf`. The script runs once per active grounded resolver occurrence and returns one map with exactly those keys. Either provider form can accompany either `result` or `script`.
+
+Provider scripts use the same JEXL configuration as field scripts. Each invocation receives fresh bindings for the field arguments by schema name, including null for absent optional arguments, and the reserved `error` constant. Provider scripts have no RSS inputs or `query` callable. Argument objects and lists are recursively read-only. Provider arguments and results support null, integers, Boolean, String (including IDs and enum names), Double, lists, and input-object maps. Integer values are normalized to GraphQL Int's signed 32-bit range; the existing engine validates the resulting values against the fragment argument types.
+
+Returning `error` at the top level fails the provider, which fails the owning field and completes all its provider bindings with `VariableBinding.Error`. No variable receives an error as input data. A map or list containing `error` is rejected recursively, so use `seed < 0 ? error : {'double': seed * 2, 'constant': 3}`, never `{'double': error, 'constant': 3}`. Syntax and runtime diagnostics identify the `Type/field.vars` coordinate and script line; result-conversion failures identify the offending variable path.
+
+```graphql
+extend type Query {
+  result(seed: Int!): Int!
+    @resolver(
+      of: "left: consume(value: $double) right: consume(value: $constant)"
+      vars: {
+        names: ["double", "constant"]
+        script: "seed < 0 ? error : {'double': seed * 2, 'constant': 3}"
+      }
+      script: "objectValue.left + objectValue.right"
+    )
+
+  consume(value: Int!): Int! @resolver(script: "value")
 }
 ```
 
@@ -198,6 +227,53 @@ type Entry {
   value: Int!
 }
 ```
+
+## JEXL Scripts
+
+`script` supplies a JEXL program instead of a literal `result`. The fixture parses it once when constructing the resolver and interprets it for each invocation. Existing `result` expressions and Node resolver definitions retain their behavior, and both field resolver forms can appear in one world.
+
+Each invocation receives fresh bindings in one `MapContext`:
+
+- `objectValue` and `queryValue` expose the materialized `of` and `qf` inputs as read-only objects and lists. An absent, empty, or whitespace-only fragment produces a null binding. Dotted access and list indexing preserve response aliases, selected nulls, missing-field errors, and error-valued reads.
+- Each field argument is bound by its schema name, including null for an absent optional argument. Script resolvers currently accept only integer arguments; `query`, `objectValue`, `queryValue`, and `error` are reserved binding names. Registry path/provider variables continue to bind RSS selections and do not become script globals.
+- `query(selectionSet)` executes a braced Query-rooted selection set. An optional second map supplies integer variable bindings, for example `query('{ renamed: echo(value: $n) }', {'n': extra}).renamed`. Null bindings are also accepted. The result uses the same object/list views as RSS inputs.
+- `error` is an opaque constant that produces `EngineErrorData` at any output position, including an entire object or list, an object field, or a list element. For example, `seed < 0 ? error : seed` returns either an explicit error or an integer. Errors remain outside the input-value domain and cannot be supplied as subquery variable values.
+
+Scripts can return integers, ordinary objects, lists, and null. JEXL maps become partial Runtime2 objects, and lists or arrays become Runtime2 lists. Concrete output types can be inferred; abstract outputs require a string `__typename`. Both integer results and query variable bindings accept `Int`, `Long`, and `BigInteger` values within GraphQL Int's signed 32-bit range and normalize them to `Int`. Node/root-field references and other scalar result types continue to use `result`.
+
+Output object keys are schema field names. An unaliased input or subquery object can be returned directly, retaining its concrete type. Returning an object containing aliased selections is rejected, including when an alias names another valid schema field. Construct an explicit output map instead: an input selected with `renamed: n` can become `{'n': objectValue.renamed}`. Automatic alias removal could merge selections with different arguments.
+
+This direct-return alias validation uses the canonical field metadata retained by Runtime2's materialized objects. The public `EngineObjectData.Sync` contract requires reads by response key, including aliases, but does not expose the mapping from response keys to schema fields. Other compliant implementations can preserve aliases without exposing that metadata. The DSL's Runtime2 materializers supply it; a custom execution context returning another implementation must use explicit output maps for aliased objects because the adapter cannot validate their alias origins.
+
+```graphql
+extend type Query {
+  item: Item! @resolver(script: "{'local': 2}")
+  source: Int! @resolver(result: 7)
+}
+
+type Item {
+  local: Int!
+  total(extra: Int!): Int!
+    @resolver(
+      of: "local"
+      qf: "remote: source"
+      script: """
+        var total = objectValue.local + queryValue.remote;
+        return total + extra;
+      """
+    )
+}
+```
+
+Scripts disable object construction, pragmas, annotations, and assignments to global bindings. Local variables remain mutable. Method and property permissions deny reflective class access while permitting the query callable and RSS reads.
+
+Script syntax/runtime errors identify the resolver coordinate and a line within the JEXL source. Ordinary exceptions from the query callback retain JEXL's wrapper and their original cause, preserving the script call location. Cancellation and error-valued engine reads are unwrapped to preserve their engine semantics. Output-conversion errors identify the offending result path.
+
+Evaluation runs on an elastic blocking dispatcher; `query` bridges to the existing resolution context with `runBlocking`, retaining the request's `Job` while removing its dispatcher so the engine dispatcher remains available for subqueries. In [FieldResolverTask.resolveSelectionSet](../../src/main/kotlin/viaduct/engine/runtime2/resolution/FieldResolverTask.kt), `forChildScope(fieldTaskScope)` creates a child operation whose spawned work remains owned by the invoking field task. Subquery setup starts on the script thread, including synchronous orchestration preparation and undispatched startup. Each call creates its own result root and orchestration state.
+
+The shared state used by this entry path supports concurrent access: `ObjectCellStore` in [EngineResult.kt](../../src/main/kotlin/viaduct/engine/runtime2/model/EngineResult.kt) protects cell lookup, installation, and key snapshots with a monitor; [Promise](../../src/main/kotlin/viaduct/engine/runtime2/model/Promise.kt) uses atomic state and `CompletableDeferred`; [AbstractCycleCheckState](../../src/main/kotlin/viaduct/engine/runtime2/resolution/framework/AbstractCycleCheckState.kt) serializes writer registration and read-edge updates under its monitor. `VariableBindingsState` and `BindingDeclarationsState` use concurrent maps of promises.
+
+The `publicationCycleTask` passed as the subquery's reader identifies the consuming parent field resolver by its result-root identity and publication path. It has no thread identity: materialization records the parent's dependencies on the nested result's writers even when the read runs on a script thread. Coroutine scope ownership and cycle-reader identity therefore survive the dispatcher change. Focused tests force overlapping real nested queries with both one and four engine threads.
 
 ## Node Results
 

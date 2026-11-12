@@ -62,7 +62,7 @@ The important functions are:
 | `caption` | Write the teaching script, actor reference, invocation inputs, and optional raw facts. |
 | `render`, `page`, `gallery` | Assemble each scene, version asset URLs by content hash, and build the reverse-chronological index. |
 
-Schema and query panels come from recorded source text for every example, with no test-specific snippets. Two examples retain introductory explanations in `render`: output projection and transitive sibling demand. If those tests change, update their explanations too; do not hard-code their task numbers or event sequence into the general animation machinery.
+Schema and query panels come from recorded source text for every example, with no test-specific snippets. Preserve both `@resolver(result: ...)` and `@resolver(script: ...)` declarations. Script statements do not supply execution events: resolver invocation, input, and result facts still come from the existing recorder, and the player does not illustrate individual JEXL statements. Two examples retain introductory explanations in `render`: output projection and transitive sibling demand. If those tests change, update their explanations too; do not hard-code their task numbers or event sequence into the general animation machinery.
 
 ### Phrase-level source pointers
 

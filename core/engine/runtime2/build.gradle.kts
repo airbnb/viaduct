@@ -47,6 +47,7 @@ dependencies {
     add("testFixturesImplementation", libs.kotest.assertions.core.jvm)
     add("testFixturesImplementation", libs.jackson.module)
     add("testFixturesImplementation", libs.commons.csv)
+    add("testFixturesImplementation", libs.commons.jexl)
     add("testFixturesImplementation", kotlin("test"))
     add(
         "testFixturesImplementation",
