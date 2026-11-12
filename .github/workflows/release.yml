@@ -1,6 +1,6 @@
 name: Release
 # Orchestrates either a release candidate or a final Viaduct release.
-# RC flow: validate -> publish X.Y.Z-rc.N-SNAPSHOT to the Central snapshot repository -> push RC demoapps -> verify.
+# RC flow: validate -> publish X.Y.Z-rc.N-SNAPSHOT to the Central snapshot repository -> push RC demoapps -> verify signatures and demoapps.
 # Final flow: validate -> publish -> push demoapps -> verify -> tag -> GitHub release.
 
 on:
@@ -156,6 +156,18 @@ jobs:
           set -euo pipefail
           python3 .github/scripts/probe_published_artifacts.py \
             --root coordinates --version "$VERSION"
+        shell: bash
+
+      - name: Verify the RC's signatures
+        if: needs.preflight.outputs.is_final != 'true'
+        env:
+          VERSION: ${{ needs.preflight.outputs.published_version }}
+          BUILT_AFTER: ${{ needs.publish.outputs.publish_started_at }}
+        run: |
+          set -euo pipefail
+          python3 .github/scripts/verify_published_signatures.py \
+            --root coordinates --version "$VERSION" --built-after "$BUILT_AFTER" \
+            --key .github/release-signing-key.asc
         shell: bash
 
   # ---------------------------------------------------------------------------

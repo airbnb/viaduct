@@ -100,6 +100,59 @@ jobs:
         shell: bash
 
   # ---------------------------------------------------------------------------
+  # Verify every published snapshot file is signed with the release key
+  # Runs in parallel with check-demoapps
+  # ---------------------------------------------------------------------------
+  verify-signatures:
+    needs: [publish-snapshot, wait-for-publication]
+    runs-on: ubuntu-latest
+    env:
+      VIADUCT_DEPENDENCY_MIRROR_ROLE_ARN: ${{ vars.VIADUCT_DEPENDENCY_MIRROR_ROLE_ARN }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.publish-snapshot.outputs.source_sha }}
+
+      # The verifier and key come from the dispatched workflow, not from the published ref, which may predate them.
+      - uses: actions/checkout@v6
+        with:
+          path: tooling
+
+      - uses: ./.github/actions/setup-build
+        with:
+          java-version: '21'
+
+      - name: Derive the published coordinates
+        id: coordinates
+        env:
+          REF: ${{ inputs.ref }}
+        run: |
+          set -uo pipefail
+          LOG="${RUNNER_TEMP}/write-published-coordinates.log"
+          if ./gradlew writePublishedCoordinates --no-daemon --stacktrace 2>&1 | tee "$LOG"; then
+            exit 0
+          fi
+          if grep -q "Task 'writePublishedCoordinates' not found" "$LOG"; then
+            echo "::warning::${REF} predates writePublishedCoordinates, so its signatures are not checked"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          exit 1
+        shell: bash
+
+      - name: Verify the snapshot's signatures
+        if: steps.coordinates.outputs.skip != 'true'
+        env:
+          VERSION: ${{ needs.publish-snapshot.outputs.version }}
+          BUILT_AFTER: ${{ needs.publish-snapshot.outputs.publish_started_at }}
+        run: |
+          set -euo pipefail
+          python3 tooling/.github/scripts/verify_published_signatures.py \
+            --root . --version "$VERSION" --built-after "$BUILT_AFTER" \
+            --key tooling/.github/release-signing-key.asc
+        shell: bash
+
+  # ---------------------------------------------------------------------------
   # Verify standalone repos build against published snapshot artifacts
   # ---------------------------------------------------------------------------
   check-demoapps:

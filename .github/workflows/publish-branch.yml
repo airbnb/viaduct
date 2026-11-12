@@ -57,6 +57,9 @@ on:
       snapshot_tag:
         description: "Suggested snapshot tag"
         value: ${{ jobs.validate.outputs.snapshot_tag }}
+      publish_started_at:
+        description: "UTC yyyyMMdd.HHmmss taken just before publishing; every snapshot build this run uploads is stamped at or after it"
+        value: ${{ jobs.publish.outputs.publish_started_at }}
     secrets:
       VIADUCT_GRADLE_PUBLISH_KEY:
         required: false
@@ -170,6 +173,7 @@ jobs:
     environment: ${{ (inputs.mode == 'release' || inputs.mode == 'rc') && 'release' || '' }}
     outputs:
       source_sha: ${{ steps.sha.outputs.source_sha }}
+      publish_started_at: ${{ steps.started.outputs.publish_started_at }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -212,6 +216,11 @@ jobs:
           set -euo pipefail
           python3 tooling/.github/scripts/probe_published_artifacts.py \
             --root . --version "$VERSION" --require-unpublished
+        shell: bash
+
+      - name: Record when publishing starts
+        id: started
+        run: echo "publish_started_at=$(date -u +%Y%m%d.%H%M%S)" >> "$GITHUB_OUTPUT"
         shell: bash
 
       - name: Publish artifacts
