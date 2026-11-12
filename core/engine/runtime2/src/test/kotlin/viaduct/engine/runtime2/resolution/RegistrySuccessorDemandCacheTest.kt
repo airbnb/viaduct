@@ -36,15 +36,18 @@ class RegistrySuccessorDemandCacheTest {
         val cache = (registry as FixedSuccessorDemandCacheOwner).fixedSuccessorDemandCache
         val boundary = SuccessorBoundary(field = fixture.schema.requireObjectField("Query", "first"), kind = SuccessorBoundaryKind.RESOLVER)
         val input = fixture.schemas.fragmentFrom("fragment F on Query { first }").subselections
-        val expected = input.successorDemand(uncachedWorld(fixture.assumptions)).shape()
+        val expected = input.successorDemand(uncachedWorld(fixture.assumptions), engineExecutionContext = null).shape()
         assertNull(cache.get(boundary))
 
-        input.successorDemand(fixture.newAssumptions()).shape() shouldBe expected
+        input.successorDemand(fixture.newAssumptions(), engineExecutionContext = null).shape() shouldBe expected
         val expansion = cache.get(boundary)
         assertNotNull(expansion)
         val excluded = fixture.schemas.fragmentFrom("fragment F on Query { first @skip(if: true) }").subselections
-        excluded.successorDemand(fixture.newAssumptions()).shape() shouldBe excluded.successorDemand(uncachedWorld(fixture.assumptions)).shape()
-        input.successorDemand(fixture.newAssumptions()).shape() shouldBe expected
+        excluded.successorDemand(
+            fixture.newAssumptions(),
+            engineExecutionContext = null
+        ).shape() shouldBe excluded.successorDemand(uncachedWorld(fixture.assumptions), engineExecutionContext = null).shape()
+        input.successorDemand(fixture.newAssumptions(), engineExecutionContext = null).shape() shouldBe expected
         assertSame(expansion, cache.get(boundary))
     }
 
@@ -53,7 +56,7 @@ class RegistrySuccessorDemandCacheTest {
         val fixture = acyclicFixture()
         val world = fixture.assumptions
         val input = fixture.schemas.fragmentFrom("fragment F on Query { first }").subselections
-        input.successorDemand(world)
+        input.successorDemand(world, engineExecutionContext = null)
         val first = world.schema.requireObjectField("Query", "first")
         val checker =
             FieldCheckerResolver.of(
@@ -71,7 +74,7 @@ class RegistrySuccessorDemandCacheTest {
         }
         assertTrue(decorated !is FixedSuccessorDemandCacheOwner)
         val decoratedWorld = Assumptions.of(world.schema, decorated)
-        val keys = input.successorDemand(decoratedWorld).merge(world.schema.requireQueryTypeDef()).keys()
+        val keys = input.successorDemand(decoratedWorld, engineExecutionContext = null).merge(world.schema.requireQueryTypeDef()).keys()
         assertTrue(keys.any { it.field.name == "checkerOnly" })
     }
 
@@ -87,10 +90,10 @@ class RegistrySuccessorDemandCacheTest {
             fixture.schemas.fragmentFrom("fragment F on Item { $fields }").subselections
         }
         val demands = inputs.flatMap { listOf(Demand.checked(it), Demand.unchecked(it)) }
-        val expected = demands.map { it.successorDemandFromConstructionDemand(uncached, setOf(item)).shape() }
+        val expected = demands.map { it.successorDemandFromConstructionDemand(uncached, setOf(item), engineExecutionContext = null).shape() }
         repeat(3) {
             demands.indices.reversed().forEach { index ->
-                demands[index].successorDemandFromConstructionDemand(fixture.newAssumptions(), setOf(item)).shape() shouldBe expected[index]
+                demands[index].successorDemandFromConstructionDemand(fixture.newAssumptions(), setOf(item), engineExecutionContext = null).shape() shouldBe expected[index]
             }
         }
         assertNotNull(cache.get(SuccessorBoundary(field = value, kind = SuccessorBoundaryKind.RESOLVER)))
@@ -105,7 +108,7 @@ class RegistrySuccessorDemandCacheTest {
             fixture.schemas.fragmentFrom("fragment F on Item { $fields }").subselections
         }
         val demands = inputs.flatMap { listOf(Demand.checked(it), Demand.unchecked(it)) }
-        val expected = demands.map { it.successorDemandFromConstructionDemand(uncachedWorld(fixture.assumptions), setOf(item)).shape() }
+        val expected = demands.map { it.successorDemandFromConstructionDemand(uncachedWorld(fixture.assumptions), setOf(item), engineExecutionContext = null).shape() }
         val executor = Executors.newFixedThreadPool(4)
         val barrier = CyclicBarrier(4)
         try {
@@ -114,7 +117,7 @@ class RegistrySuccessorDemandCacheTest {
                     barrier.await(10, TimeUnit.SECONDS)
                     repeat(24) { iteration ->
                         val index = (iteration + worker) % demands.size
-                        demands[index].successorDemandFromConstructionDemand(fixture.newAssumptions(), setOf(item)).shape() shouldBe expected[index]
+                        demands[index].successorDemandFromConstructionDemand(fixture.newAssumptions(), setOf(item), engineExecutionContext = null).shape() shouldBe expected[index]
                     }
                 }
             }

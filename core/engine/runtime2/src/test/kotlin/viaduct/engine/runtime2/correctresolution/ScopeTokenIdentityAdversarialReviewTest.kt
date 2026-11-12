@@ -191,9 +191,9 @@ class ScopeTokenIdentityAdversarialReviewTest {
                 val arguments = key.arguments as Arguments.Resolved
                 val input = engineObjectDataOf(root.type)
                 val resolver = world.resolverRegistry.resolver(key.field)
-                val fragments = resolver.instantiateFragments(owner)
+                val fragments = resolver.declaredDependencies.instantiateFragments(owner)
                 val queryInputSelections =
-                    resolver.instantiateQueryMaterializationSelections(
+                    resolver.declaredDependencies.instantiateQueryMaterializationSelections(
                         fragments.queryFragment.resolverOccurrenceId,
                     )
                 val queryValue =

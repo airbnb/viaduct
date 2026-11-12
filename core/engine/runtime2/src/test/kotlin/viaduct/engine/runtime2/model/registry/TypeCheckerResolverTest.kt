@@ -38,10 +38,10 @@ class TypeCheckerResolverTest {
             CheckerResult.Success
         }
 
-        assertTrue(defaultChecker.isApplicable(exemptRoot, path))
-        assertFalse(checker.isApplicable(exemptRoot, path))
-        assertTrue(checker.isApplicable(otherRoot, path))
-        assertTrue(checker.isApplicable(exemptRoot, emptyList()))
+        assertTrue(defaultChecker.isApplicable(exemptRoot, path, executionContext = null))
+        assertFalse(checker.isApplicable(exemptRoot, path, executionContext = null))
+        assertTrue(checker.isApplicable(otherRoot, path, executionContext = null))
+        assertTrue(checker.isApplicable(exemptRoot, emptyList(), executionContext = null))
     }
 
     @Test

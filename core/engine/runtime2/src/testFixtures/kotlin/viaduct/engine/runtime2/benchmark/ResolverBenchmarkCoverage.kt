@@ -122,7 +122,7 @@ class ResolverBenchmarkCoverage {
             hit(ResolverBenchmarkFeature.OBJECT_INPUT, call.input.getSelections().any())
             hit(ResolverBenchmarkFeature.QUERY_INPUT, call.queryValue.getSelections().any())
             val resolver = operation.world.resolverRegistry.resolver(call.field)
-            resolver.instantiatedVariableDefinitions(call.resolverOccurrenceId).forEach variableLoop@{ variable ->
+            resolver.declaredDependencies.instantiatedVariableDefinitions(call.resolverOccurrenceId).forEach variableLoop@{ variable ->
                 if (!operation.variableBindings.isBound(requireNotNull(variable.variable.instanceId))) return@variableLoop
                 when (val definition = variable.definition) {
                     is VariableDefinition.FromArgument -> {
@@ -163,7 +163,7 @@ class ResolverBenchmarkCoverage {
             )
             hit(
                 ResolverBenchmarkFeature.PARENT_VARIABLE_MIX,
-                call.field.containingDef.name == "CoverageBranch" && call.field.name == "bridge" && parentDepth(call.input) > 0 && resolver.variables.values.let {
+                call.field.containingDef.name == "CoverageBranch" && call.field.name == "bridge" && parentDepth(call.input) > 0 && resolver.declaredDependencies.variables.values.let {
                         definitions ->
                     definitions.any {
                         it is VariableDefinition.FromArgument
@@ -204,7 +204,7 @@ class ResolverBenchmarkCoverage {
                 calls.any {
                     it.field.name == "coverageChain$depth" && it.arguments.fieldValues["value"] == 7 && operation.world.resolverRegistry.resolver(
                         it.field
-                    ).variables.values.any { it is VariableDefinition.FromField }
+                    ).declaredDependencies.variables.values.any { it is VariableDefinition.FromField }
                 }
             } && calls.any { it.field.name == "coverageChainEcho4" && it.arguments.fieldValues["value"] == 7 }
         )
@@ -248,12 +248,14 @@ class ResolverBenchmarkCoverage {
             val targetCalls = calls.filter { it.resolverOccurrenceId == ResolverOccurrenceId.at(reference.invocationRoot, reference.invocationPath) }
             hit(
                 ResolverBenchmarkFeature.REFERENCE_TARGET_ARGUMENT_VARIABLE,
-                targetCalls.any { operation.world.resolverRegistry.resolver(it.field).variables.values.any { it is VariableDefinition.FromArgument } }
+                targetCalls.any { operation.world.resolverRegistry.resolver(it.field).declaredDependencies.variables.values.any { it is VariableDefinition.FromArgument } }
             )
             hit(
                 ResolverBenchmarkFeature.REFERENCE_TARGET_QUERY_VARIABLE,
                 targetCalls.any {
-                    operation.world.resolverRegistry.resolver(it.field).variables.values.any { it is VariableDefinition.FromField && it.providerFragment == ProviderFragment.QUERY }
+                    operation.world.resolverRegistry.resolver(
+                        it.field
+                    ).declaredDependencies.variables.values.any { it is VariableDefinition.FromField && it.providerFragment == ProviderFragment.QUERY }
                 }
             )
             hit(ResolverBenchmarkFeature.REFERENCE_ENUM, reference.reference.type is ViaductSchema.Enum)

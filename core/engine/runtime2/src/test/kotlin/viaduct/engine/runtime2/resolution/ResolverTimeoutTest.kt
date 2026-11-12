@@ -115,8 +115,8 @@ class ResolverTimeoutTest {
         val selfDependent = FieldValueResolver.of(
             field = second,
             fragmentTemplates = ResolverFragmentTemplates(
-                objectFragmentTemplate = world.resolverRegistry.resolver(first).objectFragment.toCanonicalMaterializeSelectionForest(),
-                queryFragmentTemplate = world.resolverRegistry.resolver(second).queryFragment.toCanonicalMaterializeSelectionForest(),
+                objectFragmentTemplate = world.resolverRegistry.resolver(first).declaredDependencies.objectFragment.toCanonicalMaterializeSelectionForest(),
+                queryFragmentTemplate = world.resolverRegistry.resolver(second).declaredDependencies.queryFragment.toCanonicalMaterializeSelectionForest(),
             ),
             queryType = world.schema.requireQueryTypeDef(),
             function = { _, _, _, _, _ -> 2 },

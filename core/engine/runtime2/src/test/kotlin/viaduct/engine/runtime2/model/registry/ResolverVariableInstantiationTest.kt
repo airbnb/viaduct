@@ -63,13 +63,13 @@ class ResolverVariableInstantiationTest {
         val resolver = world.resolverRegistry.resolver(result)
         val occurrence = ResolverOccurrenceId.at(world.schema.testRoot(), listOf(ObjectEngineResult.GroundKey.of(result, mapOf("seed" to 3, "other" to 3))))
         val materializations = listOf(
-            resolver.instantiateObjectMaterializationSelections(occurrence),
-            resolver.instantiateQueryMaterializationSelections(occurrence),
+            resolver.declaredDependencies.instantiateObjectMaterializationSelections(occurrence),
+            resolver.declaredDependencies.instantiateQueryMaterializationSelections(occurrence),
         )
-        assertEquals(result.containingDef, resolver.objectFragment.type)
-        assertEquals(world.schema.requireQueryTypeDef(), resolver.queryFragment.type)
+        assertEquals(result.containingDef, resolver.declaredDependencies.objectFragment.type)
+        assertEquals(world.schema.requireQueryTypeDef(), resolver.declaredDependencies.queryFragment.type)
 
-        listOf(resolver.objectFragment, resolver.queryFragment).zip(materializations).forEach { (demand, materialization) ->
+        listOf(resolver.declaredDependencies.objectFragment, resolver.declaredDependencies.queryFragment).zip(materializations).forEach { (demand, materialization) ->
             assertEquals(4, demand.size)
             assertEquals(
                 setOf(3, Arguments.Variable.of(result, "seed"), Arguments.Variable.of(result, "other")),
@@ -100,15 +100,15 @@ class ResolverVariableInstantiationTest {
             function = { _, _, _, _, _ -> null },
         )
         val occurrence = ResolverOccurrenceId.at(schemas.loweredSchema.testRoot(), listOf(ObjectEngineResult.GroundKey.of(field, mapOf("flag" to false))))
-        val fragments = resolver.instantiateFragments(occurrence)
+        val fragments = resolver.declaredDependencies.instantiateFragments(occurrence)
         listOf(fragments.objectFragment, fragments.queryFragment).forEach { fragment ->
             assertEquals(InclusionCondition.Always, fragment.constructionSelections.single().inclusionCondition)
             assertTrue(fragment.constructionSelections.usedVariables().isEmpty())
             assertEquals(variable.instantiate(occurrence), fragment.variableDefinitions.single().variable)
         }
         listOf(
-            resolver.instantiateObjectMaterializationSelections(occurrence),
-            resolver.instantiateQueryMaterializationSelections(occurrence),
+            resolver.declaredDependencies.instantiateObjectMaterializationSelections(occurrence),
+            resolver.declaredDependencies.instantiateQueryMaterializationSelections(occurrence),
         ).forEach { materialization ->
             assertEquals(2, materialization.size)
             val selections = mutableListOf<MaterializeSelection>()
@@ -169,11 +169,11 @@ class ResolverVariableInstantiationTest {
 
         val root = testWorld.schema.testRoot()
         val firstFragment =
-            resolver.instantiateFragmentsAt(root, firstPath).objectFragment.constructionSelections
+            resolver.declaredDependencies.instantiateFragmentsAt(root, firstPath).objectFragment.constructionSelections
         val equalFirstFragment =
-            resolver.instantiateFragmentsAt(root, firstPath).objectFragment.constructionSelections
+            resolver.declaredDependencies.instantiateFragmentsAt(root, firstPath).objectFragment.constructionSelections
         val otherFragment =
-            resolver.instantiateFragmentsAt(root, secondPath).objectFragment.constructionSelections
+            resolver.declaredDependencies.instantiateFragmentsAt(root, secondPath).objectFragment.constructionSelections
         val firstOccurrence = ResolverOccurrenceId.at(root, firstPath)
 
         assertTrue(
@@ -259,11 +259,11 @@ class ResolverVariableInstantiationTest {
         val sitePath = listOf(resultKey)
         val root = testWorld.schema.testRoot()
         val resolverOccurrenceId = ResolverOccurrenceId.at(root, sitePath)
-        val objectFragment = resolver.instantiateFragments(resolverOccurrenceId).objectFragment
+        val objectFragment = resolver.declaredDependencies.instantiateFragments(resolverOccurrenceId).objectFragment
         assertEquals(
             setOf("source", "consume"),
             resolver
-                .instantiateObjectMaterializationSelections(resolverOccurrenceId)
+                .declaredDependencies.instantiateObjectMaterializationSelections(resolverOccurrenceId)
                 .collect(testWorld.schema.requireQueryTypeDef())
                 .responseKeys(),
         )
@@ -282,7 +282,7 @@ class ResolverVariableInstantiationTest {
             setOf(seed, definition.variable),
             objectFragment.constructionSelections.instantiatedVariables(),
         )
-        val reconstructed = resolver.instantiatedFieldPathVariableDefinitions(resolverOccurrenceId)
+        val reconstructed = resolver.declaredDependencies.instantiatedFieldPathVariableDefinitions(resolverOccurrenceId)
             .single { it.providerFragment == ProviderFragment.OBJECT }
         assertEquals(definition.variable, reconstructed.variable)
         assertEquals(definition.path.map { it.key }, reconstructed.path.map { it.key })
@@ -333,10 +333,10 @@ class ResolverVariableInstantiationTest {
             )
 
         val resolver = testWorld.resolverRegistry.resolver(result)
-        val fragment = resolver.instantiateFragmentsAt(testWorld.schema.testRoot(), path).objectFragment
+        val fragment = resolver.declaredDependencies.instantiateFragmentsAt(testWorld.schema.testRoot(), path).objectFragment
         val selection =
             resolver
-                .instantiateObjectMaterializationSelections(fragment.resolverOccurrenceId)
+                .declaredDependencies.instantiateObjectMaterializationSelections(fragment.resolverOccurrenceId)
                 .collect(testWorld.schema.requireQueryTypeDef())["renamed"]
         val variables = selection.key.arguments.instantiatedVariables()
 

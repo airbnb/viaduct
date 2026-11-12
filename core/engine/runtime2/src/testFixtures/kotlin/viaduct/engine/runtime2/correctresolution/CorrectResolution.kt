@@ -20,7 +20,7 @@ import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
  * This judgment is purposefully permissive: as long as the [ObjectEngineResult] conforms
  * to our world assumptions (e.g., regarding schema conformance and resolver conformance),
  * this predicate allows the [ObjectEngineResult] to contain more values than the input
- * [selections] and implicated [viaduct.engine.runtime2.model.registry.FieldValueResolver.objectFragment]s require. Other
+ * [selections] and implicated [viaduct.engine.runtime2.model.registry.FieldResolverDependencies.objectFragment]s require. Other
  * predicates define various degrees of minimality.
  * Agreement with a canonical oracle on the client-selected projection remains a separate proof
  * obligation; whole-result equality would additionally constrain the permitted extra fields.

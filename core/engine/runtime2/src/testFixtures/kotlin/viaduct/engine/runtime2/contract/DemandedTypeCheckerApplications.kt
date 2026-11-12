@@ -139,7 +139,7 @@ private class TypeCheckerDemandOracle(
             is ObjectEngineResult -> {
                 val owner = requireNotNull(addresses[value])
                 if (checkObject) {
-                    registry.typeChecker(value.type)?.takeIf { it.isApplicable(owner.root, owner.path) }?.let { checker ->
+                    registry.typeChecker(value.type)?.takeIf { it.isApplicable(owner.root, owner.path, executionContext = null) }?.let { checker ->
                         val observation = CheckerInvocationObservation(CheckerKind.TYPE, owner.root, owner.path, null, checker.target)
                         if (expected.add(observation)) {
                             demandCheckerInputs(owner, checker.target, owner.path, checker.instantiateFragmentsAt(owner.root, owner.path))
@@ -181,7 +181,7 @@ private class TypeCheckerDemandOracle(
         val id = ResolverOccurrenceId.at(owner.root, path)
         if (!resolverInputs.add(id)) return
         val key = path.last() as ObjectEngineResult.ObjectKey
-        val fragments = registry.resolver(key.field).instantiateFragmentsAt(owner.root, path)
+        val fragments = registry.resolver(key.field).declaredDependencies.instantiateFragmentsAt(owner.root, path)
         demand(owner.result, fragments.objectFragment.constructionSelections, checked = true, checkObject = false)
         if (!fragments.queryFragment.constructionSelections.isEmpty()) {
             val query = resolutionObserver.queryFragmentResults(id).single()

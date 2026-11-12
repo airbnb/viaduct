@@ -1,6 +1,7 @@
 package viaduct.engine.runtime2.resolution
 
 import java.util.concurrent.ConcurrentHashMap
+import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.runtime2.model.InclusionCondition
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.Selection
@@ -22,7 +23,10 @@ import viaduct.engine.runtime2.resolution.framework.plus
 import viaduct.graphql.schema.ViaductSchema
 
 /** Producer-facing values for ordinary checked selections. */
-internal fun SelectionForest.successorDemand(world: Assumptions): SelectionForest = Demand.checked(this).successorDemandFromConstructionDemand(world)
+internal fun SelectionForest.successorDemand(
+    world: Assumptions,
+    engineExecutionContext: EngineExecutionContext?,
+): SelectionForest = Demand.checked(this).successorDemandFromConstructionDemand(world, engineExecutionContext = engineExecutionContext)
 
 /**
  * Retains checked/unchecked provenance while expanding fixed inputs, as in grounded successor demand.
@@ -32,8 +36,10 @@ internal fun SelectionForest.successorDemand(world: Assumptions): SelectionFores
 internal fun Demand<SelectionForest>.successorDemandFromConstructionDemand(
     world: Assumptions,
     possibleRootTypes: Set<ViaductSchema.Object> = emptySet(),
+    engineExecutionContext: EngineExecutionContext?,
+    operationDemandCache: OperationDemandCache? = null,
 ): SelectionForest {
-    val context = FusedSuccessorDemandContext(world)
+    val context = FusedSuccessorDemandContext(world, engineExecutionContext, operationDemandCache)
     val checkedResult = checked.fusedSuccessorDemandWithChecks(context, checked = true)
     val uncheckedResult = unchecked.fusedSuccessorDemandWithChecks(context, checked = false)
     val typeCheckerDemand = if (typeCheckCondition !== InclusionCondition.Never) {
@@ -62,6 +68,72 @@ internal interface FixedSuccessorDemandCacheOwner {
 internal class FixedSuccessorDemandCache {
     private val demands = ConcurrentHashMap<SuccessorBoundary, SelectionForest>()
 
+    private var inputs: Map<SuccessorBoundary, PreparedSuccessorInputs> = emptyMap()
+
+    internal fun prepare(
+        schema: ViaductSchema,
+        registry: ResolverRegistry
+    ) {
+        val prepared = mutableMapOf<SuccessorBoundary, PreparedSuccessorInputs>()
+        schema.types.values.filterIsInstance<ViaductSchema.Object>().forEach { type ->
+            type.fields.forEach { field ->
+                if (field in registry) {
+                    val resolver = registry.resolver(field)
+                    val variants = resolver.dependencyAlternatives.associateWith { it.objectFragment.withoutInclusionConditions() }
+                    prepared[SuccessorBoundary(field = field, kind = SuccessorBoundaryKind.RESOLVER)] = PreparedSuccessorInputs(
+                        variants.values,
+                        { context -> variants.getValue(resolver.dependenciesFor(context)) },
+                        resolver.dependencyAlternatives.size == 1 || variants.values.all { it.isEmpty() },
+                    )
+                }
+                registry.fieldChecker(field)?.let { checker ->
+                    val fragment = checker.objectFragment.withoutInclusionConditions()
+                    prepared[SuccessorBoundary(field = field, kind = SuccessorBoundaryKind.CHECKER)] = PreparedSuccessorInputs(listOf(fragment), { fragment })
+                }
+            }
+            registry.typeChecker(type)?.let { checker ->
+                val fragment = checker.objectFragment.withoutInclusionConditions()
+                prepared[SuccessorBoundary(type = type, kind = SuccessorBoundaryKind.TYPE_CHECKER)] = PreparedSuccessorInputs(listOf(fragment), { fragment })
+            }
+        }
+
+        fun references(
+            forest: SelectionForest,
+            checked: Boolean
+        ): Set<SuccessorBoundary> =
+            buildSet {
+                forest.forEach { selection ->
+                    selection.possibleTypes.forEach { type ->
+                        val field = selection.objectKey(type).field
+                        add(SuccessorBoundary(field = field, kind = SuccessorBoundaryKind.RESOLVER))
+                        if (checked) {
+                            add(SuccessorBoundary(field = field, kind = SuccessorBoundaryKind.CHECKER))
+                            (field.type.baseTypeDef as? ViaductSchema.CompositeTypeDef)?.possibleObjectTypes.orEmpty().forEach { output ->
+                                add(SuccessorBoundary(type = output, kind = SuccessorBoundaryKind.TYPE_CHECKER))
+                            }
+                        }
+                    }
+                    addAll(references(selection.subselections, checked))
+                }
+            }
+        val dependencies = prepared.mapValues { (boundary, input) ->
+            input.fragments.flatMap { references(it, boundary.kind == SuccessorBoundaryKind.RESOLVER) }.toSet()
+        }
+        // A cached expansion must be independent of every downstream input choice.
+        do {
+            var changed = false
+            prepared.forEach { (boundary, input) ->
+                if (input.selectionIndependent && dependencies.getValue(boundary).any { prepared[it]?.selectionIndependent == false }) {
+                    input.selectionIndependent = false
+                    changed = true
+                }
+            }
+        } while (changed)
+        inputs = prepared
+    }
+
+    internal fun preparedInput(boundary: SuccessorBoundary): PreparedSuccessorInputs? = inputs[boundary]
+
     internal fun get(boundary: SuccessorBoundary): SelectionForest? = demands[boundary]
 
     internal fun put(
@@ -72,11 +144,19 @@ internal class FixedSuccessorDemandCache {
     }
 }
 
+internal class PreparedSuccessorInputs(
+    val fragments: Collection<SelectionForest>,
+    val select: (EngineExecutionContext?) -> SelectionForest,
+    var selectionIndependent: Boolean = true,
+)
+
 private class FusedSuccessorDemandContext(
     val world: Assumptions,
+    engineExecutionContext: EngineExecutionContext?,
+    operationDemandCache: OperationDemandCache?,
 ) {
-    val expansionContext = SuccessorDemandContext(world.resolverRegistry, world.parentFieldRelations)
-    val parentApplication = ParentDemandApplication(world)
+    val expansionContext = SuccessorDemandContext(world.resolverRegistry, world.parentFieldRelations, engineExecutionContext, operationDemandCache)
+    val parentApplication = ParentDemandApplication(world, engineExecutionContext, operationDemandCache = operationDemandCache)
     val hasParentRelations = world.parentFieldRelations.isNotEmpty()
 }
 
@@ -84,20 +164,33 @@ private class FusedSuccessorDemandContext(
 private class SuccessorDemandContext(
     val registry: ResolverRegistry,
     val parentFieldRelations: Map<ViaductSchema.ObjectField, ViaductSchema.ObjectField>,
+    val engineExecutionContext: EngineExecutionContext?,
+    operationDemandCache: OperationDemandCache? = null,
 ) {
     val hasParentRelations = parentFieldRelations.isNotEmpty()
-    val expansionState = SuccessorExpansionState((registry as? FixedSuccessorDemandCacheOwner)?.fixedSuccessorDemandCache)
+    val expansionState = SuccessorExpansionState(
+        (registry as? FixedSuccessorDemandCacheOwner)?.fixedSuccessorDemandCache,
+        operationDemandCache,
+    )
 }
 
 /** Memoizes only expansions independent of the current recursion stack. */
 private class SuccessorExpansionState(
     private val sharedCache: FixedSuccessorDemandCache?,
+    private val operationCache: OperationDemandCache?,
 ) {
     private val expandingBoundaries = mutableSetOf<SuccessorBoundary>()
     private val fixedInputDemand = mutableMapOf<SuccessorBoundary, SelectionForest>()
     private var cycleCuts = 0
 
-    fun cachedInputDemand(boundary: SuccessorBoundary): SelectionForest? = sharedCache?.get(boundary) ?: fixedInputDemand[boundary]
+    fun preparedInput(boundary: SuccessorBoundary): PreparedSuccessorInputs? = sharedCache?.preparedInput(boundary)
+
+    fun cachedInputDemand(boundary: SuccessorBoundary): SelectionForest? =
+        if (preparedInput(boundary)?.selectionIndependent != false) {
+            sharedCache?.get(boundary) ?: fixedInputDemand[boundary]
+        } else {
+            operationCache?.successorDemands?.get(boundary) ?: fixedInputDemand[boundary]
+        }
 
     fun beginExpansion(boundary: SuccessorBoundary): Int? {
         if (expandingBoundaries.add(boundary)) return cycleCuts
@@ -115,7 +208,11 @@ private class SuccessorExpansionState(
         demand: SelectionForest
     ) {
         if (cycleCuts == cutsBefore) {
-            if (sharedCache != null) sharedCache.put(boundary, demand) else fixedInputDemand[boundary] = demand
+            when {
+                sharedCache != null && preparedInput(boundary)?.selectionIndependent != false -> sharedCache.put(boundary, demand)
+                operationCache != null && preparedInput(boundary)?.selectionIndependent == false -> operationCache.successorDemands.putIfAbsent(boundary, demand)
+                else -> fixedInputDemand[boundary] = demand
+            }
         }
     }
 }
@@ -197,9 +294,9 @@ private fun resolveParentTransition(
     selection.possibleTypes.forEach { type ->
         val transition = context.world.resolverRegistry.parentSelectionDemand(type)[selection.key.field.name] ?: return@forEach
         anyTransition = true
-        val typeInputs = if (checked && selection.inclusionCondition !== InclusionCondition.Never) transition.typeCheckers else PreparedParentDemand.EMPTY
+        val typeInputs = if (checked && selection.inclusionCondition !== InclusionCondition.Never) context.parentApplication.typeInputs(transition) else PreparedParentDemand.EMPTY
         val nested = context.parentApplication.combine(nestedParentDemand, typeInputs)
-        val fixed = if (checked) transition.checked else transition.unchecked
+        val fixed = context.parentApplication.fixedInputs(transition, checked)
         if (nested !== PreparedParentDemand.EMPTY || fixed !== PreparedParentDemand.EMPTY) {
             val concrete = Selection.of(selection.objectKey(type), setOf(type), selection.subselections, selection.inclusionCondition)
             combinedParentResult = context.parentApplication.combine(combinedParentResult, context.parentApplication.apply(concrete, checked, nested, fixed))
@@ -329,14 +426,15 @@ private fun SuccessorBoundary.fixedInputDemand(context: SuccessorDemandContext):
     context.expansionState.cachedInputDemand(this)?.let { return it }
     val cutsBefore = context.expansionState.beginExpansion(this) ?: return selectionForestOf()
     val result = try {
-        val fragment = when (kind) {
+        val prepared = context.expansionState.preparedInput(this)
+        val fragment = prepared?.select?.invoke(context.engineExecutionContext) ?: when (kind) {
             SuccessorBoundaryKind.RESOLVER ->
-                if (requireNotNull(field) in context.registry) context.registry.resolver(field).objectFragment else null
+                if (requireNotNull(field) in context.registry) context.registry.resolver(field).dependenciesFor(context.engineExecutionContext).objectFragment else null
             SuccessorBoundaryKind.CHECKER -> context.registry.fieldChecker(requireNotNull(field))?.objectFragment
             SuccessorBoundaryKind.TYPE_CHECKER -> context.registry.typeChecker(requireNotNull(type))?.objectFragment
         }
         // Descendant occurrence bindings do not exist while choosing a producer's passive output.
-        fragment?.withoutInclusionConditions()?.successorDemandWithChecks(
+        (if (prepared == null) fragment?.withoutInclusionConditions() else fragment)?.successorDemandWithChecks(
             context,
             checked = kind == SuccessorBoundaryKind.RESOLVER,
             producerSuppliableOnly = true,

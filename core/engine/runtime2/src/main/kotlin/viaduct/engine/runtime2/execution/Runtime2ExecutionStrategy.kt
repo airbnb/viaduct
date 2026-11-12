@@ -49,7 +49,6 @@ class Runtime2ExecutionStrategy(
     private val engineExecutionContextFactory: (ExecutionContext) -> EngineExecutionContext? = { null },
     dataFetcherExceptionHandler: DataFetcherExceptionHandler =
         SimpleDataFetcherExceptionHandler(),
-    private val worldForExecution: ((ExecutionContext) -> Assumptions)? = null,
 ) : AsyncExecutionStrategy(dataFetcherExceptionHandler) {
     private val resolverExceptionHandler = dataFetcherExceptionHandler
 
@@ -57,10 +56,9 @@ class Runtime2ExecutionStrategy(
         executionContext: ExecutionContext,
         parameters: ExecutionStrategyParameters,
     ): CompletableFuture<ExecutionResult> {
-        val executionWorld = worldForExecution?.invoke(executionContext) ?: world
         // Query Planniing: Convert operation to be executed into a [SelectionForest]
         val selections =
-            executionWorld.selectionsFrom(
+            world.selectionsFrom(
                 sourceSchema = sourceSchema,
                 operation = executionContext.operationDefinition,
                 variables = executionContext.coercedVariables,
@@ -94,7 +92,7 @@ class Runtime2ExecutionStrategy(
         val resolution =
             try {
                 SharedOperationContext.create(
-                    executionWorld,
+                    world,
                     engineExecutionContext = engineExecutionContextFactory(executionContext),
                     resolutionObserver = executionContext.graphQLContext.getOrDefault<ResolutionObserver>(
                         ResolutionObserver::class.java,

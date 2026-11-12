@@ -203,15 +203,15 @@ class ParentConstructionDemandTest : ResolutionDispatcherResource {
         }
         val world = Assumptions.of(fixture.schema, preparedOnly)
         val unrelated = fixture.schemas.fragmentFrom("fragment F on Query { tree { next { next { value } } } }").subselections
-        assertTrue(Demand.checked(unrelated).liftPrecomputedParentConstructionDemand(world).values.isEmpty())
+        assertTrue(Demand.checked(unrelated).liftPrecomputedParentConstructionDemand(world, engineExecutionContext = null).values.isEmpty())
         assertEquals(listOf(query), visitedTypes)
 
         for (field in listOf("plain", "derived")) {
             val input = fixture.schemas.fragmentFrom("fragment F on Query { root { child { $field } } }").subselections
             for (checked in listOf(false, true)) {
                 val demand = if (checked) Demand.checked(input) else Demand.unchecked(input)
-                val actual = demand.liftPrecomputedParentConstructionDemand(world)
-                assertSameDemand(demand.liftDynamicParentDemand(fixture.assumptions), actual)
+                val actual = demand.liftPrecomputedParentConstructionDemand(world, engineExecutionContext = null)
+                assertSameDemand(demand.liftDynamicParentDemand(fixture.assumptions, engineExecutionContext = null), actual)
                 assertEquals(field == "plain", actual.values.isEmpty())
             }
         }
@@ -223,9 +223,9 @@ class ParentConstructionDemandTest : ResolutionDispatcherResource {
         val registry = fixture.resolverRegistry
         val result = fixture.schema.requireObjectField("Child", "result")
         val parent = fixture.schema.requireObjectField("Child", "parent")
-        val template = registry.resolver(result).objectParentDemand
+        val template = registry.resolver(result).declaredDependencies.objectParentDemand
         assertTrue(template.usesParent)
-        assertFalse(registry.resolver(result).queryParentDemand.usesParent)
+        assertFalse(registry.resolver(result).declaredDependencies.queryParentDemand.usesParent)
         val summary = template.summary
         assertTrue(summary.localDemand.values.isEmpty())
         assertEquals(setOf(parent), summary.requests.keys)
@@ -234,17 +234,17 @@ class ParentConstructionDemandTest : ResolutionDispatcherResource {
 
         val consumer = fixture.schema.requireObjectField("Query", "consumer")
         val consumerResolver = registry.resolver(consumer)
-        assertFalse(consumerResolver.objectParentDemand.usesParent)
-        assertTrue(consumerResolver.objectParentDemand.mayInduceParentDemand)
-        assertFalse(consumerResolver.queryParentDemand.mayInduceParentDemand)
-        val static = requireNotNull(requireNotNull(registry.precomputedConstructionDemand(consumer)).queryRootDemand)
+        assertFalse(consumerResolver.declaredDependencies.objectParentDemand.usesParent)
+        assertTrue(consumerResolver.declaredDependencies.objectParentDemand.mayInduceParentDemand)
+        assertFalse(consumerResolver.declaredDependencies.queryParentDemand.mayInduceParentDemand)
+        val static = requireNotNull(requireNotNull(registry.precomputedConstructionDemand(consumer, context = null)).queryRootDemand)
         val expectedStatic = Demand.checked(static.reusableDemand).liftParentConstructionDemand(fixture.assumptions)
         assertSameDemand(expectedStatic, static.reusableParentDemand.parentDemand())
         parentSummaryInputs(fixture).forEach { input ->
             for (checked in listOf(false, true)) {
                 val demand = if (checked) Demand.checked(input) else Demand.unchecked(input)
                 val expected = demand.liftParentConstructionDemand(fixture.assumptions)
-                val actual = demand.liftPrecomputedParentConstructionDemand(fixture.assumptions)
+                val actual = demand.liftPrecomputedParentConstructionDemand(fixture.assumptions, engineExecutionContext = null)
                 assertSameDemand(expected, actual)
             }
         }
@@ -254,7 +254,7 @@ class ParentConstructionDemandTest : ResolutionDispatcherResource {
     fun `parent summaries are immutable across concurrent worlds and incoming provenance`() {
         val fixture = parentSummaryFixture()
         val result = fixture.schema.requireObjectField("Child", "result")
-        val template = fixture.resolverRegistry.resolver(result).objectParentDemand
+        val template = fixture.resolverRegistry.resolver(result).declaredDependencies.objectParentDemand
         val demands = parentSummaryInputs(fixture).flatMap { listOf(Demand.checked(it), Demand.unchecked(it)) }
         val expected = demands.map { it.liftParentConstructionDemand(fixture.assumptions) }
         val executor = Executors.newFixedThreadPool(4)
@@ -266,8 +266,8 @@ class ParentConstructionDemandTest : ResolutionDispatcherResource {
                     repeat(24) { iteration ->
                         val index = (iteration + worker) % demands.size
                         val world = fixture.newAssumptions()
-                        assertSame(template, world.resolverRegistry.resolver(result).objectParentDemand)
-                        assertSameDemand(expected[index], demands[index].liftPrecomputedParentConstructionDemand(world))
+                        assertSame(template, world.resolverRegistry.resolver(result).declaredDependencies.objectParentDemand)
+                        assertSameDemand(expected[index], demands[index].liftPrecomputedParentConstructionDemand(world, engineExecutionContext = null))
                     }
                 }
             }
@@ -297,14 +297,14 @@ class ParentConstructionDemandTest : ResolutionDispatcherResource {
         )
         val objectConsumer = fixture.resolverRegistry.resolver(fixture.schema.requireObjectField("Query", "objectConsumer"))
         val queryConsumer = fixture.resolverRegistry.resolver(fixture.schema.requireObjectField("Query", "queryConsumer"))
-        assertTrue(objectConsumer.objectParentDemand.usesParent)
-        assertFalse(objectConsumer.queryParentDemand.mayInduceParentDemand)
-        assertFalse(queryConsumer.objectParentDemand.mayInduceParentDemand)
-        assertTrue(queryConsumer.queryParentDemand.usesParent)
-        val lifted = queryConsumer.queryParentDemand.parentDemand()
+        assertTrue(objectConsumer.declaredDependencies.objectParentDemand.usesParent)
+        assertFalse(objectConsumer.declaredDependencies.queryParentDemand.mayInduceParentDemand)
+        assertFalse(queryConsumer.declaredDependencies.objectParentDemand.mayInduceParentDemand)
+        assertTrue(queryConsumer.declaredDependencies.queryParentDemand.usesParent)
+        val lifted = queryConsumer.declaredDependencies.queryParentDemand.parentDemand()
         val root = fixture.schema.requireObjectField("Root", "seed").containingDef
         assertEquals(setOf("seed"), lifted.checked.single().subselections.merge(root).fieldNames())
-        assertSameDemand(objectConsumer.objectParentDemand.parentDemand(), lifted)
+        assertSameDemand(objectConsumer.declaredDependencies.objectParentDemand.parentDemand(), lifted)
     }
 
     @Test
@@ -1007,7 +1007,7 @@ class ParentConstructionDemandTest : ResolutionDispatcherResource {
     }
 
     private fun Demand<SelectionForest>.liftParentConstructionDemand(world: Assumptions): Demand<SelectionForest> {
-        val expected = liftDynamicParentDemand(world)
+        val expected = liftDynamicParentDemand(world, engineExecutionContext = null)
         val compiler = ParentConstructionDemandCompiler(world)
         val checkedTemplate = compiler.compile(checked, checked = true)
         val uncheckedTemplate = compiler.compile(unchecked, checked = false)
@@ -1015,13 +1015,13 @@ class ParentConstructionDemandTest : ResolutionDispatcherResource {
         val actual = ParentDemandNormalizer().combine(checkedTemplate.parentDemand(), uncheckedTemplate.parentDemand())
         assertSameDemand(expected, actual)
         if (!checked.hasParentSelections() && !unchecked.hasParentSelections()) {
-            assertSameDemand(expected, liftPrecomputedParentConstructionDemand(world))
+            assertSameDemand(expected, liftPrecomputedParentConstructionDemand(world, engineExecutionContext = null))
         }
         return expected
     }
 
     private fun SelectionForest.liftParentConstructionDemand(world: Assumptions): SelectionForest {
-        val expected = liftDynamicParentDemand(world)
+        val expected = liftDynamicParentDemand(world, engineExecutionContext = null)
         val actual = Demand.checked(this).liftParentConstructionDemand(world)
         assertEquals(expected.shape(), actual.checked.shape())
         return expected
@@ -1058,7 +1058,7 @@ class ParentConstructionDemandTest : ResolutionDispatcherResource {
 
     private fun parentSummaryInputs(fixture: TestWorld): List<SelectionForest> {
         val consumer = fixture.schema.requireObjectField("Query", "consumer")
-        val static = requireNotNull(requireNotNull(fixture.resolverRegistry.precomputedConstructionDemand(consumer)).queryRootDemand).reusableDemand
+        val static = requireNotNull(requireNotNull(fixture.resolverRegistry.precomputedConstructionDemand(consumer, context = null)).queryRootDemand).reusableDemand
         val requested = fixture.schemas.fragmentFrom("fragment F on Query { grand { middle { child { result } } } }").subselections
         return listOf(static, requested, requested.guardedBy(InclusionCondition.Never))
     }

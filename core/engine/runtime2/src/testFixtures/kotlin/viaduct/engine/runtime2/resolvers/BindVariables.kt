@@ -26,9 +26,9 @@ fun Iterable<ObjectEngineResult.GroundKey>.bindResolverVariables(
     forEach { key ->
         val arguments = key.arguments as? Arguments.Resolved ?: return@forEach
         val resolver = operation.world.resolverRegistry.resolver(key.field)
-        val provider = resolver.variablesProvider ?: return@forEach
+        val provider = resolver.declaredDependencies.variablesProvider ?: return@forEach
         val definitions =
-            resolver.instantiatedVariableDefinitions(ResolverOccurrenceId.at(root, path + key))
+            resolver.declaredDependencies.instantiatedVariableDefinitions(ResolverOccurrenceId.at(root, path + key))
                 .filter { it.definition == VariableDefinition.FromProvider }
         definitions.forEach { operation.variableBindings.declareBinding(requireNotNull(it.variable.instanceId)) }
         val expectedNames = definitions.mapTo(linkedSetOf()) { it.variable.variableName }
@@ -80,7 +80,7 @@ fun Iterable<ObjectEngineResult.GroundKey>.bindFromArguments(
 
         operation.world.resolverRegistry
             .resolver(key.field)
-            .variables
+            .declaredDependencies.variables
             .forEach { (variable, definition) ->
                 if (definition is VariableDefinition.FromArgument) {
                     val instantiated =

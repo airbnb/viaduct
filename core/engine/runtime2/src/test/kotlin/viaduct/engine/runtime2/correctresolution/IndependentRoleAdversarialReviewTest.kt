@@ -99,7 +99,7 @@ class IndependentRoleAdversarialReviewTest {
             val path = listOf(key)
             val owner = ResolverOccurrenceId.at(result, path)
             val resolver = world.assumptions.resolverRegistry.resolver(field)
-            val fragments = resolver.instantiateFragmentsAt(result, path)
+            val fragments = resolver.declaredDependencies.instantiateFragmentsAt(result, path)
             val queryResult = DepthFirstReactor(
                 operation = operation,
                 complete = { it },
@@ -109,7 +109,7 @@ class IndependentRoleAdversarialReviewTest {
             val value = runBlocking {
                 val queryValue = queryResult.materializeResult(
                     operation,
-                    resolver.instantiateQueryMaterializationSelections(owner),
+                    resolver.declaredDependencies.instantiateQueryMaterializationSelections(owner),
                     result.fieldResolverCycleTask(path),
                 )
                 val input = engineObjectDataOf(queryType)
@@ -122,7 +122,7 @@ class IndependentRoleAdversarialReviewTest {
                         inputSelections = materializeSelectionForestOf(),
                         queryValue = queryValue,
                         queryInputSelections =
-                            resolver.instantiateQueryMaterializationSelections(owner),
+                            resolver.declaredDependencies.instantiateQueryMaterializationSelections(owner),
                         arguments = arguments,
                         suppliedDemand = null,
                         resolverOccurrenceId = owner,

@@ -81,14 +81,14 @@ fun ObjectEngineResult.validateFromFieldBindings(
                             .queryFragmentResults(occurrenceId)
                             .single()
                 }
-            val sourceDefinition = resolver.variables.entries.single {
+            val sourceDefinition = resolver.declaredDependencies.variables.entries.single {
                 it.key.variableName == definition.variable.variableName
             }.value as VariableDefinition.FromField
             val materializationSelections = when (definition.providerFragment) {
                 ProviderFragment.OBJECT ->
-                    resolver.instantiateObjectMaterializationSelections(occurrenceId)
+                    resolver.declaredDependencies.instantiateObjectMaterializationSelections(occurrenceId)
                 ProviderFragment.QUERY ->
-                    resolver.instantiateQueryMaterializationSelections(occurrenceId)
+                    resolver.declaredDependencies.instantiateQueryMaterializationSelections(occurrenceId)
             }
             val expected = providerRoot.readCompletedProvider(
                 operation = operation,
@@ -122,7 +122,7 @@ fun ObjectEngineResult.validateFromFieldBindings(
 fun FieldValueResolver.fieldPathDefinitions(
     root: ObjectEngineResult,
     path: List<PathComponent>,
-): List<InstantiatedFieldPathDefinition> = instantiatedFieldPathVariableDefinitions(ResolverOccurrenceId.at(root, path))
+): List<InstantiatedFieldPathDefinition> = declaredDependencies.instantiatedFieldPathVariableDefinitions(ResolverOccurrenceId.at(root, path))
 
 private fun ObjectEngineResult.requestQueryRoots(operation: SharedOperationContext<*>): List<ObjectEngineResult> =
     buildList {

@@ -39,8 +39,18 @@ internal fun EngineObjectData.Sync.closePrecomputedConstructionDemand(
     val world = operation.world
     val queryType = world.schema.requireQueryTypeDef()
     val groundedInitialDemand = OrchestrationConstructionDemand(
-        objectRooted = (initialDemand.objectRooted + initialDemand.objectRooted.liftPrecomputedParentConstructionDemand(world)).applicableGroundSelections(operation, objectType),
-        queryRooted = (initialDemand.queryRooted + initialDemand.queryRooted.liftPrecomputedParentConstructionDemand(world)).applicableGroundSelections(operation, queryType),
+        objectRooted = (
+            initialDemand.objectRooted + initialDemand.objectRooted.liftPrecomputedParentConstructionDemand(
+                world,
+                engineExecutionContext = null
+            )
+        ).applicableGroundSelections(operation, objectType),
+        queryRooted = (
+            initialDemand.queryRooted + initialDemand.queryRooted.liftPrecomputedParentConstructionDemand(
+                world,
+                engineExecutionContext = null
+            )
+        ).applicableGroundSelections(operation, queryType),
     )
     val queryClosure = ClosureHelper(operation, queryOccurrence, queryType, groundedInitialDemand.queryRooted)
     val objectClosure = ClosureHelper(operation, objectOccurrence, objectType, groundedInitialDemand.objectRooted, queryClosure, ::requiresStandardResolution)
@@ -97,7 +107,7 @@ private class ClosureHelper(
     private val checkerConditions = linkedMapOf<ObjectEngineResult.GroundKey, InclusionCondition>()
     private val pendingCheckers = linkedMapOf<ObjectEngineResult.GroundKey, InclusionCondition>()
     private val boundCheckerKeys = linkedSetOf<ObjectEngineResult.GroundKey>()
-    private val typeChecker = if (queryClosure == null) null else registry.typeChecker(type)?.takeIf { it.isApplicable(occurrence.root, occurrence.path) }
+    private val typeChecker = if (queryClosure == null) null else registry.typeChecker(type)?.takeIf { it.isApplicable(occurrence.root, occurrence.path, executionContext = null) }
     private var expandedTypeChecker = false
     private var typeCheckDemanded = initialDemand.typeCheckDemanded
     private val expandedFields = linkedSetOf<ViaductSchema.ObjectField>()

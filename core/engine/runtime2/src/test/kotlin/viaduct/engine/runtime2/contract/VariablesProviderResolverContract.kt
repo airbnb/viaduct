@@ -295,7 +295,7 @@ interface VariablesProviderResolverContract : QueryFragmentVariablesResolverCont
             val definitions =
                 world.resolverRegistry
                     .resolver(resultField)
-                    .instantiatedVariableDefinitions(
+                    .declaredDependencies.instantiatedVariableDefinitions(
                         ResolverOccurrenceId.at(resolution.result, listOf(key)),
                     ).filter { definition ->
                         definition.definition == VariableDefinition.FromProvider

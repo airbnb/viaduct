@@ -53,7 +53,7 @@ class VariablesProviderBindingTest {
 
         listOf(key).bindResolverVariables(operation, root, emptyList())
 
-        val definition = fixture.resolverRegistry.resolver(key.field).instantiatedVariableDefinitions(ResolverOccurrenceId.at(root, listOf(key))).single()
+        val definition = fixture.resolverRegistry.resolver(key.field).declaredDependencies.instantiatedVariableDefinitions(ResolverOccurrenceId.at(root, listOf(key))).single()
         assertEquals(VariableBinding.Error, operation.variableBindings.getBinding(requireNotNull(definition.variable.instanceId)))
     }
 
@@ -82,7 +82,7 @@ class VariablesProviderBindingTest {
         val key = ObjectEngineResult.GroundKey.of(fixture.schema.requireObjectField("Query", "result"), emptyMap())
         val root = ObjectEngineResult.of(fixture.schema.requireQueryTypeDef(), mapOf(key to ErrorEngineResult.of(EngineErrorData.of())))
         val operation = SharedOperationContext.create(fixture.assumptions)
-        val definition = fixture.resolverRegistry.resolver(key.field).instantiatedVariableDefinitions(ResolverOccurrenceId.at(root, listOf(key))).single()
+        val definition = fixture.resolverRegistry.resolver(key.field).declaredDependencies.instantiatedVariableDefinitions(ResolverOccurrenceId.at(root, listOf(key))).single()
         operation.variableBindings.bindVariable(requireNotNull(definition.variable.instanceId), VariableBinding.Error)
 
         assertFalse(root.conformsToResolvers(operation))
@@ -132,7 +132,7 @@ class VariablesProviderBindingTest {
         )
         val operation = SharedOperationContext.create(fixture.assumptions, resolutionObserver = observer)
         fixture.resolverRegistry.resolver(target)
-            .instantiatedVariableDefinitions(ResolverOccurrenceId.at(invocationRoot, listOf(invocationKey)))
+            .declaredDependencies.instantiatedVariableDefinitions(ResolverOccurrenceId.at(invocationRoot, listOf(invocationKey)))
             .zip(providerBindings)
             .forEach { (definition, binding) ->
                 if (binding != null) operation.variableBindings.bindVariable(requireNotNull(definition.variable.instanceId), binding)

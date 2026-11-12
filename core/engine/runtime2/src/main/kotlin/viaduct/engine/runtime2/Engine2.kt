@@ -88,11 +88,10 @@ class Engine2(
     private val engineSelectionSetFactory = EngineSelectionSetFactoryImpl(fullSchema)
     private val runtime2DispatcherRegistry =
         dispatcherRegistry.instrumentForRuntime2(resolverInstrumentation)
-    private val resolverRegistries = resolverRegistryFactory.create(fullSchema, schemas, runtime2DispatcherRegistry, fieldSelectivityProvider)
-    private val bootstrapRegistry = resolverRegistries.forBootstrap()
+    private val resolverRegistry = resolverRegistryFactory.create(fullSchema, schemas, runtime2DispatcherRegistry, fieldSelectivityProvider)
     private val world = Assumptions.of(
         schemas.loweredSchema,
-        bootstrapRegistry,
+        resolverRegistry,
         usePrecomputedConstructionDemand = usePrecomputedConstructionDemand,
     )
     private val requestContextKey = RequestContextKey(this)
@@ -132,7 +131,6 @@ class Engine2(
                                 resolverCoroutineContext = coroutineContext,
                                 engineExecutionContextFactory = ::invocationContext,
                                 dataFetcherExceptionHandler = dataFetcherExceptionHandler,
-                                worldForExecution = ::worldForExecution,
                             ).execute(context, parameters).await()
                         }
                 },
@@ -151,19 +149,6 @@ class Engine2(
                     wrappedStrategy.execute(context, parameters).await()
                 }
             }
-        }
-    }
-
-    private fun worldForExecution(invocation: ExecutionContext): Assumptions {
-        val registry = resolverRegistries.forExecution(invocation)
-        return if (registry === bootstrapRegistry) {
-            world
-        } else {
-            Assumptions.of(
-                schemas.loweredSchema,
-                registry,
-                usePrecomputedConstructionDemand = world.usePrecomputedConstructionDemand,
-            )
         }
     }
 

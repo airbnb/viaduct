@@ -147,11 +147,11 @@ class ResolverTestDslTest {
         val fromSource = Arguments.Variable.of(field, "fromSource")
         val provided = Arguments.Variable.of(field, "provided")
 
-        assertEquals(setOf(seed, fromSource, provided), resolver.variables.keys)
-        assertIs<VariableDefinition.FromArgument>(resolver.variables.getValue(seed))
-        assertEquals(ProviderFragment.OBJECT, assertIs<VariableDefinition.FromField>(resolver.variables.getValue(fromSource)).providerFragment)
-        assertIs<VariableDefinition.FromProvider>(resolver.variables.getValue(provided))
-        assertEquals("Query", resolver.queryFragment.type.name)
+        assertEquals(setOf(seed, fromSource, provided), resolver.declaredDependencies.variables.keys)
+        assertIs<VariableDefinition.FromArgument>(resolver.declaredDependencies.variables.getValue(seed))
+        assertEquals(ProviderFragment.OBJECT, assertIs<VariableDefinition.FromField>(resolver.declaredDependencies.variables.getValue(fromSource)).providerFragment)
+        assertIs<VariableDefinition.FromProvider>(resolver.declaredDependencies.variables.getValue(provided))
+        assertEquals("Query", resolver.declaredDependencies.queryFragment.type.name)
     }
 
     @Test
@@ -250,10 +250,10 @@ class ResolverTestDslTest {
         val seed = Arguments.Variable.of(result, "seed")
         val fromSource = Arguments.Variable.of(result, "fromSource")
 
-        assertIs<VariableDefinition.FromArgument>(resolver.variables.getValue(seed))
+        assertIs<VariableDefinition.FromArgument>(resolver.declaredDependencies.variables.getValue(seed))
         assertEquals(
             ProviderFragment.OBJECT,
-            assertIs<VariableDefinition.FromField>(resolver.variables.getValue(fromSource)).providerFragment,
+            assertIs<VariableDefinition.FromField>(resolver.declaredDependencies.variables.getValue(fromSource)).providerFragment,
         )
     }
 
@@ -281,12 +281,12 @@ class ResolverTestDslTest {
         val resolver = world.resolverRegistry.resolver(result)
 
         assertIs<VariableDefinition.FromProvider>(
-            resolver.variables.getValue(Arguments.Variable.of(result, "provided")),
+            resolver.declaredDependencies.variables.getValue(Arguments.Variable.of(result, "provided")),
         )
         assertIs<VariableDefinition.FromProvider>(
-            resolver.variables.getValue(Arguments.Variable.of(result, "constant")),
+            resolver.declaredDependencies.variables.getValue(Arguments.Variable.of(result, "constant")),
         )
-        assertNotNull(resolver.variablesProvider)
+        assertNotNull(resolver.declaredDependencies.variablesProvider)
     }
 
     @Test

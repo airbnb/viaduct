@@ -12,6 +12,6 @@ fun FieldValueResolver.objectFragmentAt(
     root: ObjectEngineResult,
     path: List<PathComponent>,
 ): ObjectSelectionForest =
-    instantiateFragmentsAt(root, path)
+    declaredDependencies.instantiateFragmentsAt(root, path)
         .objectFragment
         .constructionSelections.applicableGroundSelections(operation, target.field.containingDef)

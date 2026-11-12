@@ -40,8 +40,8 @@ internal class MutationOrchestrationTask<P> private constructor(
             if (selection.subselections is MutationSelectionForest) {
                 namespace.target.getCell(key).value.claim()
             } else {
-                val resolver = operation.world.resolverRegistry.resolver(key.field)
-                require(resolver.objectFragment.isEmpty() && resolver.queryFragment.isEmpty()) {
+                val dependencies = operation.world.resolverRegistry.resolver(key.field).dependenciesFor(operation.engineExecutionContext)
+                require(dependencies.objectFragment.isEmpty() && dependencies.queryFragment.isEmpty()) {
                     "Mutation resolvers cannot declare object or Query fragments; use ctx.query()"
                 }
                 publications[key] = prepareField(this, namespace.occurrence, selection.publicationSelection(key))

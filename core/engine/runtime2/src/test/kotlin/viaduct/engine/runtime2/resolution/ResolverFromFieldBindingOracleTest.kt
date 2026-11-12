@@ -145,7 +145,7 @@ private fun bindingFixture(
     val resolver = world.resolverRegistry.resolver(resultField)
     val definitions =
         resolver
-            .instantiateFragmentsAt(result, listOf(resultKey))
+            .declaredDependencies.instantiateFragmentsAt(result, listOf(resultKey))
             .objectFragment
             .pathVariableDefinitions
     return BindingFixture(

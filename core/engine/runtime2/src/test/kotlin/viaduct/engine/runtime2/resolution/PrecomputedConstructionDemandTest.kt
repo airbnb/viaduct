@@ -126,7 +126,7 @@ class PrecomputedConstructionDemandTest : ResolutionDispatcherResource {
             """.trimIndent(),
         )
         val resultField = fixture.schema.requireObjectField("Query", "result")
-        val template = requireNotNull(fixture.resolverRegistry.precomputedConstructionDemand(resultField))
+        val template = requireNotNull(fixture.resolverRegistry.precomputedConstructionDemand(resultField, context = null))
         assertEquals(setOf("source", "fixed", "branch"), template.objectDemand.reusableDemand.keys().map { it.field.name }.toSet())
         val branch = template.objectDemand.reusableDemand.byKey().values.single { it.key.field.name == "branch" }
         assertEquals("one", branch.subselections.single().key.field.name)
@@ -141,6 +141,7 @@ class PrecomputedConstructionDemandTest : ResolutionDispatcherResource {
             OEROccurrence(root, emptyList(), root),
             OEROccurrence(query, emptyList(), query),
             OrchestrationConstructionDemand(Demand.checked(fixture.schemas.fragmentFrom("fragment F on Query { outer }").subselections), Demand.EMPTY),
+            engineExecutionContext = null,
         )
         val reads = closed.objectRooted.variableProviderReadsByResolverOccurrence.values.flatten()
         assertEquals(1, reads.size)
@@ -197,6 +198,7 @@ class PrecomputedConstructionDemandTest : ResolutionDispatcherResource {
                 OEROccurrence(root, emptyList(), root),
                 OEROccurrence(query, emptyList(), query),
                 OrchestrationConstructionDemand(Demand.checked(selections), Demand.EMPTY),
+                engineExecutionContext = null,
             )
             val middle = closed.queryRooted.fieldResolverOccurrences.values.filter { it.selection.key.field.name == "middle" }
             val base = closed.queryRooted.fieldResolverOccurrences.values.filter { it.selection.key.field.name == "base" }

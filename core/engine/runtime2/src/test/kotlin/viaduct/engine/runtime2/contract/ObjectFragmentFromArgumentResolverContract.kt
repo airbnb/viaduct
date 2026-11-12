@@ -78,7 +78,7 @@ interface ObjectFragmentFromArgumentResolverContract :
             val path = listOf(groundKey)
             val variableInstances =
                 resolver
-                    .instantiatedVariableDefinitions(
+                    .declaredDependencies.instantiatedVariableDefinitions(
                         ResolverOccurrenceId.at(resolved, path),
                     )
                     .map { definition -> definition.variable }

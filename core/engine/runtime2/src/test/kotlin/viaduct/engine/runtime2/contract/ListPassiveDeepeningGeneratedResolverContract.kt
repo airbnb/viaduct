@@ -78,7 +78,7 @@ private fun countListPassiveDeepening(
 
         operation.world.resolverRegistry
             .resolver(field)
-            .objectFragment
+            .declaredDependencies.objectFragment
             .merge(type)
             .instantiateBindings(operation)
             .byGroundKey()

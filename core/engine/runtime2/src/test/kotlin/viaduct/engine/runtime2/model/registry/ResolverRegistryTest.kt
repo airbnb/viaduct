@@ -1,4 +1,4 @@
-@file:Suppress("ForbiddenImport")
+@file:Suppress("DEPRECATION", "ForbiddenImport")
 
 package viaduct.engine.runtime2.model.registry
 
@@ -191,6 +191,103 @@ class ResolverRegistryTest {
         assertEquals(listOf("value"), projectedChild.getSelections().toList())
         assertEquals(2, projectedChild.get("value"))
     }
+
+    @Test
+    fun `definition function mapping preserves fragments variables and demand handling`(): Unit =
+        runBlocking {
+            val schemas = ViaductAndGJSchema.fromSDL("type Query { user: User source: String } type User { name: String age: Int }")
+            val schema = schemas.loweredSchema
+            val query = schema.requireQueryTypeDef()
+            val user = schema.requireType("User") as ViaductSchema.Object
+            val field = schema.requireObjectField("Query", "user")
+            val variable = Arguments.Variable.of(field, "flag")
+            val fragment = schemas.fragmentFrom("fragment Input on Query { source @include(if: ${'$'}flag) }", variableField = field)
+            val projectedDemand = schemas.fragmentFrom("fragment Demand on User { name }").subselections
+            val definition = fieldResolverOf(fragment, fragment) { _, _, _, _, _ ->
+                error("Original callback must not run")
+            }.withVariablesProvider(setOf("flag")) { mapOf("flag" to true) }
+
+            fun assemble(definition: FieldResolverDefinition): FieldValueResolver =
+                resolverRegistryOf(
+                    schema = schemas,
+                    nodeResolvers = emptyMap(),
+                    fieldResolvers = mapOf(
+                        field to definition,
+                        schema.requireObjectField("Query", "source") to fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ -> "source" },
+                    ),
+                    variableProviders = emptyMap(),
+                ).resolver(field)
+            val original = assemble(definition)
+            var calls = 0
+            val input = engineObjectDataOf(query)
+            val resolverContext = Any()
+            val arguments = Arguments.Resolved.of(field, emptyMap())
+            val demand = schemas.fragmentFrom("fragment Demand on User { age }").subselections
+            val replacement = assemble(
+                definition.mapFunction { _ ->
+                    { actualInput, queryValue, actualArguments, selections, additionalContext, context ->
+                        calls++
+                        assertSame(input, actualInput)
+                        assertSame(input, queryValue)
+                        assertSame(arguments, actualArguments)
+                        assertSame(projectedDemand, selections)
+                        assertSame(resolverContext, additionalContext)
+                        assertSame(ResolutionExecutionContext.Unsupported, context)
+                        engineObjectDataOf(user, mapOf("name" to "replacement", "age" to 37))
+                    }
+                }.mapDemand { projectedDemand }
+            )
+
+            assertSame(field, replacement.field)
+            assertEquals(original.target, replacement.target)
+            assertEquals(original.declaredDependencies.variables, replacement.declaredDependencies.variables)
+            assertSame(original.declaredDependencies.variablesProvider, replacement.declaredDependencies.variablesProvider)
+            assertEquals(original.declaredDependencies.objectFragment.keys(), replacement.declaredDependencies.objectFragment.keys())
+            assertEquals(original.declaredDependencies.queryFragment.keys(), replacement.declaredDependencies.queryFragment.keys())
+            val occurrence = ResolverOccurrenceId.at(schema.testRoot(), listOf(ObjectEngineResult.GroundKey.of(field, emptyMap())))
+            for (resolver in listOf(original, replacement)) {
+                assertEquals(setOf(variable.instantiate(occurrence)), resolver.declaredDependencies.instantiateObjectMaterializationSelections(occurrence).usedVariables())
+                assertEquals(setOf(variable.instantiate(occurrence)), resolver.declaredDependencies.instantiateQueryMaterializationSelections(occurrence).usedVariables())
+            }
+            val invoked = replacement(input, input, arguments, demand, ResolutionExecutionContext.Unsupported, resolverContext)
+            val result = assertIs<EngineObjectData.Sync>(invoked)
+            assertEquals(setOf("name", "age"), result.getSelections().toSet())
+            assertEquals("replacement", result.get("name"))
+            assertEquals(1, calls)
+        }
+
+    @Test
+    fun `definition function mapping preserves selective output behavior`(): Unit =
+        runBlocking {
+            val schemas = ViaductAndGJSchema.fromSDL("type Query { user: User } type User { name: String age: Int }")
+            val schema = schemas.loweredSchema
+            val query = schema.requireQueryTypeDef()
+            val field = schema.requireObjectField("Query", "user")
+            val definition = selectiveFieldResolverOf(schema.emptyFragmentOf("Query"), schema.emptyFragmentOf("Query")) {
+                    _, _, _, _, _, _ ->
+                error("Original callback must not run")
+            }
+            val value = engineObjectDataOf(schema.requireType("User") as ViaductSchema.Object, mapOf("name" to "Ada", "age" to 37))
+            val resolverContext = Any()
+            val replacement = resolverRegistryOf(
+                schema = schemas,
+                nodeResolvers = emptyMap(),
+                variableProviders = emptyMap(),
+                fieldResolvers = mapOf(
+                    field to definition.mapFunction { _ ->
+                        { _, _, _, _, additionalContext, _ ->
+                            assertSame(resolverContext, additionalContext)
+                            value
+                        }
+                    }
+                ),
+            ).resolver(field)
+            val input = engineObjectDataOf(query)
+            val arguments = Arguments.Resolved.of(field, emptyMap())
+            val demand = schemas.fragmentFrom("fragment Demand on User { name }").subselections
+
+            assertSame(value, replacement(input, input, arguments, demand, ResolutionExecutionContext.Unsupported, resolverContext))
+        }
 
     @Test
     fun `generated projection is chosen during construction and retains complete source values`(): Unit =
@@ -500,7 +597,7 @@ class ResolverRegistryTest {
         }
 
     @Test
-    fun `replacement preserves additional context and complete output`(): Unit =
+    fun `definition function wrapping preserves additional context and complete output`(): Unit =
         runBlocking {
             val schemas = ViaductAndGJSchema.fromSDL(
                 """
@@ -511,25 +608,22 @@ class ResolverRegistryTest {
             val schema = schemas.loweredSchema
             val query = schema.requireQueryTypeDef()
             val field = schema.requireObjectField("Query", "user")
-            val original = resolverRegistryOf(
+            val definition = fieldResolverOf(schema.emptyFragmentOf("Query"), schema.emptyFragmentOf("Query")) {
+                    _, _, _, additionalContext, _ ->
+                engineObjectDataOf(schema.requireType("User") as ViaductSchema.Object, mapOf("name" to additionalContext, "age" to 37))
+            }
+            val wrapped = resolverRegistryOf(
                 schema = schemas,
                 nodeResolvers = emptyMap(),
                 variableProviders = emptyMap(),
                 fieldResolvers = mapOf(
-                    field to fieldResolverOf(
-                        schema.emptyFragmentOf("Query"),
-                        schema.emptyFragmentOf("Query"),
-                    ) { _, _, _, additionalContext, _ ->
-                        engineObjectDataOf(
-                            schema.requireType("User") as ViaductSchema.Object,
-                            mapOf("name" to additionalContext, "age" to 37),
-                        )
-                    },
+                    field to definition.mapFunction { function ->
+                        { input, queryValue, arguments, demand, additionalContext, context ->
+                            function(input, queryValue, arguments, demand, "wrapped $additionalContext", context)
+                        }
+                    }
                 ),
             ).resolver(field)
-            val wrapped = original.withFunction { input, queryValue, arguments, demand, additionalContext, context ->
-                original.invoke(input, queryValue, arguments, demand, context, "wrapped $additionalContext")
-            }
             val input = engineObjectDataOf(query)
             val arguments = Arguments.Resolved.of(field, emptyMap())
             val demand = schemas.fragmentFrom("fragment Demand on User { name }").subselections
@@ -703,7 +797,7 @@ class ResolverRegistryTest {
             assertEquals(
                 "aliased",
                 resolver
-                    .instantiateQueryMaterializationSelections(resolverOccurrenceId)
+                    .declaredDependencies.instantiateQueryMaterializationSelections(resolverOccurrenceId)
                     .single()
                     .responseKey,
             )
@@ -802,11 +896,11 @@ class ResolverRegistryTest {
         val queryNode = schema.loweredSchema.requireObjectField("Query", "node")
 
         assertEquals(setOf("id"), producer.args.mapTo(linkedSetOf(), ViaductSchema.FieldArg::name))
-        assertTrue(world.resolverRegistry.resolver(producer).variables.isEmpty())
+        assertTrue(world.resolverRegistry.resolver(producer).declaredDependencies.variables.isEmpty())
         val nodeResolver = world.resolverRegistry.resolver(queryNode)
-        assertTrue(nodeResolver.variables.isEmpty())
+        assertTrue(nodeResolver.declaredDependencies.variables.isEmpty())
         assertEquals(setOf("id"), queryNode.args.mapTo(linkedSetOf(), ViaductSchema.FieldArg::name))
-        assertTrue(nodeResolver.objectFragment.isEmpty())
+        assertTrue(nodeResolver.declaredDependencies.objectFragment.isEmpty())
     }
 
     @Test

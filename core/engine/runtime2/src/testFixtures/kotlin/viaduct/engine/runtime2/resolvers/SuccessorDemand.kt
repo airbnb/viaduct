@@ -326,12 +326,12 @@ private fun VariableDefinition.FromArgument.knownArgumentValue(arguments: Argume
 
 private fun FieldValueResolver.objectFragmentWithFromArguments(arguments: Arguments): SelectionForest {
     val bindings =
-        variables.mapNotNull { (variable, definition) ->
+        declaredDependencies.variables.mapNotNull { (variable, definition) ->
             (definition as? VariableDefinition.FromArgument)?.let {
                 definition.knownArgumentValue(arguments)?.let { variable to it.value }
             }
         }.toMap()
-    return objectFragment.substitute(bindings)
+    return declaredDependencies.objectFragment.substitute(bindings)
 }
 
 private fun FieldCheckerResolver.objectFragmentWithFromArguments(arguments: Arguments): SelectionForest {

@@ -1,5 +1,6 @@
 package viaduct.engine.runtime2.resolution
 
+import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.runtime2.model.Arguments
 import viaduct.engine.runtime2.model.InclusionCondition
@@ -17,6 +18,7 @@ import viaduct.engine.runtime2.model.objectKey
 import viaduct.engine.runtime2.model.outputValue
 import viaduct.engine.runtime2.model.registry.Assumptions
 import viaduct.engine.runtime2.model.registry.FieldCheckerResolver
+import viaduct.engine.runtime2.model.registry.FieldResolverDependencies
 import viaduct.engine.runtime2.model.registry.FieldValueResolver
 import viaduct.engine.runtime2.model.registry.InstantiatedFieldPathDefinition
 import viaduct.engine.runtime2.model.registry.ResolverFragments
@@ -134,6 +136,7 @@ internal fun EngineObjectData.Sync.closeOrchestrationConstructionDemand(
     objectOccurrence: OEROccurrence,
     queryOccurrence: OEROccurrence,
     initialDemand: OrchestrationConstructionDemand<SelectionForest>,
+    engineExecutionContext: EngineExecutionContext?,
 ): ClosedConstructionDemandContext {
     require(schemaType(world.schema) == objectOccurrence.target.type) {
         "Source type ${type.name} does not match result type ${objectOccurrence.target.type.name}"
@@ -152,12 +155,12 @@ internal fun EngineObjectData.Sync.closeOrchestrationConstructionDemand(
     }
 
     // The same four forests as grounded closure, retaining symbolic argument identities.
-    var pendingDemand = initialDemand.withLiftedParentDemand(world)
+    var pendingDemand = initialDemand.withLiftedParentDemand(world, engineExecutionContext)
     val demandContributions = mutableListOf(pendingDemand)
 
     // Query fragments demand fields within the associated root. Schema validation prohibits
     // parent backedges to Query, so this root cannot acquire incoming type-check demand.
-    val objectTypeChecker = objectOccurrence.typeCheckerContext(world)
+    val objectTypeChecker = objectOccurrence.typeCheckerContext(world, engineExecutionContext)
 
     // Unlike grounded expanded-key sets, these also retain excluded/error reservations for
     // finalization. Only newly discovered satisfiable inclusions contribute fragment demand.
@@ -174,6 +177,7 @@ internal fun EngineObjectData.Sync.closeOrchestrationConstructionDemand(
             resolverContexts = objectResolverContexts,
             expansionState = expansionState,
             requiresStandardResolution = ::requiresStandardResolution,
+            engineExecutionContext = engineExecutionContext,
         )
         val newQueryResolverKeyInclusions = pendingDemand.queryRooted.newResolverKeyInclusions(
             world = world,
@@ -181,6 +185,7 @@ internal fun EngineObjectData.Sync.closeOrchestrationConstructionDemand(
             resolverContexts = queryResolverContexts,
             expansionState = expansionState,
             requiresStandardResolution = { true },
+            engineExecutionContext = engineExecutionContext,
         )
         val newObjectCheckerKeyInclusions = pendingDemand.objectRooted.newCheckerKeyInclusions(
             world,
@@ -229,7 +234,7 @@ internal fun EngineObjectData.Sync.closeOrchestrationConstructionDemand(
         pendingDemand = OrchestrationConstructionDemand(
             objectRooted = objectInputs,
             queryRooted = queryInputs,
-        ).withLiftedParentDemand(world)
+        ).withLiftedParentDemand(world, engineExecutionContext)
         demandContributions += pendingDemand
     }
     val accumulatedDemand = demandContributions.concatenateDemand()
@@ -280,10 +285,13 @@ private fun List<Demand<SelectionForest>>.concatenateDemand(): Demand<SelectionF
     )
 
 /** Corresponds to grounded groundWithLiftedParentDemand, applied only to new symbolic contributions. */
-private fun OrchestrationConstructionDemand<SelectionForest>.withLiftedParentDemand(world: Assumptions): OrchestrationConstructionDemand<SelectionForest> =
+private fun OrchestrationConstructionDemand<SelectionForest>.withLiftedParentDemand(
+    world: Assumptions,
+    engineExecutionContext: EngineExecutionContext?
+): OrchestrationConstructionDemand<SelectionForest> =
     OrchestrationConstructionDemand(
-        objectRooted = objectRooted + objectRooted.liftParentConstructionDemand(world),
-        queryRooted = queryRooted + queryRooted.liftParentConstructionDemand(world),
+        objectRooted = objectRooted + objectRooted.liftParentConstructionDemand(world, engineExecutionContext),
+        queryRooted = queryRooted + queryRooted.liftParentConstructionDemand(world, engineExecutionContext),
     )
 
 /** Discover expansion events separately from collecting their fixed fragment contributions. */
@@ -299,6 +307,7 @@ internal fun Demand<SelectionForest>.newKeyInclusions(
     checkerContexts: MutableMap<ObjectEngineResult.ObjectKey, CheckerContext>,
     expansionState: SymbolicExpansionState,
     requiresStandardResolution: (ObjectEngineResult.ObjectKey) -> Boolean,
+    engineExecutionContext: EngineExecutionContext?,
 ): NewKeyInclusions {
     val resolverKeys = mutableListOf<Pair<ObjectEngineResult.ObjectKey, InclusionCondition>>()
     val checkerKeys = mutableListOf<Pair<ObjectEngineResult.ObjectKey, InclusionCondition>>()
@@ -309,7 +318,7 @@ internal fun Demand<SelectionForest>.newKeyInclusions(
         inclusion: InclusionCondition
     ) {
         if (key.field !in world.resolverRegistry || !requiresStandardResolution(key)) return
-        val resolverContext = resolverContexts.getOrPut(key) { createResolverContext(world, occurrence, key) }
+        val resolverContext = resolverContexts.getOrPut(key) { createResolverContext(world, occurrence, key, engineExecutionContext) }
         if (key is ObjectEngineResult.GroundKey && key.arguments.argumentsContainErrorValue()) return
         if (inclusion === InclusionCondition.Never || !resolverContext.accumulatedKeyInclusions.add(inclusion)) return
         if (resolverContext.accumulatedKeyInclusions.size == 1) {
@@ -360,6 +369,7 @@ internal fun Demand<SelectionForest>.newResolverKeyInclusions(
     resolverContexts: MutableMap<ObjectEngineResult.ObjectKey, ResolverContext>,
     expansionState: SymbolicExpansionState,
     requiresStandardResolution: (ObjectEngineResult.ObjectKey) -> Boolean,
+    engineExecutionContext: EngineExecutionContext?,
 ): List<Pair<ObjectEngineResult.ObjectKey, InclusionCondition>> =
     buildList {
         values.forEach { selection ->
@@ -369,7 +379,7 @@ internal fun Demand<SelectionForest>.newResolverKeyInclusions(
             if (key.field !in world.resolverRegistry || !requiresStandardResolution(key)) {
                 return@forEach
             }
-            val resolverContext = resolverContexts.getOrPut(key) { createResolverContext(world, occurrence, key) }
+            val resolverContext = resolverContexts.getOrPut(key) { createResolverContext(world, occurrence, key, engineExecutionContext) }
             if (key is ObjectEngineResult.GroundKey && key.arguments.argumentsContainErrorValue()) {
                 return@forEach
             }
@@ -543,6 +553,7 @@ internal data class ResolverContext(
     val resolver: FieldValueResolver,
     val variableDefinitions: List<VariableInstanceDefinition>,
     val fragments: ResolverFragments,
+    val dependencies: FieldResolverDependencies,
 ) {
     val accumulatedKeyInclusions: MutableSet<InclusionCondition> = linkedSetOf()
 
@@ -556,6 +567,7 @@ internal data class ResolverContext(
             invocationPath = invocationPath,
             resolverOccurrenceId = resolverOccurrenceId,
             resolver = resolver,
+            dependencies = dependencies,
             variableDefinitions = variableDefinitions,
             fragments = fragments,
             publicationConstructionDemand = constructionDemand,
@@ -605,14 +617,16 @@ internal fun createResolverContext(
     world: Assumptions,
     occurrence: OEROccurrence,
     objectKey: ObjectEngineResult.ObjectKey,
+    engineExecutionContext: EngineExecutionContext?,
 ): ResolverContext {
     val resolver: FieldValueResolver = world.resolverRegistry.resolver(objectKey.field)
+    val dependencies = resolver.dependenciesFor(engineExecutionContext)
     val resolverOccurrenceId =
         ResolverOccurrenceId.at(
             occurrence.root,
             occurrence.coordinate(objectKey),
         )
-    val fragments = resolver.instantiateFragments(resolverOccurrenceId)
+    val fragments = dependencies.instantiateFragments(resolverOccurrenceId)
     if (
         objectKey is ObjectEngineResult.GroundKey &&
         objectKey.arguments.argumentsContainErrorValue()
@@ -622,6 +636,7 @@ internal fun createResolverContext(
             invocationPath = occurrence.coordinate(objectKey),
             resolverOccurrenceId = resolverOccurrenceId,
             resolver = resolver,
+            dependencies = dependencies,
             variableDefinitions = fragments.queryFragment.variableDefinitions,
             fragments = fragments,
         )
@@ -631,7 +646,8 @@ internal fun createResolverContext(
         invocationPath = occurrence.coordinate(objectKey),
         resolverOccurrenceId = resolverOccurrenceId,
         resolver = resolver,
-        variableDefinitions = resolver.instantiatedVariableDefinitions(resolverOccurrenceId),
+        dependencies = dependencies,
+        variableDefinitions = dependencies.instantiatedVariableDefinitions(resolverOccurrenceId),
         fragments = fragments,
     )
 }
@@ -735,8 +751,11 @@ internal class TypeCheckerContext(
     }
 }
 
-internal fun OEROccurrence.typeCheckerContext(world: Assumptions): TypeCheckerContext? =
-    world.resolverRegistry.typeChecker(target.type)?.takeIf { it.isApplicable(root, path) }?.let { checker ->
+internal fun OEROccurrence.typeCheckerContext(
+    world: Assumptions,
+    engineExecutionContext: EngineExecutionContext?
+): TypeCheckerContext? =
+    world.resolverRegistry.typeChecker(target.type)?.takeIf { it.isApplicable(root, path, engineExecutionContext) }?.let { checker ->
         TypeCheckerContext(checker, checker.instantiateFragmentsAt(root, path))
     }
 

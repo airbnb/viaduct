@@ -59,7 +59,7 @@ internal class BranchOrderValidator(
         fieldResolvers.forEach { (outputField, resolver) ->
             val consumer = outputField as ViaductSchema.ObjectField
             val graph = graphs.getValue(consumer.containingDef)
-            resolver.objectFragment.forEach { selection ->
+            resolver.declaredDependencies.objectFragment.forEach { selection ->
                 selection.branchOn(consumer.containingDef)?.let { prerequisite ->
                     graph.add(
                         Edge(prerequisite, consumer),
@@ -75,7 +75,7 @@ internal class BranchOrderValidator(
         do {
             val additions = mutableListOf<Pair<Edge, EdgeReason.VariableProduction>>()
             fieldResolvers.values.forEach { resolver ->
-                resolver.variables.forEach variables@{ (variable, definition) ->
+                resolver.declaredDependencies.variables.forEach variables@{ (variable, definition) ->
                     if (
                         definition !is VariableDefinition.FromField ||
                         definition.providerFragment != ProviderFragment.OBJECT
@@ -91,7 +91,7 @@ internal class BranchOrderValidator(
                     val renderedProviderPath =
                         providerPath.joinToString("/") { key -> key.field.name }
                     val uses =
-                        resolver.objectFragment.variableUsePaths(variable, type)
+                        resolver.declaredDependencies.objectFragment.variableUsePaths(variable, type)
 
                     productionPaths.forEach { (production, productionPath) ->
                         uses.forEach { (useBranch, usePaths) ->

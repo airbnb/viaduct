@@ -51,7 +51,7 @@ class SuccessorDemandRegressionTest : ResolutionDispatcherResource {
         val actual = originalFixture.schemas
             .fragmentFrom("fragment Output on Query { field0 }")
             .subselections
-            .successorDemand(world)
+            .successorDemand(world, engineExecutionContext = null)
         assertEquals(
             (0..depth).map { "field$it" }.toSet(),
             actual
@@ -80,7 +80,7 @@ class SuccessorDemandRegressionTest : ResolutionDispatcherResource {
         val input = fixture.schemas.fragmentFrom(
             "fragment F on Root { child @skip(if: true) { derived } }",
         ).subselections
-        val output = input.successorDemand(fixture.assumptions).merge(root)
+        val output = input.successorDemand(fixture.assumptions, engineExecutionContext = null).merge(root)
         val seed = output.byKey().values.find { it.key.field.name == "seed" }
         assertTrue(
             seed == null || seed.inclusionCondition === InclusionCondition.Never,

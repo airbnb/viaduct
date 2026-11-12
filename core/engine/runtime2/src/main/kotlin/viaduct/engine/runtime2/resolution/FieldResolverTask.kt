@@ -24,7 +24,7 @@ import viaduct.engine.runtime2.model.VariableBinding
 import viaduct.engine.runtime2.model.engineObjectDataOf
 import viaduct.engine.runtime2.model.guardedBy
 import viaduct.engine.runtime2.model.outputValue
-import viaduct.engine.runtime2.model.registry.FieldValueResolver
+import viaduct.engine.runtime2.model.registry.FieldResolverDependencies
 import viaduct.engine.runtime2.model.registry.InteropAncestor
 import viaduct.engine.runtime2.model.registry.ResolutionExecutionContext
 import viaduct.engine.runtime2.model.registry.ResolverFragment
@@ -136,10 +136,11 @@ internal class FieldResolverTask(
             val path = occurrence.coordinate(selection.key)
             val id = ResolverOccurrenceId.at(occurrence.root, path)
             val resolver = operation.world.resolverRegistry.resolver(selection.key.field)
+            val dependencies = resolver.dependenciesFor(operation.engineExecutionContext)
             return prepare(
                 operation,
                 occurrence,
-                FieldResolverOccurrence(selection, occurrence.root, path, id, resolver, emptyList(), resolver.instantiateFragments(id)),
+                FieldResolverOccurrence(selection, occurrence.root, path, id, resolver, emptyList(), dependencies.instantiateFragments(id), dependencies),
                 providerReads = emptyList(),
                 creator = creator,
             )
@@ -406,7 +407,7 @@ internal class FieldResolverTask(
                         ) {
                             engineObjectDataOf(publication.operation.world.schema.requireQueryTypeDef())
                         } else {
-                            fieldResolverOccurrence.resolver.resolveQueryFragment(
+                            fieldResolverOccurrence.dependencies.resolveQueryFragment(
                                 queryFragment = fieldResolverOccurrence.fragments.queryFragment,
                                 operation = publication.operation,
                                 creator = this@FieldResolverTask,
@@ -446,7 +447,7 @@ internal suspend fun OEROccurrence.interopAncestors(operation: OperationContext)
             )
         }
 
-private suspend fun FieldValueResolver.resolveQueryFragment(
+private suspend fun FieldResolverDependencies.resolveQueryFragment(
     queryFragment: ResolverFragment,
     operation: OperationContext,
     creator: ResolutionTask,

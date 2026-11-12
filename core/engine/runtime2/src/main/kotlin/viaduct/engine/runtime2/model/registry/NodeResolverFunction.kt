@@ -16,12 +16,19 @@ import viaduct.engine.runtime2.model.SelectionForest
  */
 class NodeResolverFunction internal constructor(
     internal val mode: Mode,
+    private val executionSelection: ((ResolutionExecutionContext) -> NodeResolverFunction)? = null,
     private val function: suspend (
         String,
         SelectionForest,
         ResolutionExecutionContext,
     ) -> ResolverOutputData?,
 ) {
+    internal fun forExecution(context: ResolutionExecutionContext): NodeResolverFunction {
+        val selected = executionSelection?.invoke(context) ?: return this
+        require(selected.executionSelection == null) { "Execution selection must return a terminal node resolver" }
+        return selected
+    }
+
     internal enum class Mode {
         NONSELECTIVE,
         SELECTIVE,
@@ -54,4 +61,11 @@ fun selectiveNodeResolverOf(
         SelectionForest,
         ResolutionExecutionContext,
     ) -> ResolverOutputData?,
-): NodeResolverFunction = NodeResolverFunction(NodeResolverFunction.Mode.SELECTIVE, function)
+): NodeResolverFunction = NodeResolverFunction(NodeResolverFunction.Mode.SELECTIVE, function = function)
+
+/** Airbnb-only hook: preserve the selected lookup's projection and ID-only loading contract. */
+@Deprecated("Airbnb use only")
+fun selectingNodeResolverOf(
+    bootstrap: NodeResolverFunction,
+    select: (ResolutionExecutionContext) -> NodeResolverFunction,
+): NodeResolverFunction = NodeResolverFunction(bootstrap.mode, select) { id, demand, context -> bootstrap(id, demand, context) }

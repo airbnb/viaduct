@@ -120,7 +120,7 @@ class SuperlinearGrowthTest : ResolutionDispatcherResource {
             val fixture = TestWorld.fromDSL("extend type Query { $fields }")
             val world = fixture.assumptions
             val input = fixture.schemas.fragmentFrom("fragment F on Query { field0 }").subselections
-            val demand = input.successorDemand(world)
+            val demand = input.successorDemand(world, engineExecutionContext = null)
             val distinct = demand.merge(world.schema.requireQueryTypeDef()).size
             assertEquals(depth + 1, distinct)
             assertTrue(demand.size <= 2 * distinct, "Successor demand expanded ${demand.size} selections for $distinct fields")
@@ -168,7 +168,7 @@ class SuperlinearGrowthTest : ResolutionDispatcherResource {
             val demand =
                 Demand
                     .checked(input)
-                    .liftParentConstructionDemand(world)
+                    .liftParentConstructionDemand(world, engineExecutionContext = null)
                     .values
                     .merge(world.schema.requireQueryTypeDef())
                     .single()
@@ -221,7 +221,7 @@ class SuperlinearGrowthTest : ResolutionDispatcherResource {
             )
             val world = fixture.assumptions
             val input = fixture.schemas.fragmentFrom("fragment F on Query { root { child { field0 } } }").subselections
-            val lifted = Demand.checked(input).liftParentConstructionDemand(world)
+            val lifted = Demand.checked(input).liftParentConstructionDemand(world, engineExecutionContext = null)
             // Each provenance has one seed key, whose descendants are normalized as well.
             for (component in listOf(lifted.checked, lifted.unchecked)) {
                 assertEquals(1, component.size)
@@ -486,6 +486,7 @@ class SuperlinearGrowthTest : ResolutionDispatcherResource {
                                 ),
                             queryRooted = Demand.EMPTY,
                         ),
+                    engineExecutionContext = null,
                 )
             val checkerInput =
                 closed.objectRooted.constructionDemand.unchecked
@@ -648,6 +649,7 @@ class SuperlinearGrowthTest : ResolutionDispatcherResource {
                 OrchestrationConstructionDemand.checkedObject(
                     selections,
                 ),
+            engineExecutionContext = null,
         )
     }
 }

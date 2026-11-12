@@ -193,7 +193,7 @@ class CoroutineFieldResolverTask internal constructor(
                         operation = publication.operation,
                         cycleChecker = publication.operation.cycleChecker,
                         selections =
-                            resolver.instantiateQueryMaterializationSelections(
+                            resolver.declaredDependencies.instantiateQueryMaterializationSelections(
                                 queryFragment.resolverOccurrenceId,
                             ),
                         reader = reader,

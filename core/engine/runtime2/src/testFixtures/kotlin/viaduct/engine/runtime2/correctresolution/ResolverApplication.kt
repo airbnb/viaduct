@@ -404,7 +404,7 @@ private class ResolverReplayLogic(
             val resolver = operation.world.resolverRegistry.resolver(key.field)
             val coordinate = path + key
             val providerDefinitions =
-                resolver.instantiatedVariableDefinitions(ResolverOccurrenceId.at(resolverApplicationCache.root, coordinate))
+                resolver.declaredDependencies.instantiatedVariableDefinitions(ResolverOccurrenceId.at(resolverApplicationCache.root, coordinate))
                     .filter { it.definition == VariableDefinition.FromProvider }
             if (providerDefinitions.any { it.hasProviderError() }) {
                 return@getOrPut resolver.reapplyProviderFailure(arguments, providerDefinitions)
@@ -432,7 +432,7 @@ private class ResolverReplayLogic(
                     materializeResult(
                         operation = operation,
                         selections =
-                            resolver.instantiateObjectMaterializationSelections(
+                            resolver.declaredDependencies.instantiateObjectMaterializationSelections(
                                 objectFragment.resolverOccurrenceId,
                             ),
                         reader = resolverApplicationCache.root.fieldResolverCycleTask(coordinate),
@@ -470,7 +470,7 @@ private class ResolverReplayLogic(
                         queryResult.materializeResult(
                             operation = operation,
                             selections =
-                                resolver.instantiateQueryMaterializationSelections(
+                                resolver.declaredDependencies.instantiateQueryMaterializationSelections(
                                     queryFragment.resolverOccurrenceId,
                                 ),
                             reader = resolverApplicationCache.root.fieldResolverCycleTask(coordinate),
@@ -480,8 +480,8 @@ private class ResolverReplayLogic(
             val replayInputs = operation.resolverInputsForReplay(
                 occurrenceId = resolverOccurrenceId,
                 objectResult = this,
-                objectSelections = resolver.instantiateObjectMaterializationSelections(resolverOccurrenceId),
-                querySelections = resolver.instantiateQueryMaterializationSelections(resolverOccurrenceId),
+                objectSelections = resolver.declaredDependencies.instantiateObjectMaterializationSelections(resolverOccurrenceId),
+                querySelections = resolver.declaredDependencies.instantiateQueryMaterializationSelections(resolverOccurrenceId),
                 expectedObjectValue = input,
                 expectedQueryValue = queryValue,
             ) ?: return@getOrPut null
@@ -508,7 +508,7 @@ private class ResolverReplayLogic(
     ): ReappliedResolver? {
         val failed =
             try {
-                runBlocking { requireNotNull(variablesProvider)(arguments) }.keys !=
+                runBlocking { requireNotNull(declaredDependencies.variablesProvider)(arguments) }.keys !=
                     providerDefinitions.mapTo(linkedSetOf()) { it.variable.variableName }
             } catch (_: Exception) {
                 true
@@ -603,7 +603,7 @@ private class ResolverReplayLogic(
         if (!invocationKey.isContextuallyGrounded(operation)) return null
         val arguments = invocationKey.groundedArguments(operation) as? Arguments.Resolved ?: return null
         val resolver = operation.world.resolverRegistry.resolver(invocationKey.field)
-        val fragments = resolver.instantiateFragmentsAt(invocationRoot, invocationPath)
+        val fragments = resolver.declaredDependencies.instantiateFragmentsAt(invocationRoot, invocationPath)
         if (!fragments.objectFragment.constructionSelections.isEmpty()) {
             return null
         }
@@ -615,7 +615,7 @@ private class ResolverReplayLogic(
             )
         val resolverOccurrenceId = fragments.objectFragment.resolverOccurrenceId
         if (resolverOccurrenceId != ResolverOccurrenceId.at(invocationRoot, invocationPath)) return null
-        val variableDefinitions = resolver.instantiatedVariableDefinitions(resolverOccurrenceId)
+        val variableDefinitions = resolver.declaredDependencies.instantiatedVariableDefinitions(resolverOccurrenceId)
         if (
             variableDefinitions.any { definition ->
                 val instanceId = requireNotNull(definition.variable.instanceId)
@@ -661,7 +661,7 @@ private class ResolverReplayLogic(
                     queryResult.materializeResult(
                         operation = operation,
                         selections =
-                            resolver.instantiateQueryMaterializationSelections(
+                            resolver.declaredDependencies.instantiateQueryMaterializationSelections(
                                 queryFragment.resolverOccurrenceId,
                             ),
                         reader = invocationRoot.fieldResolverCycleTask(invocationPath),
@@ -671,8 +671,8 @@ private class ResolverReplayLogic(
         val replayInputs = operation.resolverInputsForReplay(
             occurrenceId = resolverOccurrenceId,
             objectResult = null,
-            objectSelections = resolver.instantiateObjectMaterializationSelections(resolverOccurrenceId),
-            querySelections = resolver.instantiateQueryMaterializationSelections(resolverOccurrenceId),
+            objectSelections = resolver.declaredDependencies.instantiateObjectMaterializationSelections(resolverOccurrenceId),
+            querySelections = resolver.declaredDependencies.instantiateQueryMaterializationSelections(resolverOccurrenceId),
             expectedObjectValue = input,
             expectedQueryValue = queryValue,
         ) ?: return null

@@ -190,12 +190,12 @@ class ParentCoverageAnalyzer(
 
     private fun FieldValueResolver.variableArgumentSelections(variableOwner: ViaductSchema.ObjectField): List<ParentResolverVariableArgumentCoverage> {
         val sources = variableSourcesByName()
-        return objectFragment.variableArgumentSelections(
+        return declaredDependencies.objectFragment.variableArgumentSelections(
             fragment = ParentResolverInputFragment.OBJECT,
             variableOwner = variableOwner,
             variableSources = sources,
         ) +
-            queryFragment.variableArgumentSelections(
+            declaredDependencies.queryFragment.variableArgumentSelections(
                 fragment = ParentResolverInputFragment.QUERY,
                 variableOwner = variableOwner,
                 variableSources = sources,
@@ -240,7 +240,7 @@ class ParentCoverageAnalyzer(
     private fun diagonalParentDepth(field: ViaductSchema.ObjectField): Int =
         diagonalDepthByResolverField.getOrPut(field) {
             val resolver = world.resolverRegistry.resolver(field)
-            val parentSelections = resolver.objectFragment.topLevelParentSelections()
+            val parentSelections = resolver.declaredDependencies.objectFragment.topLevelParentSelections()
             if (parentSelections.isEmpty()) {
                 0
             } else {
@@ -295,7 +295,7 @@ private data class MutableParentSelectionSetCoverage(
 }
 
 private fun FieldValueResolver.variableSourcesByName(): Map<String, ParentVariableSource> =
-    variables.mapKeys { (variable, _) -> variable.variableName }
+    declaredDependencies.variables.mapKeys { (variable, _) -> variable.variableName }
         .mapValues { (_, definition) -> definition.parentVariableSource() }
 
 private fun VariableDefinition.parentVariableSource(): ParentVariableSource =

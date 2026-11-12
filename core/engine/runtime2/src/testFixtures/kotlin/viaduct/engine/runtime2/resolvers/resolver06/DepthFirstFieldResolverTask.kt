@@ -106,7 +106,7 @@ class DepthFirstFieldResolverTask private constructor(
                 }
                 is Arguments.Resolved -> {
                     val resolver = operation.world.resolverRegistry.resolver(key.field)
-                    val fragments = resolver.instantiateFragmentsAt(oerOccurrence.root, publicationPath)
+                    val fragments = resolver.declaredDependencies.instantiateFragmentsAt(oerOccurrence.root, publicationPath)
                     if (fragments.variablesProviderFailed(operation)) {
                         check(publicationCell.value.complete(ErrorEngineResult.of(EngineErrorData.of()))) {
                             "Cell value was completed twice"
@@ -115,7 +115,7 @@ class DepthFirstFieldResolverTask private constructor(
                     }
 
                     val queryMaterializationSelections =
-                        resolver.instantiateQueryMaterializationSelections(
+                        resolver.declaredDependencies.instantiateQueryMaterializationSelections(
                             fragments.queryFragment.resolverOccurrenceId,
                         )
                     check(
@@ -136,7 +136,7 @@ class DepthFirstFieldResolverTask private constructor(
                         }
 
                     val objectMaterializationSelections =
-                        resolver.instantiateObjectMaterializationSelections(
+                        resolver.declaredDependencies.instantiateObjectMaterializationSelections(
                             fragments.objectFragment.resolverOccurrenceId,
                         )
                     val input = // Sibling dependency order and depth-first dispatch make this input ready.
@@ -223,7 +223,7 @@ class DepthFirstFieldResolverTask private constructor(
             )
         val input = invocation.emptyObjectInput()
         val queryMaterializationSelections =
-            invocation.resolver.instantiateQueryMaterializationSelections(
+            invocation.resolver.declaredDependencies.instantiateQueryMaterializationSelections(
                 invocation.fragments.queryFragment.resolverOccurrenceId,
             )
         val output =
@@ -272,7 +272,7 @@ class DepthFirstFieldResolverTask private constructor(
                 selections = queryFragment.constructionSelections,
             ).resolve(queryFragment.resolverOccurrenceId, creator = this)
         return queryResult.materializeInput(
-            resolver.instantiateQueryMaterializationSelections(
+            resolver.declaredDependencies.instantiateQueryMaterializationSelections(
                 queryFragment.resolverOccurrenceId,
             ),
             publication.oerOccurrence.root.fieldResolverCycleTask(coordinate),

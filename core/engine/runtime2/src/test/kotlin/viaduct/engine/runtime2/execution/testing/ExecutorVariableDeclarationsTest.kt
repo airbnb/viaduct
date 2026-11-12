@@ -67,7 +67,7 @@ class ExecutorVariableDeclarationsTest {
             variableProviders = { compiled.declarations },
         )
         val field = world.schema.requireObjectField("Query", "result")
-        val variables = world.resolverRegistry.resolver(field).variables.entries
+        val variables = world.resolverRegistry.resolver(field).declaredDependencies.variables.entries
             .associate { it.key.variableName to it.value }
         val argument = assertInstanceOf(VariableDefinition.FromArgument::class.java, variables.getValue("arg"))
         assertEquals("input", argument.argument.name)

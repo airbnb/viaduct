@@ -1,4 +1,4 @@
-@file:Suppress("ForbiddenImport")
+@file:Suppress("DEPRECATION", "ForbiddenImport")
 
 package viaduct.engine.runtime2.model.registry
 
@@ -7,6 +7,7 @@ import graphql.schema.idl.UnExecutableSchemaGenerator
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
@@ -15,6 +16,7 @@ import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.EnumSource
 import viaduct.engine.api.CheckerResult
 import viaduct.engine.api.EngineObjectData
+import viaduct.engine.runtime2.airbnb.resolverRegistryWithRequestDependencies
 import viaduct.engine.runtime2.bootstrap.fromObjectField
 import viaduct.engine.runtime2.bootstrap.fromQueryField
 import viaduct.engine.runtime2.bootstrap.resolverRegistryOf
@@ -26,6 +28,7 @@ import viaduct.engine.runtime2.model.MaterializeSelectionForest
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.ResolverTarget
 import viaduct.engine.runtime2.model.RootFieldReferenceData
+import viaduct.engine.runtime2.model.additionalContextForResolver
 import viaduct.engine.runtime2.model.emptyFragmentOf
 import viaduct.engine.runtime2.model.engineObjectDataOf
 import viaduct.engine.runtime2.model.materializeSelectionForestOf
@@ -84,7 +87,7 @@ class RegistryConstructionTest {
             assertEquals(fields, direct.keys().map { it.field.name }.toSet())
             assertEquals(direct.groundKeys(), input.dependencies.keys)
             input.dependencies.forEach { (key, dependency) ->
-                assertSame(registry.precomputedConstructionDemand(key.field), dependency.direct)
+                assertSame(registry.precomputedConstructionDemand(key.field, context = null), dependency.direct)
                 assertSame(registry.referenceConstructionDemand(key.field), dependency)
             }
             if (index < 2) {
@@ -278,6 +281,255 @@ class RegistryConstructionTest {
             assertEquals(listOf("42"), observedIds)
         }
 
+    @ParameterizedTest
+    @EnumSource(NodeResolverFunction.Mode::class)
+    internal fun `execution-selected node lookups retain identity and ID-only loading contracts`(mode: NodeResolverFunction.Mode) =
+        runBlocking {
+            val schemas = schemas(
+                "type Query { node(id: ID!): Node } interface Node { id: ID! } type User implements Node { id: ID! name: String extra: String }",
+            )
+            val schema = schemas.loweredSchema
+            val user = schema.requireType("User") as ViaductSchema.Object
+            val node = schema.requireObjectField("Query", "node")
+            val demands = mutableListOf<Set<String>>()
+            val selected = NodeResolverFunction(mode) { id, demand, _ ->
+                assertEquals("42", id)
+                demands += demand.merge(user).keys().map { it.field.name }.toSet()
+                val fields = if (mode == NodeResolverFunction.Mode.SELECTIVE) {
+                    mapOf("name" to "Ada")
+                } else {
+                    mapOf("id" to "wrong", "name" to "Ada", "extra" to "omit")
+                }
+                engineObjectDataOf(user, fields)
+            }
+            val bootstrap = selectiveNodeResolverOf { _, _ -> error("Bootstrap lookup must not run") }
+            val registry = resolverRegistryOf(
+                schema = schemas,
+                nodeResolvers = mapOf(user to selectingNodeResolverOf(bootstrap) { selected }),
+                fieldResolvers = mapOf(node to fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ -> null }),
+                variableProviders = emptyMap(),
+            )
+            val root = registry.createRootQueryInput()
+            for (fields in listOf("id name", "id")) {
+                val result = assertIs<EngineObjectData.Sync>(
+                    registry.resolver(node)(
+                        input = root,
+                        queryValue = root,
+                        arguments = nodeRootFieldReferenceOf(node, user, "42").arguments,
+                        selections = schemas.selectionsFrom("fragment Demand on User { $fields }").second,
+                        executionContext = ResolutionExecutionContext.Unsupported,
+                    ),
+                )
+                assertEquals(fields.split(" ").toSet(), result.getSelections().toSet())
+                assertEquals("42", result.get("id"))
+                if ("name" in fields) assertEquals("Ada", result.get("name"))
+            }
+            val expected = when (mode) {
+                NodeResolverFunction.Mode.NONSELECTIVE -> listOf(setOf("name"), emptySet())
+                NodeResolverFunction.Mode.SELECTIVE -> listOf(setOf("name"))
+            }
+            assertEquals(expected, demands)
+        }
+
+    @Test
+    fun `static definitions retain one prepared dependency description`() {
+        val schemas = schemas("type Query { first: String }")
+        val schema = schemas.loweredSchema
+        val field = schema.requireObjectField("Query", "first")
+        val registry = resolverRegistryOf(
+            schemas,
+            emptyMap(),
+            mapOf(field to fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ -> "first" }),
+            variableProviders = emptyMap(),
+        )
+        val resolver = registry.resolver(field)
+        assertEquals(1, resolver.dependencyAlternatives.size)
+        assertSame(resolver.declaredDependencies, resolver.dependenciesFor(null))
+        assertSame(resolver, registry.resolver(field))
+    }
+
+    @Test
+    fun `dependency activation switches both fragments and provider without replacing execution`(): Unit =
+        runBlocking {
+            val schemas = schemas("type Query { source(x: Int): Int result: Int }")
+            val schema = schemas.loweredSchema
+            val result = schema.requireObjectField("Query", "result")
+            val query = schema.requireQueryTypeDef()
+            var enabled = true
+            var providerCalls = 0
+            var executionCalls = 0
+            var selectionCalls = 0
+            val requirement = fragment(schemas, "fragment Input on Query { selected: source(x: \$provided) }", result)
+            val definition = FieldResolverDefinition.of(requirement, requirement) { _, _, _, _, _ -> ++executionCalls }
+                .withVariablesProvider(setOf("provided")) {
+                    providerCalls++
+                    mapOf("provided" to 7)
+                }
+                .mapFunction { it }
+                .mapOutput { it }
+                .mapDemand { it }
+            val fields = mapOf<ViaductSchema.Field, FieldResolverDefinition>(
+                result to definition,
+                schema.requireObjectField("Query", "source") to fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ -> 7 },
+            )
+            val registry = resolverRegistryWithRequestDependencies(
+                schemas,
+                emptyMap(),
+                fields,
+                variableProviders = emptyMap(),
+                fieldDependenciesEnabled = mapOf(
+                    result to {
+                        selectionCalls++
+                        enabled
+                    }
+                ),
+            )
+            assertEquals(0, selectionCalls)
+            val staticRegistry = resolverRegistryOf(schemas, emptyMap(), fields, variableProviders = emptyMap())
+            val resolver = registry.resolver(result)
+            val active = resolver.dependenciesFor(null)
+            val activeTemplate = requireNotNull(registry.precomputedConstructionDemand(result, context = null))
+            assertFalse(activeTemplate.objectDemand.templatedDemand.isEmpty())
+            assertFalse(activeTemplate.queryDemand.templatedDemand.isEmpty())
+            assertEquals(2, resolver.dependencyAlternatives.size)
+            assertFalse(active.objectFragment.isEmpty())
+            assertFalse(active.queryFragment.isEmpty())
+            assertEquals(setOf("provided"), active.variables.keys.map { it.variableName }.toSet())
+            assertEquals(mapOf("provided" to 7), active.variablesProvider!!(Arguments.Resolved.of(result, emptyMap())))
+            val occurrence = viaduct.engine.runtime2.model.ResolverOccurrenceId.at(ObjectEngineResult.of(query), listOf(ObjectEngineResult.GroundKey.of(result, emptyMap())))
+            assertFalse(active.instantiateObjectMaterializationSelections(occurrence).isEmpty())
+            assertFalse(active.instantiateQueryMaterializationSelections(occurrence).isEmpty())
+            assertEquals(1, active.instantiatedVariableDefinitions(occurrence).size)
+            enabled = false
+            val inactive = resolver.dependenciesFor(null)
+            val staticResolver = staticRegistry.resolver(result)
+            assertSame(staticResolver.declaredDependencies, staticResolver.dependenciesFor(null))
+            assertFalse(staticResolver.dependenciesFor(null).objectFragment.isEmpty())
+            val inactiveTemplate = requireNotNull(registry.precomputedConstructionDemand(result, context = null))
+            assertTrue(inactiveTemplate.objectDemand.reusableDemand.isEmpty())
+            assertTrue(inactiveTemplate.objectDemand.templatedDemand.isEmpty())
+            assertTrue(inactiveTemplate.queryDemand.reusableDemand.isEmpty())
+            assertTrue(inactiveTemplate.queryDemand.templatedDemand.isEmpty())
+            assertTrue(requireNotNull(inactiveTemplate.queryRootDemand).reusableDemand.isEmpty())
+            assertSame(inactiveTemplate, registry.precomputedConstructionDemand(result, context = null))
+            enabled = true
+            assertSame(activeTemplate, registry.precomputedConstructionDemand(result, context = null))
+            enabled = false
+            assertTrue(inactive.objectFragment.isEmpty())
+            assertTrue(inactive.queryFragment.isEmpty())
+            assertTrue(inactive.variables.isEmpty())
+            assertEquals(null, inactive.variablesProvider)
+            assertTrue(inactive.instantiateFragments(occurrence).objectFragment.constructionSelections.isEmpty())
+            assertTrue(inactive.instantiateFragments(occurrence).queryFragment.constructionSelections.isEmpty())
+            assertTrue(inactive.instantiatedVariableDefinitions(occurrence).isEmpty())
+            assertTrue(inactive.instantiatedFieldPathVariableDefinitions(occurrence).isEmpty())
+            assertSame(inactive, resolver.dependenciesFor(null))
+            assertSame(resolver, registry.resolver(result))
+            val input = engineObjectDataOf(query)
+            assertEquals(1, resolver(input, input, Arguments.Resolved.of(result, emptyMap()), executionContext = ResolutionExecutionContext.Unsupported))
+            assertEquals(1, providerCalls)
+            enabled = true
+            assertSame(active, resolver.dependenciesFor(null))
+        }
+
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(booleans = [false, true])
+    fun `dependency activation preserves the prepared output contract`(selective: Boolean): Unit =
+        runBlocking {
+            val schemas = schemas("type Query { source: Int result: Item } type Item { selected: String extra: String }")
+            val schema = schemas.loweredSchema
+            val field = schema.requireObjectField("Query", "result")
+            val item = schema.requireType("Item") as ViaductSchema.Object
+            val query = schema.requireQueryTypeDef()
+            val backing = Any()
+            var enabled = true
+            val function: SelectiveFieldResolverFunction = { _, _, _, _, _, _ ->
+                engineObjectDataOf(item, mapOf("selected" to "keep", "extra" to "extra"), additionalContextForResolver = backing)
+            }
+            val input = fragment(schemas, "fragment Input on Query { source }", field)
+            val definition = if (selective) {
+                FieldResolverDefinition.ofSelective(input, null, function)
+            } else {
+                FieldResolverDefinition.ofSelectionAwareNonselective(input, null, function)
+            }
+            val registry = resolverRegistryWithRequestDependencies(
+                schemas,
+                emptyMap(),
+                mapOf(
+                    field to definition,
+                    schema.requireObjectField("Query", "source") to fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ -> 1 },
+                ),
+                variableProviders = emptyMap(),
+                fieldDependenciesEnabled = mapOf(field to { enabled }),
+            )
+            val resolver = registry.resolver(field)
+            val demand = schemas.selectionsFrom("fragment Demand on Item { selected }").second
+            for (active in listOf(true, false, true)) {
+                enabled = active
+                assertEquals(active, !resolver.dependenciesFor(null).objectFragment.isEmpty())
+                val value = assertIs<EngineObjectData.Sync>(
+                    resolver(
+                        engineObjectDataOf(query),
+                        engineObjectDataOf(query),
+                        Arguments.Resolved.of(field, emptyMap()),
+                        demand,
+                        ResolutionExecutionContext.Unsupported,
+                    )
+                )
+                assertEquals(setOf("selected", "extra"), value.getSelections().toSet())
+                assertSame(backing, value.additionalContextForResolver)
+                assertSame(resolver, registry.resolver(field))
+            }
+        }
+
+    @Test
+    fun `registry dependency activation rejects a field without a resolver`() {
+        val schemas = schemas("type Query { item: Item } type Item { value: Int }")
+        val schema = schemas.loweredSchema
+        val missing = schema.requireObjectField("Item", "value")
+
+        val failure = assertFailsWith<IllegalArgumentException> {
+            resolverRegistryWithRequestDependencies(
+                schemas,
+                emptyMap(),
+                mapOf(schema.requireObjectField("Query", "item") to fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ -> null }),
+                variableProviders = emptyMap(),
+                fieldDependenciesEnabled = mapOf(missing to { false }),
+            )
+        }
+
+        assertEquals("Dependency activation requires a registered resolver for Item/value", failure.message)
+    }
+
+    @Test
+    fun `empty dependencies do not evaluate the registry activation predicate`() {
+        val schemas = schemas("type Query { value: Int }")
+        val schema = schemas.loweredSchema
+        val field = schema.requireObjectField("Query", "value")
+        val registry = resolverRegistryWithRequestDependencies(
+            schemas,
+            emptyMap(),
+            mapOf(field to fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ -> 1 }),
+            variableProviders = emptyMap(),
+            fieldDependenciesEnabled = mapOf(field to { error("Empty inputs need no execution decision") }),
+        )
+        val resolver = registry.resolver(field)
+
+        assertSame(resolver.declaredDependencies, resolver.dependenciesFor(null))
+        assertEquals(1, resolver.dependencyAlternatives.size)
+        val template = requireNotNull(registry.precomputedConstructionDemand(field, context = null))
+        assertSame(template, registry.precomputedConstructionDemand(field, context = null))
+    }
+
+    @Test
+    fun `node selectors still reject nested selectors`() {
+        val lookup = nodeResolverOf { _: String -> null }
+        val selectingNode = selectingNodeResolverOf(lookup) { lookup }
+        assertFailsWith<IllegalArgumentException> {
+            selectingNodeResolverOf(lookup) { selectingNode }.forExecution(ResolutionExecutionContext.Unsupported)
+        }
+    }
+
     @Test
     fun `compiles owned variables without conflating object and Query provider paths`() {
         val schemas = schemas("type Query { source: Int! use(x: Int!): Int! result(x: Int!): Int }")
@@ -306,7 +558,7 @@ class RegistryConstructionTest {
                         Arguments.Variable.of(result, "query") to schemas.fromQueryField(querySource, listOf("selected"), variableField = result),
                     ),
             )
-        val variables = registry.resolver(result).variables
+        val variables = registry.resolver(result).declaredDependencies.variables
 
         assertEquals(setOf("arg", "object", "query", "provided"), variables.keys.map { it.variableName }.toSet())
         variables.keys.forEach { variable ->

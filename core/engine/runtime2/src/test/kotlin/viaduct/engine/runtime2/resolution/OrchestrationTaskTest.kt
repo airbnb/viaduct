@@ -181,6 +181,7 @@ class OrchestrationTaskTest : ResolutionDispatcherResource {
                 Demand(selectionForestOf(checkedSelection), selectionForestOf(rawSelection), typeCheckDemanded = true),
                 Demand.EMPTY,
             ),
+            engineExecutionContext = null,
         ).objectRooted
 
         assertEquals(setOf("checked"), closed.constructionDemand.checked[key].subselections.merge(itemType).keys().map { it.field.name }.toSet())

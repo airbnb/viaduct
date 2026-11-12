@@ -11,6 +11,7 @@ internal class ParentConstructionDemandTemplate {
     internal var selections: List<PreparedParentSelection> = emptyList()
     internal var usesParent: Boolean = false
     internal var mayInduceParentDemand: Boolean = false
+    internal var dependsOnExecutionSelection: Boolean = false
     internal var summary: PreparedParentDemand = PreparedParentDemand.EMPTY
 
     internal val dependencies: List<ParentConstructionDemandTemplate>
@@ -23,6 +24,9 @@ class ParentSelectionDemand internal constructor(
     internal val checked: PreparedParentDemand,
     internal val unchecked: PreparedParentDemand,
     internal val typeCheckers: PreparedParentDemand,
+    internal val resolver: FieldValueResolver?,
+    internal val checker: ParentConstructionDemandTemplate?,
+    internal val typeCheckerPrograms: List<ParentConstructionDemandTemplate>,
 )
 
 internal class PreparedParentSelection(
@@ -30,12 +34,12 @@ internal class PreparedParentSelection(
     val checked: Boolean,
     val parentProducer: ViaductSchema.ObjectField?,
     val children: ParentConstructionDemandTemplate,
-    val resolver: ParentConstructionDemandTemplate?,
+    val resolver: FieldValueResolver?,
     val checker: ParentConstructionDemandTemplate?,
     val typeCheckers: List<ParentConstructionDemandTemplate>,
 ) {
     val dependencies: List<ParentConstructionDemandTemplate>
-        get() = listOfNotNull(children, resolver, checker) + typeCheckers
+        get() = listOfNotNull(children, checker) + resolver?.dependencyAlternatives.orEmpty().map { it.objectParentDemand } + typeCheckers
 }
 
 internal class PreparedParentDemand(

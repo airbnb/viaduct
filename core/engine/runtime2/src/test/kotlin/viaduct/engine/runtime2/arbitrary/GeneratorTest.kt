@@ -393,13 +393,13 @@ class GeneratorTest {
                 val field = world.schema.requireObjectField(owner.typeName, owner.fieldName)
                 val resolver = world.resolverRegistry.resolver(field)
                 val providerNames =
-                    resolver.variables
+                    resolver.declaredDependencies.variables
                         .filterValues { definition ->
                             definition == VariableDefinition.FromProvider
                         }.keys
                         .mapTo(linkedSetOf(), Arguments.Variable::variableName)
                 assertTrue(providerNames.isNotEmpty())
-                assertTrue(resolver.variablesProvider != null)
+                assertTrue(resolver.declaredDependencies.variablesProvider != null)
             }
             generatedVariables += enabledRegistry.features.fromProviderVariableCount
             argumentSensitiveVariables +=

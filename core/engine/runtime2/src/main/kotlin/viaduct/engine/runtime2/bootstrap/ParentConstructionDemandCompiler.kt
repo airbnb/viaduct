@@ -10,15 +10,10 @@ import viaduct.engine.runtime2.model.registry.Assumptions
 import viaduct.engine.runtime2.model.registry.CheckerResolverBase
 import viaduct.engine.runtime2.model.registry.FieldValueResolver
 import viaduct.engine.runtime2.model.registry.ParentConstructionDemandTemplate
-import viaduct.engine.runtime2.model.registry.ParentDemandContinuation
 import viaduct.engine.runtime2.model.registry.ParentSelectionDemand
 import viaduct.engine.runtime2.model.registry.PreparedParentDemand
-import viaduct.engine.runtime2.model.registry.PreparedParentRequest
 import viaduct.engine.runtime2.model.registry.PreparedParentSelection
 import viaduct.engine.runtime2.resolution.ParentDemandApplication
-import viaduct.engine.runtime2.resolution.framework.Demand
-import viaduct.engine.runtime2.resolution.framework.guardedBy
-import viaduct.engine.runtime2.resolution.parentDemandOf
 import viaduct.engine.runtime2.resolution.withoutInclusionConditions
 import viaduct.graphql.schema.ViaductSchema
 
@@ -30,8 +25,10 @@ internal class ParentConstructionDemandCompiler(private val world: Assumptions) 
         checkers: Collection<CheckerResolverBase<*>>,
     ) {
         resolvers.forEach { resolver ->
-            prepare(resolver.objectParentDemand, resolver.objectFragment.withoutInclusionConditions(), checked = true)
-            prepare(resolver.queryParentDemand, resolver.queryFragment.withoutInclusionConditions(), checked = true)
+            resolver.dependencyAlternatives.forEach { inputs ->
+                prepare(inputs.objectParentDemand, inputs.objectFragment.withoutInclusionConditions(), checked = true)
+                prepare(inputs.queryParentDemand, inputs.queryFragment.withoutInclusionConditions(), checked = true)
+            }
         }
         checkers.forEach { checker ->
             val parents = world.resolverRegistry.checkerParentDemand(checker)
@@ -70,29 +67,49 @@ internal class ParentConstructionDemandCompiler(private val world: Assumptions) 
 
     fun finish(): Map<ViaductSchema.Object, Map<String, ParentSelectionDemand>> {
         val complete = mutableSetOf<ParentConstructionDemandTemplate>()
-        val application = ParentDemandApplication(world)
+        val application = ParentDemandApplication(world, engineExecutionContext = null, useExecutionSelection = false)
+        do {
+            var changed = false
+            programs.forEach { program ->
+                val inducesParent = program.usesParent || program.dependencies.any { it.mayInduceParentDemand }
+                val selectsInputs = inducesParent && (
+                    program.dependencies.any { it.dependsOnExecutionSelection } ||
+                        program.selections.any { selection ->
+                            selection.resolver?.let { resolver ->
+                                resolver.dependencyAlternatives.size > 1 && resolver.dependencyAlternatives.any { it.objectParentDemand.mayInduceParentDemand }
+                            } == true
+                        }
+                )
+                if (program.mayInduceParentDemand != inducesParent || program.dependsOnExecutionSelection != selectsInputs) changed = true
+                program.mayInduceParentDemand = inducesParent
+                program.dependsOnExecutionSelection = selectsInputs
+            }
+        } while (changed)
 
         fun summarize(program: ParentConstructionDemandTemplate) {
             if (!complete.add(program)) return
             program.dependencies.forEach(::summarize)
-            program.mayInduceParentDemand = program.usesParent || program.dependencies.any { it.mayInduceParentDemand }
             program.summary = application.summarize(program)
         }
         programs.forEach(::summarize)
         val registry = world.resolverRegistry
         val fieldsByType = world.schema.types.values.filterIsInstance<ViaductSchema.Object>().associateWith { type ->
             type.fields.filterNot { it.isParentField() }.map { field ->
-                val resolver = if (field in registry) registry.resolver(field).objectParentDemand.summary else PreparedParentDemand.EMPTY
-                val checker = registry.fieldChecker(field)?.let { registry.checkerParentDemand(it).objectParentDemand.summary } ?: PreparedParentDemand.EMPTY
-                val typeCheckers = (field.type.baseTypeDef as? ViaductSchema.CompositeTypeDef)?.possibleObjectTypes.orEmpty()
-                    .fold(PreparedParentDemand.EMPTY) { demand, outputType ->
-                        application.combine(demand, registry.typeChecker(outputType)?.let { registry.checkerParentDemand(it).objectParentDemand.summary } ?: PreparedParentDemand.EMPTY)
-                    }
-                ParentSelectionDemand(field, application.combine(resolver, checker), resolver, typeCheckers)
+                val resolver = if (field in registry) registry.resolver(field) else null
+                val checker = registry.fieldChecker(field)?.let { registry.checkerParentDemand(it).objectParentDemand }
+                val typeCheckerPrograms = (field.type.baseTypeDef as? ViaductSchema.CompositeTypeDef)?.possibleObjectTypes.orEmpty()
+                    .mapNotNull { outputType -> registry.typeChecker(outputType)?.let { registry.checkerParentDemand(it).objectParentDemand } }
+                val resolverSummary = resolver?.declaredDependencies?.objectParentDemand?.summary ?: PreparedParentDemand.EMPTY
+                val checkerSummary = checker?.summary ?: PreparedParentDemand.EMPTY
+                val typeCheckers = typeCheckerPrograms.fold(PreparedParentDemand.EMPTY) { demand, program -> application.combine(demand, program.summary) }
+                ParentSelectionDemand(field, application.combine(resolverSummary, checkerSummary), resolverSummary, typeCheckers, resolver, checker, typeCheckerPrograms)
             }
         }
 
-        fun ParentSelectionDemand.hasFixedDemand(): Boolean = checked !== PreparedParentDemand.EMPTY || typeCheckers !== PreparedParentDemand.EMPTY
+        fun ParentSelectionDemand.hasFixedDemand(): Boolean =
+            checked !== PreparedParentDemand.EMPTY || typeCheckers !== PreparedParentDemand.EMPTY ||
+                resolver?.dependencyAlternatives.orEmpty().any { it.objectParentDemand.mayInduceParentDemand } ||
+                checker?.mayInduceParentDemand == true || typeCheckerPrograms.any { it.mayInduceParentDemand }
 
         fun ParentSelectionDemand.reaches(types: Set<ViaductSchema.Object>): Boolean = (field.type.baseTypeDef as? ViaductSchema.CompositeTypeDef)?.possibleObjectTypes.orEmpty().any { it in types }
 
@@ -124,7 +141,7 @@ private fun prepareSelection(
         checked = checked,
         parentProducer = parentProducer,
         children = compile(selection.subselections, checked),
-        resolver = if (parentProducer == null && key.field in registry) registry.resolver(key.field).objectParentDemand else null,
+        resolver = if (parentProducer == null && key.field in registry) registry.resolver(key.field) else null,
         checker = if (parentProducer == null && checked) registry.fieldChecker(key.field)?.let { registry.checkerParentDemand(it).objectParentDemand } else null,
         typeCheckers = if (parentProducer == null && checked && selection.inclusionCondition !== InclusionCondition.Never) {
             (key.field.type.baseTypeDef as? ViaductSchema.CompositeTypeDef)?.possibleObjectTypes.orEmpty()
@@ -133,27 +150,4 @@ private fun prepareSelection(
             emptyList()
         },
     )
-}
-
-private fun ParentDemandApplication.summarize(program: ParentConstructionDemandTemplate): PreparedParentDemand =
-    if (program.mayInduceParentDemand) {
-        program.selections.fold(parentDemandOf()) { result, selection -> combine(result, evaluate(selection)) }
-    } else {
-        PreparedParentDemand.EMPTY
-    }
-
-private fun ParentDemandApplication.evaluate(prepared: PreparedParentSelection): PreparedParentDemand {
-    val selection = prepared.selection
-    val condition = selection.inclusionCondition
-    if (prepared.parentProducer != null) {
-        val demand = if (prepared.checked) Demand.checked(selection.subselections).guardedBy(condition) else Demand.unchecked(selection.subselections).guardedBy(condition)
-        return parentDemandOf(
-            requests = mapOf(
-                selection.key.field to PreparedParentRequest(parentDemandOf(demand), listOf(ParentDemandContinuation(prepared.children, condition))),
-            ),
-        )
-    }
-    val nested = prepared.typeCheckers.fold(prepared.children.summary) { result, checker -> combine(result, checker.summary) }
-    val fixed = listOfNotNull(prepared.resolver, prepared.checker).fold(PreparedParentDemand.EMPTY) { result, boundary -> combine(result, boundary.summary) }
-    return apply(selection, prepared.checked, nested, fixed)
 }

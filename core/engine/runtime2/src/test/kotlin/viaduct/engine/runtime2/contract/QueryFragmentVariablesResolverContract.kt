@@ -428,7 +428,7 @@ interface QueryFragmentVariablesResolverContract : ResolverContract {
         } else {
             key.field to ResolverOccurrenceId.at(resolution.result, listOf(key))
         }
-        val definitions = fixture.resolverRegistry.resolver(targetField).instantiatedVariableDefinitions(occurrence)
+        val definitions = fixture.resolverRegistry.resolver(targetField).declaredDependencies.instantiatedVariableDefinitions(occurrence)
 
         return QueryProviderFailureResolution(
             value = resolution.result.getCell(key).get(),

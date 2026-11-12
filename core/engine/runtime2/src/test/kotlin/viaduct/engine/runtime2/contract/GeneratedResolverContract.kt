@@ -683,7 +683,7 @@ interface FromProviderGeneratedResolverContract : GeneratedCaseAssertionPolicy {
                                 requireNotNull(
                                     observation.ordinary.world.resolverRegistry
                                         .resolver(field)
-                                        .variablesProvider,
+                                        .declaredDependencies.variablesProvider,
                                 )
                             val first = provider(arguments[0])
                             assertEquals(first, provider(arguments[0]))

@@ -105,6 +105,8 @@ internal class OrchestrationTask private constructor(
                     objectOccurrence = occurrence,
                     queryOccurrence = queryOccurrence,
                     initialDemand = OrchestrationConstructionDemand(constructionDemand, Demand.EMPTY),
+                    engineExecutionContext = operation.engineExecutionContext,
+                    operationDemandCache = operation.demandCache,
                 )
             val objectOER =
                 SharedOERContext(

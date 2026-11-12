@@ -8,6 +8,7 @@ import viaduct.engine.runtime2.model.ResolverOutputData
 import viaduct.engine.runtime2.model.RootFieldReferenceData
 import viaduct.engine.runtime2.model.SelectionForest
 import viaduct.engine.runtime2.model.outputType
+import viaduct.engine.runtime2.model.registry.FieldResolverDependencies
 import viaduct.engine.runtime2.model.registry.FieldValueResolver
 import viaduct.engine.runtime2.model.registry.ResolverFragments
 import viaduct.engine.runtime2.model.registry.VariableInstanceDefinition
@@ -40,6 +41,7 @@ internal data class FieldResolverOccurrence(
     val resolver: FieldValueResolver,
     val variableDefinitions: List<VariableInstanceDefinition>,
     val fragments: ResolverFragments,
+    val dependencies: FieldResolverDependencies,
     override val publicationConstructionDemand: Demand<SelectionForest> =
         Demand.checked(selection.subselections),
 ) : ValueSourceOccurrence {

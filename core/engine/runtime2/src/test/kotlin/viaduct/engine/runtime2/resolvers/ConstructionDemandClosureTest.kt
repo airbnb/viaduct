@@ -84,7 +84,7 @@ class ConstructionDemandClosureTest {
             )
             val consumer = fixture.schema.requireObjectField("Query", "consumer")
             val resolver = fixture.resolverRegistry.resolver(consumer)
-            assertEquals(2, resolver.queryFragment.size)
+            assertEquals(2, resolver.declaredDependencies.queryFragment.size)
             val template = requireNotNull(fixture.resolverRegistry.referenceConstructionDemand(consumer)).queryDemand
             assertEquals(1, template.reusableDemand.size)
             assertEquals(1, template.templatedDemand.size)

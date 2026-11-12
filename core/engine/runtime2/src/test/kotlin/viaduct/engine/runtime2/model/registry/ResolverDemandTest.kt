@@ -164,22 +164,22 @@ class ResolverDemandTest {
 
         assertEquals(
             setOf(xVariable),
-            world.resolverRegistry.resolver(x).variables.keys,
+            world.resolverRegistry.resolver(x).declaredDependencies.variables.keys,
         )
         assertEquals(
             setOf(yVariable),
-            world.resolverRegistry.resolver(y).variables.keys,
+            world.resolverRegistry.resolver(y).declaredDependencies.variables.keys,
         )
         assertEquals(
             schema.loweredSchema.requireObjectField("Query", "xSource"),
             assertIs<VariableDefinition.FromField>(
-                world.resolverRegistry.resolver(x).variables.getValue(xVariable),
+                world.resolverRegistry.resolver(x).declaredDependencies.variables.getValue(xVariable),
             ).path.single().field,
         )
         assertEquals(
             schema.loweredSchema.requireObjectField("Query", "ySource"),
             assertIs<VariableDefinition.FromField>(
-                world.resolverRegistry.resolver(y).variables.getValue(yVariable),
+                world.resolverRegistry.resolver(y).declaredDependencies.variables.getValue(yVariable),
             ).path.single().field,
         )
     }
@@ -225,13 +225,13 @@ class ResolverDemandTest {
 
         val definition =
             assertIs<VariableDefinition.FromArgument>(
-                world.resolverRegistry.resolver(source).variables.getValue(variable),
+                world.resolverRegistry.resolver(source).declaredDependencies.variables.getValue(variable),
             )
         assertEquals(source.requireArg("seed"), definition.argument)
         assertEquals(setOf(consume), world.resolverRegistry.mayDemandFrom(source))
 
         val resolver = world.resolverRegistry.resolver(source)
-        val objectFragment = resolver.objectFragment.single()
+        val objectFragment = resolver.declaredDependencies.objectFragment.single()
 
         assertEquals(
             variable,
@@ -1058,7 +1058,7 @@ class ResolverDemandTest {
                 assertEquals(setOf(second), world.resolverRegistry.mayDemandFrom(first))
                 assertTrue(world.resolverRegistry.mayDemandFrom(second).isEmpty())
                 if (provider == ProviderFragment.QUERY) {
-                    assertNotNull(world.resolverRegistry.precomputedConstructionDemand(first))
+                    assertNotNull(world.resolverRegistry.precomputedConstructionDemand(first, context = null))
                 }
             }
         }

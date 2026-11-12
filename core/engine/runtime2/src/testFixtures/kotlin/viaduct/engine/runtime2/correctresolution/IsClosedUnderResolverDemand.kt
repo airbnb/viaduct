@@ -133,7 +133,7 @@ internal class ResolverDemandValidationLogic(
     ): Boolean {
         val resolver = operation.world.resolverRegistry.resolver(key.field)
         val coordinate = path + key
-        val selections = resolver.instantiateFragmentsAt(resolverApplicationCache.root, coordinate)
+        val selections = resolver.declaredDependencies.instantiateFragmentsAt(resolverApplicationCache.root, coordinate)
             .objectFragment.constructionSelections
         return if (selections.usedVariables().all { operation.variableBindings.isBound(it.instanceId!!) }) {
             result.conformsToSelectionsAt(operation, selections, path)

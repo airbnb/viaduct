@@ -778,7 +778,7 @@ class CorrectResolutionTest : ResolutionDispatcherResource {
         val fragment = testWorld.schemas.fragmentFrom("fragment Query on Query { consumer }")
         val resolver = world.resolverRegistry.resolver(consumer)
         val occurrenceId = ResolverOccurrenceId.at(result, listOf(consumerKey))
-        val inputSelections = resolver.instantiateObjectMaterializationSelections(occurrenceId)
+        val inputSelections = resolver.declaredDependencies.instantiateObjectMaterializationSelections(occurrenceId)
 
         fun operation(inputValue: Any): SharedOperationContext<*> {
             val observer = CorrectnessResolverObserver()

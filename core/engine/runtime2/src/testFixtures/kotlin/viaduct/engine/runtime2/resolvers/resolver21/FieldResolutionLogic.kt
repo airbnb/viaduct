@@ -122,7 +122,7 @@ internal class FieldResolutionLogic(
     ): ResolverOutputData? {
         val publication = fieldResolverTask.publication
         val resolver = publication.operation.world.resolverRegistry.resolver(publication.selection.key.field)
-        val fragments = resolver.instantiateFragmentsAt(publication.oerOccurrence.root, publication.publicationPath)
+        val fragments = resolver.declaredDependencies.instantiateFragmentsAt(publication.oerOccurrence.root, publication.publicationPath)
         if (fragments.variablesProviderFailed(publication.operation)) return EngineErrorData.of()
         val reader = publication.oerOccurrence.root.fieldResolverCycleTask(publication.publicationPath)
         val queryValue =
@@ -132,11 +132,11 @@ internal class FieldResolutionLogic(
                 reader,
             )
         val queryMaterializationSelections =
-            resolver.instantiateQueryMaterializationSelections(
+            resolver.declaredDependencies.instantiateQueryMaterializationSelections(
                 fragments.queryFragment.resolverOccurrenceId,
             )
         val objectMaterializationSelections =
-            resolver.instantiateObjectMaterializationSelections(
+            resolver.declaredDependencies.instantiateObjectMaterializationSelections(
                 fragments.objectFragment.resolverOccurrenceId,
             )
         val input = publication.oerOccurrence.target.materializeResolverInput(
@@ -179,7 +179,7 @@ internal class FieldResolutionLogic(
             "Nonempty resolver Query fragment has no demanded shared Query OER"
         }
         val materializationSelections =
-            resolver.instantiateQueryMaterializationSelections(
+            resolver.declaredDependencies.instantiateQueryMaterializationSelections(
                 queryFragment.resolverOccurrenceId,
             )
         return queryOER.occurrence.target.materializeResolverInput(
@@ -209,7 +209,7 @@ internal class FieldResolutionLogic(
         }
         val input = invocation.emptyObjectInput()
         val queryMaterializationSelections =
-            invocation.resolver.instantiateQueryMaterializationSelections(
+            invocation.resolver.declaredDependencies.instantiateQueryMaterializationSelections(
                 invocation.fragments.queryFragment.resolverOccurrenceId,
             )
         publication.operation.resolutionObserver.onResolverInvocation?.invoke(

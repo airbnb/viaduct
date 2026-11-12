@@ -98,10 +98,10 @@ class BenchmarkExecutorAdapter(
                     if (field !in world.resolverRegistry) return@mapNotNull null
                     val resolver = world.resolverRegistry.resolver(field)
                     val templates = ResolverFragmentTemplates(
-                        resolver.instantiateObjectMaterializationSelections(occurrence),
-                        resolver.instantiateQueryMaterializationSelections(occurrence),
-                        resolver.variables,
-                        resolver.variablesProvider,
+                        resolver.declaredDependencies.instantiateObjectMaterializationSelections(occurrence),
+                        resolver.declaredDependencies.instantiateQueryMaterializationSelections(occurrence),
+                        resolver.declaredDependencies.variables,
+                        resolver.declaredDependencies.variablesProvider,
                     )
                     val coordinate = FieldCoordinate(type.name, definition.name)
                     val required = requiredSelections(
@@ -129,17 +129,17 @@ class BenchmarkExecutorAdapter(
                         objectSelectionSet = required.first,
                         querySelectionSet = required.second,
                         argumentVariables = VariableFromArgumentDefinitions(
-                            resolver.variables.entries.mapNotNull { (variable, source) ->
+                            resolver.declaredDependencies.variables.entries.mapNotNull { (variable, source) ->
                                 (source as? VariableDefinition.FromArgument)?.let {
                                     variable.variableName to (listOf(it.argument.name) + it.inputPath.map { step -> step.name }).joinToString(".")
                                 }
                             }.toMap()
                         ),
-                        objectFieldVariables = fieldVariables(resolver.variables, ProviderFragment.OBJECT),
-                        queryFieldVariables = fieldVariables(resolver.variables, ProviderFragment.QUERY),
-                        variablesFromFunctionProvider = resolver.variablesProvider?.let { function ->
+                        objectFieldVariables = fieldVariables(resolver.declaredDependencies.variables, ProviderFragment.OBJECT),
+                        queryFieldVariables = fieldVariables(resolver.declaredDependencies.variables, ProviderFragment.QUERY),
+                        variablesFromFunctionProvider = resolver.declaredDependencies.variablesProvider?.let { function ->
                             object : VariableFromFunctionDefinitions {
-                                override val variableNames = resolver.variables.filterValues { it == VariableDefinition.FromProvider }.keys.map { it.variableName }.toSet()
+                                override val variableNames = resolver.declaredDependencies.variables.filterValues { it == VariableDefinition.FromProvider }.keys.map { it.variableName }.toSet()
 
                                 override suspend fun provideVariables(
                                     objectData: EngineObjectData.Sync,

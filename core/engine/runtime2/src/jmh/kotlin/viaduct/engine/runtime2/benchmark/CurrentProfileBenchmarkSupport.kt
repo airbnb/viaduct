@@ -392,8 +392,8 @@ internal class CurrentProfileBenchmarkSupport(
             forEach { depth = maxOf(depth, 1 + it.subselections.selectionDepth()) }
             return depth
         }
-        val objectFragmentSelections = resolvers.map { it.objectFragment.selectionCount().toLong() }
-        val objectFragmentDepths = resolvers.map { it.objectFragment.selectionDepth().toLong() }
+        val objectFragmentSelections = resolvers.map { it.declaredDependencies.objectFragment.selectionCount().toLong() }
+        val objectFragmentDepths = resolvers.map { it.declaredDependencies.objectFragment.selectionDepth().toLong() }
         appendLine("Resolver benchmark registry statistics:")
         appendLine(
             "  active fields per non-Query object: " +
@@ -426,8 +426,8 @@ internal class CurrentProfileBenchmarkSupport(
         appendLine("  named inputs per type checker: ${typeCheckers.map { it.fragmentTemplates.size.toLong() }.statistics(value = { it })}")
         appendLine("  bulk field checker policies: ${overheadCheckers.fieldPolicies.values.flatten().groupingBy { if (it.startsWith("privacy")) "privacy" else it }.eachCount()}")
         appendLine("  checker-only prepared Query resolvers: ${overheadCheckers.typePolicies.size + 1}")
-        appendLine("  Query fragments: ${resolvers.count { !it.queryFragment.isEmpty() }}")
-        val variables = resolvers.flatMap { it.variables.values }
+        appendLine("  Query fragments: ${resolvers.count { !it.declaredDependencies.queryFragment.isEmpty() }}")
+        val variables = resolvers.flatMap { it.declaredDependencies.variables.values }
         appendLine("  FromArgument variables: ${variables.count { it is VariableDefinition.FromArgument }}")
         appendLine("  FromObjectField variables: ${variables.count { it is VariableDefinition.FromField && it.providerFragment == ProviderFragment.OBJECT }}")
         appendLine("  FromQueryField variables: ${variables.count { it is VariableDefinition.FromField && it.providerFragment == ProviderFragment.QUERY }}")

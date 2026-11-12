@@ -62,7 +62,7 @@ class SiblingDependencyLogic(
         val dependencies =
             if (includeQueryFragments) {
                 val fragments =
-                    resolver.instantiateFragmentsAt(
+                    resolver.declaredDependencies.instantiateFragmentsAt(
                         oerOccurrence.root,
                         oerOccurrence.coordinate(consumer),
                     )

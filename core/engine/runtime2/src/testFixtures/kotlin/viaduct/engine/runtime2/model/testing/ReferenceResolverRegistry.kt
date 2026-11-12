@@ -32,7 +32,7 @@ private val referenceTemplates = WeakHashMap<ResolverRegistry, MutableMap<Viaduc
 
 fun ResolverRegistry.referenceConstructionDemand(field: ViaductSchema.ObjectField): ReferenceConstructionDemandTemplate? =
     synchronized(referenceTemplates) {
-        if (precomputedConstructionDemand(field) == null) return@synchronized null
+        if (precomputedConstructionDemand(field, context = null) == null) return@synchronized null
         val cache = referenceTemplates.getOrPut(this) { mutableMapOf() }
         val pending = ArrayDeque<ViaductSchema.ObjectField>()
         pending.add(field)
@@ -42,7 +42,7 @@ fun ResolverRegistry.referenceConstructionDemand(field: ViaductSchema.ObjectFiel
                 pending.removeLast()
                 continue
             }
-            val direct = requireNotNull(precomputedConstructionDemand(current))
+            val direct = requireNotNull(precomputedConstructionDemand(current, context = null))
             val fragments = listOfNotNull(direct.objectDemand, direct.queryDemand, direct.queryRootDemand)
             val dependency = fragments.asSequence().flatMap { it.reusableDemand.groundKeys() }
                 .firstOrNull { it.field in this && it.field !in cache }
@@ -70,7 +70,7 @@ fun ResolverRegistry.referenceConstructionDemand(field: ViaductSchema.ObjectFiel
                     direct.queryRootDemand === direct.queryDemand -> queryDemand
                     else -> enrich(requireNotNull(direct.queryRootDemand))
                 },
-                hasVariables = resolver(current).variables.isNotEmpty(),
+                hasVariables = resolver(current).declaredDependencies.variables.isNotEmpty(),
             )
             pending.removeLast()
         }
@@ -80,9 +80,9 @@ fun ResolverRegistry.referenceConstructionDemand(field: ViaductSchema.ObjectFiel
 /** Conservative direct resolver dependencies for generated-world witnesses. */
 fun ResolverRegistry.mayDemandFrom(field: ViaductSchema.ObjectField): Set<ViaductSchema.ObjectField> {
     require(field in this) { "Resolver field is not registered" }
-    val resolver = resolver(field)
+    val inputs = resolver(field).declaredDependencies
     return buildSet {
-        listOf(resolver.objectFragment, resolver.queryFragment).forEach { fragment ->
+        listOf(inputs.objectFragment, inputs.queryFragment).forEach { fragment ->
             fragment.forEachPossibleObjectField { dependency ->
                 if (dependency in this@mayDemandFrom) add(dependency)
             }

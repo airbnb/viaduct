@@ -1,6 +1,7 @@
 package viaduct.engine.runtime2.model.registry
 
 import viaduct.engine.api.CheckerResult
+import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.PathComponent
 import viaduct.engine.runtime2.model.ResolverTarget
@@ -26,13 +27,15 @@ class TypeCheckerResolver private constructor(
     fragmentTemplates: Map<String, ResolverFragmentTemplates>,
     queryType: ViaductSchema.Object,
     private val applicability: (ObjectEngineResult, List<PathComponent>) -> Boolean,
+    private val applicabilityForExecution: (EngineExecutionContext?, ObjectEngineResult, List<PathComponent>) -> Boolean,
     private val function: TypeCheckerFunction,
 ) : CheckerResolverBase<ResolverTarget.TypeCheckerTarget>(target, fragmentTemplates, queryType) {
     /** A pure, total metadata predicate: never read result data or initiate execution here. */
     fun isApplicable(
         root: ObjectEngineResult,
-        path: List<PathComponent>
-    ): Boolean = applicability(root, path)
+        path: List<PathComponent>,
+        executionContext: EngineExecutionContext?,
+    ): Boolean = applicability(root, path) && applicabilityForExecution(executionContext, root, path)
 
     /** Runs each named provider with the type checker's empty argument tuple. */
     suspend fun provideVariables(): Map<String, viaduct.engine.runtime2.model.EngineInputData?> = super.provideVariables(argumentsOfGround(emptyMap()))
@@ -49,6 +52,8 @@ class TypeCheckerResolver private constructor(
             fragmentTemplates: Map<String, ResolverFragmentTemplates> = emptyMap(),
             /** Airbnb-only applicability hook; OSS callers should keep the default. */
             isApplicable: (ObjectEngineResult, List<PathComponent>) -> Boolean = { _, _ -> true },
+            /** Airbnb-only applicability hook; OSS callers should keep the default. */
+            isApplicableForExecution: (EngineExecutionContext?, ObjectEngineResult, List<PathComponent>) -> Boolean = { _, _, _ -> true },
             function: TypeCheckerFunction,
         ): TypeCheckerResolver =
             TypeCheckerResolver(
@@ -56,6 +61,7 @@ class TypeCheckerResolver private constructor(
                 fragmentTemplates = fragmentTemplates,
                 queryType = queryType,
                 applicability = isApplicable,
+                applicabilityForExecution = isApplicableForExecution,
                 function = function,
             )
     }

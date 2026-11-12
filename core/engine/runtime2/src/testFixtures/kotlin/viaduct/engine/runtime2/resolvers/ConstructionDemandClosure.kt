@@ -198,7 +198,7 @@ private fun Demand<ObjectSelectionForest>.typeCheckerInputDemand(
 ): ResolverInputConstructionDemand? {
     if (alreadyExpanded || !typeCheckDemanded) return null
     val checker =
-        operation.world.resolverRegistry.typeChecker(occurrence.target.type)?.takeIf { it.isApplicable(occurrence.root, occurrence.path) }
+        operation.world.resolverRegistry.typeChecker(occurrence.target.type)?.takeIf { it.isApplicable(occurrence.root, occurrence.path, executionContext = null) }
             ?: return null
     require(checker.variables.isEmpty()) {
         "Grounded type checker ${checker.target.type.name} cannot declare variables"
@@ -215,9 +215,9 @@ internal fun OrchestrationConstructionDemand<SelectionForest>.groundWithLiftedPa
     objectType: ViaductSchema.Object,
 ): OrchestrationConstructionDemand<ObjectSelectionForest> {
     val objectWithParentDemand =
-        objectRooted + objectRooted.liftParentConstructionDemand(operation.world)
+        objectRooted + objectRooted.liftParentConstructionDemand(operation.world, engineExecutionContext = null)
     val queryWithParentDemand =
-        queryRooted + queryRooted.liftParentConstructionDemand(operation.world)
+        queryRooted + queryRooted.liftParentConstructionDemand(operation.world, engineExecutionContext = null)
     return OrchestrationConstructionDemand(
         objectRooted = objectWithParentDemand.applicableGroundSelections(operation, objectType),
         queryRooted =
@@ -291,7 +291,7 @@ private fun Set<ObjectEngineResult.GroundKey>.resolverInputDemand(
         val fragments =
             operation.world.resolverRegistry
                 .resolver(key.field)
-                .instantiateFragmentsAt(occurrence.root, occurrence.coordinate(key))
+                .declaredDependencies.instantiateFragmentsAt(occurrence.root, occurrence.coordinate(key))
         objectFragment += fragments.objectFragment.constructionSelections
         queryFragment += fragments.queryFragment.constructionSelections
     }

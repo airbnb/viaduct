@@ -1,6 +1,7 @@
 package viaduct.engine.runtime2.resolution
 
 import java.util.IdentityHashMap
+import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.runtime2.model.InclusionCondition
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.ObjectSelection
@@ -30,23 +31,29 @@ import viaduct.graphql.schema.ViaductSchema
  * The worked examples in `ParentConstructionDemandTest` are the best introduction to this
  * operation, especially its recursive lifting through intermediate OERs and resolver inputs.
  */
-internal fun SelectionForest.liftParentConstructionDemand(world: Assumptions): SelectionForest =
+internal fun SelectionForest.liftParentConstructionDemand(
+    world: Assumptions,
+    engineExecutionContext: EngineExecutionContext?,
+): SelectionForest =
     if (world.parentFieldRelations.isEmpty()) {
         selectionForestOf()
     } else {
         findParentDemandInSelectionForest(
             world,
-            ParentDemandContext(fieldChecker = { null }),
+            ParentDemandContext(fieldChecker = { null }, engineExecutionContext = engineExecutionContext),
             checked = true,
         ).localDemand.values
     }
 
 /** Preserves checked and unchecked provenance while lifting additional parent demand. */
-internal fun Demand<SelectionForest>.liftParentConstructionDemand(world: Assumptions): Demand<SelectionForest> =
+internal fun Demand<SelectionForest>.liftParentConstructionDemand(
+    world: Assumptions,
+    engineExecutionContext: EngineExecutionContext?
+): Demand<SelectionForest> =
     if (world.parentFieldRelations.isEmpty()) {
         Demand.EMPTY
     } else {
-        val context = ParentDemandContext(world.resolverRegistry::fieldChecker, world.resolverRegistry::typeChecker)
+        val context = ParentDemandContext(world.resolverRegistry::fieldChecker, world.resolverRegistry::typeChecker, engineExecutionContext)
         (
             checked.findParentDemandInSelectionForest(world, context, checked = true) +
                 unchecked.findParentDemandInSelectionForest(world, context, checked = false)
@@ -57,6 +64,7 @@ internal fun Demand<SelectionForest>.liftParentConstructionDemand(world: Assumpt
 private class ParentDemandContext(
     val fieldChecker: (ViaductSchema.ObjectField) -> FieldCheckerResolver?,
     val typeChecker: (ViaductSchema.Object) -> TypeCheckerResolver? = { null },
+    val engineExecutionContext: EngineExecutionContext?,
 ) {
     val normalizer = ParentDemandNormalizer()
     val expandingTypes = mutableSetOf<ViaductSchema.Object>()
@@ -306,7 +314,7 @@ private fun ViaductSchema.ObjectField.findParentDemandInObjectFragment(
     context.parentDemandByObjectFragmentId[objectFragmentId]?.let { return it }
     val registry = world.resolverRegistry
     if (checked) {
-        if (this in registry && !registry.resolver(this).objectParentDemand.mayInduceParentDemand) {
+        if (this in registry && !registry.resolver(this).dependenciesFor(context.engineExecutionContext).objectParentDemand.mayInduceParentDemand) {
             return ParentDemandAnalysis(context.normalizer)
         }
     } else {
@@ -317,7 +325,7 @@ private fun ViaductSchema.ObjectField.findParentDemandInObjectFragment(
     }
     val selections =
         if (checked) {
-            if (this in registry) registry.resolver(this).objectFragment else null
+            if (this in registry) registry.resolver(this).dependenciesFor(context.engineExecutionContext).objectFragment else null
         } else {
             context.fieldChecker(this)?.objectFragment
         } ?: return ParentDemandAnalysis(context.normalizer)

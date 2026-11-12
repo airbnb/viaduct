@@ -78,7 +78,7 @@ private fun EngineResult?.registeredResolverApplicationIdentityCounts(
                             .materializeResult(
                                 operation = operation,
                                 selections =
-                                    resolver.instantiateObjectMaterializationSelections(
+                                    resolver.declaredDependencies.instantiateObjectMaterializationSelections(
                                         fragment.resolverOccurrenceId,
                                     ),
                                 reader = root.fieldResolverCycleTask(cell.occurrencePath),
@@ -154,7 +154,7 @@ private fun EngineResult?.reconstructResolverOccurrenceApplicationIdentityCounts
                                     .materializeResult(
                                         operation = operation,
                                         selections =
-                                            resolver.instantiateObjectMaterializationSelections(
+                                            resolver.declaredDependencies.instantiateObjectMaterializationSelections(
                                                 fragment.resolverOccurrenceId,
                                             ),
                                         reader = root.fieldResolverCycleTask(cell.occurrencePath),
@@ -303,7 +303,7 @@ private fun List<RootFieldReferenceInvocationObservation>.independentQueryFragme
         val queryFragment =
             operation.world.resolverRegistry
                 .resolver(observation.invocationKey.field)
-                .instantiateFragments(owner)
+                .declaredDependencies.instantiateFragments(owner)
                 .queryFragment
         owner.takeUnless { queryFragment.constructionSelections.isEmpty() }
     }
@@ -318,7 +318,7 @@ private fun FieldValueResolver.objectFragmentSatisfiedBy(
     result: ObjectEngineResult,
     path: List<PathComponent>,
 ): ResolverFragment? {
-    val objectFragment = instantiateFragmentsAt(root, path).objectFragment
+    val objectFragment = declaredDependencies.instantiateFragmentsAt(root, path).objectFragment
     return objectFragment.takeIf {
         val constructionSelections = objectFragment.constructionSelections
         constructionSelections.usedVariables().all { variable ->

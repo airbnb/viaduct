@@ -121,6 +121,8 @@ internal class FieldResolutionLogic(
                 else -> constructionDemand.successorDemandFromConstructionDemand(
                     publication.operation.world,
                     (sourceOccurrence.publicationExpectedType.baseTypeDef as? ViaductSchema.CompositeTypeDef)?.possibleObjectTypes.orEmpty(),
+                    publication.operation.engineExecutionContext,
+                    publication.operation.demandCache,
                 )
             }
 
@@ -264,7 +266,7 @@ internal class FieldResolutionLogic(
         if (providerError != null) return providerError
 
         val objectMaterializationSelections =
-            fieldResolverOccurrence.resolver.instantiateObjectMaterializationSelections(
+            fieldResolverOccurrence.dependencies.instantiateObjectMaterializationSelections(
                 fieldResolverOccurrence.resolverOccurrenceId,
             )
         val input: EngineObjectData.Sync =
@@ -277,7 +279,7 @@ internal class FieldResolutionLogic(
                 resultPath = publication.oerOccurrence.path,
             )
         val queryMaterializationSelections =
-            fieldResolverOccurrence.resolver
+            fieldResolverOccurrence.dependencies
                 .instantiateQueryMaterializationSelections(
                     fieldResolverOccurrence.resolverOccurrenceId,
                 )
@@ -341,13 +343,14 @@ internal class FieldResolutionLogic(
         val invocationPath: List<PathComponent> = prefixKeys + invocationKey
         val resolverOccurrenceId = ResolverOccurrenceId.at(invocationRoot, invocationPath)
         val resolver = publication.operation.world.resolverRegistry.resolver(reference.targetField)
-        val fragments = resolver.instantiateFragments(resolverOccurrenceId)
+        val dependencies = resolver.dependenciesFor(publication.operation.engineExecutionContext)
+        val fragments = dependencies.instantiateFragments(resolverOccurrenceId)
         require(fragments.objectFragment.constructionSelections.isEmpty()) {
             "Root-field-reference target ${reference.targetField.containingDef.name}/" +
                 "${reference.targetField.name} must not declare an object fragment"
         }
         require(
-            resolver.variables.values.none { definition ->
+            dependencies.variables.values.none { definition ->
                 definition is VariableDefinition.FromField &&
                     definition.providerFragment == ProviderFragment.OBJECT
             },
@@ -369,8 +372,9 @@ internal class FieldResolutionLogic(
                 invocationPath = invocationPath,
                 resolverOccurrenceId = resolverOccurrenceId,
                 resolver = resolver,
+                dependencies = dependencies,
                 variableDefinitions =
-                    resolver.instantiatedVariableDefinitions(resolverOccurrenceId),
+                    dependencies.instantiatedVariableDefinitions(resolverOccurrenceId),
                 fragments = fragments,
             )
         declareRootFieldInvocationBindings(fieldResolverOccurrence, reference.arguments)
@@ -425,7 +429,7 @@ internal class FieldResolutionLogic(
                 inputSelections = materializeSelectionForestOf(),
                 queryValue = queryValue,
                 queryInputSelections =
-                    fieldResolverOccurrence.resolver
+                    fieldResolverOccurrence.dependencies
                         .instantiateQueryMaterializationSelections(
                             fieldResolverOccurrence.resolverOccurrenceId,
                         ).guardedBy(fieldResolverOccurrence.selection.inclusionCondition),
@@ -450,8 +454,7 @@ internal class FieldResolutionLogic(
         arguments: Arguments.Resolved,
     ): EngineErrorData? {
         val publication = fieldResolverTask.publication
-        val resolver = fieldResolverOccurrence.resolver
-        val provider = resolver.variablesProvider ?: return null
+        val provider = fieldResolverOccurrence.dependencies.variablesProvider ?: return null
         val providerDefinitions =
             fieldResolverOccurrence.variableDefinitions.filter { definition ->
                 definition.definition == VariableDefinition.FromProvider

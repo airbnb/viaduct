@@ -1,5 +1,6 @@
 package viaduct.engine.runtime2.bootstrap
 
+import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.runtime2.model.Arguments
 import viaduct.engine.runtime2.model.EngineErrorData
@@ -33,6 +34,7 @@ import viaduct.engine.runtime2.model.registry.EmptyResolverInputCache
 import viaduct.engine.runtime2.model.registry.EmptyResolverInputCacheOwner
 import viaduct.engine.runtime2.model.registry.FieldCheckerResolver
 import viaduct.engine.runtime2.model.registry.FieldResolverDefinition
+import viaduct.engine.runtime2.model.registry.FieldResolverDependencies
 import viaduct.engine.runtime2.model.registry.FieldValueResolver
 import viaduct.engine.runtime2.model.registry.FragmentConstructionDemandTemplate
 import viaduct.engine.runtime2.model.registry.FromArgument
@@ -81,7 +83,31 @@ fun resolverRegistryOf(
     fieldCheckers: Map<ViaductSchema.ObjectField, FieldCheckerResolver> = emptyMap(),
     typeCheckers: Map<ViaductSchema.Object, TypeCheckerResolver> = emptyMap(),
     variableProviders: Map<Arguments.Variable, VariableDeclaration>,
+): ResolverRegistry =
+    resolverRegistryOf(
+        schema,
+        nodeResolvers,
+        fieldResolvers,
+        fieldCheckers,
+        typeCheckers,
+        variableProviders,
+        fieldDependenciesEnabled = emptyMap(),
+    )
+
+internal fun resolverRegistryOf(
+    schema: ViaductAndGJSchema,
+    nodeResolvers: Map<ViaductSchema.Object, NodeResolverFunction>,
+    fieldResolvers: Map<ViaductSchema.Field, FieldResolverDefinition>,
+    fieldCheckers: Map<ViaductSchema.ObjectField, FieldCheckerResolver>,
+    typeCheckers: Map<ViaductSchema.Object, TypeCheckerResolver>,
+    variableProviders: Map<Arguments.Variable, VariableDeclaration>,
+    fieldDependenciesEnabled: Map<ViaductSchema.ObjectField, (EngineExecutionContext?) -> Boolean>,
 ): ResolverRegistry {
+    fieldDependenciesEnabled.keys.forEach { field ->
+        require(field in fieldResolvers) {
+            "Dependency activation requires a registered resolver for ${field.containingDef.name}/${field.name}"
+        }
+    }
     val lowering = NodeResolverLowering(schema, nodeResolvers, fieldResolvers)
     val variablesProviderTemplates =
         lowering.fieldResolvers.flatMap { (field, resolver) ->
@@ -132,6 +158,7 @@ fun resolverRegistryOf(
         fieldCheckers = fieldCheckers,
         typeCheckers = typeCheckers,
         variableDeclarations = registryVariableProviders,
+        fieldDependenciesEnabled = fieldDependenciesEnabled,
     )
 }
 
@@ -294,9 +321,8 @@ private class NodeResolverLowering(
         executionContext: ResolutionExecutionContext,
     ): ResolverOutputData? {
         val (type, id) = identity
-        val resolver =
-            nodeResolvers[type]
-                ?: throw IllegalArgumentException("No node resolver for ${type.name}")
+        val resolver = (nodeResolvers[type] ?: throw IllegalArgumentException("No node resolver for ${type.name}"))
+            .forExecution(executionContext)
         val idField = validateNodeIdField(type)
         val nodeOwnedDemand =
             selections.filter { selection -> selection.key.field.name != idField.name }
@@ -377,12 +403,14 @@ private sealed interface DependencyVertex {
     ) : DependencyVertex
 }
 
+@Suppress("DEPRECATION")
 private class ResolverRegistryImpl(
     private val schema: ViaductSchema,
     fieldResolverDefinitions: Map<ViaductSchema.Field, FieldResolverDefinition>,
     private val fieldCheckers: Map<ViaductSchema.ObjectField, FieldCheckerResolver>,
     private val typeCheckers: Map<ViaductSchema.Object, TypeCheckerResolver>,
     variableDeclarations: Map<Arguments.Variable, VariableDeclaration>,
+    fieldDependenciesEnabled: Map<ViaductSchema.ObjectField, (EngineExecutionContext?) -> Boolean>,
 ) : ResolverRegistry, FixedSuccessorDemandCacheOwner, EmptyResolverInputCacheOwner {
     override val emptyResolverInputCache = EmptyResolverInputCache()
     override val fixedSuccessorDemandCache = FixedSuccessorDemandCache()
@@ -391,7 +419,7 @@ private class ResolverRegistryImpl(
 
     private val sourceFieldResolvers = fieldResolverDefinitions
     private val fieldResolvers: Map<ViaductSchema.Field, FieldValueResolver>
-    private val precomputedDemand: Map<ViaductSchema.ObjectField, ConstructionDemandTemplate?>
+    private val precomputedDemand: Map<ViaductSchema.ObjectField, Map<FieldResolverDependencies, ConstructionDemandTemplate>>
     private val parentSelectionDemand: Map<ViaductSchema.Object, Map<String, ParentSelectionDemand>>
     private val variablesProviderTemplates =
         fieldResolverDefinitions.flatMap { (field, resolver) ->
@@ -615,7 +643,7 @@ private class ResolverRegistryImpl(
                                 )
                             },
                             field = site.field,
-                        )
+                        ).withDependenciesEnabled(fieldDependenciesEnabled[site.field])
                 }
                 is DependencyVertex.Variable, is DependencyVertex.Checker -> Unit
             }
@@ -628,6 +656,7 @@ private class ResolverRegistryImpl(
         parentCompiler.prepare(assembledResolvers.values, fieldCheckers.values + typeCheckers.values)
         precomputedDemand = precomputeConstructionDemand(parentCompiler)
         parentSelectionDemand = parentCompiler.finish()
+        fixedSuccessorDemandCache.prepare(schema, this)
     }
 
     override fun contains(field: ViaductSchema.ObjectField): Boolean {
@@ -648,15 +677,16 @@ private class ResolverRegistryImpl(
         return fieldCheckers[field]
     }
 
-    override fun precomputedConstructionDemand(field: ViaductSchema.ObjectField): ConstructionDemandTemplate? {
-        return precomputedDemand[field]
-    }
+    override fun precomputedConstructionDemand(
+        field: ViaductSchema.ObjectField,
+        context: EngineExecutionContext?,
+    ): ConstructionDemandTemplate? = precomputedDemand[field]?.get(resolver(field).dependenciesFor(context))
 
     override fun checkerParentDemand(checker: CheckerResolverBase<*>): CheckerParentConstructionDemand = checkerParentDemand.getValue(checker)
 
     override fun parentSelectionDemand(type: ViaductSchema.Object): Map<String, ParentSelectionDemand> = parentSelectionDemand[type].orEmpty()
 
-    private fun precomputeConstructionDemand(parentCompiler: ParentConstructionDemandCompiler): Map<ViaductSchema.ObjectField, ConstructionDemandTemplate> {
+    private fun precomputeConstructionDemand(parentCompiler: ParentConstructionDemandCompiler): Map<ViaductSchema.ObjectField, Map<FieldResolverDependencies, ConstructionDemandTemplate>> {
         val queryType = schema.requireQueryTypeDef()
         return buildMap {
             fieldResolvers.forEach { (field, resolver) ->
@@ -670,24 +700,22 @@ private class ResolverRegistryImpl(
                     )
                 }
                 val objectField = field as ViaductSchema.ObjectField
-                val objectDemand = fragmentDemand(resolver.objectFragment)
-                val queryDemand = fragmentDemand(resolver.queryFragment)
                 put(
                     objectField,
-                    ConstructionDemandTemplate(
-                        objectDemand = objectDemand,
-                        queryDemand = queryDemand,
-                        queryRootDemand =
-                            if (objectField.containingDef != queryType) {
-                                null
-                            } else if (resolver.objectFragment.isEmpty()) {
-                                queryDemand
-                            } else if (resolver.queryFragment.isEmpty()) {
-                                objectDemand
-                            } else {
-                                fragmentDemand(listOf(resolver.objectFragment, resolver.queryFragment).flatMerge(queryType))
+                    resolver.dependencyAlternatives.associateWith { inputs ->
+                        val objectDemand = fragmentDemand(inputs.objectFragment)
+                        val queryDemand = fragmentDemand(inputs.queryFragment)
+                        ConstructionDemandTemplate(
+                            objectDemand = objectDemand,
+                            queryDemand = queryDemand,
+                            queryRootDemand = when {
+                                objectField.containingDef != queryType -> null
+                                inputs.objectFragment.isEmpty() -> queryDemand
+                                inputs.queryFragment.isEmpty() -> objectDemand
+                                else -> fragmentDemand(listOf(inputs.objectFragment, inputs.queryFragment).flatMerge(queryType))
                             },
-                    ),
+                        )
+                    }
                 )
             }
         }

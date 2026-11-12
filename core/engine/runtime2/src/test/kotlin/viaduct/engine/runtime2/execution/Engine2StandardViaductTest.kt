@@ -8,7 +8,6 @@ import graphql.execution.DataFetcherExceptionHandler
 import graphql.execution.DataFetcherExceptionHandlerResult
 import graphql.execution.ExecutionContext
 import graphql.execution.preparsed.PreparsedDocumentProvider
-import graphql.parser.Parser
 import java.util.Base64
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.atomic.AtomicInteger
@@ -44,14 +43,13 @@ import viaduct.engine.api.mocks.featureTestDefault
 import viaduct.engine.api.mocks.runStandardViaductFeatureTest
 import viaduct.engine.runtime2.Engine2
 import viaduct.engine.runtime2.airbnb.Engine2ResolverRegistryFactory
-import viaduct.engine.runtime2.airbnb.ResolverRegistryProvider
+import viaduct.engine.runtime2.airbnb.resolverRegistryWithRequestDependencies
 import viaduct.engine.runtime2.bootstrap.dispatcherRegistryInputs
 import viaduct.engine.runtime2.bootstrap.resolverRegistryOf
 import viaduct.engine.runtime2.execution.testing.runRuntime2FeatureTest
 import viaduct.engine.runtime2.model.emptyFragmentOf
 import viaduct.engine.runtime2.model.registry.fieldResolverOf
 import viaduct.engine.runtime2.model.requireObjectField
-import viaduct.engine.runtime2.schema.fragmentFromDocument
 import viaduct.service.api.ExecutionInput
 import viaduct.service.api.SchemaId
 import viaduct.service.api.spi.FlagManager
@@ -198,7 +196,7 @@ class Engine2StandardViaductTest {
             .withEngine2ResolverRegistryFactory(
                 Engine2ResolverRegistryFactory { _, schemas, _, _ ->
                     val schema = schemas.loweredSchema
-                    val registry = resolverRegistryOf(
+                    resolverRegistryOf(
                         schema = schemas,
                         nodeResolvers = emptyMap(),
                         variableProviders = emptyMap(),
@@ -232,11 +230,6 @@ class Engine2StandardViaductTest {
                             },
                         ),
                     )
-                    object : ResolverRegistryProvider {
-                        override fun forBootstrap() = registry
-
-                        override fun forExecution(invocation: ExecutionContext) = registry
-                    }
                 }
             )
             .build()
@@ -252,25 +245,17 @@ class Engine2StandardViaductTest {
     }
 
     @Test
-    fun `registry provider selects implementations and their dependencies before each request`() {
+    fun `one shared registry selects request dependencies without rebuilding`() {
         val defaultCalls = AtomicInteger()
         val alternativeCalls = AtomicInteger()
         val factoryCalls = AtomicInteger()
-        val sdl = "extend type Query { adapted: String @resolver dependency: String @resolver alternativeDependency: String @resolver }"
+        val sdl = "extend type Query { adapted: String @resolver dependency: String @resolver }"
         val module = EngineTestModule(sdl) {
             field("Query" to "dependency") {
                 resolver {
                     fn { _, _, _, _, _ ->
                         defaultCalls.incrementAndGet()
                         "default"
-                    }
-                }
-            }
-            field("Query" to "alternativeDependency") {
-                resolver {
-                    fn { _, _, _, _, _ ->
-                        alternativeCalls.incrementAndGet()
-                        "alternative"
                     }
                 }
             }
@@ -292,30 +277,34 @@ class Engine2StandardViaductTest {
                 Engine2ResolverRegistryFactory { fullSchema, schemas, dispatchers, selectivity ->
                     factoryCalls.incrementAndGet()
                     val inputs = dispatcherRegistryInputs(fullSchema, schemas, dispatchers, selectivity)
-                    val field = schemas.loweredSchema.requireObjectField("Query", "adapted")
-                    val alternative = fieldResolverOf(
-                        schemas.fragmentFromDocument(
-                            Parser.parse("fragment Alternative on Query { alternativeDependency }"),
-                            variableField = field,
-                        ),
-                    ) { input, _ -> input.get("alternativeDependency") }
-
-                    fun registry(alternativeEnabled: Boolean) =
-                        resolverRegistryOf(
-                            schema = schemas,
-                            fieldResolvers = if (alternativeEnabled) inputs.fieldResolvers + (field to alternative) else inputs.fieldResolvers,
-                            nodeResolvers = inputs.nodeResolvers,
-                            fieldCheckers = inputs.fieldCheckers,
-                            typeCheckers = inputs.typeCheckers,
-                            variableProviders = inputs.variableProviders,
-                        )
-                    val defaultRegistry = registry(false)
-                    val alternativeRegistry = registry(true)
-                    object : ResolverRegistryProvider {
-                        override fun forBootstrap() = defaultRegistry
-
-                        override fun forExecution(invocation: ExecutionContext) = if (invocation.getContext<Any?>() == "alternative") alternativeRegistry else defaultRegistry
+                    val schema = schemas.loweredSchema
+                    val field = schema.requireObjectField("Query", "adapted")
+                    val fields = inputs.fieldResolvers.mapValues { (coordinate, definition) ->
+                        if (coordinate != field) {
+                            definition
+                        } else {
+                            definition
+                                .mapFunction { modern ->
+                                    { input, queryInput, arguments, demand, extra, context ->
+                                        if (context.engineExecutionContext?.requestContext == "alternative") {
+                                            alternativeCalls.incrementAndGet()
+                                            "alternative"
+                                        } else {
+                                            modern(input, queryInput, arguments, demand, extra, context)
+                                        }
+                                    }
+                                }
+                        }
                     }
+                    resolverRegistryWithRequestDependencies(
+                        schema = schemas,
+                        fieldResolvers = fields,
+                        nodeResolvers = inputs.nodeResolvers,
+                        fieldCheckers = inputs.fieldCheckers,
+                        typeCheckers = inputs.typeCheckers,
+                        variableProviders = inputs.variableProviders,
+                        fieldDependenciesEnabled = mapOf(field to { context -> context?.requestContext != "alternative" }),
+                    )
                 },
             ).build()
         viaduct.engineRegistry.getEngine(SchemaId.Base)

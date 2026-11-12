@@ -276,9 +276,9 @@ class SiblingDependencyLogicTest {
                 fragmentTemplates =
                     ResolverFragmentTemplates(
                         objectFragmentTemplate =
-                            targetResolver.objectFragment.toCanonicalMaterializeSelectionForest(),
+                            targetResolver.declaredDependencies.objectFragment.toCanonicalMaterializeSelectionForest(),
                         queryFragmentTemplate =
-                            templateResolver.queryFragment.toCanonicalMaterializeSelectionForest(),
+                            templateResolver.declaredDependencies.queryFragment.toCanonicalMaterializeSelectionForest(),
                     ),
                 queryType = schema.requireQueryTypeDef(),
                 function = { _, _, _, _, _ -> 2 },

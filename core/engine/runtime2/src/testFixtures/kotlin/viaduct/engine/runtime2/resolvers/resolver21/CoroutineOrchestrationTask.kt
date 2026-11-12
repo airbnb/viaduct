@@ -97,7 +97,7 @@ class CoroutineOrchestrationTask private constructor(
                         ),
                 )
             val checkerApplies = closedConstructionDemand.objectRooted.typeCheckDemanded &&
-                operation.world.resolverRegistry.typeChecker(occurrence.target.type)?.isApplicable(occurrence.root, occurrence.path) == true
+                operation.world.resolverRegistry.typeChecker(occurrence.target.type)?.isApplicable(occurrence.root, occurrence.path, executionContext = null) == true
             if (!checkerApplies && !occurrence.target.typeCheckerResult.isCompleted) {
                 check(occurrence.target.typeCheckerResult.complete(null)) {
                     "Absent type-checker result was completed twice"
@@ -150,7 +150,7 @@ class CoroutineOrchestrationTask private constructor(
 
     private fun hasApplicableTypeChecker(): Boolean =
         closedConstructionDemand.objectRooted.typeCheckDemanded &&
-            operation.world.resolverRegistry.typeChecker(objectOER.occurrence.target.type)?.isApplicable(objectOER.occurrence.root, objectOER.occurrence.path) == true
+            operation.world.resolverRegistry.typeChecker(objectOER.occurrence.target.type)?.isApplicable(objectOER.occurrence.root, objectOER.occurrence.path, executionContext = null) == true
 
     override fun duplicateDispatchException(): RuntimeException = IllegalStateException("Object orchestrated twice: ${objectOER.occurrence.path}")
 
@@ -205,7 +205,7 @@ class CoroutineOrchestrationTask private constructor(
                 val queryFragment =
                     operation.world.resolverRegistry
                         .resolver(key.field)
-                        .instantiateFragmentsAt(
+                        .declaredDependencies.instantiateFragmentsAt(
                             oer.occurrence.root,
                             oer.occurrence.coordinate(key),
                         )

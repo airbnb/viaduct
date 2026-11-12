@@ -173,7 +173,7 @@ private class ResolverConformanceLogic(
         if (key.field !in operation.world.resolverRegistry) return true
         val resolver = operation.world.resolverRegistry.resolver(key.field)
         val queryFragment =
-            resolver.instantiateFragmentsAt(resolverApplicationCache.root, path).queryFragment
+            resolver.declaredDependencies.instantiateFragmentsAt(resolverApplicationCache.root, path).queryFragment
         if (queryFragment.constructionSelections.isEmpty()) return true
         val queryResults =
             (operation.resolutionObserver as? CorrectnessResolverObserver)
@@ -301,7 +301,7 @@ internal fun FieldValueResolver.fragmentsSatisfiedBy(
     result: ObjectEngineResult,
     path: List<PathComponent>,
 ): ResolverFragments? {
-    val fragments = instantiateFragmentsAt(root, path)
+    val fragments = declaredDependencies.instantiateFragmentsAt(root, path)
     val objectFragment = fragments.objectFragment
     val arguments =
         (path.lastOrNull() as? ObjectEngineResult.ObjectKey)
@@ -334,7 +334,7 @@ private fun FieldValueResolver.fromArgumentBindingsAgree(
         fragments.objectFragment.constructionSelections.usedVariables() +
             fragments.queryFragment.constructionSelections.usedVariables()
     val resolverOccurrenceId = fragments.objectFragment.resolverOccurrenceId
-    return instantiatedVariableDefinitions(resolverOccurrenceId)
+    return declaredDependencies.instantiatedVariableDefinitions(resolverOccurrenceId)
         .filter { variableDefinition -> variableDefinition.variable in usedVariables }
         .all { variableDefinition ->
             val definition = variableDefinition.definition

@@ -250,12 +250,12 @@ interface CoroutineResolverContract {
                     objectFragmentTemplate =
                         testWorld.resolverRegistry
                             .resolver(first)
-                            .objectFragment
+                            .declaredDependencies.objectFragment
                             .toCanonicalMaterializeSelectionForest(),
                     queryFragmentTemplate =
                         testWorld.resolverRegistry
                             .resolver(second)
-                            .queryFragment
+                            .declaredDependencies.queryFragment
                             .toCanonicalMaterializeSelectionForest(),
                 ),
             queryType = testWorld.schema.requireQueryTypeDef(),

@@ -137,7 +137,7 @@ class DepthFirstOrchestrationTask private constructor(
                 val queryFragment =
                     operation.world.resolverRegistry
                         .resolver(key.field)
-                        .instantiateFragmentsAt(
+                        .declaredDependencies.instantiateFragmentsAt(
                             oer.occurrence.root,
                             oer.occurrence.coordinate(key),
                         )

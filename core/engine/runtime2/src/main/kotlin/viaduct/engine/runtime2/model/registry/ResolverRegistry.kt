@@ -1,5 +1,6 @@
 package viaduct.engine.runtime2.model.registry
 
+import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.ObjectSelectionForest
@@ -21,8 +22,8 @@ import viaduct.graphql.schema.ViaductSchema
  *
  * Every variable is defined from one argument of its resolver field, from one nonempty canonical
  * [ObjectEngineResult.Key] path relative to that field's containing object, or by its resolver's
- * one-shot [FieldValueResolver.variablesProvider]. Object-field paths are structurally contained by the
- * defining field resolver's fixed [FieldValueResolver.objectFragment] envelope.
+ * one-shot [FieldResolverDependencies.variablesProvider]. Object-field paths are structurally contained by the
+ * defining field resolver's fixed [FieldResolverDependencies.objectFragment] envelope.
  * Variables referenced by a field resolver's object fragment, query fragment, or one of its
  * object-field paths belong to that same field. An object-field path must terminate at an
  * input-compatible value whose effective nullability and list shape can be coerced at every
@@ -57,8 +58,11 @@ interface ResolverRegistry {
     /** Returns the checker for [type], or null when no type checker applies. */
     fun typeChecker(type: ViaductSchema.Object): TypeCheckerResolver? = null
 
-    /** Precomputed construction inputs, or null when this registry does not supply templates. */
-    fun precomputedConstructionDemand(field: ViaductSchema.ObjectField): ConstructionDemandTemplate? = null
+    /** Selects prepared construction inputs for this execution, or null when templates are unavailable. */
+    fun precomputedConstructionDemand(
+        field: ViaductSchema.ObjectField,
+        context: EngineExecutionContext?,
+    ): ConstructionDemandTemplate? = null
 
     /** Registry-owned summaries for fixed checker inputs. */
     fun checkerParentDemand(checker: CheckerResolverBase<*>): CheckerParentConstructionDemand = error("This registry does not supply checker parent summaries")

@@ -39,7 +39,7 @@ class ParentConstructionDemandComplexityRegressionTest {
         val world = Assumptions.of(original.schema, registry)
         val input = originalFixture.schemas.fragmentFrom("fragment F on Query { field0 }").subselections
 
-        val additional = input.liftParentConstructionDemand(world)
+        val additional = input.liftParentConstructionDemand(world, engineExecutionContext = null)
 
         assertTrue(additional.isEmpty(), "None of the reachable resolvers reads a parent")
         // Allow quadratic work rather than requiring the original memoizer's exact lookup count.

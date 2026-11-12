@@ -243,7 +243,7 @@ private class ResolverCoverageExtractor(
         val key = occurrence.key
         val occurrenceId = ResolverOccurrenceId.at(occurrence.root.result, occurrence.path)
         val arguments = key.groundedArguments(operation)
-        val sources = operation.world.resolverRegistry.resolver(key.field).variables.values
+        val sources = operation.world.resolverRegistry.resolver(key.field).declaredDependencies.variables.values
         val ownerPath = occurrence.path.dropLast(1)
         val role = when {
             occurrenceId in observation.appliedResolverOccurrences.orEmpty() -> ResolutionRole.INVOKED

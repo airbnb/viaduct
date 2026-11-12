@@ -150,8 +150,8 @@ class TypenameLoweringTest {
                 val resolver = registry.resolver(field)
                 assertTrue(field in registry)
                 assertTrue(field.args.isEmpty())
-                assertTrue(resolver.objectFragment.isEmpty())
-                assertTrue(resolver.variables.isEmpty())
+                assertTrue(resolver.declaredDependencies.objectFragment.isEmpty())
+                assertTrue(resolver.declaredDependencies.variables.isEmpty())
                 assertTrue(registry.mayDemandFrom(field).isEmpty())
                 assertEquals(
                     type.name,

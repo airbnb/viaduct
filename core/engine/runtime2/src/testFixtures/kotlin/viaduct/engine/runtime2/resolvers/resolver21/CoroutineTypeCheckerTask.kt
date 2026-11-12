@@ -56,7 +56,7 @@ internal class CoroutineTypeCheckerTask(
             if (!constructionDemand.typeCheckDemanded) return emptyList()
             val checker =
                 orchestrationTask.operation.world.resolverRegistry.typeChecker(oer.occurrence.target.type)
-                    ?.takeIf { it.isApplicable(oer.occurrence.root, oer.occurrence.path) }
+                    ?.takeIf { it.isApplicable(oer.occurrence.root, oer.occurrence.path, executionContext = null) }
                     ?: return emptyList()
             require(checker.variables.isEmpty()) {
                 "Grounded type checker ${checker.target.type.name} cannot declare variables"

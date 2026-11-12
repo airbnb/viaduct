@@ -21,6 +21,17 @@ class FieldResolverDefinition private constructor(
     internal val variablesProviderNames: Set<String>,
     internal val variablesProvider: VariablesProviderFunction?,
 ) {
+    /** Airbnb-only hook: wrap execution while retaining the definition's requirements. */
+    @Deprecated("Airbnb use only")
+    fun mapFunction(transform: (SelectiveFieldResolverFunction) -> SelectiveFieldResolverFunction): FieldResolverDefinition =
+        FieldResolverDefinition(
+            objectFragment = objectFragment,
+            queryFragment = queryFragment,
+            function = transform(function),
+            variablesProviderNames = variablesProviderNames,
+            variablesProvider = variablesProvider,
+        )
+
     fun mapOutput(transform: (ResolverOutputData?) -> ResolverOutputData?): FieldResolverDefinition =
         FieldResolverDefinition(
             objectFragment = objectFragment,

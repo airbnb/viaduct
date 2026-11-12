@@ -41,12 +41,12 @@ internal fun RootFieldReferenceData.prepareRootFieldReferenceInvocation(
     val invocationPath: List<PathComponent> = prefixKeys + invocationKey
     val resolverOccurrenceId = ResolverOccurrenceId.at(invocationRoot, invocationPath)
     val resolver = operation.world.resolverRegistry.resolver(targetField)
-    val fragments = resolver.instantiateFragments(resolverOccurrenceId)
+    val fragments = resolver.declaredDependencies.instantiateFragments(resolverOccurrenceId)
     require(fragments.objectFragment.constructionSelections.isEmpty()) {
         "Root-field-reference target ${targetField.containingDef.name}/${targetField.name} " +
             "must not declare an object fragment"
     }
-    require(resolver.variables.values.all { definition -> definition is VariableDefinition.FromArgument || definition == VariableDefinition.FromProvider }) {
+    require(resolver.declaredDependencies.variables.values.all { definition -> definition is VariableDefinition.FromArgument || definition == VariableDefinition.FromProvider }) {
         "Root-field-reference target ${targetField.containingDef.name}/${targetField.name} " +
             "uses a variable source unsupported before Resolution"
     }

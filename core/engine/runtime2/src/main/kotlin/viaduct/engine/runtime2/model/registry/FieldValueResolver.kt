@@ -1,5 +1,6 @@
 package viaduct.engine.runtime2.model.registry
 
+import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.runtime2.model.Arguments
 import viaduct.engine.runtime2.model.EngineErrorDataReadException
@@ -15,6 +16,7 @@ import viaduct.engine.runtime2.model.SelectionForest
 import viaduct.engine.runtime2.model.arg
 import viaduct.engine.runtime2.model.engineObjectDataOf
 import viaduct.engine.runtime2.model.instantiateVariables
+import viaduct.engine.runtime2.model.materializeSelectionForestOf
 import viaduct.engine.runtime2.model.merge
 import viaduct.engine.runtime2.model.outputValue
 import viaduct.engine.runtime2.model.rootFieldReferenceDataOrNull
@@ -96,52 +98,14 @@ class ResolverFragments(
     val queryFragment: ResolverFragment,
 )
 
-/**
- * A field resolver supplied by the reasoning world's external resolver registry.
- *
- * Equality is undefined. Resolver-demand identity is expressed with canonical object fields
- * instead.
- *
- * [objectFragment] is the direct parent-object resolution requirement. [queryFragment] is the
- * independently resolved Query-rooted requirement. Their response-key-preserving
- * [fragmentTemplates] are instantiated by [instantiateObjectMaterializationSelections] and
- * [instantiateQueryMaterializationSelections] only when their inputs are materialized. In a
- * canonical registry entry,
- * [variables] maps every variable template defined by this resolver and used by either fragment
- * to its argument, nonempty alias-free object- or Query-field path, or the resolver's single
- * [variablesProvider].
- *
- * ### Invariant: resolver-fixed-object-fragment-shape
- *
- * [objectFragment] is specialized to the resolver field's concrete parent type. [queryFragment]
- * is specialized to the canonical Query type. Both are normalized at their top level, with
- * symbolic arguments retained; subselections await their concrete runtime type.
- *
- * ### Invariant: field-resolver-variable-definitions
- *
- * Every variable is defined by this resolver's field. A [VariableDefinition.FromArgument]
- * references one schema-valid input path rooted at an argument belonging to that field. A
- * [VariableDefinition.FromField] supplied by [ProviderFragment.OBJECT] is a valid selection path
- * relative to that field's containing type and is structurally contained by [objectFragment]. A
- * definition supplied by [ProviderFragment.QUERY] satisfies the same path invariant relative to
- * Query and is structurally contained by [queryFragment]. A
- * [VariableDefinition.FromProvider] requires [variablesProvider], and the provider must return
- * exactly the declared provider-variable names for every invocation.
- *
- * Neither input fragment may use a variable on any concrete branch reachable beneath an `@parent`
- * selection. A variable guarded by a concrete branch disjoint from every parent retarget remains
- * valid. Parent traversal itself remains valid for selective and nonselective resolvers.
- */
-class FieldValueResolver private constructor(
-    val target: ResolverTarget.FieldValueResolverTarget,
+/** Prepared object/Query input requirements and their shared variable definitions. */
+class FieldResolverDependencies internal constructor(
     private val fragmentTemplates: ResolverFragmentTemplates,
-    private val queryType: ViaductSchema.Object,
-    private val function: SelectiveFieldResolverFunction,
+    field: ViaductSchema.ObjectField,
+    queryType: ViaductSchema.Object,
 ) {
-    val field: ViaductSchema.ObjectField get() = target.field
-
-    /** Returns a new resolver with [function], preserving its fragments. */
-    fun withFunction(function: SelectiveFieldResolverFunction): FieldValueResolver = FieldValueResolver(target, fragmentTemplates, queryType, function)
+    internal val objectParentDemand = ParentConstructionDemandTemplate()
+    internal val queryParentDemand = ParentConstructionDemandTemplate()
 
     val variables: Map<Arguments.Variable, VariableDefinition>
         get() = fragmentTemplates.variables
@@ -150,13 +114,10 @@ class FieldValueResolver private constructor(
         get() = fragmentTemplates.variablesProvider
 
     val objectFragment: ObjectSelectionForest =
-        fragmentTemplates.objectFragmentTemplate.constructionSelections().merge(target.field.containingDef)
+        fragmentTemplates.objectFragmentTemplate.constructionSelections().merge(field.containingDef)
 
     val queryFragment: ObjectSelectionForest =
         fragmentTemplates.queryFragmentTemplate.constructionSelections().merge(queryType)
-
-    internal val objectParentDemand = ParentConstructionDemandTemplate()
-    internal val queryParentDemand = ParentConstructionDemandTemplate()
 
     private val objectFragmentVariableTemplates = fragmentTemplates.objectFragmentTemplate.usedVariables()
     private val queryFragmentVariableTemplates = fragmentTemplates.queryFragmentTemplate.usedVariables()
@@ -244,6 +205,69 @@ class FieldValueResolver private constructor(
                 )
             }
         }
+}
+
+/**
+ * A field resolver supplied by the reasoning world's external resolver registry.
+ *
+ * Equality is undefined. Resolver-demand identity is expressed with canonical object fields
+ * instead.
+ *
+ * [FieldResolverDependencies.objectFragment] is the direct parent-object resolution requirement. [FieldResolverDependencies.queryFragment] is the
+ * independently resolved Query-rooted requirement. Their response-key-preserving
+ * [fragmentTemplates] are instantiated by [FieldResolverDependencies.instantiateObjectMaterializationSelections] and
+ * [FieldResolverDependencies.instantiateQueryMaterializationSelections] only when their inputs are materialized. In a
+ * canonical registry entry,
+ * [FieldResolverDependencies.variables] maps every variable template defined by this resolver and used by either fragment
+ * to its argument, nonempty alias-free object- or Query-field path, or the resolver's single
+ * [FieldResolverDependencies.variablesProvider].
+ *
+ * ### Invariant: resolver-fixed-object-fragment-shape
+ *
+ * [FieldResolverDependencies.objectFragment] is specialized to the resolver field's concrete parent type. [FieldResolverDependencies.queryFragment]
+ * is specialized to the canonical Query type. Both are normalized at their top level, with
+ * symbolic arguments retained; subselections await their concrete runtime type.
+ *
+ * ### Invariant: field-resolver-variable-definitions
+ *
+ * Every variable is defined by this resolver's field. A [VariableDefinition.FromArgument]
+ * references one schema-valid input path rooted at an argument belonging to that field. A
+ * [VariableDefinition.FromField] supplied by [ProviderFragment.OBJECT] is a valid selection path
+ * relative to that field's containing type and is structurally contained by [FieldResolverDependencies.objectFragment]. A
+ * definition supplied by [ProviderFragment.QUERY] satisfies the same path invariant relative to
+ * Query and is structurally contained by [FieldResolverDependencies.queryFragment]. A
+ * [VariableDefinition.FromProvider] requires [FieldResolverDependencies.variablesProvider], and the provider must return
+ * exactly the declared provider-variable names for every invocation.
+ *
+ * Neither input fragment may use a variable on any concrete branch reachable beneath an `@parent`
+ * selection. A variable guarded by a concrete branch disjoint from every parent retarget remains
+ * valid. Parent traversal itself remains valid for selective and nonselective resolvers.
+ */
+class FieldValueResolver private constructor(
+    val target: ResolverTarget.FieldValueResolverTarget,
+    private val fragmentTemplates: ResolverFragmentTemplates,
+    private val queryType: ViaductSchema.Object,
+    private val function: SelectiveFieldResolverFunction,
+    private val useDeclaredDependencies: ((EngineExecutionContext?) -> Boolean)? = null,
+) {
+    val field: ViaductSchema.ObjectField get() = target.field
+
+    /** Full bootstrap requirements; execution selects its inputs with [dependenciesFor]. */
+    val declaredDependencies = FieldResolverDependencies(fragmentTemplates, field, queryType)
+    private val emptyDependencies = if (useDeclaredDependencies != null &&
+        (!declaredDependencies.objectFragment.isEmpty() || !declaredDependencies.queryFragment.isEmpty() || declaredDependencies.variables.isNotEmpty())
+    ) {
+        FieldResolverDependencies(ResolverFragmentTemplates(materializeSelectionForestOf(), materializeSelectionForestOf()), field, queryType)
+    } else {
+        null
+    }
+    internal val dependencyAlternatives = listOfNotNull(declaredDependencies, emptyDependencies)
+
+    fun dependenciesFor(context: EngineExecutionContext?): FieldResolverDependencies =
+        if (emptyDependencies != null && useDeclaredDependencies?.invoke(context) == false) emptyDependencies else declaredDependencies
+
+    internal fun withDependenciesEnabled(predicate: ((EngineExecutionContext?) -> Boolean)?): FieldValueResolver =
+        if (predicate == null) this else FieldValueResolver(target, fragmentTemplates, queryType, function, predicate)
 
     /** Applies this field resolver to the supplied output demand. */
     internal suspend operator fun invoke(
