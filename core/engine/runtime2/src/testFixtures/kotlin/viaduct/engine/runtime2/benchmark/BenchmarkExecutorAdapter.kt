@@ -113,7 +113,7 @@ class BenchmarkExecutorAdapter(
                     )
                     val output = runBlocking {
                         sourceOutput(
-                            resolver.evaluateRelation(
+                            resolver.invoke(
                                 world.schema.objectOf(type.name),
                                 world.schema.objectOf("Query"),
                                 argumentsOfGround(emptyMap()),

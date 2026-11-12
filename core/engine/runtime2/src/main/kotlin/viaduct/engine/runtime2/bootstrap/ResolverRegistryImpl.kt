@@ -19,6 +19,7 @@ import viaduct.engine.runtime2.model.emptyFragmentOf
 import viaduct.engine.runtime2.model.engineObjectDataOf
 import viaduct.engine.runtime2.model.fieldExpressions
 import viaduct.engine.runtime2.model.flatMerge
+import viaduct.engine.runtime2.model.forEachPossibleObjectField
 import viaduct.engine.runtime2.model.inputType
 import viaduct.engine.runtime2.model.matchingVariableTypes
 import viaduct.engine.runtime2.model.merge
@@ -310,13 +311,7 @@ private class NodeResolverLowering(
                 if (includeId) mapOf(idField.name to id) else emptyMap(),
             )
         }
-        val resolverDemand =
-            if (resolver.mode == NodeResolverFunction.Mode.NONSELECTIVE) {
-                selectionForestOf()
-            } else {
-                nodeOwnedDemand
-            }
-        val output = resolver(id, resolverDemand, executionContext)
+        val output = resolver(id, nodeOwnedDemand, executionContext)
         val sourceResult = output.rootFieldReferenceDataOrNull() ?: output
         if (sourceResult == null || sourceResult is EngineErrorData) return sourceResult
         if (sourceResult is RootFieldReferenceData) return sourceResult
@@ -420,7 +415,6 @@ private class ResolverRegistryImpl(
                     )
             }
         } + variablesProviderTemplates.associateWith { VariableDefinition.FromProvider }
-    private val outgoing: Map<DependencyVertex, Set<DependencyVertex>>
 
     init {
         fieldCheckers.forEach { (field, checker) ->
@@ -550,7 +544,7 @@ private class ResolverRegistryImpl(
 
         val objectFieldResolvers =
             fieldResolverDefinitions.mapKeys { (field, _) -> field as ViaductSchema.ObjectField }
-        outgoing =
+        val outgoing =
             buildMap {
                 objectFieldResolvers.forEach { (field, resolver) ->
                     put(
@@ -665,17 +659,14 @@ private class ResolverRegistryImpl(
     private fun precomputeConstructionDemand(parentCompiler: ParentConstructionDemandCompiler): Map<ViaductSchema.ObjectField, ConstructionDemandTemplate> {
         val queryType = schema.requireQueryTypeDef()
         return buildMap {
-            // Dependency order links direct templates without flattening their closures.
             fieldResolvers.forEach { (field, resolver) ->
                 fun fragmentDemand(demand: ObjectSelectionForest): FragmentConstructionDemandTemplate {
                     val (reusable, templated) = demand.partitionVariableDemand()
                     return FragmentConstructionDemandTemplate(
                         reusableDemand = reusable,
                         reusableParentDemand = parentCompiler.compile(reusable),
-                        reusableCheckerKeys = reusable.groundKeys().filterTo(linkedSetOf()) { it.field in fieldCheckers },
                         templatedDemand = templated,
                         templatedParentDemand = parentCompiler.compile(templated),
-                        dependencies = reusable.groundKeys().filter { it.field in fieldResolvers }.associateWith { requireNotNull(getValue(it.field)) },
                     )
                 }
                 val objectField = field as ViaductSchema.ObjectField
@@ -696,7 +687,6 @@ private class ResolverRegistryImpl(
                             } else {
                                 fragmentDemand(listOf(resolver.objectFragment, resolver.queryFragment).flatMerge(queryType))
                             },
-                        hasVariables = resolver.variables.isNotEmpty(),
                     ),
                 )
             }
@@ -708,15 +698,6 @@ private class ResolverRegistryImpl(
             "${type.name} is not canonical in this registry's schema"
         }
         return typeCheckers[type]
-    }
-
-    override fun mayDemandFrom(field: ViaductSchema.ObjectField): Set<ViaductSchema.ObjectField> {
-        require(field in this) { "Resolver field is not registered" }
-        return outgoing
-            .getValue(DependencyVertex.Field(field))
-            .mapNotNullTo(linkedSetOf()) { vertex ->
-                (vertex as? DependencyVertex.Field)?.field
-            }
     }
 
     private fun validateProviderContainment(
@@ -870,18 +851,14 @@ private class ResolverRegistryImpl(
     ): Set<DependencyVertex> =
         buildSet {
             // Conditions, argument values, and source-supplied values cannot excuse a potential cycle.
-            selections.forEach { selection ->
-                selection.possibleTypes.forEach type@{ type ->
-                    val field = type.field(selection.key.field.name) ?: return@type
-                    if (field in sourceFieldResolvers) add(DependencyVertex.Field(field))
-                    if (checked) {
-                        fieldCheckers[field]?.let { add(DependencyVertex.Checker(it.target)) }
-                        (field.type.baseTypeDef as? ViaductSchema.CompositeTypeDef)?.possibleObjectTypes.orEmpty().forEach { outputType ->
-                            typeCheckers[outputType]?.let { add(DependencyVertex.Checker(it.target)) }
-                        }
+            selections.forEachPossibleObjectField { field ->
+                if (field in sourceFieldResolvers) add(DependencyVertex.Field(field))
+                if (checked) {
+                    fieldCheckers[field]?.let { add(DependencyVertex.Checker(it.target)) }
+                    (field.type.baseTypeDef as? ViaductSchema.CompositeTypeDef)?.possibleObjectTypes.orEmpty().forEach { outputType ->
+                        typeCheckers[outputType]?.let { add(DependencyVertex.Checker(it.target)) }
                     }
                 }
-                addAll(implicatedVertices(selection.subselections, checked))
             }
         }
 

@@ -19,6 +19,7 @@ import viaduct.engine.runtime2.model.registry.ResolverRegistry
 import viaduct.engine.runtime2.model.requireArg
 import viaduct.engine.runtime2.model.requireField
 import viaduct.engine.runtime2.model.rootRelativeHashCode
+import viaduct.engine.runtime2.model.testing.mayDemandFrom
 import viaduct.graphql.schema.ViaductSchema
 
 /**

@@ -39,7 +39,8 @@ import viaduct.graphql.schema.ViaductSchema
  * variable. Argument-defined variables add no branch edge because their values are resolver
  * inputs. The least graph closed under the object-field variable edges is acyclic. Consequently,
  * one topological branch order binds every object-field variable used in a branch before resolution
- * enters that branch.
+ * enters that branch. This prevents circular provider/use waits even when a particular request
+ * would exclude a use or supply different arguments on the same structural branch.
  */
 interface ResolverRegistry {
     /** Creates the root Query input. Every Query field is supplied by a registered resolver. */
@@ -64,22 +65,13 @@ interface ResolverRegistry {
 
     /** Requested-field transitions that can activate fixed parent requirements on this type. */
     fun parentSelectionDemand(type: ViaductSchema.Object): Map<String, ParentSelectionDemand> = emptyMap()
-
-    /**
-     * The registered fields that may be directly demanded by [field].
-     *
-     * This conservative coordinate relation is not specialized to one exact argument tuple or
-     * runtime type assignment.
-     */
-    fun mayDemandFrom(field: ViaductSchema.ObjectField): Set<ViaductSchema.ObjectField>
 }
 
-/** Direct inputs and dependency links preserve source-sensitive activation boundaries. */
+/** Direct inputs preserve source-sensitive activation boundaries. */
 class ConstructionDemandTemplate internal constructor(
     val objectDemand: FragmentConstructionDemandTemplate,
     val queryDemand: FragmentConstructionDemandTemplate,
     val queryRootDemand: FragmentConstructionDemandTemplate?,
-    val hasVariables: Boolean,
 )
 
 /**
@@ -89,10 +81,8 @@ class ConstructionDemandTemplate internal constructor(
 class FragmentConstructionDemandTemplate internal constructor(
     val reusableDemand: ObjectSelectionForest,
     internal val reusableParentDemand: ParentConstructionDemandTemplate,
-    val reusableCheckerKeys: Set<ObjectEngineResult.GroundKey>,
     val templatedDemand: ObjectSelectionForest,
     internal val templatedParentDemand: ParentConstructionDemandTemplate,
-    val dependencies: Map<ObjectEngineResult.GroundKey, ConstructionDemandTemplate>,
 )
 
 /** Checker inputs retain raw provenance; active values resume ordinary resolver templates. */

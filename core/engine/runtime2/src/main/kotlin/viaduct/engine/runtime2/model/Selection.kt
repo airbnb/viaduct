@@ -49,6 +49,16 @@ sealed interface SelectionForest {
     }
 }
 
+/** Visits structural possibilities regardless of arguments and inclusion conditions. */
+internal fun SelectionForest.forEachPossibleObjectField(action: (ViaductSchema.ObjectField) -> Unit) {
+    forEach { selection ->
+        selection.possibleTypes.forEach { type ->
+            type.field(selection.key.field.name)?.let(action)
+        }
+        selection.subselections.forEachPossibleObjectField(action)
+    }
+}
+
 /**
  * A normalized selection forest specialized to one concrete parent object type.
  *

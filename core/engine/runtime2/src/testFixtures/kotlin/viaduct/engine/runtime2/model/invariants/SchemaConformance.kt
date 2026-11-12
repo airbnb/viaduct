@@ -26,14 +26,14 @@ import viaduct.graphql.schema.ViaductSchema
  * Runtime2's factory retains each selection's canonical schema field. This relation uses that
  * metadata to validate opaque scalar values without inferring field identity from response keys.
  */
-internal fun EngineObjectData.Sync.conformsToSchema(): Boolean = this.conformsToOutputData()
+fun EngineObjectData.Sync.conformsToSchema(): Boolean = this.conformsToOutputData()
 
 /**
  * Whether this input value recursively conforms to [typeExpr].
  *
  * Null conforms exactly at a nullable outer layer.
  */
-internal fun EngineInputData?.conformsToSchema(typeExpr: ViaductSchema.TypeExpr<ViaductSchema.InputTypeDef>): Boolean = conformsToInputSchemaType(typeExpr)
+fun EngineInputData?.conformsToSchema(typeExpr: ViaductSchema.TypeExpr<ViaductSchema.InputTypeDef>): Boolean = conformsToInputSchemaType(typeExpr)
 
 /**
  * Whether this output value recursively conforms to [typeExpr].
@@ -41,15 +41,15 @@ internal fun EngineInputData?.conformsToSchema(typeExpr: ViaductSchema.TypeExpr<
  * Null conforms exactly at a nullable outer layer and [EngineErrorData] conforms to every output
  * type expression.
  */
-internal fun EngineOutputData?.conformsToOutputSchema(typeExpr: ViaductSchema.TypeExpr<ViaductSchema.OutputTypeDef>): Boolean =
+fun EngineOutputData?.conformsToOutputSchema(typeExpr: ViaductSchema.TypeExpr<ViaductSchema.OutputTypeDef>): Boolean =
     conformsToOutputSchemaType(typeExpr) &&
         (this !is EngineObjectData.Sync || conformsToOutputData())
 
 /** Whether this argument tuple recursively conforms to [expectedType]. */
-internal fun Arguments.Resolved.conformsToSchema(expectedField: ViaductSchema.Field): Boolean = conformsToArgumentDefinition(expectedField)
+fun Arguments.Resolved.conformsToSchema(expectedField: ViaductSchema.Field): Boolean = conformsToArgumentDefinition(expectedField)
 
 /** Whether this key's arguments recursively conform to its output field. */
-internal fun ObjectEngineResult.Key.conformsToSchema(): Boolean {
+fun ObjectEngineResult.Key.conformsToSchema(): Boolean {
     val keyArguments = arguments
     return keyArguments.conformsToArgumentDefinition(field)
 }
@@ -62,7 +62,7 @@ internal fun ObjectEngineResult.Key.conformsToSchema(): Boolean {
  *
  * This relation is universally true of engine results constructed by their model factories.
  */
-internal fun EngineResult.conformsToSchema(parentFieldRelations: Map<ViaductSchema.ObjectField, ViaductSchema.ObjectField>): Boolean =
+fun EngineResult.conformsToSchema(parentFieldRelations: Map<ViaductSchema.ObjectField, ViaductSchema.ObjectField>): Boolean =
     this.conformsToSchema(
         parentFieldRelations = parentFieldRelations,
         ancestors = emptyList(),

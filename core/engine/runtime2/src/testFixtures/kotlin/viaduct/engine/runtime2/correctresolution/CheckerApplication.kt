@@ -59,7 +59,7 @@ internal fun ObjectEngineResult.reapplyChecker(
         ) ?: return@getOrPutChecker null
         ReappliedChecker(
             runBlocking {
-                checker.evaluateRelation(arguments, inputs, ResolutionExecutionContext.Unsupported)
+                checker.invoke(arguments, inputs, ResolutionExecutionContext.Unsupported)
             },
         )
     }
@@ -85,7 +85,7 @@ internal fun ObjectEngineResult.reapplyTypeChecker(
         ) ?: return@getOrPutTypeChecker null
         ReappliedChecker(
             runBlocking {
-                checker.evaluateRelation(inputs, ResolutionExecutionContext.Unsupported)
+                checker.invoke(inputs, ResolutionExecutionContext.Unsupported)
             },
         )
     }

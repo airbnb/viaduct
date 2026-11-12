@@ -5,7 +5,7 @@ import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.ExecutorCoroutineDispatcher
 import kotlinx.coroutines.asCoroutineDispatcher
 
-internal const val RESOLUTION_THREAD_COUNT_CONFIGURATION = "viaduct.resolution.threadcount"
+const val RESOLUTION_THREAD_COUNT_CONFIGURATION = "viaduct.resolution.threadcount"
 
 /** Returns the positive externally configured resolution thread count, defaulting to one. */
 fun configuredResolutionThreadCount(): Int {

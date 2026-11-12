@@ -21,6 +21,7 @@ import viaduct.engine.runtime2.model.registry.Assumptions
 import viaduct.engine.runtime2.model.requireField
 import viaduct.engine.runtime2.model.testing.TestWorld
 import viaduct.engine.runtime2.model.testing.fragmentFrom
+import viaduct.engine.runtime2.model.testing.mayDemandFrom
 import viaduct.engine.runtime2.model.testing.objectOf
 import viaduct.engine.runtime2.propertytest.ResolverTestSuiteDefinition
 import viaduct.engine.runtime2.propertytest.checkResolverTestSuite

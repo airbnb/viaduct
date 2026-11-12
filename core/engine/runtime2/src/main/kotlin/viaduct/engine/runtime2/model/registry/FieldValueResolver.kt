@@ -271,29 +271,6 @@ class FieldValueResolver private constructor(
         executionContext: ResolutionExecutionContext,
         additionalContextForResolver: Any? = null,
     ): ResolverOutputData? {
-        return evaluateRelation(
-            input,
-            queryValue,
-            arguments,
-            selections,
-            executionContext,
-            additionalContextForResolver,
-        )
-    }
-
-    /**
-     * Evaluates the deterministic function relation for a semantic judgment.
-     *
-     * This is not an observed resolver application and establishes no execution-count property.
-     */
-    suspend fun evaluateRelation(
-        input: EngineObjectData.Sync,
-        queryValue: EngineObjectData.Sync,
-        arguments: Arguments.Resolved,
-        selections: SelectionForest,
-        executionContext: ResolutionExecutionContext,
-        additionalContextForResolver: Any? = null,
-    ): ResolverOutputData? {
         require(queryValue.schemaType(queryType) == queryType) {
             "Query value type ${queryValue.type.name} does not match ${queryType.name}"
         }

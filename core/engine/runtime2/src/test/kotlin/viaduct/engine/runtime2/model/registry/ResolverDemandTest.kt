@@ -24,6 +24,7 @@ import viaduct.engine.runtime2.model.selectionForestOf
 import viaduct.engine.runtime2.model.testing.TestWorld
 import viaduct.engine.runtime2.model.testing.emptyFragmentOf
 import viaduct.engine.runtime2.model.testing.fragmentFrom
+import viaduct.engine.runtime2.model.testing.mayDemandFrom
 import viaduct.graphql.schema.ViaductSchema
 
 class ResolverDemandTest {

@@ -487,7 +487,7 @@ private class ResolverReplayLogic(
             ) ?: return@getOrPut null
             ReappliedResolver(
                 runBlocking {
-                    resolver.evaluateRelation(
+                    resolver.invoke(
                         input = replayInputs.objectValue,
                         queryValue = replayInputs.queryValue,
                         arguments = resolverArguments,
@@ -678,7 +678,7 @@ private class ResolverReplayLogic(
         ) ?: return null
         return ReappliedResolver(
             runBlocking {
-                resolver.evaluateRelation(
+                resolver.invoke(
                     input = replayInputs.objectValue,
                     queryValue = replayInputs.queryValue,
                     arguments = resolverArguments,

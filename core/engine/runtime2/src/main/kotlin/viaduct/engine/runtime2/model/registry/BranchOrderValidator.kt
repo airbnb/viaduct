@@ -9,7 +9,8 @@ import viaduct.engine.runtime2.model.variables
 import viaduct.graphql.schema.ViaductSchema
 
 /**
- * Validates the argument-insensitive structural branch order before semantic reasoning begins.
+ * Orders providers and their transitive prerequisites before variable-use branches, preventing
+ * circular value-readiness dependencies across argument-insensitive structural branches.
  */
 internal class BranchOrderValidator(
     private val fieldResolvers: Map<ViaductSchema.Field, FieldValueResolver>,

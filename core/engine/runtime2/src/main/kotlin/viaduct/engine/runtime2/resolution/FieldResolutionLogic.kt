@@ -417,11 +417,6 @@ internal class FieldResolutionLogic(
                 is EngineObjectOrErrorData.Success -> value.value
                 is EngineObjectOrErrorData.Error -> return value.error
             }
-        val queryMaterializationSelections =
-            fieldResolverOccurrence.resolver
-                .instantiateQueryMaterializationSelections(
-                    fieldResolverOccurrence.resolverOccurrenceId,
-                ).guardedBy(fieldResolverOccurrence.selection.inclusionCondition)
         publication.operation.resolutionObserver.onResolverInvocation?.invoke(
             ResolverInvocationObservation(
                 occurrencePath = fieldResolverOccurrence.invocationPath,
@@ -429,7 +424,11 @@ internal class FieldResolutionLogic(
                 input = input,
                 inputSelections = materializeSelectionForestOf(),
                 queryValue = queryValue,
-                queryInputSelections = queryMaterializationSelections,
+                queryInputSelections =
+                    fieldResolverOccurrence.resolver
+                        .instantiateQueryMaterializationSelections(
+                            fieldResolverOccurrence.resolverOccurrenceId,
+                        ).guardedBy(fieldResolverOccurrence.selection.inclusionCondition),
                 arguments = arguments,
                 suppliedDemand = invocationDemand,
                 resolverOccurrenceId = fieldResolverOccurrence.resolverOccurrenceId,

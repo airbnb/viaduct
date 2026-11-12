@@ -40,16 +40,6 @@ class TypeCheckerResolver private constructor(
     suspend operator fun invoke(
         inputs: Map<String, CheckerInput>,
         executionContext: ResolutionExecutionContext,
-    ): CheckerResult = evaluateRelation(inputs, executionContext)
-
-    /**
-     * Evaluates the deterministic checker relation for a semantic judgment.
-     *
-     * This is not an observed checker application and establishes no execution-count property.
-     */
-    suspend fun evaluateRelation(
-        inputs: Map<String, CheckerInput>,
-        executionContext: ResolutionExecutionContext,
     ): CheckerResult = function(inputs, executionContext)
 
     companion object {

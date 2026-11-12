@@ -43,6 +43,8 @@ import viaduct.engine.runtime2.model.testing.emptyFragmentOf
 import viaduct.engine.runtime2.model.testing.fragmentFrom
 import viaduct.engine.runtime2.model.testing.fromSDL
 import viaduct.engine.runtime2.model.testing.generatedFieldResolverOf
+import viaduct.engine.runtime2.model.testing.generatedNodeResolverOf
+import viaduct.engine.runtime2.model.testing.mayDemandFrom
 import viaduct.engine.runtime2.model.testing.nodeReferenceOf
 import viaduct.engine.runtime2.model.testing.objectOf
 import viaduct.engine.runtime2.model.testing.snipToDemand
@@ -93,6 +95,53 @@ class ResolverRegistryTest {
                 }
             }
             assertEquals(6, calls)
+        }
+
+    @Test
+    fun `generated node witnesses preserve null error and forwarding on ID-only lookups`() =
+        runBlocking {
+            for (kind in listOf("null", "error", "reference")) {
+                val observedDemand = mutableListOf<Set<String>>()
+                val failure = EngineErrorData.of()
+                val fixture = TestWorld.fromSDL(
+                    schemaSDL = "interface Node { id: ID! } type User implements Node { id: ID! name: String } type Query { user: User }",
+                    fieldResolvers = { emptyMap() },
+                    nodeResolvers = { schemas ->
+                        val type = schemas.loweredSchema.requireType("User") as ViaductSchema.Object
+                        mapOf(
+                            type to generatedNodeResolverOf { id, demand ->
+                                assertEquals("authoritative", id)
+                                observedDemand.add(buildSet { demand.forEach { add(it.key.field.name) } })
+                                when (kind) {
+                                    "null" -> null
+                                    "error" -> failure
+                                    else -> schemas.loweredSchema.nodeReferenceOf("User", "forwarded")
+                                }
+                            }.withGeneratedOutputPolicy(type, true)
+                        )
+                    },
+                )
+                val registry = fixture.resolverRegistry
+                val field = fixture.schema.requireObjectField("Query", "node")
+                val reference = fixture.schema.nodeReferenceOf("User", "authoritative")
+                for (selection in listOf("name", "id")) {
+                    val output = registry.resolver(field)(
+                        input = registry.createRootQueryInput(),
+                        arguments = reference.arguments,
+                        selections = fixture.schemas.fragmentFrom("fragment Demand on User { $selection }").subselections,
+                        executionContext = ResolutionExecutionContext.Unsupported,
+                    )
+                    when (kind) {
+                        "null" -> assertEquals(null, output)
+                        "error" -> assertSame(failure, output)
+                        else -> {
+                            val forwarded = assertIs<RootFieldReferenceData>(output)
+                            assertEquals(fixture.schema.nodeReferenceOf("User", "forwarded").arguments, forwarded.arguments)
+                        }
+                    }
+                }
+                assertEquals(listOf(setOf("name"), emptySet()), observedDemand)
+            }
         }
 
     @Test
@@ -451,7 +500,7 @@ class ResolverRegistryTest {
         }
 
     @Test
-    fun `replacement uses the same function for invocation and relation evaluation`(): Unit =
+    fun `replacement preserves additional context and complete output`(): Unit =
         runBlocking {
             val schemas = ViaductAndGJSchema.fromSDL(
                 """
@@ -486,15 +535,12 @@ class ResolverRegistryTest {
             val demand = schemas.fragmentFrom("fragment Demand on User { name }").subselections
 
             val invoked = wrapped.invoke(input, input, arguments, demand, ResolutionExecutionContext.Unsupported, "Ada")
-            val evaluated = wrapped.evaluateRelation(input, input, arguments, demand, ResolutionExecutionContext.Unsupported, "Ada")
             val defaultContext = wrapped.invoke(input, input, arguments, demand, ResolutionExecutionContext.Unsupported)
 
-            for (output in listOf(invoked, evaluated)) {
-                val user = assertIs<EngineObjectData.Sync>(output)
-                assertEquals(setOf("name", "age"), user.getSelections().toSet())
-                assertEquals("wrapped Ada", user.get("name"))
-                assertEquals(37, user.get("age"))
-            }
+            val user = assertIs<EngineObjectData.Sync>(invoked)
+            assertEquals(setOf("name", "age"), user.getSelections().toSet())
+            assertEquals("wrapped Ada", user.get("name"))
+            assertEquals(37, user.get("age"))
             assertEquals("wrapped null", assertIs<EngineObjectData.Sync>(defaultContext).get("name"))
         }
 

@@ -17,7 +17,7 @@ Major exclusions from the current Engine API integration include batching, mutat
 ## Source Layout
 
 - [`src/main`](src/main) contains the production model, schema lowering, bootstrap, execution integration, Resolution, and the shared production resolution framework. The `viaduct.engine.runtime2.model` package deliberately uses stylized Kotlin as an executable semantic model rather than as a conventional object-oriented domain model. Only this source set is published.
-- [`src/testFixtures`](src/testFixtures) contains the numbered reference resolver implementations, correctness machinery, generators, benchmark support, and neutral development fixtures. It is a plain `testFixtures` source set without the `java-test-fixtures` plugin, so it is not published.
+- [`src/testFixtures`](src/testFixtures) contains the numbered reference resolver implementations, correctness machinery, generators, benchmark support, recursive invariant predicates, completed-result comparison, bounded resolution drivers, dispatcher setup, and reference-registry enrichment. It is a plain `testFixtures` source set without the `java-test-fixtures` plugin, so it is not published.
 - [`src/test/kotlin`](src/test/kotlin) contains the tests and the reusable JUnit contracts and fixtures.
 - [`src/jmh`](src/jmh) contains benchmarks and benchmark resources.
 

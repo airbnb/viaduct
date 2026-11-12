@@ -793,8 +793,6 @@ private fun registryOverride(
                     "Missing overridden resolver: " +
                         "${field.containingDef.name}.${field.name}",
                 )
-
-        override fun mayDemandFrom(field: ViaductSchema.ObjectField): Set<ViaductSchema.ObjectField> = delegate.mayDemandFrom(field)
     }
 
 private fun ViaductSchema.groundKey(

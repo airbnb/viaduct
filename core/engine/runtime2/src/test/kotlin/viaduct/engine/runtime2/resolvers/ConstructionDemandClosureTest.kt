@@ -36,6 +36,7 @@ import viaduct.engine.runtime2.model.testing.TestWorld
 import viaduct.engine.runtime2.model.testing.emptyFragmentOf
 import viaduct.engine.runtime2.model.testing.fragmentFrom
 import viaduct.engine.runtime2.model.testing.objectOf
+import viaduct.engine.runtime2.model.testing.referenceConstructionDemand
 import viaduct.engine.runtime2.model.usedVariables
 import viaduct.engine.runtime2.resolution.framework.Demand
 import viaduct.engine.runtime2.resolution.framework.OEROccurrence
@@ -84,7 +85,7 @@ class ConstructionDemandClosureTest {
             val consumer = fixture.schema.requireObjectField("Query", "consumer")
             val resolver = fixture.resolverRegistry.resolver(consumer)
             assertEquals(2, resolver.queryFragment.size)
-            val template = requireNotNull(fixture.resolverRegistry.precomputedConstructionDemand(consumer)).queryDemand
+            val template = requireNotNull(fixture.resolverRegistry.referenceConstructionDemand(consumer)).queryDemand
             assertEquals(1, template.reusableDemand.size)
             assertEquals(1, template.templatedDemand.size)
 
@@ -138,8 +139,8 @@ class ConstructionDemandClosureTest {
             )
         }
         val first = query.fields.single { it.name == "first" }
-        val template = fixture.resolverRegistry.precomputedConstructionDemand(first)?.queryDemand
-        assertSame(template, fixture.newAssumptions().resolverRegistry.precomputedConstructionDemand(first)?.queryDemand)
+        val template = fixture.resolverRegistry.referenceConstructionDemand(first)?.queryDemand
+        assertSame(template, fixture.newAssumptions().resolverRegistry.referenceConstructionDemand(first)?.queryDemand)
         assertEquals(setOf("middle", "item"), requireNotNull(template).reusableDemand.fieldNames())
         assertTrue(template.templatedDemand.isEmpty())
         assertEquals(template.reusableDemand.groundKeys(), template.dependencies.keys)
@@ -235,10 +236,10 @@ class ConstructionDemandClosureTest {
                 val left = world.schema.requireObjectField("Item", "leftResult")
                 val right = world.schema.requireObjectField("Item", "rightResult")
                 val middle = key(world, "Item", "middle")
-                val template = requireNotNull(world.resolverRegistry.precomputedConstructionDemand(left))
+                val template = requireNotNull(world.resolverRegistry.referenceConstructionDemand(left))
                 assertSame(
                     template.objectDemand.dependencies.getValue(middle),
-                    requireNotNull(world.resolverRegistry.precomputedConstructionDemand(right)).objectDemand.dependencies.getValue(middle),
+                    requireNotNull(world.resolverRegistry.referenceConstructionDemand(right)).objectDemand.dependencies.getValue(middle),
                 )
                 assertTrue(providerCalls.isEmpty())
                 val closed = source.closeOrchestrationConstructionDemand(
@@ -365,7 +366,7 @@ class ConstructionDemandClosureTest {
     @Test
     fun `hybrid templates preserve static siblings and split a partially variable bearing subtree`() {
         val fixture = mixedQueryClosureFixture { error("registry construction must not invoke providers") }
-        val template = requireNotNull(fixture.resolverRegistry.precomputedConstructionDemand(fixture.schema.requireObjectField("Query", "consumer"))).queryDemand
+        val template = requireNotNull(fixture.resolverRegistry.referenceConstructionDemand(fixture.schema.requireObjectField("Query", "consumer"))).queryDemand
         val bar = fixture.schema.requireType("Bar") as ViaductSchema.Object
 
         assertTrue(template.reusableDemand.usedVariables().isEmpty())
@@ -402,7 +403,7 @@ class ConstructionDemandClosureTest {
             },
         )
         val consumer = fixture.schema.requireObjectField("Query", "consumer")
-        val template = requireNotNull(fixture.resolverRegistry.precomputedConstructionDemand(consumer)).queryDemand
+        val template = requireNotNull(fixture.resolverRegistry.referenceConstructionDemand(consumer)).queryDemand
         val branchType = fixture.schema.requireType("Branch") as ViaductSchema.Object
         val branchKey = key(fixture.assumptions, "Query", "branch")
         val middleKey = key(fixture.assumptions, "Query", "middle")
@@ -481,7 +482,7 @@ class ConstructionDemandClosureTest {
                     consumerQuery = "middle(value: ${'$'}value) fixed: middle(value: 11)",
                 )
             val world = fixture.newAssumptions(usePrecomputedConstructionDemand = precomputed)
-            val template = requireNotNull(fixture.resolverRegistry.precomputedConstructionDemand(world.schema.requireObjectField("Query", "consumer"))).queryDemand
+            val template = requireNotNull(fixture.resolverRegistry.referenceConstructionDemand(world.schema.requireObjectField("Query", "consumer"))).queryDemand
             assertEquals(setOf(key(world, "Query", "middle", mapOf("value" to 11))), template.reusableDemand.groundKeys())
             assertEquals(setOf(key(world, "Query", "middle", mapOf("value" to 11))), template.dependencies.keys)
             val result = SharedOperationContext.create(world)

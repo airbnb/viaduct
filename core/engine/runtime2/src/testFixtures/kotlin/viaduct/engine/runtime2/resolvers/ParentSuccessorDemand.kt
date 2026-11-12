@@ -1,4 +1,4 @@
-package viaduct.engine.runtime2.resolution.framework
+package viaduct.engine.runtime2.resolvers
 
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.Selection
@@ -20,7 +20,7 @@ import viaduct.graphql.schema.ViaductSchema
  * the next producer boundary, so grandparent selections continue to propagate outward. Only the
  * additions and their containing field paths are returned, with their inclusion conditions intact.
  */
-internal fun SelectionForest.liftParentSuccessorDemand(world: Assumptions): SelectionForest {
+fun SelectionForest.liftParentSuccessorDemand(world: Assumptions): SelectionForest {
     if (world.parentFieldRelations.isEmpty() || !containsParentKeys(world.interfaceParentFields)) return selectionForestOf()
     return liftParentSuccessorDemandWalk(world)
 }

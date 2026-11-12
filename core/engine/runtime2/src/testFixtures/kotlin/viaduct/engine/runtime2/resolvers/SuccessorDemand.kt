@@ -18,7 +18,6 @@ import viaduct.engine.runtime2.model.usedVariables
 import viaduct.engine.runtime2.resolution.framework.Demand
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
 import viaduct.engine.runtime2.resolution.framework.instantiateBindings
-import viaduct.engine.runtime2.resolution.framework.liftParentSuccessorDemand
 import viaduct.graphql.schema.ViaductSchema
 
 /** Extends this demand with every encountered successor resolver's transitive input demand. */

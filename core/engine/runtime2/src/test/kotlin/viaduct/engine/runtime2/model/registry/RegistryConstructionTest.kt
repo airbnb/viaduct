@@ -37,6 +37,8 @@ import viaduct.engine.runtime2.model.requireQueryTypeDef
 import viaduct.engine.runtime2.model.requireType
 import viaduct.engine.runtime2.model.schemaType
 import viaduct.engine.runtime2.model.testing.emptyFragmentOf
+import viaduct.engine.runtime2.model.testing.mayDemandFrom
+import viaduct.engine.runtime2.model.testing.referenceConstructionDemand
 import viaduct.engine.runtime2.schema.ViaductAndGJSchema
 import viaduct.engine.runtime2.schema.lowering.LOWERED_TYPENAME_FIELD
 import viaduct.engine.runtime2.schema.lowering.loweredFieldFromSourceCoordinate
@@ -74,14 +76,16 @@ class RegistryConstructionTest {
         val registry = resolverRegistryOf(schemas, emptyMap(), resolvers, variableProviders = emptyMap())
 
         for (index in 0..28) {
-            val template = requireNotNull(registry.precomputedConstructionDemand(schema.requireObjectField("Query", "f$index")))
+            val template = requireNotNull(registry.referenceConstructionDemand(schema.requireObjectField("Query", "f$index")))
             val input = requireNotNull(template.queryRootDemand)
+            assertSame(if (root == ProviderFragment.OBJECT) template.objectDemand else template.queryDemand, input)
             val direct = input.reusableDemand
             val fields = if (index < 2) setOf("item") else setOf("f${index - 1}", "f${index - 2}")
             assertEquals(fields, direct.keys().map { it.field.name }.toSet())
             assertEquals(direct.groundKeys(), input.dependencies.keys)
             input.dependencies.forEach { (key, dependency) ->
-                assertSame(registry.precomputedConstructionDemand(key.field), dependency)
+                assertSame(registry.precomputedConstructionDemand(key.field), dependency.direct)
+                assertSame(registry.referenceConstructionDemand(key.field), dependency)
             }
             if (index < 2) {
                 val children = direct.byKey().values.single { it.key.field == item }.subselections

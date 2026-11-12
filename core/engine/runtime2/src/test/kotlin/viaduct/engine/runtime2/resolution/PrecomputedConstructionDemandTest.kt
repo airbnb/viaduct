@@ -20,6 +20,7 @@ import viaduct.engine.runtime2.model.requireQueryTypeDef
 import viaduct.engine.runtime2.model.testing.TestWorld
 import viaduct.engine.runtime2.model.testing.fragmentFrom
 import viaduct.engine.runtime2.model.testing.objectOf
+import viaduct.engine.runtime2.model.testing.referenceConstructionDemand
 import viaduct.engine.runtime2.resolution.framework.Demand
 import viaduct.engine.runtime2.resolution.framework.OEROccurrence
 import viaduct.engine.runtime2.resolution.framework.OrchestrationConstructionDemand
@@ -130,8 +131,8 @@ class PrecomputedConstructionDemandTest : ResolutionDispatcherResource {
         val branch = template.objectDemand.reusableDemand.byKey().values.single { it.key.field.name == "branch" }
         assertEquals("one", branch.subselections.single().key.field.name)
         assertEquals("branch", template.objectDemand.templatedDemand.single().key.field.name)
-        val outer = requireNotNull(fixture.resolverRegistry.precomputedConstructionDemand(fixture.schema.requireObjectField("Query", "outer")))
-        assertTrue(outer.objectDemand.dependencies.values.any { it === template })
+        val outer = requireNotNull(fixture.resolverRegistry.referenceConstructionDemand(fixture.schema.requireObjectField("Query", "outer")))
+        assertTrue(outer.objectDemand.dependencies.values.any { it.direct === template })
         val type = fixture.schema.requireQueryTypeDef()
         val root = ObjectEngineResult.of(type, mutable = true)
         val query = ObjectEngineResult.of(type, mutable = true)

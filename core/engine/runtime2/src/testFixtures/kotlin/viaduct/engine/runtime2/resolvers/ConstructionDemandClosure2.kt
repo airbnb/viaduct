@@ -10,12 +10,13 @@ import viaduct.engine.runtime2.model.SelectionForest
 import viaduct.engine.runtime2.model.flatMerge
 import viaduct.engine.runtime2.model.guardedBy
 import viaduct.engine.runtime2.model.registry.CheckerResolverBase
-import viaduct.engine.runtime2.model.registry.ConstructionDemandTemplate
-import viaduct.engine.runtime2.model.registry.FragmentConstructionDemandTemplate
 import viaduct.engine.runtime2.model.registry.ParentConstructionDemandTemplate
 import viaduct.engine.runtime2.model.registry.instantiateVariables
 import viaduct.engine.runtime2.model.requireQueryTypeDef
 import viaduct.engine.runtime2.model.schemaType
+import viaduct.engine.runtime2.model.testing.ReferenceConstructionDemandTemplate
+import viaduct.engine.runtime2.model.testing.ReferenceFragmentConstructionDemandTemplate
+import viaduct.engine.runtime2.model.testing.referenceConstructionDemand
 import viaduct.engine.runtime2.resolution.framework.Demand
 import viaduct.engine.runtime2.resolution.framework.OEROccurrence
 import viaduct.engine.runtime2.resolution.framework.OrchestrationConstructionDemand
@@ -101,7 +102,7 @@ private class ClosureHelper(
     private var typeCheckDemanded = initialDemand.typeCheckDemanded
     private val expandedFields = linkedSetOf<ViaductSchema.ObjectField>()
     private val discoveredKeys = linkedSetOf<ObjectEngineResult.GroundKey>()
-    private val pendingKeys = linkedMapOf<ObjectEngineResult.GroundKey, ConstructionDemandTemplate>()
+    private val pendingKeys = linkedMapOf<ObjectEngineResult.GroundKey, ReferenceConstructionDemandTemplate>()
 
     val hasPendingDemand: Boolean
         get() = pendingKeys.isNotEmpty() || pendingCheckers.isNotEmpty() ||
@@ -169,8 +170,8 @@ private class ClosureHelper(
         return parentDemand.checked.groundKeys() + parentDemand.unchecked.groundKeys()
     }
 
-    private fun templateFor(key: ObjectEngineResult.GroundKey): ConstructionDemandTemplate =
-        requireNotNull(registry.precomputedConstructionDemand(key.field)) {
+    private fun templateFor(key: ObjectEngineResult.GroundKey): ReferenceConstructionDemandTemplate =
+        requireNotNull(registry.referenceConstructionDemand(key.field)) {
             "Precomputed construction demand requires argument/provider variables: " +
                 "${key.field.containingDef.name}/${key.field.name}"
         }
@@ -180,11 +181,12 @@ private class ClosureHelper(
         return key.field in registry
     }
 
-    private fun localTemplate(template: ConstructionDemandTemplate): FragmentConstructionDemandTemplate = if (queryClosure == null) requireNotNull(template.queryRootDemand) else template.objectDemand
+    private fun localTemplate(template: ReferenceConstructionDemandTemplate): ReferenceFragmentConstructionDemandTemplate =
+        if (queryClosure == null) requireNotNull(template.queryRootDemand) else template.objectDemand
 
     // Dependency links preserve the supplied-field guard without re-merging forests to rediscover seeds.
     private fun addTemplates(keys: Collection<ObjectEngineResult.GroundKey>) {
-        val frontier = ArrayDeque<Pair<ObjectEngineResult.GroundKey, ConstructionDemandTemplate?>>(keys.map { it to null })
+        val frontier = ArrayDeque<Pair<ObjectEngineResult.GroundKey, ReferenceConstructionDemandTemplate?>>(keys.map { it to null })
         while (frontier.isNotEmpty()) {
             val (key, linkedTemplate) = frontier.removeFirst()
             if (!isResolverSeed(key) || !requiresStandardResolution(key) || !discoveredKeys.add(key)) continue

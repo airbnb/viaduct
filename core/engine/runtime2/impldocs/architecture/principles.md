@@ -96,6 +96,10 @@ Duplicate claims, duplicate writers, repeated lifecycle transitions, undeclared 
 
 Provider paths are compiled and validated before semantic reasoning, but provider evaluation occurs at runtime in Resolution. Provider containment, inclusion, and branch ordering are domain restrictions; they are not themselves an execution algorithm.
 
+Registry construction requires one acyclic structural branch order per concrete object type. Ordinary resolver inputs order prerequisites before consumers. For each object-field variable, its provider branch and every transitive prerequisite of that provider must precede every branch whose subtree uses the variable; validation closes these edges to a fixed point. This provider-before-use discipline allows argument bindings, inclusion conditions, and materialized inputs to become ready before resolution enters a consuming branch. Coroutine scheduling and symbolic key identity cannot supply a value whose producer is waiting on that same consumer.
+
+The order is intentionally argument-insensitive and conservative. A use or ancestor marked `@skip(if: true)` or `@include(if: false)` still contributes an edge. A provider beneath `child(id: 1)` and a use beneath `child(id: 2)` occupy the same structural branch and can therefore be rejected even when those exact occurrences would be safe. The supported domain favors a stable structural order over admitting every individually safe request. Operation-local task/read cycle checking remains a separate safeguard; branch validation alone does not prove freedom from every engine or tenant hang.
+
 Substitution precedes exact-key grouping in [reference resolvers](../../impldocs/architecture/resolver-families.md#comparison-grid). Resolution retains symbolic keys: selections with the same field and variable instances coalesce, while keys containing different variable instances remain distinct even when those variables bind to equal values.
 
 ## Structured Concurrency Owns Request Lifetime

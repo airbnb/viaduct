@@ -1,11 +1,8 @@
 package viaduct.engine.runtime2.resolution.framework
 
 /**
- * Collects historical task dependencies without searching for cycles during reads or registration.
- *
- * Normal-path operations (`registerWriter`, `cycleCheck`) append to pre-sized logs under a
- * simple monitor. The dependency graph is only constructed inside [findCycle] on the timeout
- * path, avoiding all hash-map allocation during normal resolution.
+ * Collects historical dependencies in pre-sized logs under a monitor. Only an explicit
+ * [findCycle] call reconstructs the graph; reads and registration do not search for cycles.
  */
 interface DeferredCycleCheckState : CycleCheckState {
     /** Returns a closed cycle path, or null, using one linear scan of the collected graph. */

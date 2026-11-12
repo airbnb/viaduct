@@ -43,13 +43,13 @@ import viaduct.engine.runtime2.model.registry.VariableDeclaration
 import viaduct.engine.runtime2.model.registry.VariableDefinition
 import viaduct.engine.runtime2.model.registry.fromArgument
 import viaduct.engine.runtime2.model.registry.nodeResolverOf
-import viaduct.engine.runtime2.model.registry.selectionAwareNodeResolverOf
 import viaduct.engine.runtime2.model.requireObjectField
 import viaduct.engine.runtime2.model.requireType
 import viaduct.engine.runtime2.model.selectionForestOf
 import viaduct.engine.runtime2.model.testing.TestWorld
 import viaduct.engine.runtime2.model.testing.fragmentFrom
 import viaduct.engine.runtime2.model.testing.generatedFieldResolverOf
+import viaduct.engine.runtime2.model.testing.generatedNodeResolverOf
 import viaduct.engine.runtime2.model.testing.objectOf
 import viaduct.engine.runtime2.model.testing.withErrorArguments
 import viaduct.engine.runtime2.model.testing.withGeneratedOutputPolicy
@@ -513,7 +513,7 @@ class ArbitraryRegistry internal constructor(
                             precomputedResolverOutputs?.nodeResolver(typeName, materializePlan)
                                 ?: materializePlan
                         val resolver = if (selectiveNodeResolvers) {
-                            selectionAwareNodeResolverOf { id, demand ->
+                            generatedNodeResolverOf { id, demand ->
                                 selectiveNodeApplicationLog.record(SelectiveNodeResolverApplicationRecord(typeName, id, demand.resolutionDigest()))
                                 materialize(id)
                             }
