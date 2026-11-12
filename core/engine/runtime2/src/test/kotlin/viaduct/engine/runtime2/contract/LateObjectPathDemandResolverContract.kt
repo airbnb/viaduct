@@ -48,14 +48,14 @@ interface LateObjectPathDemandResolverContract : ResolverContract {
                 schemaSDL =
                     """
                     extend type Query {
-                      foo: Foo! @resolver(result: {z: 2, w: 3})
+                      foo: Foo! @resolver(script: "{'z': 2, 'w': 3}")
                     }
 
                     type Foo {
                       x: Int!
-                        @resolver(of: "z", result: "sum(z, z, z, z, z)")
+                        @resolver(of: "z", script: "(objectValue.z == null ? 0 : objectValue.z) + (objectValue.z == null ? 0 : objectValue.z) + (objectValue.z == null ? 0 : objectValue.z) + (objectValue.z == null ? 0 : objectValue.z) + (objectValue.z == null ? 0 : objectValue.z)")
                       y: Int!
-                        @resolver(of: "w", result: "sum(w, w, w, w, w, w, w)")
+                        @resolver(of: "w", script: "(objectValue.w == null ? 0 : objectValue.w) + (objectValue.w == null ? 0 : objectValue.w) + (objectValue.w == null ? 0 : objectValue.w) + (objectValue.w == null ? 0 : objectValue.w) + (objectValue.w == null ? 0 : objectValue.w) + (objectValue.w == null ? 0 : objectValue.w) + (objectValue.w == null ? 0 : objectValue.w)")
                       z: Int!
                       w: Int!
                     }
@@ -123,18 +123,18 @@ interface LateObjectPathDemandResolverContract : ResolverContract {
                         @resolver(
                           of: "late(arg: ${'$'}value) seed { node { first } }"
                           pathVars: [{name: "value", path: ["seed", "node", "first"]}]
-                          result: "sum(late)"
+                          script: "(objectValue.late == null ? 0 : objectValue.late)"
                         )
                       late(arg: Int!): Int!
                         @resolver(
                           of: "seed { node { second } }"
-                          result: "sum(seed.node.second)"
+                          script: "(objectValue.seed == null ? 0 : objectValue.seed.node == null ? 0 : objectValue.seed.node.second == null ? 0 : objectValue.seed.node.second)"
                         )
-                      seed: Mid! @resolver(result: {})
+                      seed: Mid! @resolver(script: "{:}")
                     }
 
                     type Mid {
-                      node: Leaf! @resolver(result: {first: 1, second: 2})
+                      node: Leaf! @resolver(script: "{'first': 1, 'second': 2}")
                     }
 
                     type Leaf {
@@ -191,13 +191,13 @@ interface LateObjectPathDemandResolverContract : ResolverContract {
                         @resolver(
                           of: "root { middle { passive { node { shallow } } } } source root { late(value: ${'$'}value) }"
                           pathVars: [{name: "value", path: ["source"]}]
-                          result: "sum(root.late)"
+                          script: "(objectValue.root == null ? 0 : objectValue.root.late == null ? 0 : objectValue.root.late)"
                         )
                       source: Int!
-                        @resolver(of: "delay", result: "sum(delay)")
-                      delay: Int! @resolver(result: 1)
+                        @resolver(of: "delay", script: "(objectValue.delay == null ? 0 : objectValue.delay)")
+                      delay: Int! @resolver(script: "1")
                       root: Root!
-                        @resolver(result: {middle: {passive: {}}})
+                        @resolver(script: "{'middle': {'passive': {:}}}")
                     }
 
                     type Root {
@@ -205,7 +205,7 @@ interface LateObjectPathDemandResolverContract : ResolverContract {
                       late(value: Int!): Int!
                         @resolver(
                           of: "middle { intermediate }"
-                          result: "sum(middle.intermediate)"
+                          script: "(objectValue.middle == null ? 0 : objectValue.middle.intermediate == null ? 0 : objectValue.middle.intermediate)"
                         )
                     }
 
@@ -214,13 +214,13 @@ interface LateObjectPathDemandResolverContract : ResolverContract {
                       intermediate: Int!
                         @resolver(
                           of: "passive { node { deep } }"
-                          result: "sum(passive.node.deep)"
+                          script: "(objectValue.passive == null ? 0 : objectValue.passive.node == null ? 0 : objectValue.passive.node.deep == null ? 0 : objectValue.passive.node.deep)"
                         )
                     }
 
                     type Passive {
                       node: Leaf!
-                        @resolver(result: {shallow: 1, deep: 2})
+                        @resolver(script: "{'shallow': 1, 'deep': 2}")
                     }
 
                     type Leaf {
@@ -274,16 +274,16 @@ interface LateObjectPathDemandResolverContract : ResolverContract {
                         @resolver(
                           of: "provider parent { computed(value: ${'$'}value) }"
                           pathVars: [{name: "value", path: ["provider"]}]
-                          result: "sum(parent.computed)"
+                          script: "(objectValue.parent == null ? 0 : objectValue.parent.computed == null ? 0 : objectValue.parent.computed)"
                         )
-                      provider: Int! @resolver(result: 7)
-                      parent: Payload! @resolver(result: {source: 7})
+                      provider: Int! @resolver(script: "7")
+                      parent: Payload! @resolver(script: "{'source': 7}")
                     }
 
                     type Payload {
                       source: Int!
                       computed(value: Int!): Int!
-                        @resolver(of: "source", result: "sum(source)")
+                        @resolver(of: "source", script: "(objectValue.source == null ? 0 : objectValue.source)")
                     }
                     """.trimIndent(),
             )
@@ -327,10 +327,10 @@ interface LateObjectPathDemandResolverContract : ResolverContract {
                         @resolver(
                           of: "provider holder { nested { computed(value: ${'$'}value) } }"
                           pathVars: [{name: "value", path: ["provider"]}]
-                          result: "sum(holder.nested.computed)"
+                          script: "(objectValue.holder == null ? 0 : objectValue.holder.nested == null ? 0 : objectValue.holder.nested.computed == null ? 0 : objectValue.holder.nested.computed)"
                         )
-                      provider: Int! @resolver(result: 7)
-                      holder: Holder! @resolver(result: {nested: {}})
+                      provider: Int! @resolver(script: "7")
+                      holder: Holder! @resolver(script: "{'nested': {:}}")
                     }
 
                     type Holder {
@@ -339,7 +339,7 @@ interface LateObjectPathDemandResolverContract : ResolverContract {
 
                     type Nested {
                       computed(value: Int!): Int!
-                        @resolver(result: "sum(${'$'}value)")
+                        @resolver(script: "value")
                     }
                     """.trimIndent(),
             )
@@ -378,23 +378,23 @@ interface LateObjectPathDemandResolverContract : ResolverContract {
                       early: Int!
                         @resolver(
                           of: "parent { child(value: 1) }"
-                          result: "sum(parent.child)"
+                          script: "(objectValue.parent == null ? 0 : objectValue.parent.child == null ? 0 : objectValue.parent.child)"
                         )
                       outer: Int!
                         @resolver(
                           of: "source parent { child(value: ${'$'}value) }"
                           pathVars: [{name: "value", path: ["source"]}]
-                          result: "sum(parent.child)"
+                          script: "(objectValue.parent == null ? 0 : objectValue.parent.child == null ? 0 : objectValue.parent.child)"
                         )
                       source: Int!
-                        @resolver(of: "delay", result: "sum(delay)")
-                      delay: Int! @resolver(result: 1)
-                      parent: Parent! @resolver(result: {})
+                        @resolver(of: "delay", script: "(objectValue.delay == null ? 0 : objectValue.delay)")
+                      delay: Int! @resolver(script: "1")
+                      parent: Parent! @resolver(script: "{:}")
                     }
 
                     type Parent {
                       child(value: Int!): Int!
-                        @resolver(result: "sum(${'$'}value)")
+                        @resolver(script: "value")
                     }
                     """.trimIndent(),
             )

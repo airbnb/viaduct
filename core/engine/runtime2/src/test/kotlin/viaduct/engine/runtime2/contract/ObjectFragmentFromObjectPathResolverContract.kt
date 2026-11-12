@@ -36,11 +36,11 @@ interface ObjectFragmentFromObjectPathResolverContract :
                         @resolver(
                           of: "source consume(value: ${'$'}value)"
                           pathVars: [{name: "value", path: ["source"]}]
-                          result: "sum(consume)"
+                          script: "(objectValue.consume == null ? 0 : objectValue.consume)"
                         )
-                      source: Int! @resolver(result: 7)
+                      source: Int! @resolver(script: "7")
                       consume(value: Int!): Int!
-                        @resolver(result: "sum(${'$'}value, ${'$'}value)")
+                        @resolver(script: "value + value")
                     }
                     """.trimIndent(),
             )
@@ -79,10 +79,10 @@ interface ObjectFragmentFromObjectPathResolverContract :
                         @resolver(
                           of: "source(value: ${'$'}seed) consume(value: ${'$'}provided)"
                           pathVars: [{name: "provided", path: ["source"]}]
-                          result: "sum(consume)"
+                          script: "(objectValue.consume == null ? 0 : objectValue.consume)"
                         )
-                      source(value: Int!): Int! @resolver(result: "sum(${'$'}value)")
-                      consume(value: Int!): Int! @resolver(result: "sum(${'$'}value)")
+                      source(value: Int!): Int! @resolver(script: "value")
+                      consume(value: Int!): Int! @resolver(script: "value")
                     }
                     """.trimIndent(),
             )
@@ -112,11 +112,11 @@ interface ObjectFragmentFromObjectPathResolverContract :
                             {name: "provided", path: ["source"]}
                             {name: "sourceArg", path: ["seed"]}
                           ]
-                          result: "sum(consume)"
+                          script: "(objectValue.consume == null ? 0 : objectValue.consume)"
                         )
-                      consume(value: Int!): Int! @resolver(result: "sum(${'$'}value)")
-                      source(value: Int!): Int! @resolver(result: "sum(${'$'}value)")
-                      seed: Int! @resolver(result: 11)
+                      consume(value: Int!): Int! @resolver(script: "value")
+                      source(value: Int!): Int! @resolver(script: "value")
+                      seed: Int! @resolver(script: "11")
                     }
                     """.trimIndent(),
             )
@@ -146,15 +146,15 @@ interface ObjectFragmentFromObjectPathResolverContract :
                             {name: "provided", path: ["box", "source"]}
                             {name: "sourceArg", path: ["seed"]}
                           ]
-                          result: "sum(consume)"
+                          script: "(objectValue.consume == null ? 0 : objectValue.consume)"
                         )
-                      box: Box! @resolver(result: {})
-                      consume(value: Int!): Int! @resolver(result: "sum(${'$'}value)")
-                      seed: Int! @resolver(result: 13)
+                      box: Box! @resolver(script: "{:}")
+                      consume(value: Int!): Int! @resolver(script: "value")
+                      seed: Int! @resolver(script: "13")
                     }
 
                     type Box {
-                      source(value: Int!): Int! @resolver(result: "sum(${'$'}value)")
+                      source(value: Int!): Int! @resolver(script: "value")
                     }
                     """.trimIndent(),
             )
@@ -177,8 +177,8 @@ interface ObjectFragmentFromObjectPathResolverContract :
                 schemaSDL =
                     """
                     extend type Query {
-                      box: Box! @resolver(result: {passive: 1})
-                      seed: Int! @resolver(result: 13)
+                      box: Box! @resolver(script: "{'passive': 1}")
+                      seed: Int! @resolver(script: "13")
                       result: Int!
                         @resolver(
                           of: "box { source(value: ${'$'}sourceArg) } consume(value: ${'$'}provided) seed"
@@ -186,14 +186,14 @@ interface ObjectFragmentFromObjectPathResolverContract :
                             {name: "provided", path: ["box", "source"]}
                             {name: "sourceArg", path: ["seed"]}
                           ]
-                          result: "sum(consume)"
+                          script: "(objectValue.consume == null ? 0 : objectValue.consume)"
                         )
-                      consume(value: Int!): Int! @resolver(result: "sum(${'$'}value)")
+                      consume(value: Int!): Int! @resolver(script: "value")
                     }
 
                     type Box {
                       passive: Int!
-                      source(value: Int!): Int! @resolver(result: "sum(${'$'}value)")
+                      source(value: Int!): Int! @resolver(script: "value")
                     }
                     """.trimIndent(),
             )
@@ -227,11 +227,11 @@ interface ObjectFragmentFromObjectPathResolverContract :
                             {name: "provided", path: ["box", "inner", "source"]}
                             {name: "sourceArg", path: ["seedBox", "seed"]}
                           ]
-                          result: "sum(consume)"
+                          script: "(objectValue.consume == null ? 0 : objectValue.consume)"
                         )
-                      box: Box! @resolver(result: {inner: {}})
-                      consume(value: Int!): Int! @resolver(result: "sum(${'$'}value)")
-                      seedBox: SeedBox! @resolver(result: {})
+                      box: Box! @resolver(script: "{'inner': {:}}")
+                      consume(value: Int!): Int! @resolver(script: "value")
+                      seedBox: SeedBox! @resolver(script: "{:}")
                     }
 
                     type Box {
@@ -239,11 +239,11 @@ interface ObjectFragmentFromObjectPathResolverContract :
                     }
 
                     type Inner {
-                      source(value: Int!): Int! @resolver(result: "sum(${'$'}value)")
+                      source(value: Int!): Int! @resolver(script: "value")
                     }
 
                     type SeedBox {
-                      seed: Int! @resolver(result: 17)
+                      seed: Int! @resolver(script: "17")
                     }
                     """.trimIndent(),
             )
@@ -272,7 +272,7 @@ interface ObjectFragmentFromObjectPathResolverContract :
 
     @Test
     fun `binds an error from a nullable provider path`() {
-        val resolution = resolveNullableProviderPath("\"ERROR\"")
+        val resolution = resolveNullableProviderPath("error")
 
         assertIs<ErrorEngineResult>(resolution.value)
         assertEquals(VariableBinding.Error, resolution.binding)
@@ -312,10 +312,10 @@ interface ObjectFragmentFromObjectPathResolverContract :
                         @resolver(
                           of: "source consume(value: ${'$'}value)"
                           pathVars: [{name: "value", path: ["source"]}]
-                          result: $dslValue
+                          script: "$dslValue"
                         )
-                      source: Int @resolver(result: $dslValue)
-                      consume(value: Int): Int @resolver(result: $dslValue)
+                      source: Int @resolver(script: "$dslValue")
+                      consume(value: Int): Int @resolver(script: "$dslValue")
                     }
                     """.trimIndent(),
             )
@@ -354,11 +354,11 @@ interface ObjectFragmentFromObjectPathResolverContract :
                         @resolver(
                           of: "box { value } consume(value: ${'$'}value)"
                           pathVars: [{name: "value", path: ["box", "value"]}]
-                          result: "sum(consume)"
+                          script: "(objectValue.consume == null ? 0 : objectValue.consume)"
                         )
-                      box: Box! @resolver(result: {value: 9})
+                      box: Box! @resolver(script: "{'value': 9}")
                       consume(value: Int!): Int!
-                        @resolver(result: "sum(${'$'}value)")
+                        @resolver(script: "value")
                     }
 
                     type Box {
@@ -390,10 +390,10 @@ interface ObjectFragmentFromObjectPathResolverContract :
                         @resolver(
                           of: "source consume(values: ${'$'}values)"
                           pathVars: [{name: "values", path: ["source"]}]
-                          result: "sum(consume)"
+                          script: "(objectValue.consume == null ? 0 : objectValue.consume)"
                         )
-                      source: [Int!]! @resolver(result: [2, 3, 5])
-                      consume(values: [Int!]!): Int! @resolver(result: 10)
+                      source: [Int!]! @resolver(script: "[2, 3, 5]")
+                      consume(values: [Int!]!): Int! @resolver(script: "10")
                     }
                     """.trimIndent(),
             )

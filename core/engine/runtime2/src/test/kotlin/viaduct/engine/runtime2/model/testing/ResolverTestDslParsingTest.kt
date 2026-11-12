@@ -7,6 +7,29 @@ import org.junit.jupiter.api.assertThrows
 
 class ResolverTestDslParsingTest {
     @Test
+    fun `validates scripted Node declarations`() {
+        for (declaration in listOf(
+            "result: [{id: 1, result: {}}]",
+            "ids: [], script: \"{:}\"",
+            "ids: [null], script: \"{:}\"",
+            "ids: [true], script: \"{:}\"",
+            "ids: [\"one\", \"one\"], script: \"{:}\"",
+            "ids: [\"one\"], script: null",
+            "ids: [\"one\"]",
+            "script: \"{:}\"",
+            "ids: [\"one\"], script: \"{:}\", result: []",
+        )) {
+            assertThrows<IllegalArgumentException>(declaration) {
+                TestWorld.fromDSL("type User implements Node @nodeResolver($declaration) { id: ID! }")
+            }
+        }
+        val failure = assertThrows<JexlException> {
+            TestWorld.fromDSL("type User implements Node @nodeResolver(ids: [\"one\"], script: \"var x = ;\") { id: ID! }")
+        }
+        assertTrue(failure.message.orEmpty().contains("User/@nodeResolver"))
+    }
+
+    @Test
     fun `requires a complete scripted variables provider declaration`() {
         for (declaration in listOf(
             "vars: null",
@@ -28,7 +51,7 @@ class ResolverTestDslParsingTest {
             "vars: {names: [\"provided\"], script: \"{:}\"}, providerVars: {provided: 1}",
         )) {
             assertThrows<IllegalArgumentException>(declaration) {
-                TestWorld.fromDSL("extend type Query { value: Int @resolver($declaration, result: 1) }")
+                TestWorld.fromDSL("extend type Query { value: Int @resolver($declaration, script: \"1\") }")
             }
         }
     }
@@ -44,10 +67,10 @@ class ResolverTestDslParsingTest {
                         of: "source echo(value: ${'$'}fromSource)"
                         pathVars: [{name: "fromSource", path: ["source"]}]
                         vars: {names: ["$name"], script: "{'$name': 1}"}
-                        result: 1
+                        script: "1"
                       )
-                      source: Int @resolver(result: 2)
-                      echo(value: Int): Int @resolver(result: 3)
+                      source: Int @resolver(script: "2")
+                      echo(value: Int): Int @resolver(script: "3")
                     }
                     """.trimIndent()
                 )
@@ -62,8 +85,8 @@ class ResolverTestDslParsingTest {
             TestWorld.fromDSL(
                 """
                 extend type Query {
-                  value: Int @resolver(of: "echo(value: ${'$'}provided)", vars: {names: ["provided"], script: "var x = ;"}, result: 1)
-                  echo(value: Int): Int @resolver(result: 2)
+                  value: Int @resolver(of: "echo(value: ${'$'}provided)", vars: {names: ["provided"], script: "var x = ;"}, script: "1")
+                  echo(value: Int): Int @resolver(script: "2")
                 }
                 """.trimIndent()
             )
@@ -72,8 +95,11 @@ class ResolverTestDslParsingTest {
     }
 
     @Test
-    fun `requires exactly one result or string script`() {
+    fun `requires a string script and rejects legacy resolver arguments`() {
         for (arguments in listOf(
+            "of: \"\"",
+            "result: 1",
+            "result: null",
             "result: 1, script: \"2\"",
             "result: null, script: \"null\"",
             "script: null",
@@ -97,14 +123,14 @@ class ResolverTestDslParsingTest {
 
     @Test
     fun `rejects erroneous arguments and directive bindings in Query fragments`() {
-        for (selection in listOf("dependency(arg: \"ERROR\")", "dependency(arg: 1) @include(if: \"ERROR\")")) {
+        for (selection in listOf("dependency(arg: null)", "dependency(arg: 1) @include(if: null)")) {
             val escapedSelection = selection.replace("\"", "\\\"")
             assertThrows<IllegalArgumentException> {
                 TestWorld.fromDSL(
                     """
                     extend type Query {
-                      result: Int! @resolver(qf: "$escapedSelection", result: 1)
-                      dependency(arg: Int!): Int! @resolver(result: 2)
+                      result: Int! @resolver(qf: "$escapedSelection", script: "1")
+                      dependency(arg: Int!): Int! @resolver(script: "2")
                     }
                     """.trimIndent(),
                 )
@@ -113,86 +139,86 @@ class ResolverTestDslParsingTest {
     }
 
     @Test
-    fun `rejects injected errors in direct and nested registry argument expressions`() {
-        for (value in listOf("\"ERROR\"", "{values: \"ERROR\"}", "{values: [1, \"ERROR\"]}")) {
+    fun `rejects invalid direct and nested registry argument literals`() {
+        for (value in listOf("null", "{values: null}", "{values: [1, null]}")) {
             val selection = "dependency(arg: $value)".replace("\"", "\\\"")
             val failure = assertThrows<IllegalArgumentException> {
                 TestWorld.fromDSL(
                     """
                     extend type Query {
-                      result: Int! @resolver(of: "$selection", result: 1)
-                      dependency(arg: Input!): Int! @resolver(result: 2)
+                      result: Int! @resolver(of: "$selection", script: "1")
+                      dependency(arg: Input!): Int! @resolver(script: "2")
                     }
                     input Input { values: [Int!]! }
                     """.trimIndent(),
                 )
             }
-            assertTrue(failure.message.orEmpty().contains("Registry fragment contains erroneous arguments for Query/dependency"))
+            assertTrue(failure.message.orEmpty().contains("Invalid GraphQL fragment"))
         }
     }
 
     @Test
-    fun `rejects injected errors in variable bearing aliased provider paths`() {
+    fun `rejects invalid literals in variable bearing aliased provider paths`() {
         val failure = assertThrows<IllegalArgumentException> {
             TestWorld.fromDSL(
                 """
                 extend type Query {
                   result(seed: Int!): Int!
                     @resolver(
-                      of: "provided: source(arg: \"ERROR\") byArg(arg: ${'$'}seed) untouched(arg: ${'$'}__resolverTestError0) consume(arg: ${'$'}fromSource)"
+                      of: "provided: source(arg: null) byArg(arg: ${'$'}seed) untouched(arg: ${'$'}other) consume(arg: ${'$'}fromSource)"
                       pathVars: [{name: "fromSource", path: ["provided"]}]
-                      providerVars: {__resolverTestError0: 4}
-                      result: 1
+                      vars: {names: ["other"], script: "{'other': 4}"}
+                      script: "1"
                     )
-                  source(arg: Int!): Int! @resolver(result: 2)
-                  byArg(arg: Int!): Int! @resolver(result: 3)
-                  untouched(arg: Int!): Int! @resolver(result: 4)
-                  consume(arg: Int!): Int! @resolver(result: 5)
+                  source(arg: Int!): Int! @resolver(script: "2")
+                  byArg(arg: Int!): Int! @resolver(script: "3")
+                  untouched(arg: Int!): Int! @resolver(script: "4")
+                  consume(arg: Int!): Int! @resolver(script: "5")
                 }
                 """.trimIndent(),
             )
         }
-        assertTrue(failure.message.orEmpty().contains("Registry fragment contains erroneous arguments for Query/source"))
+        assertTrue(failure.message.orEmpty().contains("Invalid GraphQL fragment"))
     }
 
     @Test
-    fun `rejects injected errors beneath symbolic guards and nested selections`() {
+    fun `rejects invalid literals beneath symbolic guards and nested selections`() {
         val failure = assertThrows<IllegalArgumentException> {
             TestWorld.fromDSL(
                 """
                 extend type Query {
                   result(show: Boolean!): Int!
-                    @resolver(of: "box { ... @include(if: ${'$'}show) { renamed: dependency(arg: \"ERROR\") } }", result: 1)
-                  box: Box! @resolver(result: {})
+                    @resolver(of: "box { ... @include(if: ${'$'}show) { renamed: dependency(arg: null) } }", script: "1")
+                  box: Box! @resolver(script: "{:}")
                 }
                 type Box {
-                  dependency(arg: Int!): Int! @resolver(result: 2)
+                  dependency(arg: Int!): Int! @resolver(script: "2")
                 }
                 """.trimIndent(),
             )
         }
-        assertTrue(failure.message.orEmpty().contains("Registry fragment contains erroneous arguments for Box/dependency"))
+        assertTrue(failure.message.orEmpty().contains("Invalid GraphQL fragment"))
     }
 
     @Test
-    fun `injected argument errors do not become Boolean directive variables`() {
+    fun `rejects nonboolean directive arguments even beneath inactive selections`() {
         for (selection in listOf(
-            "dependency @include(if: \"ERROR\")",
-            "dependency @skip(if: true) @include(if: \"ERROR\")",
-            "... @include(if: \"ERROR\") { dependency }",
+            "dependency @include(if: null)",
+            "dependency @skip(if: true) @include(if: null)",
+            "... @include(if: null) { dependency }",
         )) {
             val escapedSelection = selection.replace("\"", "\\\"")
             val failure = assertThrows<IllegalArgumentException> {
                 TestWorld.fromDSL(
                     """
                     extend type Query {
-                      result: Int! @resolver(of: "$escapedSelection", result: 1)
-                      dependency: Int! @resolver(result: 2)
+                      result: Int! @resolver(of: "$escapedSelection", script: "1")
+                      dependency: Int! @resolver(script: "2")
                     }
                     """.trimIndent(),
                 )
             }
-            assertTrue(failure.message.orEmpty().contains("Directive variables must be Boolean"))
+            assertTrue(failure.message.orEmpty().contains("Invalid GraphQL fragment"))
         }
     }
 }

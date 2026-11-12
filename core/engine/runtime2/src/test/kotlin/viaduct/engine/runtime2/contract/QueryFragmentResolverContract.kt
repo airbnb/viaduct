@@ -55,7 +55,7 @@ interface QueryFragmentResolverContract : ResolverContract {
             TestWorld.fromDSL(
                 schemaSDL =
                     """
-                    extend type Query { value: Int! @resolver(qf: "", result: 1) }
+                    extend type Query { value: Int! @resolver(qf: "", script: "1") }
                     """.trimIndent(),
             )
         val resolution = resolveAndValidateObserved(testWorld, "query { value }", resolutionObserver = invocationObserver)
@@ -287,9 +287,9 @@ interface QueryFragmentResolverContract : ResolverContract {
                 schemaSDL =
                     """
                     extend type Query {
-                      base: Int! @resolver(result: 4)
-                      middle: Int! @resolver(qf: "value: base", result: "value(query:value)")
-                      result: Int! @resolver(qf: "value: middle", result: "value(query:value)")
+                      base: Int! @resolver(script: "4")
+                      middle: Int! @resolver(qf: "value: base", script: "queryValue.value")
+                      result: Int! @resolver(qf: "value: middle", script: "queryValue.value")
                     }
                     """.trimIndent(),
             )
@@ -328,12 +328,12 @@ interface QueryFragmentResolverContract : ResolverContract {
                 schemaSDL =
                     """
                     extend type Query {
-                      result: Int! @resolver(qf: "container { value }", result: "value(query:container.value)")
-                      container: Container! @resolver(result: {})
-                      source: Int! @resolver(result: 7)
+                      result: Int! @resolver(qf: "container { value }", script: "(queryValue.container == null ? null : queryValue.container.value)")
+                      container: Container! @resolver(script: "{:}")
+                      source: Int! @resolver(script: "7")
                     }
                     type Container {
-                      value: Int! @resolver(qf: "source", result: "value(query:source)")
+                      value: Int! @resolver(qf: "source", script: "queryValue.source")
                     }
                     """.trimIndent(),
             )
@@ -459,10 +459,10 @@ interface QueryFragmentResolverContract : ResolverContract {
                 schemaSDL =
                     """
                     extend type Query {
-                      failing: Int! @resolver(result: "ERROR")
-                      healthy: Int! @resolver(result: 7)
-                      failedOwner: Int! @resolver(qf: "value: failing", result: "value(query:value)")
-                      healthyOwner: Int! @resolver(qf: "value: healthy", result: "value(query:value)")
+                      failing: Int! @resolver(script: "error")
+                      healthy: Int! @resolver(script: "7")
+                      failedOwner: Int! @resolver(qf: "value: failing", script: "queryValue.value")
+                      healthyOwner: Int! @resolver(qf: "value: healthy", script: "queryValue.value")
                     }
                     """.trimIndent(),
             )
@@ -495,7 +495,7 @@ interface QueryFragmentResolverContract : ResolverContract {
                         for (index in 0..depth) {
                             val dependencies =
                                 ((index + 1)..minOf(index + 2, depth)).joinToString(" ") { next -> "field$next" }
-                            appendLine("  field$index: Int! @resolver(qf: \"$dependencies\", result: $index)")
+                            appendLine("  field$index: Int! @resolver(qf: \"$dependencies\", script: \"$index\")")
                         }
                         append("}")
                     },
@@ -520,10 +520,10 @@ interface QueryFragmentResolverContract : ResolverContract {
                 schemaSDL =
                     """
                     extend type Query {
-                      source(value: Int!): Int! @resolver(result: "value(${'$'}value)")
+                      source(value: Int!): Int! @resolver(script: "value")
                       dependency(value: Int!): Int!
-                        @resolver(of: "source(value: ${'$'}value)", result: "value(source)")
-                      consumer: Int! @resolver(qf: "dependency(value: 7)", result: "value(query:dependency)")
+                        @resolver(of: "source(value: ${'$'}value)", script: "objectValue.source")
+                      consumer: Int! @resolver(qf: "dependency(value: 7)", script: "queryValue.dependency")
                     }
                     """.trimIndent(),
             )
@@ -570,9 +570,9 @@ interface QueryFragmentResolverContract : ResolverContract {
                 schemaSDL =
                     """
                     extend type Query {
-                      source: Payload! @resolver(result: {left: 1, right: 2})
-                      first: Int! @resolver(qf: "firstSource: source { left }", result: "value(query:firstSource.left)")
-                      second: Int! @resolver(qf: "secondSource: source { right }", result: "value(query:secondSource.right)")
+                      source: Payload! @resolver(script: "{'left': 1, 'right': 2}")
+                      first: Int! @resolver(qf: "firstSource: source { left }", script: "(queryValue.firstSource == null ? null : queryValue.firstSource.left)")
+                      second: Int! @resolver(qf: "secondSource: source { right }", script: "(queryValue.secondSource == null ? null : queryValue.secondSource.right)")
                     }
                     type Payload { left: Int!, right: Int! }
                     """.trimIndent(),
@@ -634,13 +634,13 @@ interface QueryFragmentResolverContract : ResolverContract {
                 schemaSDL =
                     """
                     extend type Query {
-                      item: Item! @resolver(result: {base: 7})
-                      owner: Int! @resolver(qf: "item { computed }", result: "value(query:item.computed)")
+                      item: Item! @resolver(script: "{'base': 7}")
+                      owner: Int! @resolver(qf: "item { computed }", script: "(queryValue.item == null ? null : queryValue.item.computed)")
                     }
                     type Item {
                       base: Int!
-                      computed: Int! @resolver(of: "base", result: "sumplus1(base)")
-                      unused: Int! @resolver(result: 99)
+                      computed: Int! @resolver(of: "base", script: "1 + (objectValue.base == null ? 0 : objectValue.base)")
+                      unused: Int! @resolver(script: "99")
                     }
                     """.trimIndent(),
             )
@@ -686,11 +686,11 @@ interface QueryFragmentResolverContract : ResolverContract {
                 schemaSDL =
                     """
                     extend type Query {
-                      source(value: Int!): Int! @resolver(result: "value(${'$'}value)")
+                      source(value: Int!): Int! @resolver(script: "value")
                       dependency(value: Int!): Int!
-                        @resolver(of: "source(value: ${'$'}value)", result: "value(source)")
-                      first: Int! @resolver(qf: "dependency(value: 7)", result: "value(query:dependency)")
-                      second: Int! @resolver(qf: "dependency(value: 7)", result: "value(query:dependency)")
+                        @resolver(of: "source(value: ${'$'}value)", script: "objectValue.source")
+                      first: Int! @resolver(qf: "dependency(value: 7)", script: "queryValue.dependency")
+                      second: Int! @resolver(qf: "dependency(value: 7)", script: "queryValue.dependency")
                     }
                     """.trimIndent(),
             )

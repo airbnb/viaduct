@@ -102,12 +102,12 @@ class TaskObservationTest : ResolutionDispatcherResource {
     fun `task track preserves orchestration ownership and separate prepare and run moments`() {
         val world = TestWorld.fromDSL(
             """
-            extend type Query { viewer: User! @resolver(result: {first: 2, last: 3}) }
+            extend type Query { viewer: User! @resolver(script: "{'first': 2, 'last': 3}") }
             type User {
               first: Int!
               last: Int!
-              display: Int! @resolver(of: "first last", result: "sum(first, last)")
-              greeting: Int! @resolver(of: "display", result: "sumplus1(display)")
+              display: Int! @resolver(of: "first last", script: "(objectValue.first == null ? 0 : objectValue.first) + (objectValue.last == null ? 0 : objectValue.last)")
+              greeting: Int! @resolver(of: "display", script: "1 + (objectValue.display == null ? 0 : objectValue.display)")
             }
             """.trimIndent()
         )
@@ -286,7 +286,7 @@ class TaskObservationTest : ResolutionDispatcherResource {
     @OptIn(ExperimentalCoroutinesApi::class)
     fun `field termination is observed before cancellation cleanup even if the observer throws`(): Unit =
         runTest {
-            val world = TestWorld.fromDSL("extend type Query { value: Int @resolver(result: 7) }")
+            val world = TestWorld.fromDSL("extend type Query { value: Int @resolver(script: \"7\") }")
             for (throwFromObserver in listOf(false, true)) {
                 val root = ObjectEngineResult.of(world.schema.requireQueryTypeDef(), mutable = true)
                 val completedAtFinish = mutableListOf<Boolean>()
@@ -339,7 +339,7 @@ class TaskObservationTest : ResolutionDispatcherResource {
 
     @Test
     fun `orchestration records exceptions and propagates fatal errors without a completion event`() {
-        val world = TestWorld.fromDSL("extend type Query { value: Int @resolver(result: 7) }")
+        val world = TestWorld.fromDSL("extend type Query { value: Int @resolver(script: \"7\") }")
         for (failure in listOf(IllegalStateException("orchestration failure"), CancellationException("cancelled"), AssertionError("fatal failure"))) {
             val log = TaskLog()
             val operation = SharedOperationContext.create(world.assumptions, resolutionObserver = log)

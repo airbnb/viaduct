@@ -65,8 +65,8 @@ interface FragmentFreeFieldCheckerPublicationContract {
                 schemaSDL =
                     """
                     extend type Query {
-                      first: Int! @resolver(result: 1)
-                      second: Int! @resolver(result: 2)
+                      first: Int! @resolver(script: "1")
+                      second: Int! @resolver(script: "2")
                     }
                     """.trimIndent(),
                 fieldCheckers = { schema ->
@@ -120,11 +120,11 @@ interface FragmentFreeFieldCheckerPublicationContract {
                 schemaSDL =
                     """
                     extend type Query {
-                      item: Item! @resolver(result: { passive: 7, extra: 9 })
+                      item: Item! @resolver(script: "{'passive': 7, 'extra': 9}")
                     }
 
                     type Item {
-                      active: Int! @resolver(result: 8)
+                      active: Int! @resolver(script: "8")
                       passive: Int!
                       extra: Int!
                     }
@@ -207,9 +207,9 @@ interface FragmentFreeFieldCheckerPublicationContract {
                 schemaSDL =
                     """
                     extend type Query {
-                      denied: Int! @resolver(result: 1)
-                      absent: Int! @resolver(result: 2)
-                      failed: Int! @resolver(result: 3)
+                      denied: Int! @resolver(script: "1")
+                      absent: Int! @resolver(script: "2")
+                      failed: Int! @resolver(script: "3")
                     }
                     """.trimIndent(),
                 fieldCheckers = { schema ->
@@ -285,7 +285,7 @@ interface FragmentFreeFieldCheckerPublicationContract {
             schemaSDL =
                 """
                 extend type Query {
-                  checked: Int! @resolver(result: 7)
+                  checked: Int! @resolver(script: "7")
                 }
                 """.trimIndent(),
             fieldCheckers = { schema ->

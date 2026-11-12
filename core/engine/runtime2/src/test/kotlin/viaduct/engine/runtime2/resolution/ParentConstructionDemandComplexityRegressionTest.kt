@@ -15,13 +15,13 @@ class ParentConstructionDemandComplexityRegressionTest {
         val fields = (0..depth).joinToString("\n") { index ->
             val inputs = ((index + 1)..minOf(index + 2, depth))
                 .joinToString(" ") { "field$it" }
-            "field$index: Int @resolver(of: \"$inputs\", result: 1)"
+            "field$index: Int @resolver(of: \"$inputs\", script: \"1\")"
         }
         val originalFixture = TestWorld.fromDSL(
             """
             extend type Query {
               $fields
-              unused: Parent @resolver(result: {})
+              unused: Parent @resolver(script: "{:}")
             }
             type Parent {
               child: Child

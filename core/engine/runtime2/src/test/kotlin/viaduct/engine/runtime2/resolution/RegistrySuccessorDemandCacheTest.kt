@@ -132,10 +132,10 @@ private fun acyclicFixture(): TestWorld =
     TestWorld.fromDSL(
         """
         extend type Query {
-          first: Int @resolver(of: "second", result: 1)
-          second: Int @resolver(of: "leaf", result: 2)
-          leaf: Int @resolver(result: 3)
-          checkerOnly: Int @resolver(result: 4)
+          first: Int @resolver(of: "second", script: "1")
+          second: Int @resolver(of: "leaf", script: "2")
+          leaf: Int @resolver(script: "3")
+          checkerOnly: Int @resolver(script: "4")
         }
         """.trimIndent(),
     )
@@ -143,10 +143,10 @@ private fun acyclicFixture(): TestWorld =
 private fun recursiveFixture(): TestWorld =
     TestWorld.fromDSL(
         """
-        extend type Query { item: Item @resolver(result: {}) }
+        extend type Query { item: Item @resolver(script: "{:}") }
         type Item {
-          child: Item @resolver(result: null)
-          value: Int @resolver(of: "child { marker }", result: 1)
+          child: Item @resolver(script: "null")
+          value: Int @resolver(of: "child { marker }", script: "1")
           marker: Int
           raw: Int
         }

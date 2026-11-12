@@ -23,7 +23,7 @@ class ResolutionRecordingSourceTest {
 
     @Test
     fun `fixture recording retains resolver declarations and the original query`() {
-        val schema = "extend type Query { value: Int @resolver(result: 7) }"
+        val schema = "extend type Query { value: Int @resolver(script: \"7\") }"
         val query = "query Example { __typename named: value }"
         val fixture = TestWorld.fromDSL(schema)
         val subject = Subject()

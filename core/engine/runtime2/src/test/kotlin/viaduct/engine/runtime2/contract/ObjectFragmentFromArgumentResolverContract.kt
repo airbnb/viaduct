@@ -34,10 +34,10 @@ interface ObjectFragmentFromArgumentResolverContract :
                       result(seed: Int!): Int!
                         @resolver(
                           of: "consume(value: ${'$'}seed)"
-                          result: "sum(consume)"
+                          script: "(objectValue.consume == null ? 0 : objectValue.consume)"
                         )
                       consume(value: Int!): Int!
-                        @resolver(result: "sum(${'$'}value, ${'$'}value)")
+                        @resolver(script: "value + value")
                     }
                     """.trimIndent(),
             )
@@ -263,11 +263,11 @@ interface ObjectFragmentFromArgumentResolverContract :
                     """
                     extend type Query {
                       one(seed: Int!): Int!
-                        @resolver(of: "two(value: ${'$'}seed)", result: "sum(two)")
+                        @resolver(of: "two(value: ${'$'}seed)", script: "(objectValue.two == null ? 0 : objectValue.two)")
                       two(value: Int!): Int!
-                        @resolver(of: "three(value: ${'$'}value)", result: "sum(three)")
+                        @resolver(of: "three(value: ${'$'}value)", script: "(objectValue.three == null ? 0 : objectValue.three)")
                       three(value: Int!): Int!
-                        @resolver(result: "sumplus1(${'$'}value)")
+                        @resolver(script: "1 + value")
                     }
                     """.trimIndent(),
             )

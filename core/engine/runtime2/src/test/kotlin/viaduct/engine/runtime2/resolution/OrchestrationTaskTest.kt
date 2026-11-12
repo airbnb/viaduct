@@ -207,8 +207,8 @@ class OrchestrationTaskTest : ResolutionDispatcherResource {
                 .fromDSL(
                     schemaSDL = """
                 extend type Query {
-                  first: Int! @resolver(result: 7)
-                  second: Int! @resolver(of: "first", result: "sum(first)")
+                  first: Int! @resolver(script: "7")
+                  second: Int! @resolver(of: "first", script: "(objectValue.first == null ? 0 : objectValue.first)")
                 }
                     """.trimIndent(),
                 )
@@ -296,9 +296,9 @@ class OrchestrationTaskTest : ResolutionDispatcherResource {
                     val worldFixture = TestWorld.fromDSL(
                         """
                         extend type Query {
-                          outer: Int! @resolver(of: "values @include(if: ${'$'}enabled)", providerVars: {enabled: $enabled}, result: 1)
+                          outer: Int! @resolver(of: "values @include(if: ${'$'}enabled)", vars: {names: ["enabled"], script: "{'enabled': $enabled}"}, script: "1")
                           values: [Int!]!
-                          target: Int! @resolver(result: 7)
+                          target: Int! @resolver(script: "7")
                         }
                         """.trimIndent(),
                         fieldCheckers = { schema ->
@@ -350,8 +350,8 @@ class OrchestrationTaskTest : ResolutionDispatcherResource {
             val worldFixture = TestWorld.fromDSL(
                 """
                 extend type Query {
-                  checked: Int! @resolver(result: 1)
-                  pending: Int! @resolver(result: 2)
+                  checked: Int! @resolver(script: "1")
+                  pending: Int! @resolver(script: "2")
                   passive: Int!
                 }
                 """.trimIndent(),

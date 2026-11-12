@@ -36,6 +36,8 @@ import viaduct.engine.runtime2.model.registry.FieldResolverDefinition
 import viaduct.engine.runtime2.model.registry.NonselectiveFieldResolverFunction
 import viaduct.engine.runtime2.model.registry.ResolutionExecutionContext
 import viaduct.engine.runtime2.model.requireObjectField
+import viaduct.engine.runtime2.model.requireType
+import viaduct.engine.runtime2.model.selectionForestOf
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
 import viaduct.engine.runtime2.resolution.resolve
 import viaduct.engine.runtime2.schema.operationSelectionsFrom
@@ -103,7 +105,8 @@ class JEXLNonselectiveFieldResolverFunctionTest {
             assertIs<EngineErrorData>(numbers[1])
             assertNull(numbers[2])
             val conditional = function("arg_x < 0 ? error : arg_x")
-            assertIs<EngineErrorData>(invoke(conditional, arguments = mapOf("arg_x" to -1)))
+            val error = assertIs<EngineErrorData>(invoke(conditional, arguments = mapOf("arg_x" to -1)))
+            assertSame(error, invoke(conditional, arguments = mapOf("arg_x" to -1)))
             assertEquals(7, invoke(conditional, arguments = mapOf("arg_x" to 7)))
         }
 
@@ -415,14 +418,47 @@ class JEXLNonselectiveFieldResolverFunctionTest {
         }
 
     @Test
-    fun `rejects reserved bindings and noninteger arguments`() {
-        val invalidWorld = TestWorld.fromSDL("type Query { collision(query: Int): Int errorCollision(error: Int): Int wrong(value: String): Int }")
-        for (name in listOf("collision", "errorCollision", "wrong")) {
+    fun `rejects reserved bindings`() {
+        val invalidWorld = TestWorld.fromSDL("type Query { collision(query: Int): Int errorCollision(error: Int): Int refCollision(ref: Int): Int }")
+        for (name in listOf("collision", "errorCollision", "refCollision")) {
             assertThrows<IllegalArgumentException> {
                 createJEXLNonselectiveFieldResolverFunction(invalidWorld.schemas, invalidWorld.schema.requireObjectField("Query", name), "1")
             }
         }
     }
+
+    @Test
+    fun `binds typed input values and returns IDs`(): Unit =
+        runBlocking {
+            val inputs = TestWorld.fromSDL("type Query { result(id: ID, enabled: Boolean, input: Input): ID } input Input { values: [Int] }")
+            val field = inputs.schema.requireObjectField("Query", "result")
+            val function = createJEXLNonselectiveFieldResolverFunction(inputs.schemas, field, "enabled && input.values[0] == 7 ? id : null")
+            val arguments = Arguments.Resolved.of(field, mapOf("id" to "item-1", "enabled" to true, "input" to mapOf("values" to listOf(7))))
+            val empty = inputs.schema.objectOf("Query")
+            assertEquals("item-1", function(empty, empty, arguments, null, ResolutionExecutionContext.Unsupported))
+            val number = createJEXLNonselectiveFieldResolverFunction(inputs.schemas, field, "42L")
+            assertEquals("42", number(empty, empty, arguments, null, ResolutionExecutionContext.Unsupported))
+            val invalid = createJEXLNonselectiveFieldResolverFunction(inputs.schemas, field, "true")
+            assertThrows<IllegalArgumentException> { invalid(empty, empty, arguments, null, ResolutionExecutionContext.Unsupported) }
+        }
+
+    @Test
+    fun `Node scripts preserve IDs and distinguish missing bodies from errors`(): Unit =
+        runBlocking {
+            val nodes = TestWorld.fromDSL("type User implements Node @nodeResolver(ids: [\"known\"], script: \"{'n': 7}\") { id: ID! n: Int }")
+            val type = nodes.schema.requireType("User") as ViaductSchema.Object
+
+            suspend fun evaluate(script: String): Any? = createJEXLNodeResolverFunction(nodes.schemas, type, script)("known", selectionForestOf(), ResolutionExecutionContext.Unsupported)
+            val body = assertIs<EngineObjectData.Sync>(evaluate("{'n': 7}"))
+            assertEquals("known", body.get("id"))
+            assertEquals(7, body.get("n"))
+            assertNull(evaluate("null"))
+            assertIs<EngineErrorData>(evaluate("error"))
+            for (script in listOf("{'id': 'other'}", "7", "{'__typename': 'Query'}")) {
+                assertThrows<IllegalArgumentException>(script) { evaluate(script) }
+            }
+            assertThrows<JexlException> { evaluate("query('{}')") }
+        }
 
     @Test
     fun `variable scripts reuse isolated argument bindings and normalize integer inputs`(): Unit =

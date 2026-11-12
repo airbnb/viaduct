@@ -47,10 +47,10 @@ class SuperlinearGrowthTest : ResolutionDispatcherResource {
         val depth = 15
         val fields = (0..depth).joinToString("\n") { index ->
             val inputs = ((index + 1)..minOf(index + 2, depth)).joinToString(" ") { "field$it" }
-            "field$index: Int @resolver(of: \"$inputs\", result: 1)"
+            "field$index: Int @resolver(of: \"$inputs\", script: \"1\")"
         }
         val fixture = TestWorld.fromDSL(
-            "extend type Query { root: Box @resolver(result: {}) } type Box { $fields }",
+            "extend type Query { root: Box @resolver(script: \"{:}\") } type Box { $fields }",
             fieldCheckers = { schema ->
                 val checked = schema.loweredSchema.requireObjectField("Box", "field0")
                 val pair =
@@ -115,7 +115,7 @@ class SuperlinearGrowthTest : ResolutionDispatcherResource {
         for (depth in listOf(5, 10, 15, 20)) {
             val fields = (0..depth).joinToString("\n") { index ->
                 val inputs = ((index + 1)..minOf(index + 2, depth)).joinToString(" ") { "field$it" }
-                "field$index: Int @resolver(of: \"$inputs\", result: 1)"
+                "field$index: Int @resolver(of: \"$inputs\", script: \"1\")"
             }
             val fixture = TestWorld.fromDSL("extend type Query { $fields }")
             val world = fixture.assumptions
@@ -137,14 +137,14 @@ class SuperlinearGrowthTest : ResolutionDispatcherResource {
                     } else {
                         ((index + 1)..minOf(index + 2, depth)).joinToString(" ") { "field$it" }
                     }
-                "field$index: Int @resolver(of: \"$inputs\", result: 1)"
+                "field$index: Int @resolver(of: \"$inputs\", script: \"1\")"
             }
             val fixture =
                 TestWorld.fromDSL(
                     """
-                    extend type Query { root: Parent @resolver(result: {}) }
+                    extend type Query { root: Parent @resolver(script: "{:}") }
                     type Parent { seed: Int tag: Int child: Child }
-                    type Child { parent: Parent @parent leaf: Int @resolver(of: "parent { tag }", result: 1) $fields }
+                    type Child { parent: Parent @parent leaf: Int @resolver(of: "parent { tag }", script: "1") $fields }
                     """.trimIndent(),
                     fieldCheckers = { schema ->
                         val pair =
@@ -191,14 +191,14 @@ class SuperlinearGrowthTest : ResolutionDispatcherResource {
                 } else {
                     ((index + 1)..minOf(index + 2, depth)).joinToString(" ") { "field$it" }
                 }
-                "field$index: Int @resolver(of: \"$inputs\", result: 1)"
+                "field$index: Int @resolver(of: \"$inputs\", script: \"1\")"
             }
             val fixture = TestWorld.fromDSL(
                 """
-                extend type Query { root: Parent @resolver(result: {seed: {value: 7 other: 8} child: {}}) }
+                extend type Query { root: Parent @resolver(script: "{'seed': {'value': 7, 'other': 8}, 'child': {:}}") }
                 type Parent { seed: Seed child: Child }
                 type Seed { value: Int other: Int }
-                type Child { parent: Parent @parent leaf: Int @resolver(of: "parent { seed { value } }", result: 1) $fields }
+                type Child { parent: Parent @parent leaf: Int @resolver(of: "parent { seed { value } }", script: "1") $fields }
                 """.trimIndent(),
                 fieldCheckers = { schema ->
                     val pair = ResolverFragmentTemplates(
@@ -504,7 +504,7 @@ class SuperlinearGrowthTest : ResolutionDispatcherResource {
         for (depth in listOf(16, 32, 64, 128)) {
             val fields = (0..depth).joinToString("\n") { index ->
                 val inputs = if (index == depth) "" else "field${index + 1}"
-                "field$index: Int @resolver(of: \"$inputs\", result: 1)"
+                "field$index: Int @resolver(of: \"$inputs\", script: \"1\")"
             }
             val fixture = TestWorld.fromDSL("extend type Query { $fields }")
             val original = fixture.assumptions
@@ -533,7 +533,7 @@ class SuperlinearGrowthTest : ResolutionDispatcherResource {
         for (depth in listOf(4, 8, 12)) {
             val fields = (0..depth).joinToString("\n") { index ->
                 val inputs = ((index + 1)..minOf(index + 2, depth)).joinToString(" ") { "field$it(x: ${'$'}x)" }
-                "field$index(x: Int!): Int @resolver(of: \"$inputs\", result: 1)"
+                "field$index(x: Int!): Int @resolver(of: \"$inputs\", script: \"1\")"
             }
             val fixture = TestWorld.fromDSL("extend type Query { $fields }")
             val closed = close(fixture.assumptions, fixture, "field0(x: 1)")

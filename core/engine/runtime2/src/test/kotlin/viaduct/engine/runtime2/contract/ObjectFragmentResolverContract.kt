@@ -51,17 +51,17 @@ interface ObjectFragmentResolverContract : ResolverContract {
                 schemaSDL =
                     """
                     extend type Query {
-                      viewer: User! @resolver(result: {plain: 5})
+                      viewer: User! @resolver(script: "{'plain': 5}")
                     }
 
                     type User {
                       plain: Int!
                       scaled(factor: Int!): Int!
-                        @resolver(result: "sum(${'$'}factor)")
+                        @resolver(script: "factor")
                       total: Int!
                         @resolver(
                           of: "plainValue: plain byTwo: scaled(factor: 2) byThree: scaled(factor: 3)"
-                          result: "sum(plainValue, byTwo, byThree)"
+                          script: "(objectValue.plainValue == null ? 0 : objectValue.plainValue) + (objectValue.byTwo == null ? 0 : objectValue.byTwo) + (objectValue.byThree == null ? 0 : objectValue.byThree)"
                         )
                     }
                     """.trimIndent(),
@@ -103,10 +103,7 @@ interface ObjectFragmentResolverContract : ResolverContract {
                     extend type Query {
                       holders: [Holder!]!
                         @resolver(
-                          result: [
-                            {item: {__typename: "Alpha", alpha: 4}}
-                            {item: {__typename: "Beta", beta: 7}}
-                          ]
+                          script: "[{'item': {'__typename': 'Alpha', 'alpha': 4}}, {'item': {'__typename': 'Beta', 'beta': 7}}]"
                         )
                     }
 
@@ -115,7 +112,7 @@ interface ObjectFragmentResolverContract : ResolverContract {
                       chosen: Int!
                         @resolver(
                           of: "item { ... on Alpha { value: alpha } ... on Beta { value: beta } }"
-                          result: "value(item.value)"
+                          script: "(objectValue.item == null ? null : objectValue.item.value)"
                         )
                     }
 
@@ -168,10 +165,10 @@ interface ObjectFragmentResolverContract : ResolverContract {
                 schemaSDL =
                     """
                     extend type Query {
-                      source: Int! @resolver(result: 7)
-                      nullable: Int @resolver(result: null)
+                      source: Int! @resolver(script: "7")
+                      nullable: Int @resolver(script: "null")
                       result: Int!
-                        @resolver(of: "first: source second: source empty: nullable", result: 1)
+                        @resolver(of: "first: source second: source empty: nullable", script: "1")
                     }
                     """.trimIndent(),
             )
@@ -205,11 +202,11 @@ interface ObjectFragmentResolverContract : ResolverContract {
                 schemaSDL =
                     """
                     extend type Query {
-                      container: Container! @resolver(result: {one: 2, two: 3})
+                      container: Container! @resolver(script: "{'one': 2, 'two': 3}")
                       result: Int!
                         @resolver(
                           of: "payload: container { first: one } payload: container { second: two }"
-                          result: "sum(payload.first, payload.second)"
+                          script: "(objectValue.payload == null ? 0 : objectValue.payload.first == null ? 0 : objectValue.payload.first) + (objectValue.payload == null ? 0 : objectValue.payload.second == null ? 0 : objectValue.payload.second)"
                         )
                     }
                     type Container { one: Int!, two: Int! }
@@ -302,7 +299,7 @@ interface ObjectFragmentResolverContract : ResolverContract {
                 schemaSDL =
                     """
                     extend type Query {
-                      viewer: User! @resolver(result: {profile: {raw: 2}})
+                      viewer: User! @resolver(script: "{'profile': {'raw': 2}}")
                     }
 
                     type User {
@@ -310,14 +307,14 @@ interface ObjectFragmentResolverContract : ResolverContract {
                       message: Int!
                         @resolver(
                           of: "profile { rendered }"
-                          result: "sum(profile.rendered)"
+                          script: "(objectValue.profile == null ? 0 : objectValue.profile.rendered == null ? 0 : objectValue.profile.rendered)"
                         )
                     }
 
                     type Profile {
                       raw: Int!
                       rendered: Int!
-                        @resolver(of: "raw", result: "sumplus1(raw)")
+                        @resolver(of: "raw", script: "1 + (objectValue.raw == null ? 0 : objectValue.raw)")
                     }
                     """.trimIndent(),
             )
@@ -348,10 +345,7 @@ interface ObjectFragmentResolverContract : ResolverContract {
                     extend type Query {
                       chain: Chain!
                         @resolver(
-                          result: {
-                            label: 1
-                            next: {label: 2, next: null}
-                          }
+                          script: "{'label': 1, 'next': {'label': 2, 'next': null}}"
                         )
                     }
 
@@ -361,7 +355,7 @@ interface ObjectFragmentResolverContract : ResolverContract {
                       computed: Int!
                         @resolver(
                           of: "next { label }"
-                          result: "sum(next.label)"
+                          script: "(objectValue.next == null ? 0 : objectValue.next.label == null ? 0 : objectValue.next.label)"
                         )
                     }
                     """.trimIndent(),
@@ -392,13 +386,13 @@ interface ObjectFragmentResolverContract : ResolverContract {
                 schemaSDL =
                     """
                     extend type Query {
-                      holder: Holder! @resolver(result: {item: {__typename: "ConcreteItem"}})
+                      holder: Holder! @resolver(script: "{'item': {'__typename': 'ConcreteItem'}}")
                     }
 
                     type Holder {
                       item: Item!
                       result: Int!
-                        @resolver(of: "item { computed }", result: "sum(item.computed)")
+                        @resolver(of: "item { computed }", script: "(objectValue.item == null ? 0 : objectValue.item.computed == null ? 0 : objectValue.item.computed)")
                     }
 
                     interface Item {
@@ -407,7 +401,7 @@ interface ObjectFragmentResolverContract : ResolverContract {
 
                     type ConcreteItem implements Item {
                       computed(factor: Int = 7): Int!
-                        @resolver(result: "sum(${'$'}factor)")
+                        @resolver(script: "factor")
                     }
                     """.trimIndent(),
             )
@@ -455,7 +449,7 @@ interface ObjectFragmentResolverContract : ResolverContract {
                     type Item {
                       seed: Int!
                       computed: Int!
-                        @resolver(of: "seed", result: "sum(seed, seed)")
+                        @resolver(of: "seed", script: "(objectValue.seed == null ? 0 : objectValue.seed) + (objectValue.seed == null ? 0 : objectValue.seed)")
                     }
                     """.trimIndent(),
             )
@@ -480,7 +474,7 @@ interface ObjectFragmentResolverContract : ResolverContract {
     }
 
     @Test
-    fun `registry rejects erroneous arguments in resolver fragments`() {
+    fun `DSL rejects invalid arguments in resolver fragments`() {
         val failure = assertFailsWith<IllegalArgumentException> {
             TestWorld.fromDSL(
                 schemaSDL =
@@ -488,15 +482,15 @@ interface ObjectFragmentResolverContract : ResolverContract {
                     extend type Query {
                       result: Int!
                         @resolver(
-                          of: "dependency(arg: \"ERROR\")"
-                          result: 1
+                          of: "dependency(arg: null)"
+                          script: "1"
                         )
                       dependency(arg: Int!): Int!
                         @resolver(
                           of: "container { helper }"
-                          result: 2
+                          script: "2"
                         )
-                      container: Container! @resolver(result: {})
+                      container: Container! @resolver(script: "{:}")
                     }
 
                     type Container {
@@ -506,7 +500,7 @@ interface ObjectFragmentResolverContract : ResolverContract {
             )
         }
 
-        assertEquals("Registry fragment contains erroneous arguments for Query/dependency", failure.message)
+        assertTrue(failure.message.orEmpty().startsWith("Invalid GraphQL fragment:"))
     }
 
     @Test

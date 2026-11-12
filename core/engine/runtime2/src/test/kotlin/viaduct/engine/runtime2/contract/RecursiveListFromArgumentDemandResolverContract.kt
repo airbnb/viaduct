@@ -15,11 +15,11 @@ interface RecursiveListFromArgumentDemandResolverContract : ResolverContract {
                 schemaSDL =
                     """
                     extend type Query {
-                      item: Item! @resolver(result: {common: 1})
+                      item: Item! @resolver(script: "{'common': 1}")
                       result(value: Int!): Int!
                         @resolver(
                           of: "item { consume(value: ${'$'}value) }"
-                          result: "sum(item.consume)"
+                          script: "(objectValue.item == null ? 0 : objectValue.item.consume == null ? 0 : objectValue.item.consume)"
                         )
                     }
 
@@ -28,12 +28,12 @@ interface RecursiveListFromArgumentDemandResolverContract : ResolverContract {
                       children: [Item!]!
                         @resolver(
                           of: "common"
-                          result: [{common: 2}, {common: 3}]
+                          script: "[{'common': 2}, {'common': 3}]"
                         )
                       consume(value: Int!): Int!
                         @resolver(
                           of: "children { __typename }"
-                          result: 1
+                          script: "1"
                         )
                     }
                     """.trimIndent(),

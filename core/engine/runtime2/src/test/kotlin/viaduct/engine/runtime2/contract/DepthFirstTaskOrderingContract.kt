@@ -42,11 +42,11 @@ interface DepthFirstTaskOrderingContract : ResolverContract {
                 schemaSDL =
                     """
                     extend type Query {
-                      container: Container! @resolver(result: {left: {}, right: {}})
-                      after: Int! @resolver(result: 2)
+                      container: Container! @resolver(script: "{'left': {:}, 'right': {:}}")
+                      after: Int! @resolver(script: "2")
                     }
                     type Container { left: Child!, right: Child! }
-                    type Child { nested: Int! @resolver(result: 1) }
+                    type Child { nested: Int! @resolver(script: "1") }
                     """.trimIndent(),
             )
         val world = testWorld.assumptions

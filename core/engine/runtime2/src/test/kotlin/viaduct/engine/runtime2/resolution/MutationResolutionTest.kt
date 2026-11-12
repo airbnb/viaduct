@@ -37,10 +37,10 @@ class MutationResolutionTest : ResolutionDispatcherResource {
     fun `inactive payload dependencies do not prevent the next mutation`() {
         val fixture = TestWorld.fromDSL(
             """
-            type Mutation { update: Payload @resolver(result: {}) }
+            type Mutation { update: Payload @resolver(script: "{:}") }
             type Payload {
-                value: Int @resolver(of: "dependency @include(if: ${'$'}enabled)", providerVars: {enabled: false}, result: 7)
-                dependency: Int @resolver(result: 99)
+                value: Int @resolver(of: "dependency @include(if: ${'$'}enabled)", vars: {names: ["enabled"], script: "{'enabled': false}"}, script: "7")
+                dependency: Int @resolver(script: "99")
             }
             """.trimIndent(),
         )

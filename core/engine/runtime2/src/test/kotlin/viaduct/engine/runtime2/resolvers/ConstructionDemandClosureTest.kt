@@ -874,14 +874,14 @@ class ConstructionDemandClosureTest {
             schemaSDL =
                 """
                 extend type Query {
-                  a: Int @resolver(of: "b", result: "sum(b)")
-                  b: Int @resolver(of: "leaf", result: "sum(leaf)")
-                  leaf: Int @resolver(result: 1)
-                  boxes: [Box] @resolver(result: [])
+                  a: Int @resolver(of: "b", script: "(objectValue.b == null ? 0 : objectValue.b)")
+                  b: Int @resolver(of: "leaf", script: "(objectValue.leaf == null ? 0 : objectValue.leaf)")
+                  leaf: Int @resolver(script: "1")
+                  boxes: [Box] @resolver(script: "[]")
                 }
                 type Box {
-                  consumer(seed: Int!): Int @resolver(of: "sibling(value: ${'$'}seed)", result: "sum(sibling)")
-                  sibling(value: Int!): Int @resolver(result: "sum(${'$'}value)")
+                  consumer(seed: Int!): Int @resolver(of: "sibling(value: ${'$'}seed)", script: "(objectValue.sibling == null ? 0 : objectValue.sibling)")
+                  sibling(value: Int!): Int @resolver(script: "value")
                   missing(value: Int!): Int
                 }
                 """.trimIndent(),

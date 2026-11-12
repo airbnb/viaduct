@@ -9,7 +9,7 @@ Consider this world:
 ```graphql
 extend type Query {
   user: User!
-    @resolver(result: {first: 2, last: 3})
+    @resolver(script: "{'first': 2, 'last': 3}")
 }
 
 type User {
@@ -19,13 +19,13 @@ type User {
   display: Int!
     @resolver(
       of: "first last"
-      result: "sum(first, last)"
+      script: "(objectValue?.first ?? 0) + (objectValue?.last ?? 0)"
     )
 
   greeting: Int!
     @resolver(
       of: "display"
-      result: "sumplus1(display)"
+      script: "1 + (objectValue?.display ?? 0)"
     )
 }
 ```
@@ -83,12 +83,7 @@ Extend the world with:
 extend type Query {
   project: Project!
     @resolver(
-      result: {
-        owner: {
-          first: 2
-          last: 3
-        }
-      }
+      script: "{'owner': {'first': 2, 'last': 3}}"
     )
 }
 
@@ -167,10 +162,7 @@ may denote different concrete resolver coordinates whose inputs require differen
 extend type Query {
   subject: Subject!
     @resolver(
-      result: {
-        __typename: "Person"
-        first: 7
-      }
+      script: "{'__typename': 'Person', 'first': 7}"
     )
 }
 
@@ -184,7 +176,7 @@ type Person implements Subject {
   summary: Int!
     @resolver(
       of: "first"
-      result: "sum(first)"
+      script: "(objectValue?.first ?? 0)"
     )
 }
 
@@ -194,7 +186,7 @@ type Organization implements Subject {
   summary: Int!
     @resolver(
       of: "legal"
-      result: "sum(legal)"
+      script: "(objectValue?.legal ?? 0)"
     )
 }
 ```
@@ -336,17 +328,17 @@ directive @parent on FIELD_DEFINITION
 
 extend type Query {
   root: Root!
-    @resolver(result: {})
+    @resolver(script: "{:}")
 }
 
 type Root {
   child: Child!
-    @resolver(result: {})
+    @resolver(script: "{:}")
 
   ancestorValue: Int!
     @resolver(
       of: "child { parent { child { marker } } }"
-      result: "value(child.parent.child.marker)"
+      script: "objectValue?.child?.parent?.child?.marker"
     )
 }
 
@@ -354,17 +346,17 @@ type Child {
   parent: Root! @parent
 
   grandchild: Grandchild!
-    @resolver(result: {})
+    @resolver(script: "{:}")
 
   marker: Int!
-    @resolver(result: 42)
+    @resolver(script: "42")
 }
 
 type Grandchild {
   parent: Child! @parent
 
   greatGrandchild: GreatGrandchild!
-    @resolver(result: {})
+    @resolver(script: "{:}")
 }
 
 type GreatGrandchild {
@@ -373,7 +365,7 @@ type GreatGrandchild {
   result: Int!
     @resolver(
       of: "parent { parent { parent { ancestorValue } } }"
-      result: "value(parent.parent.parent.ancestorValue)"
+      script: "objectValue?.parent?.parent?.parent?.ancestorValue"
     )
 }
 ```

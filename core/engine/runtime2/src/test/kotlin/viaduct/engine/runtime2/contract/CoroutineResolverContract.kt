@@ -127,8 +127,8 @@ interface CoroutineResolverContract {
                 schemaSDL =
                     """
                     extend type Query {
-                     first: Int! @resolver(result: 1)
-                     second: Int! @resolver(result: 2)
+                     first: Int! @resolver(script: "1")
+                     second: Int! @resolver(script: "2")
                     }
                     """.trimIndent(),
             )
@@ -169,10 +169,10 @@ interface CoroutineResolverContract {
             TestWorld.fromDSL(
                 schemaSDL =
                     """
-                    extend type Query { child: Child! @resolver(result: {}) }
+                    extend type Query { child: Child! @resolver(script: "{:}") }
                     type Child {
-                     first: Int! @resolver(result: 1)
-                     second: Int! @resolver(result: 2)
+                     first: Int! @resolver(script: "1")
+                     second: Int! @resolver(script: "2")
                     }
                     """.trimIndent(),
             )
@@ -741,8 +741,8 @@ interface CoroutineResolverContract {
             TestWorld.fromDSL(
                 schemaSDL =
                     """
-                    extend type Query { items: [Item!]! @resolver(result: [{}, {}]) }
-                    type Item { value: Int! @resolver(result: 7) }
+                    extend type Query { items: [Item!]! @resolver(script: "[{:}, {:}]") }
+                    type Item { value: Int! @resolver(script: "7") }
                     """.trimIndent(),
             )
         val world = testWorld.assumptions

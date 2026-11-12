@@ -18,16 +18,16 @@ interface NestedObjectPathUseResolverContract : ResolverContract {
                         @resolver(
                           of: "source holder { consume(value: ${'$'}value) }"
                           pathVars: [{name: "value", path: ["source"]}]
-                          result: "sum(holder.consume)"
+                          script: "(objectValue.holder == null ? 0 : objectValue.holder.consume == null ? 0 : objectValue.holder.consume)"
                         )
-                      source: Int! @resolver(of: "delay", result: "sum(delay)")
-                      holder: Holder! @resolver(result: {})
-                      delay: Int! @resolver(result: 7)
+                      source: Int! @resolver(of: "delay", script: "(objectValue.delay == null ? 0 : objectValue.delay)")
+                      holder: Holder! @resolver(script: "{:}")
+                      delay: Int! @resolver(script: "7")
                     }
 
                     type Holder {
                       consume(value: Int!): Int!
-                        @resolver(result: "sum(${'$'}value)")
+                        @resolver(script: "value")
                     }
                     """.trimIndent(),
             )

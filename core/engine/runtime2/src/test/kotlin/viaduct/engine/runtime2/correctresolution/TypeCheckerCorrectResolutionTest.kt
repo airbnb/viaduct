@@ -31,7 +31,7 @@ class TypeCheckerCorrectResolutionTest {
     fun `inapplicable type checker requires null without requiring checker inputs`() {
         val fixture = TestWorld.fromDSL(
             """
-            extend type Query { item: Item @resolver(result: {value: 1}) }
+            extend type Query { item: Item @resolver(script: "{'value': 1}") }
             type Item { value: Int policy: Int }
             """.trimIndent(),
             typeCheckers = { schemas ->

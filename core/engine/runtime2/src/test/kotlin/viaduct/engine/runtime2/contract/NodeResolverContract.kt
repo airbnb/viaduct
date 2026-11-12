@@ -41,17 +41,14 @@ interface NodeResolverContract : ResolverContract {
         val world = TestWorld.fromDSL(
             """
             extend type Query {
-              viewer: User @resolver(result: {id: "alias"})
-              redirect: User @resolver(result: {id: "canonical"})
+              viewer: User @resolver(script: "{'__typename': 'User', 'id': 'alias'}")
+              redirect: User @resolver(script: "{'__typename': 'User', 'id': 'canonical'}")
             }
             type User implements Node
-              @nodeResolver(result: [
-                {id: "alias", result: {__ref: "redirect"}},
-                {id: "canonical", result: {score: 7}}
-              ]) {
+              @nodeResolver(ids: ["alias", "canonical"], script: "id == 'alias' ? ref('redirect') : {'score': 7}") {
               id: ID!
               score: Int
-              extra: Int @resolver(result: 8)
+              extra: Int @resolver(script: "8")
             }
             """.trimIndent(),
         )
@@ -131,18 +128,18 @@ interface NodeResolverContract : ResolverContract {
                 schemaSDL =
                     """
                     extend type Query {
-                      viewer: Viewer! @resolver(result: {item: {id: "item-1"}})
+                      viewer: Viewer! @resolver(script: "{'item': {'__typename': 'Item', 'id': 'item-1'}}")
                     }
                     type Viewer {
                       item: Item!
-                      result: Int! @resolver(of: "item { leaf { value } }", result: "value(item.leaf.value)")
+                      result: Int! @resolver(of: "item { leaf { value } }", script: "(objectValue.item == null ? null : objectValue.item.leaf == null ? null : objectValue.item.leaf.value)")
                     }
                     type Item implements Node
-                      @nodeResolver(result: [{id: "item-1", result: {leaf: {}}}]) {
+                      @nodeResolver(ids: ["item-1"], script: "{'leaf': {:}}") {
                       id: ID!
                       leaf: Leaf!
                     }
-                    type Leaf { value: Int! @resolver(result: 7) }
+                    type Leaf { value: Int! @resolver(script: "7") }
                     """.trimIndent(),
             )
         val schema = testWorld.schema
@@ -246,15 +243,15 @@ interface NodeResolverContract : ResolverContract {
                     """
                     extend type Query {
                       viewer(id: ID!): User!
-                        @resolver(result: {id: "idFrom(${'$'}id)"})
+                        @resolver(script: "{'id': id}")
                     }
 
                     type User implements Node
-                      @nodeResolver(result: [{id: "1", result: {name: 7}}]) {
+                      @nodeResolver(ids: ["1"], script: "{'name': 7}") {
                       id: ID!
                       name: Int!
                       greeting(prefix: Int!): Int!
-                        @resolver(result: "sumplus1(${'$'}prefix)")
+                        @resolver(script: "1 + prefix")
                     }
                     """.trimIndent(),
             )
@@ -297,12 +294,12 @@ interface NodeResolverContract : ResolverContract {
                 schemaSDL =
                     """
                     extend type Query {
-                      viewer: Viewer! @resolver(result: {card: {profile: {id: "profile-1"}}})
+                      viewer: Viewer! @resolver(script: "{'card': {'profile': {'__typename': 'Profile', 'id': 'profile-1'}}}")
                     }
                     type Viewer { card: Card! }
                     type Card { profile: Profile! }
                     type Profile implements Node
-                      @nodeResolver(result: [{id: "profile-1", result: {name: 7}}]) {
+                      @nodeResolver(ids: ["profile-1"], script: "{'name': 7}") {
                       id: ID!
                       name: Int!
                     }
@@ -435,14 +432,10 @@ interface NodeResolverContract : ResolverContract {
                 schemaSDL =
                     """
                     extend type Query {
-                      matrix: [[User!]!]! @resolver(result: [[{id: "a"}, {id: "b"}], [{id: "c"}]])
+                      matrix: [[User!]!]! @resolver(script: "[[{'__typename': 'User', 'id': 'a'}, {'__typename': 'User', 'id': 'b'}], [{'__typename': 'User', 'id': 'c'}]]")
                     }
                     type User implements Node
-                      @nodeResolver(result: [
-                        {id: "a", result: {name: 1}},
-                        {id: "b", result: {name: 2}},
-                        {id: "c", result: {name: 3}}
-                      ]) {
+                      @nodeResolver(ids: ["a", "b", "c"], script: "id == 'a' ? {'name': 1} : id == 'b' ? {'name': 2} : {'name': 3}") {
                       id: ID!
                       name: Int!
                     }

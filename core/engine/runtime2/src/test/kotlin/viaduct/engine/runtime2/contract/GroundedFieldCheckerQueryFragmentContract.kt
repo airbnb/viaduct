@@ -64,13 +64,13 @@ interface GroundedFieldCheckerQueryFragmentContract {
                 schemaSDL =
                     """
                     extend type Query {
-                      item: Item! @resolver(result: {})
-                      queryDependency: Int! @resolver(result: 3)
+                      item: Item! @resolver(script: "{:}")
+                      queryDependency: Int! @resolver(script: "3")
                     }
 
                     type Item {
-                      checked(enabled: Boolean!): Int! @resolver(result: 1)
-                      objectDependency: Int! @resolver(result: 2)
+                      checked(enabled: Boolean!): Int! @resolver(script: "1")
+                      objectDependency: Int! @resolver(script: "2")
                     }
                     """.trimIndent(),
                 fieldCheckers = { schema ->
@@ -149,13 +149,13 @@ interface GroundedFieldCheckerQueryFragmentContract {
                 schemaSDL =
                     """
                     extend type Query {
-                      item: Item! @resolver(result: {})
-                      shared(seed: Int!): Int! @resolver(result: 7)
+                      item: Item! @resolver(script: "{:}")
+                      shared(seed: Int!): Int! @resolver(script: "7")
                     }
 
                     type Item {
-                      checked(seed: Int!): Int! @resolver(result: 1)
-                      objectShared(seed: Int!): Int! @resolver(result: 5)
+                      checked(seed: Int!): Int! @resolver(script: "1")
+                      objectShared(seed: Int!): Int! @resolver(script: "5")
                     }
                     """.trimIndent(),
                 fieldCheckers = { schema ->
@@ -482,13 +482,13 @@ interface GroundedFieldCheckerQueryFragmentContract {
             schemaSDL =
                 """
                 extend type Query {
-                  item: Item! @resolver(result: {})
-                  queryDependency: Int! @resolver(result: 3)
+                  item: Item! @resolver(script: "{:}")
+                  queryDependency: Int! @resolver(script: "3")
                 }
 
                 type Item {
-                  checked: Int! @resolver(result: 1)
-                  objectDependency: Int! @resolver(result: 2)
+                  checked: Int! @resolver(script: "1")
+                  objectDependency: Int! @resolver(script: "2")
                 }
                 """.trimIndent(),
             fieldCheckers = { schema ->

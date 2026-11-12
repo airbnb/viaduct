@@ -16,11 +16,11 @@ interface PassiveFromArgumentDemandResolverContract : ResolverContract {
                     """
                     extend type Query {
                       container: Container!
-                        @resolver(result: {bridge: {id: 1}})
+                        @resolver(script: "{'bridge': {'id': 1}}")
                       result(value: Int!): Int!
                         @resolver(
                           of: "container { trigger(value: ${'$'}value) }"
-                          result: "sum(container.trigger)"
+                          script: "(objectValue.container == null ? 0 : objectValue.container.trigger == null ? 0 : objectValue.container.trigger)"
                         )
                     }
 
@@ -29,14 +29,14 @@ interface PassiveFromArgumentDemandResolverContract : ResolverContract {
                       trigger(value: Int!): Int!
                         @resolver(
                           of: "bridge { load { __typename } }"
-                          result: 1
+                          script: "1"
                         )
                     }
 
                     type Bridge {
                       id: Int!
                       load: Entity!
-                        @resolver(of: "id", result: {name: 2})
+                        @resolver(of: "id", script: "{'name': 2}")
                     }
 
                     type Entity {

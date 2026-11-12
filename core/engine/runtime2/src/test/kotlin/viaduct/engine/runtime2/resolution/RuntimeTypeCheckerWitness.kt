@@ -51,16 +51,16 @@ internal fun validateRuntimeTypeCheckerCase(
     val world = TestWorld.fromDSL(
         """
         extend type Query {
-          items: [[Item!]!]! @resolver(result: [[{source: {token: $token}, protected: 1}], [{source: {token: ${token + 1}}, protected: 1}]])
-          viewer: Int! @resolver(of: "gate", result: $viewer)
-          gate: Int! @resolver(result: 1)
-          echo(value: Int): Int @resolver(result: "value(${'$'}value)")
+          items: [[Item!]!]! @resolver(script: "[[{'source': {'token': $token}, 'protected': 1}], [{'source': {'token': ${token + 1}}, 'protected': 1}]]")
+          viewer: Int! @resolver(of: "gate", script: "$viewer")
+          gate: Int! @resolver(script: "1")
+          echo(value: Int): Int @resolver(script: "value")
         }
         type Item {
           source: Source!
           protected: Int!
-          derived: Int! @resolver(of: "protected", result: 5)
-          echo(value: Int): Int @resolver(result: "value(${'$'}value)")
+          derived: Int! @resolver(of: "protected", script: "5")
+          echo(value: Int): Int @resolver(script: "value")
         }
         type Source { token: Int! }
         """.trimIndent(),

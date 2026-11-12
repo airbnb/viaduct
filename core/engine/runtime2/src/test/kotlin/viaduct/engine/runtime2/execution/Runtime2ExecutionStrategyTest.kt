@@ -173,9 +173,9 @@ class Runtime2ExecutionStrategyTest : ExecutionTestFixtureResource {
             """
             extend type Query {
               total(seed: Int!): Int!
-                @resolver(result: "sumplus1(${'$'}seed)")
+                @resolver(script: "1 + seed")
               container: Container!
-                @resolver(result: {values: [{value: 2}, null, {value: 3}]})
+                @resolver(script: "{'values': [{'value': 2}, null, {'value': 3}]}")
             }
 
             type Container {
@@ -183,7 +183,7 @@ class Runtime2ExecutionStrategyTest : ExecutionTestFixtureResource {
               total(extra: Int!): Int!
                 @resolver(
                   of: "values { value }"
-                  result: "sumplus1(values.value, ${'$'}extra)"
+                  script: "var total = 1 + extra; for (var item : objectValue.values) { if (item != null) total += item.value; } return total;"
                 )
             }
 
@@ -212,16 +212,11 @@ class Runtime2ExecutionStrategyTest : ExecutionTestFixtureResource {
             """
             extend type Query {
               viewer(id: ID!): User!
-                @resolver(result: {id: "idFrom(${'$'}id)"})
+                @resolver(script: "{'id': id}")
             }
 
             type User implements Node
-              @nodeResolver(
-                result: [
-                  {id: "user-1", result: {score: 7}},
-                  {id: "user-2", result: {score: 8}}
-                ]
-              ) {
+              @nodeResolver(ids: ["user-1", "user-2"], script: "id == 'user-1' ? {'score': 7} : {'score': 8}") {
               id: ID!
               score: Int!
             }

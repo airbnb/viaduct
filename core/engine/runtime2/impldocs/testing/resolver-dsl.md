@@ -35,21 +35,14 @@ Test schemas add root fields with `extend type Query`. Concrete Node implementat
 The fixture parser also recognizes these metadata definitions:
 
 ```graphql
-directive @nodeResolver(result: [NodeResult!]!) on OBJECT
-
-input NodeResult {
-  id: ID!
-  result: JSON
-}
+directive @nodeResolver(ids: [ID!]!, script: String!) on OBJECT
 
 directive @resolver(
   of: String
   qf: String
   pathVars: [VariableDefinition!]! = []
-  providerVars: JSON
   vars: VariablesProvider
-  result: JSON
-  script: String
+  script: String!
 ) on FIELD_DEFINITION
 
 input VariableDefinition {
@@ -63,38 +56,19 @@ input VariablesProvider {
 }
 ```
 
-Exactly one of `result` or `script` must be present. `result: null` remains an explicit literal result; `script` must be a string. The compiler reads the directives from the source AST, builds the ordinary resolver registry, and strips the directives before constructing the retained GraphQL schema. The model schema therefore does not acquire a JSON leaf type or DSL metadata.
+`script` is required and must be a string. The compiler reads the directives from the source AST, builds the ordinary resolver registry, and strips the directives before constructing the retained GraphQL schema. DSL metadata does not add types to the model schema.
 
 ## Field Resolvers
 
 `of` is an optional selection-set string relative to the field's parent object type. An absent or empty `of` denotes an empty object fragment. Response-key aliases are preserved in the resolver-visible input. Co-applicable selections sharing one response key must identify a compatible field invocation.
 
-The string literal `"ERROR"` in an argument position produces `ArgumentResolutionError`, which collapses the enclosing tuple to `Arguments.Error`. It is fixture syntax, not a schema-defined string value or resolver variable.
-
-```graphql
-extend type Query {
-  item: Item!
-    @resolver(result: {source: 7})
-}
-
-type Item {
-  source: Int!
-  computed: Int!
-    @resolver(
-      of: "source dependency(arg: \"ERROR\")"
-      result: "sumplus1(source)"
-    )
-
-  dependency(arg: Int!): Int!
-    @resolver(result: 1)
-}
-```
+Selection sets use ordinary GraphQL validation. Invalid arguments and directive conditions are rejected when the world is constructed. String values such as `"ERROR"` have no special meaning.
 
 Every variable used by `of` or `qf` is defined exactly once, including names shared by both fragments:
 
 - A variable whose name matches an argument of the resolver field is inferred as `FromArgument`.
 - A name in `pathVars` is compiled as `FromObjectField`.
-- A name declared by `vars.names` or in the legacy `providerVars` object is compiled as `FromProvider` and returned by the resolver's one variables-provider function.
+- A name declared by `vars.names` is compiled as `FromProvider` and returned by the resolver's one variables-provider function.
 - Provider names and `pathVars` names may not shadow field arguments or each other.
 - Unused, missing, and duplicate variable definitions are rejected.
 
@@ -104,37 +78,21 @@ extend type Query {
     @resolver(
       of: "source consume(value: $fromSource)"
       pathVars: [{name: "fromSource", path: ["source"]}]
-      result: "sum(consume, $seed)"
+      script: "(objectValue.consume == null ? 0 : objectValue.consume) + (seed == null ? 0 : seed)"
     )
 
-  source: Int! @resolver(result: 7)
+  source: Int! @resolver(script: "7")
 
   consume(value: Int!): Int!
-    @resolver(result: "sumplus1($value)")
+    @resolver(script: "1 + (value == null ? 0 : value)")
 }
 ```
 
-Using `$seed` in a result expression reads the field argument directly and does not define a registry variable. Only a use inside `of` or `qf` creates an inferred `FromArgument` definition.
+Using `seed` in a script reads the field argument directly and does not define a registry variable. Only `$seed` inside `of` or `qf` creates an inferred `FromArgument` definition.
 
-`pathVars.path` follows Runtime2's `FromObjectField` restrictions. In particular, an intermediate path component cannot cross a list. This restriction is unrelated to field paths in result expressions.
+`pathVars.path` follows Runtime2's `FromObjectField` restrictions. In particular, an intermediate path component cannot cross a list. Scripts can traverse lists explicitly with indexing or loops.
 
-`providerVars` must be a nonempty object when present. Its values are GraphQL literals; string values matching the ordinary `value`, `sum`, or `sumplus1` expression syntax are evaluated when the provider runs and may reference resolver arguments. The provider is invoked once for each active resolver occurrence after that occurrence's arguments are grounded. The string `"ERROR"` is reserved as a provider-failure sentinel.
-
-```graphql
-extend type Query {
-  result(seed: Int!): Int!
-    @resolver(
-      of: "consume(value: $provided)"
-      providerVars: {provided: "sum($seed, $seed)"}
-      result: "sum(consume)"
-    )
-
-  consume(value: Int!): Int!
-    @resolver(result: "sum($value)")
-}
-```
-
-`vars` supplies a scripted variables provider and is mutually exclusive with `providerVars` on one resolver. Its `names` must be a nonempty list of unique GraphQL names used in `of` or `qf`. The script runs once per active grounded resolver occurrence and returns one map with exactly those keys. Either provider form can accompany either `result` or `script`.
+`vars.names` must be a nonempty list of unique GraphQL names used in `of` or `qf`. The provider script runs once per active grounded resolver occurrence and returns one map with exactly those keys.
 
 Provider scripts use the same JEXL configuration as field scripts. Each invocation receives fresh bindings for the field arguments by schema name, including null for absent optional arguments, and the reserved `error` constant. Provider scripts have no RSS inputs or `query` callable. Argument objects and lists are recursively read-only. Provider arguments and results support null, integers, Boolean, String (including IDs and enum names), Double, lists, and input-object maps. Integer values are normalized to GraphQL Int's signed 32-bit range; the existing engine validates the resulting values against the fragment argument types.
 
@@ -160,12 +118,12 @@ extend type Query {
 
 `qf` is an optional selection-set string relative to `Query`. An absent or empty `qf` denotes an empty Query fragment. Like `of`, it preserves response-key aliases, nested selections, inclusion conditions, and resolver-owned variable bindings. `pathVars` still reads paths from the object fragment, even when the variable is used only by the Query fragment. This does not add Query-field variable providers.
 
-Use `query:` before a response-key path in a result expression to read the materialized Query input. Unqualified paths continue to read the object input, and `$name` reads a resolver argument. The prefix is separate from GraphQL names so an object field named `query` remains usable.
+Read the materialized Query input through `queryValue` and the object input through `objectValue`.
 
 ```graphql
 extend type Query {
-  item: Item! @resolver(result: {local: 2})
-  source: Int! @resolver(result: 7)
+  item: Item! @resolver(script: "{'local': 2}")
+  source: Int! @resolver(script: "7")
 }
 
 type Item {
@@ -174,72 +132,23 @@ type Item {
     @resolver(
       of: "local"
       qf: "remote: source"
-      result: "sum(local, query:remote, $extra)"
+      script: "(objectValue.local == null ? 0 : objectValue.local) + (queryValue.remote == null ? 0 : queryValue.remote) + (extra == null ? 0 : extra)"
     )
-}
-```
-
-Query paths have the same integer, null, error, and list traversal behavior as object paths. Result expressions still require the referenced response keys to be present; the DSL has no conditional-result expression for absent fields. Variables providers run before inputs are materialized and cannot read `query:` paths.
-
-## Result Shapes
-
-Results are GraphQL literals accepted by Viaduct's JSON scalar: integers, strings, nulls, lists, and objects. They are interpreted against the resolver field's declared output type.
-
-- `null` is allowed at nullable positions.
-- `"ERROR"` produces `EngineErrorData` at any output position.
-- Integer leaves may be integer literals or expression strings.
-- Result objects may supply fields that have their own `@resolver`; those supplied values bypass the standard resolver.
-- Concrete object results may not supply `__typename`.
-- Non-Node interface and union results require `__typename` to select a concrete type.
-
-Supported expressions are:
-
-```text
-value(v)
-sum(v1, v2, ..., vn)
-sumplus1(v1, v2, ..., vn)
-```
-
-Each value is `$argumentName`, a dot-separated path from the resolver's materialized `of` input, or `query:` followed by a path from its materialized `qf` input. `value(v)` requires exactly one reachable integer, null, or error and returns it unchanged. It therefore preserves nulls and errors instead of treating null as zero.
-
-For the sum expressions, a path may cross lists; all reachable integer leaves contribute to the sum. Null objects, lists, and elements contribute zero. An error reached by any term makes the complete expression an error.
-
-```graphql
-extend type Query {
-  collection: Collection!
-    @resolver(
-      result: {
-        entries: [{value: 2}, null, {value: 3}]
-      }
-    )
-}
-
-type Collection {
-  entries: [Entry]
-  total(extra: Int!): Int!
-    @resolver(
-      of: "entries { value }"
-      result: "sumplus1(entries.value, $extra)"
-    )
-}
-
-type Entry {
-  value: Int!
 }
 ```
 
 ## JEXL Scripts
 
-`script` supplies a JEXL program instead of a literal `result`. The fixture parses it once when constructing the resolver and interprets it for each invocation. Existing `result` expressions and Node resolver definitions retain their behavior, and both field resolver forms can appear in one world.
+`script` supplies a JEXL program. The fixture parses it once when constructing the resolver and interprets it for each invocation.
 
 Each invocation receives fresh bindings in one `MapContext`:
 
-- `objectValue` and `queryValue` expose the materialized `of` and `qf` inputs as read-only objects and lists. An absent, empty, or whitespace-only fragment produces a null binding. Dotted access and list indexing preserve response aliases, selected nulls, missing-field errors, and error-valued reads.
-- Each field argument is bound by its schema name, including null for an absent optional argument. Script resolvers currently accept only integer arguments; `query`, `objectValue`, `queryValue`, and `error` are reserved binding names. Registry path/provider variables continue to bind RSS selections and do not become script globals.
+- `objectValue` and `queryValue` expose the materialized `of` and `qf` inputs as read-only objects and lists. An absent, empty, or whitespace-only fragment produces a null binding. Dotted access and list indexing preserve response aliases, selected nulls, missing-field errors, and error-valued reads. Use explicit null tests when traversing nullable inputs: JEXL safe navigation (`?.`) and null coalescing (`??`) can suppress a failed input read.
+- Each field argument is bound by its schema name, including null for an absent optional argument. Arguments support the same read-only JSON-like input values as provider scripts; `query`, `objectValue`, `queryValue`, `error`, and `ref` are reserved binding names. Registry path/provider variables continue to bind RSS selections and do not become script globals.
 - `query(selectionSet)` executes a braced Query-rooted selection set. An optional second map supplies integer variable bindings, for example `query('{ renamed: echo(value: $n) }', {'n': extra}).renamed`. Null bindings are also accepted. The result uses the same object/list views as RSS inputs.
 - `error` is an opaque constant that produces `EngineErrorData` at any output position, including an entire object or list, an object field, or a list element. For example, `seed < 0 ? error : seed` returns either an explicit error or an integer. Errors remain outside the input-value domain and cannot be supplied as subquery variable values.
 
-Scripts can return integers, ordinary objects, lists, and null. JEXL maps become partial Runtime2 objects, and lists or arrays become Runtime2 lists. Concrete output types can be inferred; abstract outputs require a string `__typename`. Both integer results and query variable bindings accept `Int`, `Long`, and `BigInteger` values within GraphQL Int's signed 32-bit range and normalize them to `Int`. Node/root-field references and other scalar result types continue to use `result`.
+Scripts can return integers, IDs, ordinary objects, lists, null, and root-field references. JEXL maps become partial Runtime2 objects, and lists or arrays become Runtime2 lists. Concrete output types can be inferred; abstract outputs require a string `__typename`. Both integer results and query variable bindings accept `Int`, `Long`, and `BigInteger` values within GraphQL Int's signed 32-bit range and normalize them to `Int`. ID results accept strings or integer values and normalize them to strings. Other scalar result types remain outside the scripted output domain.
 
 Output object keys are schema field names. An unaliased input or subquery object can be returned directly, retaining its concrete type. Returning an object containing aliased selections is rejected, including when an alias names another valid schema field. Construct an explicit output map instead: an input selected with `renamed: n` can become `{'n': objectValue.renamed}`. Automatic alias removal could merge selections with different arguments.
 
@@ -248,7 +157,7 @@ This direct-return alias validation uses the canonical field metadata retained b
 ```graphql
 extend type Query {
   item: Item! @resolver(script: "{'local': 2}")
-  source: Int! @resolver(result: 7)
+  source: Int! @resolver(script: "7")
 }
 
 type Item {
@@ -275,74 +184,35 @@ The shared state used by this entry path supports concurrent access: `ObjectCell
 
 The `publicationCycleTask` passed as the subquery's reader identifies the consuming parent field resolver by its result-root identity and publication path. It has no thread identity: materialization records the parent's dependencies on the nested result's writers even when the read runs on a script thread. Coroutine scope ownership and cycle-reader identity therefore survive the dispatcher change. Focused tests force overlapping real nested queries with both one and four engine threads.
 
-## Node Results
+`ref(path)` or `ref(path, arguments)` constructs a root-field reference, including at nested object fields and list elements. The path starts at Query, for example `ref('namespace.number', {'value': seed})`; arguments are ordinary error-free input values. The existing reference factory validates the connected namespace path, singular target, and schema argument types. A reference is an instruction for the engine to follow, not a subquery executed while the script runs. Node-typed output maps contain an `id`; abstract Node outputs also specify `__typename`, for example `{'__typename': 'User', 'id': userId}`. The source-schema adapter lowers these maps to the existing Node reference representation.
 
-Node IDs are globally unique within one DSL world. A node resolver's ordinary object result is the concrete body for that ID; its top-level `id` is injected by the fixture, while internal typename demand is resolved through the generated `V_A_typename` field resolver. Node resolvers may also return a structured root-field reference as described below. A complete top-down world places the root field before the Node type:
+## Scripted Node Resolvers
+
+`@nodeResolver(ids: [ID!]!, script: String!)` declares the IDs routed to one concrete Node type and a JEXL lookup function for those IDs. IDs are globally unique within a DSL world. The script receives `id`, `ref`, and `error`; it has no object/Query fragment inputs or subquery callable. An object result supplies the Node body, with its authoritative ID added by the adapter. Scripts cannot override that ID. They can also return `ref(...)`, null, or `error`. Unknown IDs return null.
 
 ```graphql
 extend type Query {
-  viewer: User!
-    @resolver(result: {id: "user-1"})
+  viewer(id: ID!): User @resolver(script: "{'id': id}")
+  redirect: User @resolver(script: "{'id': 'canonical'}")
 }
 
 type User implements Node
   @nodeResolver(
-    result: [
-      {id: "user-1", result: {score: 7}}
-    ]
+    ids: ["alias", "canonical"]
+    script: "id == 'alias' ? ref('redirect') : {'score': 7}"
   ) {
-  id: ID!
-  score: Int!
-}
-```
-
-Any Node-typed field result is a reference containing only `id`. The referenced `NodeResult` provides its concrete type and body. A reference ID may be a literal or `idFrom($argumentName)`, which reads a non-null ID argument from the resolver field:
-
-```graphql
-extend type Query {
-  viewer(id: ID!): User!
-    @resolver(result: {id: "idFrom($id)"})
-}
-
-type User implements Node
-  @nodeResolver(
-    result: [
-      {id: "user-1", result: {score: 7}},
-      {id: "user-2", result: {score: 8}}
-    ]
-  ) {
-  id: ID!
-  score: Int!
-}
-```
-
-Using an argument in `idFrom` reads it directly and does not define a resolver-registry variable.
-
-An unknown ID, an ID registered for an incompatible Node type, a duplicate global ID, or additional fields in a Node reference is rejected.
-
-## Root-Field Reference Results
-
-Use a reserved JSON result object with `__ref` and optional `arguments` to return a canonical root-field reference. `__ref` is a dot-separated path starting with a field of Query; omit the `Query.` prefix. Intermediate fields must be singular, argumentless object fields, and the target must return a singular value. The existing reference factory validates the path and coerces arguments against the target schema. Extra keys, duplicate keys, invalid paths, and invalid arguments are rejected.
-
-```graphql
-extend type Query {
-  viewer(id: ID): User
-    @resolver(result: {__ref: "directory.lookup", arguments: {id: "$id"}})
-  directory: Directory
-}
-type Directory {
-  lookup(id: ID): User @resolver(result: {id: "idFrom($id)"})
-}
-type User implements Node
-  @nodeResolver(result: [{id: "user-1", result: {score: 7}}]) {
   id: ID!
   score: Int
 }
 ```
 
-Reference argument values use GraphQL literals. A string consisting of `$name` reads an argument of the returning resolver directly; this works recursively in list and input-object arguments and does not declare a registry variable. Integer `value`, `sum`, and `sumplus1` expressions can also read the current resolver's object or Query inputs. Node-resolver results have no field arguments to substitute.
+The first Node identity remains authoritative when a lookup returns a reference to another Node.
 
-The reference form works for scalar or object results, fields supplied inside returned objects, list elements, and `@nodeResolver` results. It is recognized before ordinary object/Node-body interpretation, so a node resolver can return another reference without injecting an intermediate `id`. Reference targets can themselves return references. The engine follows the chain within one publication and retains the first Node reference's authoritative identity. This DSL support is broader than the animation's supported scope; list animations remain unsupported.
+## Root-Field References
+
+A `ref` path begins with a field of Query; omit the `Query.` prefix. Intermediate fields must be singular, argumentless namespace fields, and the target must return a singular value. Namespace resolvers are not invoked to traverse the path. Reference arguments are JEXL maps of ordinary input values, so scripts can use their arguments and materialized inputs directly.
+
+References work for scalar or object outputs, fields supplied inside returned objects, list elements, and Node resolver results. Reference targets can themselves return references. The engine follows the chain within one publication and retains the first Node reference's authoritative identity. This scripting support is broader than the animation's supported scope; list animations remain unsupported.
 
 ## Invocation Assertions
 

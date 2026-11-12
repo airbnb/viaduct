@@ -15,17 +15,17 @@ interface NestedFromArgumentDemandResolverContract : ResolverContract {
                 schemaSDL =
                     """
                     extend type Query {
-                      holder: Item! @resolver(result: {passive: 7})
+                      holder: Item! @resolver(script: "{'passive': 7}")
                       result(value: Int!): Int!
                         @resolver(
                           of: "holder { consume(value: ${'$'}value) }"
-                          result: "sum(holder.consume)"
+                          script: "(objectValue.holder == null ? 0 : objectValue.holder.consume == null ? 0 : objectValue.holder.consume)"
                         )
                     }
 
                     type Item {
                       consume(value: Int!): Int!
-                        @resolver(of: "passive", result: "sum(passive)")
+                        @resolver(of: "passive", script: "(objectValue.passive == null ? 0 : objectValue.passive)")
                       passive: Int!
                     }
                     """.trimIndent(),

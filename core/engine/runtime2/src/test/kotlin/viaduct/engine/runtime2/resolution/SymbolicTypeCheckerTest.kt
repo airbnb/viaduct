@@ -39,13 +39,13 @@ open class SymbolicTypeCheckerTest : ResolutionDispatcherResource {
     @Test
     fun `checker field bindings preserve null intermediates terminals and nested errors on both roots`() {
         for (providerRoot in ProviderFragment.entries) {
-            for (source in listOf("null", "{token: null}", "{token: \"ERROR\"}", "{token: [1, \"ERROR\"]}")) {
+            for (source in listOf("null", "{'token': null}", "{'token': error}", "{'token': [1, error]}")) {
                 val world = TestWorld.fromDSL(
                     """
                     extend type Query {
-                      checked: Int! @resolver(result: 1)
-                      source: Source @resolver(result: $source)
-                      echo(value: [Int]): Int @resolver(result: 1)
+                      checked: Int! @resolver(script: "1")
+                      source: Source @resolver(script: "$source")
+                      echo(value: [Int]): Int @resolver(script: "1")
                     }
                     type Source { token: [Int] }
                     """.trimIndent(),
@@ -78,7 +78,7 @@ open class SymbolicTypeCheckerTest : ResolutionDispatcherResource {
                     .instantiateFragmentsAt(resolution.result, emptyList())
                 val variable = (fragments.objectFragment.variableDefinitions + fragments.queryFragment.variableDefinitions)
                     .distinctBy { it.variable }.single().variable
-                val expected = if ("ERROR" in source) VariableBinding.Error else VariableBinding.of(null)
+                val expected = if ("error" in source) VariableBinding.Error else VariableBinding.of(null)
                 assertEquals(expected, resolution.operation.variableBindings.getBinding(requireNotNull(variable.instanceId)), "$providerRoot $source")
             }
         }
@@ -90,8 +90,8 @@ open class SymbolicTypeCheckerTest : ResolutionDispatcherResource {
             val world = TestWorld.fromDSL(
                 """
                 extend type Query {
-                  item: Item! @resolver(result: {token: 8, protected: 1})
-                  echo(value: Int): Int @resolver(result: "value(${'$'}value)")
+                  item: Item! @resolver(script: "{'token': 8, 'protected': 1}")
+                  echo(value: Int): Int @resolver(script: "value")
                 }
                 type Item { token: Int! protected: Int! }
                 """.trimIndent(),
@@ -150,14 +150,14 @@ open class SymbolicTypeCheckerTest : ResolutionDispatcherResource {
         val world = TestWorld.fromDSL(
             """
             extend type Query {
-              items: [Item!]! @resolver(result: [{token: 3}, {token: 5}])
-              viewer: Int! @resolver(result: 11)
-              echo(value: Int): Int @resolver(result: "value(${'$'}value)")
+              items: [Item!]! @resolver(script: "[{'token': 3}, {'token': 5}]")
+              viewer: Int! @resolver(script: "11")
+              echo(value: Int): Int @resolver(script: "value")
             }
             type Item {
               token: Int!
-              result(seed: Int!): Int! @resolver(result: "sum(${'$'}seed)")
-              echo(value: Int): Int @resolver(result: "value(${'$'}value)")
+              result(seed: Int!): Int! @resolver(script: "seed")
+              echo(value: Int): Int @resolver(script: "value")
             }
             """.trimIndent(),
             typeCheckers = { schema ->
@@ -231,10 +231,10 @@ open class SymbolicTypeCheckerTest : ResolutionDispatcherResource {
             val world = TestWorld.fromDSL(
                 """
                 extend type Query {
-                  checked: Int! @resolver(of: "item @include(if: ${'$'}enabled) { id }", providerVars: {enabled: $enabled}, result: 1)
-                  raw: Int! @resolver(result: 2)
-                  item: Item! @resolver(result: {id: 7})
-                  echo(value: Int): Int @resolver(result: "value(${'$'}value)")
+                  checked: Int! @resolver(of: "item @include(if: ${'$'}enabled) { id }", vars: {names: ["enabled"], script: "{'enabled': $enabled}"}, script: "1")
+                  raw: Int! @resolver(script: "2")
+                  item: Item! @resolver(script: "{'id': 7}")
+                  echo(value: Int): Int @resolver(script: "value")
                 }
                 type Item { id: Int! }
                 """.trimIndent(),
@@ -300,9 +300,9 @@ open class SymbolicTypeCheckerTest : ResolutionDispatcherResource {
         val world = TestWorld.fromDSL(
             """
             extend type Query {
-              first: Int! @resolver(of: "item(value: ${'$'}v) { id }", providerVars: {v: 7}, result: 1)
-              second: Int! @resolver(of: "item(value: ${'$'}v) { id }", providerVars: {v: 7}, result: 2)
-              item(value: Int!): Item! @resolver(result: {id: 7})
+              first: Int! @resolver(of: "item(value: ${'$'}v) { id }", vars: {names: ["v"], script: "{'v': 7}"}, script: "1")
+              second: Int! @resolver(of: "item(value: ${'$'}v) { id }", vars: {names: ["v"], script: "{'v': 7}"}, script: "2")
+              item(value: Int!): Item! @resolver(script: "{'id': 7}")
             }
             type Item { id: Int! }
             """.trimIndent(),
@@ -322,12 +322,12 @@ open class SymbolicTypeCheckerTest : ResolutionDispatcherResource {
     fun `type checker inputs whose resolver reads a parent are lifted before the ancestor freezes`() {
         val world = TestWorld.fromDSL(
             """
-            extend type Query { root: Root! @resolver(result: {}) }
+            extend type Query { root: Root! @resolver(script: "{:}") }
             type Root {
-              item: Item! @resolver(result: {id: 7})
-              token: Int! @resolver(result: 11)
+              item: Item! @resolver(script: "{'id': 7}")
+              token: Int! @resolver(script: "11")
             }
-            type Item { id: Int! parent: Root! @parent probe: Int! @resolver(of: "parent { token }", result: 5) }
+            type Item { id: Int! parent: Root! @parent probe: Int! @resolver(of: "parent { token }", script: "5") }
             """.trimIndent(),
             typeCheckers = { schema ->
                 val type = schema.loweredSchema.requireType("Item") as ViaductSchema.Object
@@ -358,13 +358,13 @@ open class SymbolicTypeCheckerTest : ResolutionDispatcherResource {
         val world = TestWorld.fromDSL(
             """
             extend type Query {
-              raw: Int! @resolver(result: 1)
-              wrapper: Wrapper! @resolver(result: {token: 7, secret: 11, child: {}})
+              raw: Int! @resolver(script: "1")
+              wrapper: Wrapper! @resolver(script: "{'token': 7, 'secret': 11, 'child': {:}}")
             }
             type Wrapper { token: Int! secret: Int! child: Child! }
             type Child {
               parent: Wrapper! @parent
-              computed: Int! @resolver(of: "parent { token }", result: 3)
+              computed: Int! @resolver(of: "parent { token }", script: "3")
             }
             """.trimIndent(),
             fieldCheckers = { schema ->
@@ -410,9 +410,9 @@ open class SymbolicTypeCheckerTest : ResolutionDispatcherResource {
         val world = TestWorld.fromDSL(
             """
             extend type Query {
-              value: Int! @resolver(result: 1)
-              source: Int! @resolver(result: 7)
-              echo(value: Int): Int @resolver(result: 1)
+              value: Int! @resolver(script: "1")
+              source: Int! @resolver(script: "7")
+              echo(value: Int): Int @resolver(script: "1")
             }
             """.trimIndent(),
             typeCheckers = { schema ->

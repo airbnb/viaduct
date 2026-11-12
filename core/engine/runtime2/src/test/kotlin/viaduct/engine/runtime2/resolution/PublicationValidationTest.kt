@@ -42,8 +42,8 @@ class PublicationValidationTest : ResolutionDispatcherResource {
                     val worldFixture = TestWorld.fromDSL(
                         """
                         extend type Query {
-                          invalid: Int! @resolver(result: 1)
-                          sibling: Int! @resolver(result: 7)
+                          invalid: Int! @resolver(script: "1")
+                          sibling: Int! @resolver(script: "7")
                         }
                         """.trimIndent(),
                     )
@@ -96,11 +96,11 @@ class PublicationValidationTest : ResolutionDispatcherResource {
                           invalid: Int! @resolver(
                             of: "source consume(value: ${'$'}provided)"
                             pathVars: [{name: "provided", path: ["source"]}]
-                            result: "sum(consume)"
+                            script: "(objectValue.consume == null ? 0 : objectValue.consume)"
                           )
-                          source: Int! @resolver(result: 3)
-                          consume(value: Int!): Int! @resolver(result: "value(${'$'}value)")
-                          sibling: Int! @resolver(result: 7)
+                          source: Int! @resolver(script: "3")
+                          consume(value: Int!): Int! @resolver(script: "value")
+                          sibling: Int! @resolver(script: "7")
                         }
                         """.trimIndent(),
                     )

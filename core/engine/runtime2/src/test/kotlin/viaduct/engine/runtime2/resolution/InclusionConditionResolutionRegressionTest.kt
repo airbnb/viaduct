@@ -45,8 +45,8 @@ class InclusionConditionResolutionRegressionTest : ResolutionDispatcherResource 
         val world = TestWorld.fromDSL(
             """
             extend type Query {
-              dependency: Int @resolver(result: 7)
-              healthy: Int @resolver(result: 42)
+              dependency: Int @resolver(script: "7")
+              healthy: Int @resolver(script: "42")
             }
             """.trimIndent(),
         )

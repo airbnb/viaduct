@@ -25,7 +25,7 @@ class SuccessorDemandRegressionTest : ResolutionDispatcherResource {
         val depth = 12
 
         fun inputs(index: Int) = ((index + 1)..minOf(index + 2, depth)).joinToString(" ") { "field$it" }
-        val fields = (0..depth).joinToString("\n") { "field$it: Int @resolver(of: \"${inputs(it)}\", result: 1)" }
+        val fields = (0..depth).joinToString("\n") { "field$it: Int @resolver(of: \"${inputs(it)}\", script: \"1\")" }
         val originalFixture = TestWorld
             .fromDSL(
                 "extend type Query { $fields }",
@@ -68,11 +68,11 @@ class SuccessorDemandRegressionTest : ResolutionDispatcherResource {
     fun `excluded child does not demand parent-derived value unconditionally`() {
         val fixture = TestWorld.fromDSL(
             """
-            extend type Query { root: Root @resolver(result: {}) }
+            extend type Query { root: Root @resolver(script: "{:}") }
             type Root { seed: Int child: Child }
             type Child {
               parent: Root @parent
-              derived: Int @resolver(of: "parent { seed }", result: 1)
+              derived: Int @resolver(of: "parent { seed }", script: "1")
             }
             """.trimIndent(),
         )
@@ -92,11 +92,11 @@ class SuccessorDemandRegressionTest : ResolutionDispatcherResource {
     fun `publication preserves exclusion on parent-derived producer demand`() {
         val fixture = TestWorld.fromDSL(
             """
-            extend type Query { root: Root @resolver(result: {seed: 7, child: {}}) }
+            extend type Query { root: Root @resolver(script: "{'seed': 7, 'child': {:}}") }
             type Root { seed: Int child: Child }
             type Child {
               parent: Root @parent
-              derived: Int @resolver(of: "parent { seed }", result: 1)
+              derived: Int @resolver(of: "parent { seed }", script: "1")
             }
             """.trimIndent(),
         )

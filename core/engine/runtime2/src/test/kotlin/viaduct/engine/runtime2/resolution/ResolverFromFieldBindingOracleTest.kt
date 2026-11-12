@@ -175,12 +175,12 @@ private fun bindingWorld(): TestWorld =
                     {name: "firstValue", path: ["first"]}
                     {name: "secondValue", path: ["second"]}
                   ]
-                  result: "sum(consume)"
+                  script: "(objectValue.consume == null ? 0 : objectValue.consume)"
                 )
-              first: Int! @resolver(result: 11)
-              second: Int! @resolver(result: 13)
+              first: Int! @resolver(script: "11")
+              second: Int! @resolver(script: "13")
               consume(first: Int!, second: Int!): Int!
-                @resolver(result: "sum(${'$'}first, ${'$'}second)")
+                @resolver(script: "first + second")
             }
             """.trimIndent(),
     )

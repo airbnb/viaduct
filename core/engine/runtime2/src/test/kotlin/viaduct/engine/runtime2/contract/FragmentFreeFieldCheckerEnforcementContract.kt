@@ -36,14 +36,14 @@ interface FragmentFreeFieldCheckerEnforcementContract {
                 schemaSDL =
                     """
                     extend type Query {
-                      item: Item! @resolver(result: {passive: 11})
+                      item: Item! @resolver(script: "{'passive': 11}")
                     }
 
                     type Item {
-                      active: Int! @resolver(result: 7)
+                      active: Int! @resolver(script: "7")
                       passive: Int!
-                      consumeActive: Int! @resolver(of: "active", result: "sum(active)")
-                      consumePassive: Int! @resolver(of: "passive", result: "sum(passive)")
+                      consumeActive: Int! @resolver(of: "active", script: "(objectValue.active == null ? 0 : objectValue.active)")
+                      consumePassive: Int! @resolver(of: "passive", script: "(objectValue.passive == null ? 0 : objectValue.passive)")
                     }
                     """.trimIndent(),
                 fieldCheckers = { schema ->
@@ -72,14 +72,14 @@ interface FragmentFreeFieldCheckerEnforcementContract {
                 schemaSDL =
                     """
                     extend type Query {
-                      item: Item! @resolver(result: {passive: 11})
+                      item: Item! @resolver(script: "{'passive': 11}")
                     }
 
                     type Item {
-                      active: Int! @resolver(result: 7)
+                      active: Int! @resolver(script: "7")
                       passive: Int!
-                      consumeActive: Int! @resolver(of: "active", result: "sum(active)")
-                      consumePassive: Int! @resolver(of: "passive", result: "sum(passive)")
+                      consumeActive: Int! @resolver(of: "active", script: "(objectValue.active == null ? 0 : objectValue.active)")
+                      consumePassive: Int! @resolver(of: "passive", script: "(objectValue.passive == null ? 0 : objectValue.passive)")
                     }
                     """.trimIndent(),
                 fieldCheckers = { schema ->
@@ -154,13 +154,13 @@ interface FragmentFreeFieldCheckerEnforcementContract {
                 schemaSDL =
                     """
                     extend type Query {
-                      item: Item! @resolver(result: {denied: 7})
+                      item: Item! @resolver(script: "{'denied': 7}")
                     }
 
                     type Item {
                       denied: Int!
-                      first: Int! @resolver(of: "denied", result: "sum(denied)")
-                      second: Int! @resolver(of: "denied", result: "sum(denied)")
+                      first: Int! @resolver(of: "denied", script: "(objectValue.denied == null ? 0 : objectValue.denied)")
+                      second: Int! @resolver(of: "denied", script: "(objectValue.denied == null ? 0 : objectValue.denied)")
                     }
                     """.trimIndent(),
                 fieldCheckers = { schema ->
@@ -193,15 +193,15 @@ interface FragmentFreeFieldCheckerEnforcementContract {
                     directive @bypassPolicyCheck on FIELD
 
                     extend type Query {
-                      item: Item! @resolver(result: {denied: 7})
+                      item: Item! @resolver(script: "{'denied': 7}")
                     }
 
                     type Item {
                       denied: Int!
                       bypassed: Int!
-                        @resolver(of: "denied @bypassPolicyCheck", result: "sum(denied)")
+                        @resolver(of: "denied @bypassPolicyCheck", script: "(objectValue.denied == null ? 0 : objectValue.denied)")
                       blocked: Int!
-                        @resolver(of: "denied", result: "sum(denied)")
+                        @resolver(of: "denied", script: "(objectValue.denied == null ? 0 : objectValue.denied)")
                     }
                     """.trimIndent(),
                 fieldCheckers = { schema ->
@@ -349,12 +349,12 @@ interface FragmentFreeFieldCheckerEnforcementContract {
                 schemaSDL =
                     """
                     extend type Query {
-                      item: Item! @resolver(result: {dependency: 7})
+                      item: Item! @resolver(script: "{'dependency': 7}")
                     }
 
                     type Item {
                       dependency: Int!
-                      consumer: Int! @resolver(of: "dependency", result: "sum(dependency)")
+                      consumer: Int! @resolver(of: "dependency", script: "(objectValue.dependency == null ? 0 : objectValue.dependency)")
                     }
                     """.trimIndent(),
                 fieldCheckers = { schema ->

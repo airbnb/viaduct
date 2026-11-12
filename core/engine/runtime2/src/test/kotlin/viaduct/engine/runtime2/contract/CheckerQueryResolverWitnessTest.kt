@@ -25,7 +25,7 @@ class CheckerQueryResolverWitnessTest {
     fun `checker-only Query roots are counted once per distinct OER in every application oracle`() {
         val world =
             TestWorld.fromDSL(
-                schemaSDL = "extend type Query { value: Int! @resolver(result: 7) marker: Int! @resolver(result: 1) }",
+                schemaSDL = "extend type Query { value: Int! @resolver(script: \"7\") marker: Int! @resolver(script: \"1\") }",
             ).assumptions
         val query = world.schema.requireQueryTypeDef()
         val value = world.schema.requireObjectField("Query", "value")

@@ -66,10 +66,10 @@ class FieldCheckerDemandClosureTest {
     fun `checker-free registry adds only ordinary resolver demand`() {
         val world = TestWorld.fromDSL(
             """
-            extend type Query { boxes: [Box] @resolver(result: []) }
+            extend type Query { boxes: [Box] @resolver(script: "[]") }
             type Box {
-              a: Int @resolver(of: "b", result: 1)
-              b: Int @resolver(of: "c", result: 1)
+              a: Int @resolver(of: "b", script: "1")
+              b: Int @resolver(of: "c", script: "1")
               c: Int
             }
             """.trimIndent(),
@@ -86,11 +86,11 @@ class FieldCheckerDemandClosureTest {
     fun `raw and checked child selections remain separate through overlap`() {
         val world = TestWorld.fromDSL(
             """
-            extend type Query { boxes: [Box] @resolver(result: []) }
+            extend type Query { boxes: [Box] @resolver(script: "[]") }
             type Box { a: Int, nested: Nested }
             type Nested {
               ordinary: Int
-              raw: Int @resolver(of: "dependency", result: 1)
+              raw: Int @resolver(of: "dependency", script: "1")
               dependency: Int
               forbidden: Int
             }
@@ -123,13 +123,13 @@ class FieldCheckerDemandClosureTest {
     fun `raw argument demand binds once per exact root list position and grounded key`() {
         val world = TestWorld.fromDSL(
             """
-            extend type Query { boxes: [Box] @resolver(result: []) }
+            extend type Query { boxes: [Box] @resolver(script: "[]") }
             type Box {
               a: Int
-              late: Int @resolver(of: "middle", result: 1)
-              middle: Int @resolver(of: "b(seed: 7)", result: 1)
-              b(seed: Int!): Int @resolver(of: "c(value: ${'$'}seed)", result: 1)
-              c(value: Int!): Int @resolver(result: 1)
+              late: Int @resolver(of: "middle", script: "1")
+              middle: Int @resolver(of: "b(seed: 7)", script: "1")
+              b(seed: Int!): Int @resolver(of: "c(value: ${'$'}seed)", script: "1")
+              c(value: Int!): Int @resolver(script: "1")
             }
             """.trimIndent(),
             fieldCheckers = { schema -> mapOf(checker(schema, "Box", "a", "first: b(seed: 7) second: b(seed: 8)")) },
@@ -170,10 +170,10 @@ class FieldCheckerDemandClosureTest {
         val world = TestWorld.fromDSL(
             """
             extend type Query {
-              boxes: [Box] @resolver(result: [])
-              viewer: Int @resolver(of: "dependency", result: 1)
-              dependency: Int @resolver(result: 1)
-              forbidden: Int @resolver(result: 1)
+              boxes: [Box] @resolver(script: "[]")
+              viewer: Int @resolver(of: "dependency", script: "1")
+              dependency: Int @resolver(script: "1")
+              forbidden: Int @resolver(script: "1")
             }
             type Box { a: Int }
             """.trimIndent(),
@@ -322,7 +322,7 @@ class FieldCheckerDemandClosureTest {
     fun `parent analysis is independent of which input is visited first`() {
         val world = TestWorld.fromDSL(
             """
-            extend type Query { boxes: [Box] @resolver(result: []) }
+            extend type Query { boxes: [Box] @resolver(script: "[]") }
             type Box {
               a: Int
               children: [Child]
@@ -333,8 +333,8 @@ class FieldCheckerDemandClosureTest {
             type Child {
               parent: Box @parent
               a: Int
-              b: Int @resolver(of: "parent { checkedB }", result: 1)
-              c: Int @resolver(of: "parent { checkedA }", result: 1)
+              b: Int @resolver(of: "parent { checkedB }", script: "1")
+              c: Int @resolver(of: "parent { checkedA }", script: "1")
             }
             """.trimIndent(),
             fieldCheckers = { schema ->
@@ -358,15 +358,15 @@ class FieldCheckerDemandClosureTest {
     private fun chainWorld(): TestWorld =
         TestWorld.fromDSL(
             """
-        extend type Query { boxes: [Box] @resolver(result: []) }
+        extend type Query { boxes: [Box] @resolver(script: "[]") }
         type Box {
           a: Int
-          b: Int @resolver(of: "c", result: 1)
+          b: Int @resolver(of: "c", script: "1")
           c: Int
           audit: Int
           forbidden: Int
-          late: Int @resolver(of: "middle", result: 1)
-          middle: Int @resolver(of: "b", result: 1)
+          late: Int @resolver(of: "middle", script: "1")
+          middle: Int @resolver(of: "b", script: "1")
         }
             """.trimIndent(),
             fieldCheckers = { schema ->
@@ -384,10 +384,10 @@ class FieldCheckerDemandClosureTest {
     ): TestWorld =
         TestWorld.fromDSL(
             """
-        extend type Query { boxes: [Box] @resolver(result: []) }
+        extend type Query { boxes: [Box] @resolver(script: "[]") }
         type Box {
           a: Int
-          b: Int @resolver(of: "$bInput", result: 1)
+          b: Int @resolver(of: "$bInput", script: "1")
           children: [[Child]]
           checkedAncestor: Int
           audit: Int
@@ -396,16 +396,16 @@ class FieldCheckerDemandClosureTest {
         type Child {
           parent: Box @parent
           protected: Int
-          derived: Int @resolver(of: "parent { checkedAncestor }", result: 1)
-          forbiddenProbe: Int @resolver(of: "parent { forbidden }", result: 1)
+          derived: Int @resolver(of: "parent { checkedAncestor }", script: "1")
+          forbiddenProbe: Int @resolver(of: "parent { forbidden }", script: "1")
           grandchildren: [[Grandchild]]
           checkedLocal: Int
           localAudit: Int
         }
         type Grandchild {
           parent: Child @parent
-          derived: Int @resolver(of: "parent { parent { checkedAncestor } }", result: 1)
-          localDerived: Int @resolver(of: "parent { checkedLocal }", result: 1)
+          derived: Int @resolver(of: "parent { parent { checkedAncestor } }", script: "1")
+          localDerived: Int @resolver(of: "parent { checkedLocal }", script: "1")
         }
             """.trimIndent(),
             fieldCheckers = { schema ->

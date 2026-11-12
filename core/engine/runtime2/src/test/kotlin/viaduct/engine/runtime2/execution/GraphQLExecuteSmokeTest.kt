@@ -21,9 +21,9 @@ class GraphQLExecuteSmokeTest : ExecutionTestFixtureResource {
         val resolverSchema =
             """
             extend type Query {
-              viewer: User! @resolver(result: {})
-              item: Item! @resolver(result: {__typename: "A"})
-              choice: Choice! @resolver(result: {__typename: "B"})
+              viewer: User! @resolver(script: "{:}")
+              item: Item! @resolver(script: "{'__typename': 'A'}")
+              choice: Choice! @resolver(script: "{'__typename': 'B'}")
             }
 
             type User {
@@ -147,10 +147,7 @@ class GraphQLExecuteSmokeTest : ExecutionTestFixtureResource {
                     extend type Query {
                       items: [Item!]!
                         @resolver(
-                          result: [
-                            {__typename: "A"},
-                            {__typename: "B"}
-                          ]
+                          script: "[{'__typename': 'A'}, {'__typename': 'B'}]"
                         )
                     }
 
@@ -160,11 +157,11 @@ class GraphQLExecuteSmokeTest : ExecutionTestFixtureResource {
 
                     type A implements Item {
                       computed(factor: Int = 2): Int!
-                        @resolver(result: "sum(${'$'}factor)")
+                        @resolver(script: "factor")
                     }
 
                     type B implements Item {
-                      computed: Int! @resolver(result: 3)
+                      computed: Int! @resolver(script: "3")
                     }
                     """.trimIndent(),
             )
@@ -190,15 +187,15 @@ class GraphQLExecuteSmokeTest : ExecutionTestFixtureResource {
                     """
                     extend type Query {
                       viewer(id: ID!): User!
-                        @resolver(result: {id: "idFrom(${'$'}id)"})
+                        @resolver(script: "{'id': id}")
                     }
 
                     type User implements Node
-                      @nodeResolver(result: [{id: "1", result: {name: 7}}]) {
+                      @nodeResolver(ids: ["1"], script: "{'name': 7}") {
                       id: ID!
                       name: Int!
                       greeting(prefix: Int!): Int!
-                        @resolver(result: "sumplus1(${'$'}prefix)")
+                        @resolver(script: "1 + prefix")
                     }
                     """.trimIndent(),
             )
@@ -235,17 +232,17 @@ class GraphQLExecuteSmokeTest : ExecutionTestFixtureResource {
                 resolverSchemaSDL =
                     """
                     extend type Query {
-                      viewer: User! @resolver(result: {plain: 5})
+                      viewer: User! @resolver(script: "{'plain': 5}")
                     }
 
                     type User {
                       plain: Int!
                       scaled(factor: Int!): Int!
-                        @resolver(result: "sum(${'$'}factor)")
+                        @resolver(script: "factor")
                       total: Int!
                         @resolver(
                           of: "plainValue: plain byTwo: scaled(factor: 2) byThree: scaled(factor: 3)"
-                          result: "sum(plainValue, byTwo, byThree)"
+                          script: "(objectValue.plainValue == null ? 0 : objectValue.plainValue) + (objectValue.byTwo == null ? 0 : objectValue.byTwo) + (objectValue.byThree == null ? 0 : objectValue.byThree)"
                         )
                     }
                     """.trimIndent(),
@@ -267,10 +264,7 @@ class GraphQLExecuteSmokeTest : ExecutionTestFixtureResource {
                     extend type Query {
                       holders: [Holder!]!
                         @resolver(
-                          result: [
-                            {item: {__typename: "Alpha", alpha: 4}}
-                            {item: {__typename: "Beta", beta: 7}}
-                          ]
+                          script: "[{'item': {'__typename': 'Alpha', 'alpha': 4}}, {'item': {'__typename': 'Beta', 'beta': 7}}]"
                         )
                     }
 
@@ -279,7 +273,7 @@ class GraphQLExecuteSmokeTest : ExecutionTestFixtureResource {
                       chosen: Int!
                         @resolver(
                           of: "item { ... on Alpha { value: alpha } ... on Beta { value: beta } }"
-                          result: "value(item.value)"
+                          script: "(objectValue.item == null ? null : objectValue.item.value)"
                         )
                     }
 
@@ -318,10 +312,10 @@ class GraphQLExecuteSmokeTest : ExecutionTestFixtureResource {
                       result(seed: Int!): Int!
                         @resolver(
                           of: "consume(value: ${'$'}seed)"
-                          result: "sum(consume)"
+                          script: "(objectValue.consume == null ? 0 : objectValue.consume)"
                         )
                       consume(value: Int!): Int!
-                        @resolver(result: "sum(${'$'}value, ${'$'}value)")
+                        @resolver(script: "value + value")
                     }
                     """.trimIndent(),
             )
@@ -352,17 +346,17 @@ class GraphQLExecuteSmokeTest : ExecutionTestFixtureResource {
                 resolverSchemaSDL =
                     """
                     extend type Query {
-                      holder: Item! @resolver(result: {passive: 7})
+                      holder: Item! @resolver(script: "{'passive': 7}")
                       result(value: Int!): Int!
                         @resolver(
                           of: "holder { consume(value: ${'$'}value) }"
-                          result: "sum(holder.consume)"
+                          script: "(objectValue.holder == null ? 0 : objectValue.holder.consume == null ? 0 : objectValue.holder.consume)"
                         )
                     }
 
                     type Item {
                       consume(value: Int!): Int!
-                        @resolver(of: "passive", result: "sum(passive)")
+                        @resolver(of: "passive", script: "(objectValue.passive == null ? 0 : objectValue.passive)")
                       passive: Int!
                     }
                     """.trimIndent(),
@@ -397,16 +391,16 @@ class GraphQLExecuteSmokeTest : ExecutionTestFixtureResource {
                         @resolver(
                           of: "source holder { consume(value: ${'$'}value) }"
                           pathVars: [{name: "value", path: ["source"]}]
-                          result: "sum(holder.consume)"
+                          script: "(objectValue.holder == null ? 0 : objectValue.holder.consume == null ? 0 : objectValue.holder.consume)"
                         )
-                      source: Int! @resolver(of: "delay", result: "sum(delay)")
-                      holder: Holder! @resolver(result: {})
-                      delay: Int! @resolver(result: 7)
+                      source: Int! @resolver(of: "delay", script: "(objectValue.delay == null ? 0 : objectValue.delay)")
+                      holder: Holder! @resolver(script: "{:}")
+                      delay: Int! @resolver(script: "7")
                     }
 
                     type Holder {
                       consume(value: Int!): Int!
-                        @resolver(result: "sum(${'$'}value)")
+                        @resolver(script: "value")
                     }
                     """.trimIndent(),
             )
@@ -426,10 +420,10 @@ class GraphQLExecuteSmokeTest : ExecutionTestFixtureResource {
                       result(seed: Int!, other: Int!): Int!
                         @resolver(
                           of: "ground: payload(arg: 1) { one } seedValue: payload(arg: ${'$'}seed) { two } seedValue: payload(arg: ${'$'}seed) { two } otherValue: payload(arg: ${'$'}other) { one }"
-                          result: "sum(ground.one, seedValue.two)"
+                          script: "(objectValue.ground == null ? 0 : objectValue.ground.one == null ? 0 : objectValue.ground.one) + (objectValue.seedValue == null ? 0 : objectValue.seedValue.two == null ? 0 : objectValue.seedValue.two)"
                         )
                       payload(arg: Int!): Payload!
-                        @resolver(result: {one: 3, two: 5})
+                        @resolver(script: "{'one': 3, 'two': 5}")
                     }
 
                     type Payload {
@@ -452,13 +446,13 @@ class GraphQLExecuteSmokeTest : ExecutionTestFixtureResource {
                     """
                     extend type Query {
                       items: [Item]
-                        @resolver(result: [null, "ERROR", {seed: 3}])
+                        @resolver(script: "[null, error, {'seed': 3}]")
                     }
 
                     type Item {
                       seed: Int!
                       computed: Int!
-                        @resolver(of: "seed", result: "sum(seed, seed)")
+                        @resolver(of: "seed", script: "(objectValue.seed == null ? 0 : objectValue.seed) + (objectValue.seed == null ? 0 : objectValue.seed)")
                     }
                     """.trimIndent(),
             )

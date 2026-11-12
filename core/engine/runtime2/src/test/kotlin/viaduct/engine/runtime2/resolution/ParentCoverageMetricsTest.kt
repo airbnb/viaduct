@@ -19,28 +19,28 @@ class ParentCoverageMetricsTest : ResolutionDispatcherResource {
                     """
                     extend type Query {
                       grand: Grand!
-                        @resolver(result: {grandValue: 11})
+                        @resolver(script: "{'grandValue': 11}")
                     }
 
                     type Grand {
                       grandValue: Int!
                       parentNode: Parent!
-                        @resolver(result: {fromSource: 7})
+                        @resolver(script: "{'fromSource': 7}")
                     }
 
                     type Parent {
                       parent: Grand @parent
                       fromSource: Int!
                       child: Child!
-                        @resolver(result: {})
+                        @resolver(script: "{:}")
                       bridge(seed: Int!): Int!
                         @resolver(
                           of: "fromSource consume(seed: ${'$'}seed, source: ${'$'}fromSource) parent { grandValue }"
                           pathVars: [{name: "fromSource", path: ["fromSource"]}]
-                          result: "sum(consume, parent.grandValue)"
+                          script: "(objectValue.consume == null ? 0 : objectValue.consume) + (objectValue.parent == null ? 0 : objectValue.parent.grandValue == null ? 0 : objectValue.parent.grandValue)"
                         )
                       consume(seed: Int!, source: Int!): Int!
-                        @resolver(result: "sum(${'$'}seed, ${'$'}source)")
+                        @resolver(script: "seed + source")
                     }
 
                     type Child {
@@ -48,7 +48,7 @@ class ParentCoverageMetricsTest : ResolutionDispatcherResource {
                       result: Int!
                         @resolver(
                           of: "parent { bridge(seed: 2) }"
-                          result: "sum(parent.bridge)"
+                          script: "(objectValue.parent == null ? 0 : objectValue.parent.bridge == null ? 0 : objectValue.parent.bridge)"
                         )
                     }
                     """.trimIndent(),

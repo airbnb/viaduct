@@ -41,10 +41,10 @@ CODE_POINTERS = {
     "passive": ("Resolve passive values and publish the result", MAIN_SOURCE + "resolution/FieldResolutionLogic.kt", (("val passiveValue: EngineResult? =", "publication.publicationCell.value.complete(passiveValue)"),)),
     "passive-fields": ("Complete available passive fields before dispatch", MAIN_SOURCE + "resolution/framework/SharedPassiveValueResolutionLogic.kt", (("val orchestration = createOrchestrationTask(occurrence, source, constructionDemand, creator)", "operation.dispatcher.dispatchOrchestration(orchestration)"),)),
     "publish": ("Complete the destination cell", MAIN_SOURCE + "resolution/FieldResolutionLogic.kt", (("publication.publicationCell.value.complete(passiveValue)", "publication.publicationCell.value.complete(passiveValue)"),)),
-    "completion": ("Wait for structured resolution to finish", MAIN_SOURCE + "resolution/Resolver.kt", (("return withTimeout(timeoutMillis)", "                ).root\n            }"),)),
+    "completion": ("Wait for structured resolution to finish", "src/testFixtures/kotlin/viaduct/engine/runtime2/resolution/ResolutionDriver.kt", (("return withTimeout(timeoutMillis)", "                ).root\n            }"),)),
     "reference-tail": ("Follow references in the same publication", MAIN_SOURCE + "resolution/FieldResolutionLogic.kt", (("var authoritativeNodeIdentity: NodeReferenceIdentity? = null", "fieldValue =\n            fieldValue.withAuthoritativeNodeId("),)),
     "reference-invoke": ("Prepare and invoke a reference target", MAIN_SOURCE + "resolution/FieldResolutionLogic.kt", (("private suspend fun invokeRootFieldResolver(", "executionContext = fieldResolverTask,"),)),
-    "reference-query": ("Resolve a reference target's independent Query input", MAIN_SOURCE + "resolution/FieldResolverTask.kt", (("private suspend fun FieldValueResolver.resolveQueryFragment(", "resultPath = emptyList(),"),)),
+    "reference-query": ("Resolve a reference target's independent Query input", MAIN_SOURCE + "resolution/FieldResolverTask.kt", (("private suspend fun FieldResolverDependencies.resolveQueryFragment(", "resultPath = emptyList(),"),)),
     "node-identity": ("Preserve the first Node reference's identity", MAIN_SOURCE + "resolution/framework/WithAuthoritativeNodeId.kt", (("internal fun ResolverOutputData?.withAuthoritativeNodeId(", "if (contextUnchanged && idUnchanged) return this"),)),
 }
 TOUR = "https://pages.git.musta.ch/alex-ubillus/viaduct-runtime2/"

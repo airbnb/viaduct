@@ -22,20 +22,20 @@ interface ProductionDeadlockResolverContract : ResolverContract {
                         """
                     extend type Query {
                       foo: Foo!
-                        @resolver(result: {id: "foo"})
+                        @resolver(script: "{'__typename': 'Foo', 'id': 'foo'}")
                       a(value: Int!): Int!
                         @resolver(
                           of: "source: foo { y(value: ${'$'}value) } target: foo { y(value: ${'$'}fromY) }"
                           pathVars: [{name: "fromY", path: ["source", "y"]}]
-                          result: "sum(source.y, target.y)"
+                          script: "(objectValue.source == null ? 0 : objectValue.source.y == null ? 0 : objectValue.source.y) + (objectValue.target == null ? 0 : objectValue.target.y == null ? 0 : objectValue.target.y)"
                         )
                     }
 
                     type Foo implements Node
-                      @nodeResolver(result: [{id: "foo", result: {}}]) {
+                      @nodeResolver(ids: ["foo"], script: "{:}") {
                       id: ID!
                       y(value: Int!): Int!
-                        @resolver(result: "value(${'$'}value)")
+                        @resolver(script: "value")
                     }
                         """.trimIndent(),
                 )

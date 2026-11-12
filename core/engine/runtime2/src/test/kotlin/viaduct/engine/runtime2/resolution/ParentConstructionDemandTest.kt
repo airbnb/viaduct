@@ -167,13 +167,13 @@ class ParentConstructionDemandTest : ResolutionDispatcherResource {
         val fixture = TestWorld.fromDSL(
             """
             extend type Query {
-              root: Root @resolver(result: {})
-              tree: Tree @resolver(result: {})
+              root: Root @resolver(script: "{:}")
+              tree: Tree @resolver(script: "{:}")
             }
-            type Root { seed: Int child: Child @resolver(result: {}) }
+            type Root { seed: Int child: Child @resolver(script: "{:}") }
             type Child {
               parent: Root @parent
-              derived: Int @resolver(of: "parent { seed }", result: 1)
+              derived: Int @resolver(of: "parent { seed }", script: "1")
               plain: Int
             }
             type Tree { next: Tree value: Int }
@@ -313,14 +313,14 @@ class ParentConstructionDemandTest : ResolutionDispatcherResource {
             TestWorld.fromDSL(
                 """
                 extend type Query {
-                  root: Root @resolver(result: {seed: 1})
-                  consumer: Int @resolver(of: "root { child { leaf } }", result: 1)
+                  root: Root @resolver(script: "{'seed': 1}")
+                  consumer: Int @resolver(of: "root { child { leaf } }", script: "1")
                 }
                 type Root {
-                  child: Child @resolver(result: {})
-                  seed: Int @resolver(of: "child { leaf }", result: 1)
+                  child: Child @resolver(script: "{:}")
+                  seed: Int @resolver(of: "child { leaf }", script: "1")
                 }
-                type Child { parent: Root @parent leaf: Int probe: Int @resolver(of: "parent { seed }", result: 1) }
+                type Child { parent: Root @parent leaf: Int probe: Int @resolver(of: "parent { seed }", script: "1") }
                 """.trimIndent(),
                 typeCheckers = { schemas ->
                     val type = schemas.loweredSchema.requireObjectField("Child", "leaf").containingDef
@@ -348,11 +348,11 @@ class ParentConstructionDemandTest : ResolutionDispatcherResource {
             TestWorld.fromDSL(
                 """
                 extend type Query {
-                  organization: Organization @resolver(result: {})
+                  organization: Organization @resolver(script: "{:}")
                 }
 
                 type Organization {
-                  company: Company @resolver(result: {})
+                  company: Company @resolver(script: "{:}")
                 }
 
                 type Company {
@@ -381,12 +381,12 @@ class ParentConstructionDemandTest : ResolutionDispatcherResource {
             TestWorld.fromDSL(
                 """
                 extend type Query {
-                  organization: Organization @resolver(result: {})
+                  organization: Organization @resolver(script: "{:}")
                 }
 
                 type Organization {
                   name: String
-                  company: Company @resolver(result: {})
+                  company: Company @resolver(script: "{:}")
                 }
 
                 type Company {
@@ -425,18 +425,18 @@ class ParentConstructionDemandTest : ResolutionDispatcherResource {
             TestWorld.fromDSL(
                 """
                 extend type Query {
-                  organization: Organization @resolver(result: {})
+                  organization: Organization @resolver(script: "{:}")
                 }
 
                 type Organization {
                   name: String
-                  company: Company @resolver(result: {})
+                  company: Company @resolver(script: "{:}")
                 }
 
                 type Company {
                   parent: Organization @parent
                   displayName: String
-                    @resolver(of: "parent { name }", result: null)
+                    @resolver(of: "parent { name }", script: "null")
                 }
                 """.trimIndent(),
             )
@@ -470,25 +470,25 @@ class ParentConstructionDemandTest : ResolutionDispatcherResource {
             TestWorld.fromDSL(
                 """
                 extend type Query {
-                  grand: Grand @resolver(result: {})
+                  grand: Grand @resolver(script: "{:}")
                 }
 
                 type Grand {
                   grandValue: Int
-                  parentNode: Parent @resolver(result: {})
+                  parentNode: Parent @resolver(script: "{:}")
                 }
 
                 type Parent {
                   parent: Grand @parent
                   bridge: Int
-                    @resolver(of: "parent { grandValue }", result: 1)
-                  child: Child @resolver(result: {})
+                    @resolver(of: "parent { grandValue }", script: "1")
+                  child: Child @resolver(script: "{:}")
                 }
 
                 type Child {
                   parent: Parent @parent
                   result: Int
-                    @resolver(of: "parent { bridge }", result: 1)
+                    @resolver(of: "parent { bridge }", script: "1")
                 }
                 """.trimIndent(),
             )
@@ -530,23 +530,23 @@ class ParentConstructionDemandTest : ResolutionDispatcherResource {
             TestWorld.fromDSL(
                 """
                 extend type Query {
-                  organization: Organization @resolver(result: {})
+                  organization: Organization @resolver(script: "{:}")
                 }
 
                 type Organization {
                   name: String
-                  company: Company @resolver(result: {})
+                  company: Company @resolver(script: "{:}")
                 }
 
                 type Company {
                   parent: Organization @parent
-                  user: User @resolver(result: {})
+                  user: User @resolver(script: "{:}")
                 }
 
                 type User {
                   parent: Company @parent
                   organizationName: String
-                    @resolver(of: "parent { parent { name } }", result: null)
+                    @resolver(of: "parent { parent { name } }", script: "null")
                 }
                 """.trimIndent(),
             )
@@ -591,12 +591,12 @@ class ParentConstructionDemandTest : ResolutionDispatcherResource {
             TestWorld.fromDSL(
                 """
                 extend type Query {
-                  organization: Organization @resolver(result: {})
+                  organization: Organization @resolver(script: "{:}")
                 }
 
                 type Organization {
                   name: String
-                  company: Company @resolver(result: {})
+                  company: Company @resolver(script: "{:}")
                 }
 
                 type Company {
@@ -653,12 +653,12 @@ class ParentConstructionDemandTest : ResolutionDispatcherResource {
             TestWorld.fromDSL(
                 """
                 extend type Query {
-                  root: Root @resolver(result: {})
+                  root: Root @resolver(script: "{:}")
                 }
 
                 type Root {
-                  expensive: Int @resolver(result: 7)
-                  child: Child @resolver(result: {})
+                  expensive: Int @resolver(script: "7")
+                  child: Child @resolver(script: "{:}")
                 }
 
                 type Child {
@@ -666,7 +666,7 @@ class ParentConstructionDemandTest : ResolutionDispatcherResource {
                   result(enabled: Boolean!): Int
                     @resolver(
                       of: "parent @include(if: ${'$'}enabled) { expensive }"
-                      result: 1
+                      script: "1"
                     )
                 }
                 """.trimIndent(),
@@ -713,7 +713,7 @@ class ParentConstructionDemandTest : ResolutionDispatcherResource {
             }
 
             type OrdinaryChild implements Child {
-              edge: Parent @resolver(of: "child { parent { required } }", result: null)
+              edge: Parent @resolver(of: "child { parent { required } }", script: "null")
               child: NestedChild
               required: Int
             }
@@ -760,7 +760,7 @@ class ParentConstructionDemandTest : ResolutionDispatcherResource {
     fun `joined ancestor requirements preserve guards arguments and concrete descendants`() {
         val fixture = TestWorld.fromDSL(
             """
-            extend type Query { root: Parent @resolver(result: {}) }
+            extend type Query { root: Parent @resolver(script: "{:}") }
             type Parent { child: Child data(id: Int!): Data }
             type Child { parent: Parent @parent }
             interface Data { common: Int }
@@ -890,7 +890,7 @@ class ParentConstructionDemandTest : ResolutionDispatcherResource {
     ): ObjectSelectionForest {
         val fixture = TestWorld.fromDSL(
             """
-            extend type Query { root: Parent @resolver(result: {}) }
+            extend type Query { root: Parent @resolver(script: "{:}") }
             type Parent { child: Child item: Item }
             type Child { parent: Parent @parent }
             type Item { common: Int special: Int other: Int }
@@ -912,7 +912,7 @@ class ParentConstructionDemandTest : ResolutionDispatcherResource {
         val implementations = (0 until 128).joinToString("\n") { "type Item$it implements Item { common(extra: Int = $it): Int }" }
         val fixture = TestWorld.fromDSL(
             """
-            extend type Query { root: Parent @resolver(result: {}) }
+            extend type Query { root: Parent @resolver(script: "{:}") }
             type Parent { child: Child item: Item }
             type Child { parent: Parent @parent }
             interface Item { common: Int }
@@ -939,9 +939,9 @@ class ParentConstructionDemandTest : ResolutionDispatcherResource {
     fun `shared parent paths preserve the first failing alternative`() {
         val fixture = TestWorld.fromDSL(
             """
-            extend type Query { root: Parent @resolver(result: {}) }
+            extend type Query { root: Parent @resolver(script: "{:}") }
             type Parent { child: Child seed: Int }
-            type Child { parent: Parent @parent field0: Int @resolver(of: "parent { seed }", result: 1) }
+            type Child { parent: Parent @parent field0: Int @resolver(of: "parent { seed }", script: "1") }
             """.trimIndent(),
         )
         val input = fixture.schemas.fragmentFrom(
@@ -973,7 +973,7 @@ class ParentConstructionDemandTest : ResolutionDispatcherResource {
     fun `joining empty parent projections preserves guarded root type check provenance`() {
         val fixture = TestWorld.fromDSL(
             """
-            extend type Query { root: Parent @resolver(result: {}) }
+            extend type Query { root: Parent @resolver(script: "{:}") }
             type Parent { child: Child }
             type Child { parent: Parent @parent }
             """.trimIndent(),
@@ -1037,21 +1037,21 @@ class ParentConstructionDemandTest : ResolutionDispatcherResource {
         TestWorld.fromDSL(
             """
             extend type Query {
-              grand: Grand @resolver(result: {})
-              consumer: Int @resolver(of: "grand { middle { child { result } } }", result: 1)
+              grand: Grand @resolver(script: "{:}")
+              consumer: Int @resolver(of: "grand { middle { child { result } } }", script: "1")
             }
             type Grand {
-              grandValue: Int @resolver(result: 1)
-              middle: Parent @resolver(result: {})
+              grandValue: Int @resolver(script: "1")
+              middle: Parent @resolver(script: "{:}")
             }
             type Parent {
               parent: Grand @parent
-              bridge: Int @resolver(of: "parent { grandValue }", result: 1)
-              child: Child @resolver(result: {})
+              bridge: Int @resolver(of: "parent { grandValue }", script: "1")
+              child: Child @resolver(script: "{:}")
             }
             type Child {
               parent: Parent @parent
-              result: Int @resolver(of: "parent { bridge }", result: 1)
+              result: Int @resolver(of: "parent { bridge }", script: "1")
             }
             """.trimIndent(),
         )

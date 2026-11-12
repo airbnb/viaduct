@@ -45,17 +45,17 @@ interface ParentFieldResolverContract : ResolverContract {
                 }
                 val fixture = TestWorld.fromDSL(
                     schemaSDL = """
-                        extend type Query { root: Root @resolver(result: {}) }
+                        extend type Query { root: Root @resolver(script: "{:}") }
                         type Root {
                           middle(seed: Int): Int
-                            @resolver(of: "branch(x: ${'$'}seed) { child { leaf } }", result: "value(branch.child.leaf)")
-                          composed: Int @resolver(of: "middle(seed: 3)", result: "value(middle)")
-                          branch(x: Int): Branch @resolver(result: {seed: 11})
+                            @resolver(of: "branch(x: ${'$'}seed) { child { leaf } }", script: "(objectValue.branch == null ? null : objectValue.branch.child == null ? null : objectValue.branch.child.leaf)")
+                          composed: Int @resolver(of: "middle(seed: 3)", script: "objectValue.middle")
+                          branch(x: Int): Branch @resolver(script: "{'seed': 11}")
                         }
-                        type Branch { seed: Int, child: Child @resolver(result: {}) }
+                        type Branch { seed: Int, child: Child @resolver(script: "{:}") }
                         type Child {
                           parent: Branch @parent
-                          leaf: Int @resolver(of: "parent { seed }", result: "value(parent.seed)")
+                          leaf: Int @resolver(of: "parent { seed }", script: "(objectValue.parent == null ? null : objectValue.parent.seed)")
                         }
                     """.trimIndent(),
                 )
@@ -163,17 +163,17 @@ interface ParentFieldResolverContract : ResolverContract {
                 schemaSDL =
                     """
                     extend type Query {
-                      container: Container! @resolver(result: {})
-                      token: Int! @resolver(result: 7)
-                      result: Int! @resolver(qf: "container { child { value } }", result: "value(query:container.child.value)")
+                      container: Container! @resolver(script: "{:}")
+                      token: Int! @resolver(script: "7")
+                      result: Int! @resolver(qf: "container { child { value } }", script: "(queryValue.container == null ? null : queryValue.container.child == null ? null : queryValue.container.child.value)")
                     }
                     type Container {
-                      child: Child! @resolver(result: {})
-                      ancestor: Int! @resolver(qf: "token", result: "value(query:token)")
+                      child: Child! @resolver(script: "{:}")
+                      ancestor: Int! @resolver(qf: "token", script: "queryValue.token")
                     }
                     type Child {
                       parent: Container! @parent
-                      value: Int! @resolver(of: "parent { ancestor }", result: "value(parent.ancestor)")
+                      value: Int! @resolver(of: "parent { ancestor }", script: "(objectValue.parent == null ? null : objectValue.parent.ancestor)")
                     }
                     """.trimIndent(),
             )
@@ -219,25 +219,25 @@ interface ParentFieldResolverContract : ResolverContract {
             TestWorld.fromDSL(
                 schemaSDL =
                     """
-                    extend type Query { root: Root @resolver(result: {}) }
+                    extend type Query { root: Root @resolver(script: "{:}") }
                     type Root {
-                      child: Child @resolver(result: {})
+                      child: Child @resolver(script: "{:}")
                       ancestorValue: Int
-                        @resolver(of: "child { parent { child { marker } } }", result: 42)
+                        @resolver(of: "child { parent { child { marker } } }", script: "42")
                     }
                     type Child {
                       parent: Root @parent
-                      grandchild: Grandchild @resolver(result: {})
-                      marker: Int @resolver(result: 7)
+                      grandchild: Grandchild @resolver(script: "{:}")
+                      marker: Int @resolver(script: "7")
                     }
                     type Grandchild {
                       parent: Child @parent
-                      greatGrandchild: GreatGrandchild @resolver(result: {})
+                      greatGrandchild: GreatGrandchild @resolver(script: "{:}")
                     }
                     type GreatGrandchild {
                       parent: Grandchild @parent
                       result: Int
-                        @resolver(of: "parent { parent { parent { ancestorValue } } }", result: "value(parent.parent.parent.ancestorValue)")
+                        @resolver(of: "parent { parent { parent { ancestorValue } } }", script: "(objectValue.parent == null ? null : objectValue.parent.parent == null ? null : objectValue.parent.parent.parent == null ? null : objectValue.parent.parent.parent.ancestorValue)")
                     }
                     """.trimIndent(),
             )
@@ -294,11 +294,11 @@ interface ParentFieldResolverContract : ResolverContract {
             TestWorld.fromDSL(
                 schemaSDL =
                     """
-                    extend type Query { root: Root @resolver(result: {}) }
-                    type Root { child: Child @resolver(result: {}) }
+                    extend type Query { root: Root @resolver(script: "{:}") }
+                    type Root { child: Child @resolver(script: "{:}") }
                     type Child {
                       parent: Root @parent
-                      result: Int @resolver(of: "parent { child { parent { __typename } } }", result: 1)
+                      result: Int @resolver(of: "parent { child { parent { __typename } } }", script: "1")
                     }
                     """.trimIndent(),
             )
@@ -326,12 +326,12 @@ interface ParentFieldResolverContract : ResolverContract {
             TestWorld.fromDSL(
                 schemaSDL =
                     """
-                    extend type Query { root: Link @resolver(result: {name: 1}) }
+                    extend type Query { root: Link @resolver(script: "{'name': 1}") }
                     type Link {
                       name: Int
-                      child: Link @resolver(result: {name: 2})
+                      child: Link @resolver(script: "{'name': 2}")
                       parent: Link @parent
-                      ancestorName: Int @resolver(of: "parent { parent { name } }", result: "value(parent.parent.name)")
+                      ancestorName: Int @resolver(of: "parent { parent { name } }", script: "(objectValue.parent == null ? null : objectValue.parent.parent == null ? null : objectValue.parent.parent.name)")
                     }
                     """.trimIndent(),
             )
@@ -368,12 +368,12 @@ interface ParentFieldResolverContract : ResolverContract {
                 schemaSDL =
                     """
                     extend type Query {
-                      company: Company @resolver(result: {name: 1, user: {parent: {name: 2}}})
+                      company: Company @resolver(script: "{'name': 1, 'user': {'parent': {'name': 2}}}")
                     }
                     type Company { name: Int, user: User }
                     type User {
                       parent: Company @parent
-                      companyName: Int @resolver(of: "parent { name }", result: "value(parent.name)")
+                      companyName: Int @resolver(of: "parent { name }", script: "(objectValue.parent == null ? null : objectValue.parent.name)")
                     }
                     """.trimIndent(),
             )
@@ -419,15 +419,15 @@ interface ParentFieldResolverContract : ResolverContract {
             TestWorld.fromDSL(
                 schemaSDL =
                     """
-                    extend type Query { root: Root @resolver(result: {}) }
-                    type Root { child: Child @resolver(result: {parent: {}}) }
+                    extend type Query { root: Root @resolver(script: "{:}") }
+                    type Root { child: Child @resolver(script: "{'parent': {:}}") }
                     type Child {
                       parent: Root @parent
-                      grandchild: Grandchild @resolver(result: {parent: {}})
+                      grandchild: Grandchild @resolver(script: "{'parent': {:}}")
                     }
                     type Grandchild {
                       parent: Child @parent
-                      lineage: Int @resolver(of: "parent { parent { __typename } }", result: 1)
+                      lineage: Int @resolver(of: "parent { parent { __typename } }", script: "1")
                     }
                     """.trimIndent(),
             )
@@ -482,11 +482,11 @@ interface ParentFieldResolverContract : ResolverContract {
             TestWorld.fromDSL(
                 schemaSDL =
                     """
-                    extend type Query { root: Root @resolver(result: {}) }
+                    extend type Query { root: Root @resolver(script: "{:}") }
                     type Root {
-                      child: Child @resolver(result: {})
-                      sibling: Sibling @resolver(result: {label: 7})
-                      result: Int @resolver(of: "child { parent { sibling { __typename } } }", result: 1)
+                      child: Child @resolver(script: "{:}")
+                      sibling: Sibling @resolver(script: "{'label': 7}")
+                      result: Int @resolver(of: "child { parent { sibling { __typename } } }", script: "1")
                     }
                     type Child { parent: Root @parent }
                     type Sibling { label: Int }
@@ -506,14 +506,14 @@ interface ParentFieldResolverContract : ResolverContract {
             TestWorld.fromDSL(
                 schemaSDL =
                     """
-                    extend type Query { root: Root @resolver(result: {}) }
+                    extend type Query { root: Root @resolver(script: "{:}") }
                     type Root {
-                      child: Child @resolver(result: {})
-                      sibling: Int @resolver(result: 7)
+                      child: Child @resolver(script: "{:}")
+                      sibling: Int @resolver(script: "7")
                     }
                     type Child {
                       parent: Root @parent
-                      value: Int @resolver(of: "parent { sibling }", result: "value(parent.sibling)")
+                      value: Int @resolver(of: "parent { sibling }", script: "(objectValue.parent == null ? null : objectValue.parent.sibling)")
                     }
                     """.trimIndent(),
             )
@@ -588,16 +588,16 @@ interface ParentFieldResolverContract : ResolverContract {
             TestWorld.fromDSL(
                 schemaSDL =
                     """
-                    extend type Query { organization: Organization @resolver(result: {name: 7}) }
-                    type Organization { name: Int, company: Company @resolver(result: {}) }
+                    extend type Query { organization: Organization @resolver(script: "{'name': 7}") }
+                    type Organization { name: Int, company: Company @resolver(script: "{:}") }
                     type Company {
                       parent: Organization @parent
-                      users: [[User]] @resolver(result: [[{}, {}]])
+                      users: [[User]] @resolver(script: "[[{:}, {:}]]")
                     }
                     type User {
                       parent: Company @parent
                       organizationName: Int
-                        @resolver(of: "parent { parent { name } }", result: "value(parent.parent.name)")
+                        @resolver(of: "parent { parent { name } }", script: "(objectValue.parent == null ? null : objectValue.parent.parent == null ? null : objectValue.parent.parent.name)")
                     }
                     """.trimIndent(),
             )

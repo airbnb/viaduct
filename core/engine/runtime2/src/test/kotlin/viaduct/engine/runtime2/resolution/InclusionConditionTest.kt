@@ -42,18 +42,18 @@ class InclusionConditionTest : ResolutionDispatcherResource {
               controller: Int!
                 @resolver(
                   of: "outer @include(if: ${'$'}enabled)"
-                  providerVars: {enabled: "ERROR"}
-                  result: 1
+                  vars: {names: ["enabled"], script: "error"}
+                  script: "1"
                 )
               outer: Int!
                 @resolver(
                   of: "provider consume(value: ${'$'}value)"
                   pathVars: [{name: "value", path: ["provider"]}]
-                  result: 2
+                  script: "2"
                 )
-              provider: Int! @resolver(result: 7)
-              consume(value: Int!): Int! @resolver(result: "sum(${'$'}value)")
-              healthy: Int! @resolver(result: 42)
+              provider: Int! @resolver(script: "7")
+              consume(value: Int!): Int! @resolver(script: "value")
+              healthy: Int! @resolver(script: "42")
             }
             """.trimIndent(),
         )
@@ -86,12 +86,12 @@ class InclusionConditionTest : ResolutionDispatcherResource {
             TestWorld.fromDSL(
                 """
                 extend type Query {
-                  root: Root! @resolver(result: {})
+                  root: Root! @resolver(script: "{:}")
                 }
 
                 type Root {
-                  child: Child! @resolver(result: {})
-                  expensive: Int! @resolver(result: 7)
+                  child: Child! @resolver(script: "{:}")
+                  expensive: Int! @resolver(script: "7")
                 }
 
                 type Child {
@@ -99,7 +99,7 @@ class InclusionConditionTest : ResolutionDispatcherResource {
                   result: Int!
                     @resolver(
                       of: "parent { expensive @skip(if: true) }"
-                      result: 1
+                      script: "1"
                     )
                 }
                 """.trimIndent(),
@@ -127,9 +127,9 @@ class InclusionConditionTest : ResolutionDispatcherResource {
                       outer(fragment: Boolean!, field: Boolean!, skipped: Boolean!): Int!
                         @resolver(
                           of: "... @include(if: ${'$'}fragment) { dependency @include(if: ${'$'}field) @skip(if: ${'$'}skipped) }"
-                          result: 1
+                          script: "1"
                         )
-                      dependency: Int! @resolver(result: 7)
+                      dependency: Int! @resolver(script: "7")
                     }
                     """.trimIndent(),
                 )
@@ -184,19 +184,19 @@ class InclusionConditionTest : ResolutionDispatcherResource {
                   outer(a: Boolean!, b: Boolean!): Int!
                     @resolver(
                       of: "dependency @include(if: ${'$'}a) bridge(flag: ${'$'}b)"
-                      result: 1
+                      script: "1"
                     )
                   bridge(flag: Boolean!): Int!
                     @resolver(
                       of: "dependency @include(if: ${'$'}flag)"
-                      result: 2
+                      script: "2"
                     )
                   dependency: Int!
                     @resolver(
                       of: "prerequisite"
-                      result: 3
+                      script: "3"
                     )
-                  prerequisite: Int! @resolver(result: 4)
+                  prerequisite: Int! @resolver(script: "4")
                 }
                 """.trimIndent(),
             )
@@ -492,9 +492,9 @@ class InclusionConditionTest : ResolutionDispatcherResource {
                       outer(enabled: Boolean!): Int!
                         @resolver(
                           of: "dependency @include(if: ${'$'}enabled) @skip(if: ${'$'}enabled)"
-                          result: 1
+                          script: "1"
                         )
-                      dependency: Int! @resolver(result: 7)
+                      dependency: Int! @resolver(script: "7")
                     }
                     """.trimIndent(),
                 )
@@ -515,9 +515,9 @@ class InclusionConditionTest : ResolutionDispatcherResource {
                   outer: Int!
                     @resolver(
                       of: "dependency @include(if: true) @skip(if: true)"
-                      result: 1
+                      script: "1"
                     )
-                  dependency: Int! @resolver(result: 7)
+                  dependency: Int! @resolver(script: "7")
                 }
                 """.trimIndent(),
             )
@@ -624,9 +624,9 @@ class InclusionConditionTest : ResolutionDispatcherResource {
               outer(a: Boolean!, b: Boolean!): Int!
                 @resolver(
                   of: "dependency @include(if: ${'$'}a) dependency @include(if: ${'$'}b)"
-                  result: 1
+                  script: "1"
                 )
-              dependency: Int! @resolver(result: 7)
+              dependency: Int! @resolver(script: "7")
             }
             """.trimIndent(),
         )

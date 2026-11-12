@@ -109,19 +109,19 @@ class PrecomputedConstructionDemandTest : ResolutionDispatcherResource {
         val fixture = TestWorld.fromDSL(
             """
             extend type Query {
-              outer: Int @resolver(of: "result", result: 1)
+              outer: Int @resolver(of: "result", script: "1")
               result: Int @resolver(
                 of: "source fixed branch { one leaf(value: ${'$'}provided) }"
                 pathVars: [{name: "provided", path: ["source"]}]
-                result: 1
+                script: "1"
               )
-              source: Int @resolver(result: 7)
-              fixed: Int @resolver(result: 5)
-              branch: Branch @resolver(result: {one: 3})
+              source: Int @resolver(script: "7")
+              fixed: Int @resolver(script: "5")
+              branch: Branch @resolver(script: "{'one': 3}")
             }
             type Branch {
               one: Int
-              leaf(value: Int): Int @resolver(result: "value(${'$'}value)")
+              leaf(value: Int): Int @resolver(script: "value")
             }
             """.trimIndent(),
         )

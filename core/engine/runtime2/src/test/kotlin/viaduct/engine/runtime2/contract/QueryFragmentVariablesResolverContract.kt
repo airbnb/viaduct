@@ -323,12 +323,12 @@ interface QueryFragmentVariablesResolverContract : ResolverContract {
                   consumer(seed: Int!): Int
                     @resolver(
                       qf: "middle(value: ${'$'}value)"
-                      providerVars: {value: null}
-                      result: "value(query:middle)"
+                      vars: {names: ["value"], script: "{'value': null}"}
+                      script: "queryValue.middle"
                     )
                   middle(value: Int): Int
-                    @resolver(qf: "echo(value: ${'$'}value)", result: "value(query:echo)")
-                  echo(value: Int): Int @resolver(result: "value(${'$'}value)")
+                    @resolver(qf: "echo(value: ${'$'}value)", script: "queryValue.echo")
+                  echo(value: Int): Int @resolver(script: "value")
                 }
             """.trimIndent(),
         )
@@ -460,15 +460,15 @@ interface QueryFragmentVariablesResolverContract : ResolverContract {
                 schemaSDL =
                     """
                     extend type Query {
-                      item: Item! @resolver(result: {computed: 42})
+                      item: Item! @resolver(script: "{'computed': 42}")
                       echo(value: Int): Int
                     }
                     type Item {
                       computed: Int
                         @resolver(
                           qf: "echo(value: ${'$'}value)"
-                          providerVars: {value: "ERROR"}
-                          result: "ERROR"
+                          vars: {names: ["value"], script: "error"}
+                          script: "error"
                         )
                     }
                     """.trimIndent(),

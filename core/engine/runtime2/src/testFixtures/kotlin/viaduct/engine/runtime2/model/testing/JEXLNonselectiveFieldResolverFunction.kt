@@ -25,10 +25,13 @@ import viaduct.engine.runtime2.model.EngineErrorData
 import viaduct.engine.runtime2.model.EngineErrorDataReadException
 import viaduct.engine.runtime2.model.EngineInputData
 import viaduct.engine.runtime2.model.ResolverOutputData
+import viaduct.engine.runtime2.model.RootFieldReferenceData
 import viaduct.engine.runtime2.model.Runtime2EngineObjectData
+import viaduct.engine.runtime2.model.registry.NodeResolverFunction
 import viaduct.engine.runtime2.model.registry.NonselectiveFieldResolverFunction
 import viaduct.engine.runtime2.model.registry.ResolutionExecutionContext
 import viaduct.engine.runtime2.model.registry.VariablesProviderFunction
+import viaduct.engine.runtime2.model.registry.nodeResolverOf
 import viaduct.engine.runtime2.model.requireType
 import viaduct.engine.runtime2.schema.SourceSchemaAdapter
 import viaduct.engine.runtime2.schema.ViaductAndGJSchema
@@ -46,6 +49,32 @@ fun createJEXLNonselectiveFieldResolverFunction(
     hasObjectFragment: Boolean = false,
     hasQueryFragment: Boolean = false,
 ): NonselectiveFieldResolverFunction = PreparedJEXLResolver(schemas, field, script, hasObjectFragment, hasQueryFragment)::invoke
+
+fun createJEXLNodeResolverFunction(
+    schemas: ViaductAndGJSchema,
+    type: ViaductSchema.Object,
+    script: String,
+): NodeResolverFunction {
+    val coordinate = "${type.name}/@nodeResolver"
+    val prepared = prepareJEXLScript(coordinate, script)
+    val adapter = JEXLOutputAdapter(schemas)
+    return nodeResolverOf { id ->
+        withContext(jexlDispatcher) {
+            val bindings = MapContext()
+            bindings.set("id", id)
+            bindings.set("error", JEXLError)
+            bindings.set("ref", JEXLReferenceCallable(schemas))
+            val output = prepared.evaluate(bindings)
+            if (output is Map<*, *>) {
+                require("id" !in output) { "$coordinate supplies id from the Node identity" }
+                adapter.convert(ViaductSchema.TypeExpr(type), output + ("id" to id), coordinate)
+            } else {
+                require(output == null || output === JEXLError || output is RootFieldReferenceData) { "$coordinate requires an object or reference" }
+                adapter.convert(ViaductSchema.TypeExpr(type), output, coordinate)
+            }
+        }
+    }
+}
 
 fun createJEXLVariablesProviderFunction(
     field: ViaductSchema.ObjectField,
@@ -85,7 +114,7 @@ private fun prepareJEXLScript(
                 .annotation(false),
         )
         .permissions(
-            JexlPermissions.ClassPermissions(JEXLQueryCallable::class.java).compose(
+            JexlPermissions.ClassPermissions(JEXLQueryCallable::class.java, JEXLReferenceCallable::class.java).compose(
                 "viaduct.engine.runtime2.model.testing { +JEXLObjectValue { get(); } }",
                 "java.lang { Object { getClass(); } }",
             ),
@@ -102,7 +131,7 @@ private fun requireJEXLArgumentNames(
     field: ViaductSchema.ObjectField,
     coordinate: String
 ) {
-    require(field.args.none { it.name in setOf("query", "objectValue", "queryValue", "error") }) {
+    require(field.args.none { it.name in setOf("query", "objectValue", "queryValue", "error", "ref") }) {
         "$coordinate has an argument colliding with a JEXL resolver binding"
     }
 }
@@ -157,12 +186,10 @@ private class PreparedJEXLResolver(
     private val coordinate = "${field.containingDef.name}/${field.name}"
     private val sourceSchema = SourceSchemaAdapter(schemas.loweredSchema)
     private val script = prepareJEXLScript(coordinate, source)
+    private val outputAdapter = JEXLOutputAdapter(schemas)
 
     init {
         requireJEXLArgumentNames(field, coordinate)
-        require(field.args.all { !it.type.isList && it.type.baseTypeDef.name == "Int" }) {
-            "$coordinate JEXL resolver arguments must be integers"
-        }
     }
 
     suspend fun invoke(
@@ -176,21 +203,27 @@ private class PreparedJEXLResolver(
             val bridgeContext = currentCoroutineContext().minusKey(ContinuationInterceptor)
             val bindings = scriptBindings(field, arguments)
             bindings.set("query", JEXLQueryCallable(schemas, executionContext, bridgeContext))
+            bindings.set("ref", JEXLReferenceCallable(schemas))
             bindings.set("objectValue", if (hasObjectFragment) JEXLObjectValue(objectValue) else null)
             bindings.set("queryValue", if (hasQueryFragment) JEXLObjectValue(queryValue) else null)
             // Subqueries must be able to use the engine dispatcher while JEXL blocks here.
             val output = script.evaluate(bindings)
-            sourceSchema.lowerOutput(field, convert(sourceSchema.typeExpr(field), output, coordinate))
+            sourceSchema.lowerOutput(field, outputAdapter.convert(sourceSchema.typeExpr(field), output, coordinate))
         }
     }
+}
 
-    private fun convert(
+private class JEXLOutputAdapter(private val schemas: ViaductAndGJSchema) {
+    private val sourceSchema = SourceSchemaAdapter(schemas.loweredSchema)
+    private val errorResult = EngineErrorData.of()
+
+    fun convert(
         type: ViaductSchema.TypeExpr<ViaductSchema.OutputTypeDef>,
         value: Any?,
         path: String,
     ): ResolverOutputData? {
-        if (value === JEXLError) return EngineErrorData.of()
-        if (value == null) return null
+        if (value === JEXLError) return errorResult
+        if (value == null || value is RootFieldReferenceData) return value
         if (type.isList) {
             val elements = when (value) {
                 is List<*> -> value
@@ -223,13 +256,19 @@ private class PreparedJEXLResolver(
                     require(name is String) { "$path object keys must be field names" }
                     if (name != "__typename") {
                         val child = sourceSchema.field(concrete.name, name)
-                        field(name) setTo convert(sourceSchema.typeExpr(child), item, "$path.$name")
+                        field(name) setTo sourceSchema.lowerOutput(child, convert(sourceSchema.typeExpr(child), item, "$path.$name"))
                     }
                 }
             }
         }
-        require(declared.name == "Int") { "$path has unsupported JEXL result type ${declared.name}" }
-        return scriptInteger(value, path)
+        return when (declared.name) {
+            "Int" -> scriptInteger(value, path)
+            "ID" -> {
+                require(value is String || value is Int || value is Long || value is BigInteger) { "$path requires an ID" }
+                value.toString()
+            }
+            else -> throw IllegalArgumentException("$path has unsupported JEXL result type ${declared.name}")
+        }
     }
 }
 
@@ -297,5 +336,31 @@ class JEXLQueryCallable internal constructor(
             preserveSourceResponseKeys = true,
         )
         return JEXLObjectValue(runBlocking(bridgeContext) { executionContext.resolveSelectionSet(forest) })
+    }
+}
+
+class JEXLReferenceCallable internal constructor(schemas: ViaductAndGJSchema) {
+    private val sourceSchema = SourceSchemaAdapter(schemas.loweredSchema)
+
+    fun call(path: String): RootFieldReferenceData = call(path, emptyMap())
+
+    fun call(
+        path: String,
+        arguments: Map<String, Any?>
+    ): RootFieldReferenceData {
+        require(Regex("[_A-Za-z][_0-9A-Za-z]*(\\.[_A-Za-z][_0-9A-Za-z]*)*").matches(path)) { "Invalid root-field-reference path: $path" }
+        var typeName = "Query"
+        val fields = path.split('.').map { name ->
+            val field = sourceSchema.field(typeName, name)
+            require(field is ViaductSchema.ObjectField) { "$path requires object fields" }
+            typeName = sourceSchema.typeExpr(field).baseTypeDef.name
+            field
+        }
+        val values = arguments.mapValues { (name, value) -> scriptInput(value, "reference '$path' argument '$name'") }
+        return try {
+            RootFieldReferenceData.of(fields, values)
+        } catch (cause: ClassCastException) {
+            throw IllegalArgumentException("Invalid reference arguments for $path", cause)
+        }
     }
 }

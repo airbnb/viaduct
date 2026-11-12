@@ -271,8 +271,8 @@ interface VariablesProviderResolverContract : QueryFragmentVariablesResolverCont
                           }
                           script: "objectValue.left + objectValue.right"
                         )
-                      left(value: Int!): Int! @resolver(result: "sum(${'$'}value)")
-                      right(value: Int!): Int! @resolver(result: "sum(${'$'}value)")
+                      left(value: Int!): Int! @resolver(script: "value")
+                      right(value: Int!): Int! @resolver(script: "value")
                     }
                     """.trimIndent(),
             )
@@ -325,10 +325,10 @@ interface VariablesProviderResolverContract : QueryFragmentVariablesResolverCont
                       result: Int
                         @resolver(
                           of: "consume(value: ${'$'}provided)"
-                          providerVars: {provided: null}
-                          result: "value(consume)"
+                          vars: {names: ["provided"], script: "{'provided': null}"}
+                          script: "objectValue.consume"
                         )
-                      consume(value: Int): Int @resolver(result: "value(${'$'}value)")
+                      consume(value: Int): Int @resolver(script: "value")
                     }
                     """.trimIndent(),
             )
@@ -351,10 +351,10 @@ interface VariablesProviderResolverContract : QueryFragmentVariablesResolverCont
                       result: Int
                         @resolver(
                           of: "consume(value: ${'$'}provided)"
-                          providerVars: {provided: "ERROR"}
-                          result: "value(consume)"
+                          vars: {names: ["provided"], script: "error"}
+                          script: "objectValue.consume"
                         )
-                      consume(value: Int): Int @resolver(result: "value(${'$'}value)")
+                      consume(value: Int): Int @resolver(script: "value")
                     }
                     """.trimIndent(),
             )

@@ -14,7 +14,7 @@ interface PassiveObjectPathProviderResolverContract : ResolverContract {
                 schemaSDL =
                     """
                     extend type Query {
-                      item: Item! @resolver(result: {provider: {}})
+                      item: Item! @resolver(script: "{'provider': {:}}")
                     }
 
                     type Item {
@@ -22,15 +22,15 @@ interface PassiveObjectPathProviderResolverContract : ResolverContract {
                         @resolver(
                           of: "provider { value } consume(value: ${'$'}value)"
                           pathVars: [{name: "value", path: ["provider", "value"]}]
-                          result: "sum(consume)"
+                          script: "(objectValue.consume == null ? 0 : objectValue.consume)"
                         )
                       provider: Provider!
                       consume(value: Int!): Int!
-                        @resolver(result: "sum(${'$'}value)")
+                        @resolver(script: "value")
                     }
 
                     type Provider {
-                      value: Int! @resolver(result: 11)
+                      value: Int! @resolver(script: "11")
                     }
                     """.trimIndent(),
             )

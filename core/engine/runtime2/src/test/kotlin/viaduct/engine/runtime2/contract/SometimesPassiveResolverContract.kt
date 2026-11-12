@@ -38,11 +38,11 @@ interface SometimesPassiveResolverContract : ResolverContract {
                 schemaSDL =
                     """
                     extend type Query {
-                      item: Item! @resolver(result: {computed: 7})
+                      item: Item! @resolver(script: "{'computed': 7}")
                     }
 
                     type Item {
-                      computed: Int! @resolver(result: 99)
+                      computed: Int! @resolver(script: "99")
                     }
                     """.trimIndent(),
             )
@@ -77,16 +77,16 @@ interface SometimesPassiveResolverContract : ResolverContract {
                     """
                     extend type Query {
                       item: Item!
-                        @resolver(result: {computed: {leaf: 7}})
+                        @resolver(script: "{'computed': {'leaf': 7}}")
                     }
 
                     type Item {
                       computed: Computed!
-                        @resolver(result: {leaf: 99})
+                        @resolver(script: "{'leaf': 99}")
                     }
 
                     type Computed {
-                      leaf: Int! @resolver(result: 101)
+                      leaf: Int! @resolver(script: "101")
                     }
                     """.trimIndent(),
             )
@@ -213,13 +213,13 @@ interface SometimesPassiveObjectFragmentResolverContract : ResolverContract {
                 schemaSDL =
                     """
                     extend type Query {
-                      item: Item! @resolver(result: {computed: 7})
+                      item: Item! @resolver(script: "{'computed': 7}")
                     }
 
                     type Item {
-                      seed: Int! @resolver(result: 1)
+                      seed: Int! @resolver(script: "1")
                       computed: Int!
-                        @resolver(of: "seed", result: 99)
+                        @resolver(of: "seed", script: "99")
                     }
                     """.trimIndent(),
             )
@@ -252,13 +252,13 @@ interface SometimesPassiveObjectFragmentResolverContract : ResolverContract {
                 schemaSDL =
                     """
                     extend type Query {
-                      item: Item! @resolver(result: {seed: 3})
+                      item: Item! @resolver(script: "{'seed': 3}")
                     }
 
                     type Item {
-                      seed: Int! @resolver(result: 1)
+                      seed: Int! @resolver(script: "1")
                       computed: Int!
-                        @resolver(of: "seed", result: 99)
+                        @resolver(of: "seed", script: "99")
                     }
                     """.trimIndent(),
             )
@@ -298,7 +298,7 @@ interface SometimesPassiveObjectPathResolverContract : ResolverContract {
                     """
                     extend type Query {
                       item: Item!
-                        @resolver(result: {provider: {value: 11}})
+                        @resolver(script: "{'provider': {'value': 11}}")
                     }
 
                     type Item {
@@ -306,13 +306,13 @@ interface SometimesPassiveObjectPathResolverContract : ResolverContract {
                         @resolver(
                           of: "provider { value } consume(value: ${'$'}value)"
                           pathVars: [{name: "value", path: ["provider", "value"]}]
-                          result: "sum(consume)"
+                          script: "(objectValue.consume == null ? 0 : objectValue.consume)"
                         )
                       provider: Provider!
-                        @resolver(of: "seed", result: {value: 99})
-                      seed: Int! @resolver(result: 1)
+                        @resolver(of: "seed", script: "{'value': 99}")
+                      seed: Int! @resolver(script: "1")
                       consume(value: Int!): Int!
-                        @resolver(result: "sum(${'$'}value)")
+                        @resolver(script: "value")
                     }
 
                     type Provider {
@@ -349,7 +349,7 @@ interface SometimesPassiveObjectPathResolverContract : ResolverContract {
                 schemaSDL =
                     """
                     extend type Query {
-                      item: Item! @resolver(result: {computed: 11})
+                      item: Item! @resolver(script: "{'computed': 11}")
                     }
 
                     type Item {
@@ -357,11 +357,11 @@ interface SometimesPassiveObjectPathResolverContract : ResolverContract {
                         @resolver(
                           of: "provider consume(value: ${'$'}value)"
                           pathVars: [{name: "value", path: ["provider"]}]
-                          result: "sum(consume)"
+                          script: "(objectValue.consume == null ? 0 : objectValue.consume)"
                         )
-                      provider: Int! @resolver(result: 99)
+                      provider: Int! @resolver(script: "99")
                       consume(value: Int!): Int!
-                        @resolver(result: "sum(${'$'}value)")
+                        @resolver(script: "value")
                     }
                     """.trimIndent(),
             )

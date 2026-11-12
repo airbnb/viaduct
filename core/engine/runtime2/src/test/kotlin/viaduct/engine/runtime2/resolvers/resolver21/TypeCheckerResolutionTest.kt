@@ -52,7 +52,7 @@ class TypeCheckerResolutionTest {
                 schemaSDL =
                     """
                     extend type Query {
-                      item: Item! @resolver(result: {id: 1})
+                      item: Item! @resolver(script: "{'id': 1}")
                     }
 
                     type Item {
@@ -105,8 +105,8 @@ class TypeCheckerResolutionTest {
                     schemaSDL =
                         """
                         extend type Query {
-                          denied: Denied! @resolver(result: {id: 1})
-                          failed: Failed! @resolver(result: {id: 2})
+                          denied: Denied! @resolver(script: "{'id': 1}")
+                          failed: Failed! @resolver(script: "{'id': 2}")
                         }
 
                         type Denied { id: Int! }
@@ -149,8 +149,8 @@ class TypeCheckerResolutionTest {
                 schemaSDL =
                     """
                     extend type Query {
-                      checked: Int! @resolver(result: 1)
-                      raw: Item! @resolver(result: {id: 2})
+                      checked: Int! @resolver(script: "1")
+                      raw: Item! @resolver(script: "{'id': 2}")
                     }
 
                     type Item { id: Int! }
@@ -208,7 +208,7 @@ class TypeCheckerResolutionTest {
                 schemaSDL =
                     """
                     extend type Query {
-                      root: Root! @resolver(result: {value: 1, child: {}})
+                      root: Root! @resolver(script: "{'value': 1, 'child': {:}}")
                     }
 
                     type Root {
@@ -254,7 +254,7 @@ class TypeCheckerResolutionTest {
                     schemaSDL =
                         """
                         extend type Query {
-                          value: Int! @resolver(result: 1)
+                          value: Int! @resolver(script: "1")
                         }
                         """.trimIndent(),
                     typeCheckers = { schema ->

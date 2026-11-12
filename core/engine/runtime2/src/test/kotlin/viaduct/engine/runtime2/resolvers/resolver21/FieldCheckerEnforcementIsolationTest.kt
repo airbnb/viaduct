@@ -22,7 +22,7 @@ class FieldCheckerEnforcementIsolationTest {
                 schemaSDL =
                     """
                     extend type Query {
-                      denied: Int! @resolver(result: 7)
+                      denied: Int! @resolver(script: "7")
                     }
                     """.trimIndent(),
                 fieldCheckers = { schema ->

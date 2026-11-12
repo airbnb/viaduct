@@ -119,16 +119,16 @@ class NullAndErrorCompletionTest : ExecutionTestFixtureResource {
         val RESOLVERS =
             """
             extend type Query {
-              healthy: Int! @resolver(result: 1)
-              nullValue: Int @resolver(result: null)
+              healthy: Int! @resolver(script: "1")
+              nullValue: Int @resolver(script: "null")
               user: User!
-                @resolver(result: {requiredValue: 7, optionalNote: null})
-              items: [Int] @resolver(result: [1, null, 3])
-              failedValue: Int @resolver(result: "ERROR")
+                @resolver(script: "{'requiredValue': 7, 'optionalNote': null}")
+              items: [Int] @resolver(script: "[1, null, 3]")
+              failedValue: Int @resolver(script: "error")
               failedUser: User
-                @resolver(result: {requiredValue: "ERROR"})
-              failedItems: [Int] @resolver(result: [1, "ERROR", 3])
-              strictItems: [Int!] @resolver(result: [1, "ERROR", 3])
+                @resolver(script: "{'requiredValue': error}")
+              failedItems: [Int] @resolver(script: "[1, error, 3]")
+              strictItems: [Int!] @resolver(script: "[1, error, 3]")
             }
 
             type User {

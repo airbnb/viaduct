@@ -21,7 +21,7 @@ import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
 import viaduct.engine.runtime2.schema.operationSelectionsFrom
 
 class ResolutionRecordingIntegrationTest : ResolverContract, ResolutionDispatcherResource {
-    private val world = TestWorld.fromDSL("extend type Query { value: Int! @resolver(result: 7) }")
+    private val world = TestWorld.fromDSL("extend type Query { value: Int! @resolver(script: \"7\") }")
 
     @Test
     fun `JUnit associates a recording with the concrete test class and method`() {

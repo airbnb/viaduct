@@ -378,64 +378,64 @@ private fun queryProviderWorld(): TestWorld {
 private val RUNTIME_SCHEMA =
     """
     extend type Query {
-      items: [[[Item]]] @resolver(result: [[[{passive: null, passiveError: "ERROR", child: {base: 7}}, {passive: null, passiveError: "ERROR", child: {base: 7}}]]])
+      items: [[[Item]]] @resolver(script: "[[[{'passive': null, 'passiveError': error, 'child': {'base': 7}}, {'passive': null, 'passiveError': error, 'child': {'base': 7}}]]]")
       mixed(seed: Int!): Int @resolver(
         of: "source { value } argument: consume(value: ${'$'}seed) field: consume(value: ${'$'}fromSource)"
         pathVars: [{name: "fromSource", path: ["source", "value"]}]
-        result: 1
+        script: "1"
       )
       mixedAgain(seed: Int!): Int @resolver(
         of: "source { value } argument: consume(value: ${'$'}fromSource)"
         pathVars: [{name: "fromSource", path: ["source", "value"]}]
-        result: 1
+        script: "1"
       )
       multiDependency: Int @resolver(
         of: "source { value } otherSource { value } argument: consumePair(first: ${'$'}fromSource, second: ${'$'}fromOther)"
         pathVars: [{name: "fromSource", path: ["source", "value"]}, {name: "fromOther", path: ["otherSource", "value"]}]
-        result: 1
+        script: "1"
       )
-      source: Source @resolver(result: {value: 7})
-      otherSource: Source @resolver(result: {value: 7})
-      invalidSource: Source @resolver(result: {value: "ERROR"})
-      nullableSource: Source @resolver(result: {value: null})
-      consume(value: Int): Int @resolver(result: 1)
-      consumePair(first: Int, second: Int): Int @resolver(result: 1)
+      source: Source @resolver(script: "{'value': 7}")
+      otherSource: Source @resolver(script: "{'value': 7}")
+      invalidSource: Source @resolver(script: "{'value': error}")
+      nullableSource: Source @resolver(script: "{'value': null}")
+      consume(value: Int): Int @resolver(script: "1")
+      consumePair(first: Int, second: Int): Int @resolver(script: "1")
       bad: Int @resolver(
         of: "invalidSource { value } consume(value: ${'$'}fromInvalidSource)"
         pathVars: [{name: "fromInvalidSource", path: ["invalidSource", "value"]}]
-        result: 1
+        script: "1"
       )
       nullableConsumer: Int @resolver(
         of: "nullableSource { value } argument: consume(value: ${'$'}fromNullable)"
         pathVars: [{name: "fromNullable", path: ["nullableSource", "value"]}]
-        result: 1
+        script: "1"
       )
-      nullable(input: Input): Item @resolver(result: null)
+      nullable(input: Input): Item @resolver(script: "null")
     }
     input Input { values: [Int] }
     type Source { value: Int }
     type Item {
-      passive: Int @resolver(result: 99)
-      passiveError: Int @resolver(result: 99)
-      active: Int @resolver(result: 7)
+      passive: Int @resolver(script: "99")
+      passiveError: Int @resolver(script: "99")
+      active: Int @resolver(script: "7")
       consumer: Int @resolver(
         of: "provider argument: consume(value: ${'$'}fromProvider)"
         pathVars: [{name: "fromProvider", path: ["provider"]}]
-        result: 1
+        script: "1"
       )
-      provider: Int @resolver(result: 7)
-      consume(value: Int): Int @resolver(result: 1)
-      child: Child @resolver(result: {})
+      provider: Int @resolver(script: "7")
+      consume(value: Int): Int @resolver(script: "1")
+      child: Child @resolver(script: "{:}")
     }
     type Child {
       base: Int
-      output: [Int] @resolver(result: "ERROR")
+      output: [Int] @resolver(script: "error")
       dependency: Int @resolver(
         of: "provider argument: consume(value: ${'$'}fromProvider)"
         pathVars: [{name: "fromProvider", path: ["provider"]}]
-        result: 1
+        script: "1"
       )
-      provider: Int @resolver(result: 7)
-      consume(value: Int): Int @resolver(result: 1)
+      provider: Int @resolver(script: "7")
+      consume(value: Int): Int @resolver(script: "1")
     }
     """.trimIndent()

@@ -35,13 +35,13 @@ class CheckerParentReadingResolverDemandTest : ResolutionDispatcherResource {
         val fixture = TestWorld.fromDSL(
             """
             extend type Query {
-              consumer: Int @resolver(result: 1)
-              root: Root @resolver(result: {label: 1, child: {}})
+              consumer: Int @resolver(script: "1")
+              root: Root @resolver(script: "{'label': 1, 'child': {:}}")
             }
             type Root { label: Int child: Child }
             type Child {
               parent: Root @parent
-              derived: Int @resolver(of: "parent { label }", result: 42)
+              derived: Int @resolver(of: "parent { label }", script: "42")
             }
             """.trimIndent(),
             fieldCheckers = { schemas ->

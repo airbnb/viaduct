@@ -66,14 +66,14 @@ open class TypeCheckerDemandOracleConditionTest : ResolutionDispatcherResource {
               trigger: Int! @resolver(
                 of: "source checked(value: ${'$'}bad)"
                 pathVars: [{name: "bad", path: ["source"]}]
-                result: 1
+                script: "1"
               )
-              source: Int! @resolver(result: "ERROR")
-              checked(value: Int!): Int! @resolver(result: 2)
-              raw: Raw! @resolver(result: {dependency: {token: 7}})
+              source: Int! @resolver(script: "error")
+              checked(value: Int!): Int! @resolver(script: "2")
+              raw: Raw! @resolver(script: "{'dependency': {'token': 7}}")
             }
             type Raw {
-              active: Int! @resolver(of: "dependency { token }", result: 3)
+              active: Int! @resolver(of: "dependency { token }", script: "3")
               dependency: Dependency!
             }
             type Dependency { token: Int! }
@@ -115,9 +115,9 @@ open class TypeCheckerDemandOracleConditionTest : ResolutionDispatcherResource {
     private fun exercise(enabled: Boolean?) {
         val typeChecks = AtomicInteger()
         val variables = if (enabled == null) {
-            "providerVars: {bad: \"ERROR\", enabled: false}"
+            "vars: {names: [\"bad\", \"enabled\"], script: \"error\"}"
         } else {
-            "pathVars: [{name: \"bad\", path: [\"source\"]}] providerVars: {enabled: $enabled}"
+            "pathVars: [{name: \"bad\", path: [\"source\"]}] vars: {names: [\"enabled\"], script: \"{'enabled': $enabled}\"}"
         }
         val world =
             TestWorld.fromDSL(
@@ -126,12 +126,12 @@ open class TypeCheckerDemandOracleConditionTest : ResolutionDispatcherResource {
                   trigger: Int! @resolver(
                     of: "${if (enabled == null) "" else "source "}item(value: ${'$'}bad) @include(if: ${'$'}enabled) { id }"
                     $variables
-                    result: 1
+                    script: "1"
                   )
-                  source: Int! @resolver(result: "ERROR")
-                  other: Int! @resolver(result: 2)
-                  item(value: Int!): Item! @resolver(of: "raw { token }", result: {id: 1})
-                  raw: Raw! @resolver(result: {token: 7})
+                  source: Int! @resolver(script: "error")
+                  other: Int! @resolver(script: "2")
+                  item(value: Int!): Item! @resolver(of: "raw { token }", script: "{'id': 1}")
+                  raw: Raw! @resolver(script: "{'token': 7}")
                 }
                 type Item { id: Int! }
                 type Raw { token: Int! }

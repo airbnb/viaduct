@@ -43,15 +43,12 @@ class RecordingResolutionObserverTest : ResolutionDispatcherResource {
         val world = TestWorld.fromDSL(
             """
             extend type Query {
-              container: Container @resolver(result: {viewer: {id: "alias"}})
-              redirect: User @resolver(result: {id: "canonical"})
+              container: Container @resolver(script: "{'viewer': {'__typename': 'User', 'id': 'alias'}}")
+              redirect: User @resolver(script: "{'__typename': 'User', 'id': 'canonical'}")
             }
             type Container { viewer: User }
             type User implements Node
-              @nodeResolver(result: [
-                {id: "alias", result: {__ref: "redirect"}},
-                {id: "canonical", result: {score: 7}}
-              ]) {
+              @nodeResolver(ids: ["alias", "canonical"], script: "id == 'alias' ? ref('redirect') : {'score': 7}") {
               id: ID!
               score: Int
             }
@@ -85,12 +82,12 @@ class RecordingResolutionObserverTest : ResolutionDispatcherResource {
     fun `real resolution records task ancestry OER growth and invocation facts`() {
         val world = TestWorld.fromDSL(
             """
-            extend type Query { viewer: User! @resolver(result: {first: 2, last: 3}) }
+            extend type Query { viewer: User! @resolver(script: "{'first': 2, 'last': 3}") }
             type User {
               first: Int!
               last: Int!
-              display: Int! @resolver(of: "first last", result: "sum(first, last)")
-              greeting: Int! @resolver(of: "display", result: "sumplus1(display)")
+              display: Int! @resolver(of: "first last", script: "(objectValue.first == null ? 0 : objectValue.first) + (objectValue.last == null ? 0 : objectValue.last)")
+              greeting: Int! @resolver(of: "display", script: "1 + (objectValue.display == null ? 0 : objectValue.display)")
             }
             """.trimIndent(),
         )

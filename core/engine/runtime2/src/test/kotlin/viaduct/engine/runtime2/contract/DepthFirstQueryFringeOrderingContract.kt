@@ -101,13 +101,13 @@ interface DepthFirstQueryFringeOrderingContract : ResolverContract {
                 schemaSDL =
                     """
                     extend type Query {
-                      container: Container! @resolver(result: {})
-                      dependency: Dependency! @resolver(result: {})
+                      container: Container! @resolver(script: "{:}")
+                      dependency: Dependency! @resolver(script: "{:}")
                     }
                     type Container {
-                      owner: Int! @resolver(qf: "dependency { value }", result: "value(query:dependency.value)")
+                      owner: Int! @resolver(qf: "dependency { value }", script: "(queryValue.dependency == null ? null : queryValue.dependency.value)")
                     }
-                    type Dependency { value: Int! @resolver(result: 7) }
+                    type Dependency { value: Int! @resolver(script: "7") }
                     """.trimIndent(),
             )
 
@@ -134,13 +134,13 @@ interface DepthFirstQueryFringeOrderingContract : ResolverContract {
                 schemaSDL =
                     """
                     extend type Query {
-                      container: Container! @resolver(result: {child: {}})
-                      dependency: Int! @resolver(result: 7)
-                      target: Int! @resolver(qf: "dependency", result: "value(query:dependency)")
-                      after: Int! @resolver(of: "container { child { value } } target", result: 9)
+                      container: Container! @resolver(script: "{'child': {:}}")
+                      dependency: Int! @resolver(script: "7")
+                      target: Int! @resolver(qf: "dependency", script: "queryValue.dependency")
+                      after: Int! @resolver(of: "container { child { value } } target", script: "9")
                     }
                     type Container { child: Child! }
-                    type Child { value: Int! @resolver(result: 8) }
+                    type Child { value: Int! @resolver(script: "8") }
                     """.trimIndent(),
             )
 

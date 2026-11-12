@@ -50,14 +50,14 @@ interface GroundedTypeCheckerFragmentContract {
         val fixture = TestWorld.fromDSL(
             """
             extend type Query {
-              synthetic: Item @resolver(result: {value: 1, children: [{value: 2}]})
-              ordinary: Item @resolver(result: {value: 3})
-              marker: Int @resolver(result: 7)
+              synthetic: Item @resolver(script: "{'value': 1, 'children': [{'value': 2}]}")
+              ordinary: Item @resolver(script: "{'value': 3}")
+              marker: Int @resolver(script: "7")
             }
             type Item {
               value: Int
               children: [Item]
-              required: Int @resolver(result: 9)
+              required: Int @resolver(script: "9")
             }
             """.trimIndent(),
             typeCheckers = { schemas ->
@@ -110,13 +110,13 @@ interface GroundedTypeCheckerFragmentContract {
                     schemaSDL =
                         """
                     extend type Query {
-                      checked: Int! @resolver(result: 1)
-                      rawRoot: Root! @resolver(result: {id: 7, child: {}})
+                      checked: Int! @resolver(script: "1")
+                      rawRoot: Root! @resolver(script: "{'id': 7, 'child': {:}}")
                     }
 
                     type Root {
                       id: Int!
-                      active: Int! @resolver(of: "child { parent { id } }", result: 1)
+                      active: Int! @resolver(of: "child { parent { id } }", script: "1")
                       child: Child!
                     }
 

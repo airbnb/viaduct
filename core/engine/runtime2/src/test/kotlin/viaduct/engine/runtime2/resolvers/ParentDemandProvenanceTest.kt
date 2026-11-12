@@ -46,7 +46,7 @@ class ParentDemandProvenanceTest {
         val worldFixture = TestWorld.fromDSL(
             """
             extend type Query {
-              organization: Organization @resolver(result: {})
+              organization: Organization @resolver(script: "{:}")
             }
             type Organization {
               name: String
@@ -54,7 +54,7 @@ class ParentDemandProvenanceTest {
             }
             type Company {
               parent: Organization @parent
-              displayName: String @resolver(of: "parent { name }", result: null)
+              displayName: String @resolver(of: "parent { name }", script: "null")
             }
             """.trimIndent(),
         )

@@ -86,10 +86,10 @@ interface VariableSelectionIdentityResolverContract : ResolverContract {
                       result: Int!
                         @resolver(
                           of: "payload(arg: 1) { one } payload(arg: 1) { two }"
-                          result: "sum(payload.one, payload.two)"
+                          script: "(objectValue.payload == null ? 0 : objectValue.payload.one == null ? 0 : objectValue.payload.one) + (objectValue.payload == null ? 0 : objectValue.payload.two == null ? 0 : objectValue.payload.two)"
                         )
                       payload(arg: Int!): Payload!
-                        @resolver(result: {one: 3, two: 5})
+                        @resolver(script: "{'one': 3, 'two': 5}")
                     }
 
                     type Payload {
@@ -132,10 +132,10 @@ interface VariableSelectionIdentityResolverContract : ResolverContract {
                       result(seed: Int!, other: Int!): Int!
                         @resolver(
                           of: "ground: payload(arg: 1) { one } seedValue: payload(arg: ${'$'}seed) { two } seedValue: payload(arg: ${'$'}seed) { two } otherValue: payload(arg: ${'$'}other) { one }"
-                          result: "sum(ground.one, seedValue.two)"
+                          script: "(objectValue.ground == null ? 0 : objectValue.ground.one == null ? 0 : objectValue.ground.one) + (objectValue.seedValue == null ? 0 : objectValue.seedValue.two == null ? 0 : objectValue.seedValue.two)"
                         )
                       payload(arg: Int!): Payload!
-                        @resolver(result: {one: 3, two: 5})
+                        @resolver(script: "{'one': 3, 'two': 5}")
                     }
 
                     type Payload {
@@ -208,16 +208,16 @@ interface VariableSelectionIdentityResolverContract : ResolverContract {
                 schemaSDL =
                     """
                     extend type Query {
-                      root: Root! @resolver(result: {nested: {}})
+                      root: Root! @resolver(script: "{'nested': {:}}")
                       result: Int!
                         @resolver(
                           of: "source root { driver(value: ${'$'}value) }"
                           pathVars: [{name: "value", path: ["source"]}]
-                          result: "sum(root.driver)"
+                          script: "(objectValue.root == null ? 0 : objectValue.root.driver == null ? 0 : objectValue.root.driver)"
                         )
                       source: Int!
-                        @resolver(of: "delay", result: "sum(delay)")
-                      delay: Int! @resolver(result: 1)
+                        @resolver(of: "delay", script: "(objectValue.delay == null ? 0 : objectValue.delay)")
+                      delay: Int! @resolver(script: "1")
                     }
 
                     type Root {
@@ -225,13 +225,13 @@ interface VariableSelectionIdentityResolverContract : ResolverContract {
                       driver(value: Int!): Int!
                         @resolver(
                           of: "nested { child(value: ${'$'}value) { two } }"
-                          result: "sum(nested.child.two)"
+                          script: "(objectValue.nested == null ? 0 : objectValue.nested.child == null ? 0 : objectValue.nested.child.two == null ? 0 : objectValue.nested.child.two)"
                         )
                     }
 
                     type Nested {
                       child(value: Int!): Payload!
-                        @resolver(result: {one: 3, two: 5})
+                        @resolver(script: "{'one': 3, 'two': 5}")
                     }
 
                     type Payload {

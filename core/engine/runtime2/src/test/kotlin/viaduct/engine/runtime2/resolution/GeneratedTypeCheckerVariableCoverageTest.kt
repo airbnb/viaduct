@@ -85,18 +85,18 @@ class GeneratedTypeCheckerVariableCoverageTest : ResolverContract, ResolutionDis
     ): ObjectEngineResult = operation.resolveWithTestDispatcher(selections)
 
     private fun observation(errorSource: ProviderFragment? = null): GeneratedResolutionObservation {
-        val objectToken = if (errorSource == ProviderFragment.OBJECT) "\"ERROR\"" else "1"
-        val queryToken = if (errorSource == ProviderFragment.QUERY) "\"ERROR\"" else "2"
+        val objectToken = if (errorSource == ProviderFragment.OBJECT) "error" else "1"
+        val queryToken = if (errorSource == ProviderFragment.QUERY) "error" else "2"
         val testWorld = TestWorld.fromDSL(
             """
             extend type Query {
-              item: Item! @resolver(result: {source: {token: $objectToken}})
-              source: Source! @resolver(result: {token: $queryToken})
-              echo(value: Int!): Int! @resolver(result: "value(${'$'}value)")
+              item: Item! @resolver(script: "{'source': {'token': $objectToken}}")
+              source: Source! @resolver(script: "{'token': $queryToken}")
+              echo(value: Int!): Int! @resolver(script: "value")
             }
             type Item {
               source: Source!
-              echo(value: Int!): Int! @resolver(result: "value(${'$'}value)")
+              echo(value: Int!): Int! @resolver(script: "value")
             }
             type Source { token: Int! }
             """.trimIndent(),

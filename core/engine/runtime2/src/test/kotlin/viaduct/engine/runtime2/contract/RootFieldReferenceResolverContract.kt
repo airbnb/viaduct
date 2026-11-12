@@ -666,20 +666,20 @@ interface QueryFragmentRootFieldReferenceResolverContract : QueryFragmentResolve
         val world = TestWorld.fromDSL(
             """
             extend type Query {
-              container: Container @resolver(result: {value: {__ref: "namespace.first", arguments: {seed: 7}}})
+              container: Container @resolver(script: "{'value': ref('namespace.first', {'seed': 7})}")
               namespace: Namespace
-              echo(value: Int): Int @resolver(result: "value(${'$'}value)")
+              echo(value: Int): Int @resolver(script: "value")
             }
             type Container {
-              value: Int @resolver(result: 999)
+              value: Int @resolver(script: "999")
             }
             type Namespace {
               first(seed: Int): Int
                 @resolver(
                   qf: "echoed: echo(value: ${'$'}seed)"
-                  result: {__ref: "namespace.second", arguments: {value: "sumplus1(query:echoed)"}}
+                  script: "ref('namespace.second', {'value': 1 + (queryValue.echoed == null ? 0 : queryValue.echoed)})"
                 )
-              second(value: Int): Int @resolver(result: "value(${'$'}value)")
+              second(value: Int): Int @resolver(script: "value")
             }
             """.trimIndent(),
         )

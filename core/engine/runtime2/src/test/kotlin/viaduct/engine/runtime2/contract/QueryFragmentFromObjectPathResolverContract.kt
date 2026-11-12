@@ -13,14 +13,14 @@ interface QueryFragmentFromObjectPathResolverContract : ResolverContract {
                 schemaSDL =
                     """
                     extend type Query {
-                      provider: Int! @resolver(result: 7)
-                      source(value: Int!): Int! @resolver(result: "value(${'$'}value)")
+                      provider: Int! @resolver(script: "7")
+                      source(value: Int!): Int! @resolver(script: "value")
                       consumer: Int!
                         @resolver(
                           of: "provided: provider"
                           qf: "querySide: source(value: ${'$'}providedValue)"
                           pathVars: [{name: "providedValue", path: ["provided"]}]
-                          result: "value(query:querySide)"
+                          script: "queryValue.querySide"
                         )
                     }
                     """.trimIndent(),

@@ -33,9 +33,9 @@ open class FieldCheckerClosureTest : ResolutionDispatcherResource {
             val world = TestWorld.fromDSL(
                 """
             extend type Query {
-              checked: Int! @resolver(result: 1)
-              raw: Int! @resolver(of: "protected", result: 2)
-              protected: Int! @resolver(result: 3)
+              checked: Int! @resolver(script: "1")
+              raw: Int! @resolver(of: "protected", script: "2")
+              protected: Int! @resolver(script: "3")
             }
                 """.trimIndent(),
                 fieldCheckers = { schema ->
@@ -104,7 +104,7 @@ open class FieldCheckerClosureTest : ResolutionDispatcherResource {
                 """
                 extend type Query {
                   checked(seed: Int!): Int!
-                    @resolver(of: "checked(seed: ${'$'}seed) @skip(if: true)", result: 1)
+                    @resolver(of: "checked(seed: ${'$'}seed) @skip(if: true)", script: "1")
                 }
                 """.trimIndent(),
             )
@@ -118,8 +118,8 @@ open class FieldCheckerClosureTest : ResolutionDispatcherResource {
             TestWorld.fromDSL(
                 """
             extend type Query {
-              checked(seed: Int!): Int! @resolver(result: 1)
-              bridge(seed: Int!): Int! @resolver(of: "checked(seed: ${'$'}seed)", result: 2)
+              checked(seed: Int!): Int! @resolver(script: "1")
+              bridge(seed: Int!): Int! @resolver(of: "checked(seed: ${'$'}seed)", script: "2")
             }
                 """.trimIndent(),
                 fieldCheckers = { schema ->

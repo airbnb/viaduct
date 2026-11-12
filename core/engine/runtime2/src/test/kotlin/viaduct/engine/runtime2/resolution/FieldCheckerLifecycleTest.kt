@@ -102,9 +102,9 @@ open class FieldCheckerLifecycleTest : ResolutionDispatcherResource {
         val world = TestWorld.fromDSL(
             """
             extend type Query {
-              checked: Int! @resolver(result: 1)
-              dependency: Int! @resolver(of: "protected", result: 7)
-              protected: Int! @resolver(result: 9)
+              checked: Int! @resolver(script: "1")
+              dependency: Int! @resolver(of: "protected", script: "7")
+              protected: Int! @resolver(script: "9")
             }
             """.trimIndent(),
             fieldCheckers = { schema ->
@@ -151,8 +151,8 @@ open class FieldCheckerLifecycleTest : ResolutionDispatcherResource {
         TestWorld.fromDSL(
             """
         extend type Query {
-          checked: Int! @resolver(result: 1)
-          dependency(value: Int): Int @resolver(result: "value(${'$'}value)")
+          checked: Int! @resolver(script: "1")
+          dependency(value: Int): Int @resolver(script: "value")
         }
             """.trimIndent(),
             fieldCheckers = { schema ->

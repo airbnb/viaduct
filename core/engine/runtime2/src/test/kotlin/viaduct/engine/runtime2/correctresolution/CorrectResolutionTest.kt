@@ -166,7 +166,7 @@ class CorrectResolutionTest : ResolutionDispatcherResource {
 
     @Test
     fun `invalid results cannot supply validated reference evidence`() {
-        val fixture = TestWorld.fromDSL("extend type Query { value: Int! @resolver(result: 7) }")
+        val fixture = TestWorld.fromDSL("extend type Query { value: Int! @resolver(script: \"7\") }")
         val world = fixture.assumptions
         val result = world.engineResultOf("Query") { "value" resolvesTo 8 }
         val selections = fixture.schemas.fragmentFrom("fragment Result on Query { value }").subselections.merge(world.schema.requireQueryTypeDef())
@@ -217,7 +217,7 @@ class CorrectResolutionTest : ResolutionDispatcherResource {
     @Test
     fun `direct resolve invocation and invocation through correctness replay do not cause invocation observations`(): Unit =
         runBlocking {
-            val testWorld = TestWorld.fromDSL("extend type Query { value: Int @resolver(result: 7) }")
+            val testWorld = TestWorld.fromDSL("extend type Query { value: Int @resolver(script: \"7\") }")
             val events = CopyOnWriteArrayList<ResolverInvocationObservation>()
             val observer = object : CorrectnessResolverObserver() {
                 override val onResolverInvocation: (ResolverInvocationObservation) -> Unit = { observation ->
@@ -837,10 +837,10 @@ class CorrectResolutionTest : ResolutionDispatcherResource {
                       consumer(seed: Int!): Int!
                         @resolver(
                           of: "source(value: ${'$'}seed)"
-                          result: "sum(source)"
+                          script: "(objectValue.source == null ? 0 : objectValue.source)"
                         )
                       source(value: Int!): Int!
-                        @resolver(result: "sum(${'$'}value)")
+                        @resolver(script: "value")
                     }
                     """.trimIndent(),
             )

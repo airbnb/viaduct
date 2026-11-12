@@ -96,10 +96,7 @@ interface EmptyObjectFragmentResolverContract :
                     extend type Query {
                       items: [Item!]!
                         @resolver(
-                          result: [
-                            {selected: 1, extra: 2},
-                            {selected: 3}
-                          ]
+                          script: "[{'selected': 1, 'extra': 2}, {'selected': 3}]"
                         )
                     }
 
@@ -133,10 +130,7 @@ interface EmptyObjectFragmentResolverContract :
                     extend type Query {
                       items: [Item!]!
                         @resolver(
-                          result: [
-                            {__typename: "A"},
-                            {__typename: "B"}
-                          ]
+                          script: "[{'__typename': 'A'}, {'__typename': 'B'}]"
                         )
                     }
 
@@ -146,11 +140,11 @@ interface EmptyObjectFragmentResolverContract :
 
                     type A implements Item {
                       computed(factor: Int = 2): Int!
-                        @resolver(result: "sum(${'$'}factor)")
+                        @resolver(script: "factor")
                     }
 
                     type B implements Item {
-                      computed: Int! @resolver(result: 3)
+                      computed: Int! @resolver(script: "3")
                     }
                     """.trimIndent(),
             )
@@ -191,7 +185,7 @@ interface EmptyObjectFragmentResolverContract :
                     """
                     extend type Query {
                       item: Item!
-                        @resolver(result: {__typename: "ConcreteItem"})
+                        @resolver(script: "{'__typename': 'ConcreteItem'}")
                     }
 
                     interface Item {
@@ -200,7 +194,7 @@ interface EmptyObjectFragmentResolverContract :
 
                     type ConcreteItem implements Item {
                       computed(factor: Int = 7): Int!
-                        @resolver(result: "sum(${'$'}factor)")
+                        @resolver(script: "factor")
                     }
                     """.trimIndent(),
             )

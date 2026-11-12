@@ -16,7 +16,7 @@ interface FrozenObjectResolutionContract : ResolverContract {
         val fixture = TestWorld.fromDSL(
             schemaSDL = """
                 extend type Query {
-                  root: Root! @resolver(result: {passive: {value: 1}, items: [[{}]]})
+                  root: Root! @resolver(script: "{'passive': {'value': 1}, 'items': [[{:}]]}")
                   unused: Int
                 }
                 type Root {
@@ -29,7 +29,7 @@ interface FrozenObjectResolutionContract : ResolverContract {
                   unused: Int
                 }
                 type Active {
-                  value: Int! @resolver(result: 2)
+                  value: Int! @resolver(script: "2")
                   unused: Int
                 }
             """.trimIndent(),

@@ -9,6 +9,7 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.runBlocking
+import org.apache.commons.jexl3.JexlException
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import viaduct.engine.api.EngineObjectData
@@ -38,6 +39,126 @@ import viaduct.graphql.schema.ViaductSchema
 
 class ResolverTestDslTest {
     @Test
+    fun `scripts construct references at scalar object and nested list positions`() {
+        val world = TestWorld.fromDSL(
+            """
+            extend type Query {
+              result(seed: Int): Container @resolver(script: "{'number': ref('namespace.number', {'value': seed, 'options': {'weights': [seed, null]}}), 'items': [[ref('item', {'seed': 3}), null]]}")
+              namespace: Namespace @resolver(script: "error")
+              item(seed: Int): Item @resolver(script: "{'value': seed}")
+            }
+            type Namespace { number(value: Int, options: Options): Int @resolver(script: "value") }
+            input Options { weights: [Int] }
+            type Container { number: Int items: [[Item]] }
+            type Item { value: Int }
+            """.trimIndent()
+        )
+        val field = world.schema.requireObjectField("Query", "result")
+        val result = assertIs<EngineObjectData.Sync>(world.apply(field, arguments = mapOf("seed" to 7)))
+        val number = assertIs<RootFieldReferenceData>(result.outputValue("number"))
+        assertEquals(listOf("namespace", "number"), number.path.map { it.name })
+        assertEquals(mapOf("value" to 7, "options" to mapOf("weights" to listOf(7, null))), number.arguments.fieldValues)
+        val items = assertIs<List<*>>(result.outputValue("items"))
+        val nested = assertIs<List<*>>(items.single())
+        assertEquals(mapOf("seed" to 3), assertIs<RootFieldReferenceData>(nested.first()).arguments.fieldValues)
+        assertNull(nested.last())
+        Executors.newSingleThreadExecutor().asCoroutineDispatcher().use { dispatcher ->
+            val root = SharedOperationContext.create(world.assumptions).resolve(world.schemas.operationSelectionsFrom("{ result(seed: 7) { number items { value } } }"), dispatcher)
+            val container = assertIs<ObjectEngineResult>(root.getCell(root.keys.single { it.field == field }).value.get())
+            assertEquals(7, container.getCell(container.keys.single { it.field.name == "number" }).value.get())
+        }
+    }
+
+    @Test
+    fun `scripted Node lookups preserve the first identity through reference tails`() {
+        val world = TestWorld.fromDSL(
+            """
+            extend type Query {
+              viewer(id: ID!): Node @resolver(script: "{'__typename': 'User', 'id': id}")
+              redirect: User @resolver(script: "{'id': 'canonical'}")
+            }
+            type User implements Node @nodeResolver(ids: ["alias", "canonical"], script: "id == 'alias' ? ref('redirect') : {'score': 7}") {
+              id: ID!
+              score: Int
+            }
+            """.trimIndent()
+        )
+        Executors.newSingleThreadExecutor().asCoroutineDispatcher().use { dispatcher ->
+            val root = SharedOperationContext.create(world.assumptions).resolve(world.schemas.operationSelectionsFrom("{ viewer(id: \"alias\") { id ... on User { score } } }"), dispatcher)
+            val user = assertIs<ObjectEngineResult>(root.getCell(root.keys.single { it.field.name == "viewer" }).value.get())
+            assertEquals(viaduct.engine.runtime2.model.IDEngineResult.of("alias"), user.getCell(user.keys.single { it.field.name == "id" }).value.get())
+            assertEquals(7, user.getCell(user.keys.single { it.field.name == "score" }).value.get())
+        }
+    }
+
+    @Test
+    fun `unregistered Node IDs resolve to null alongside registered Nodes`() {
+        val world = TestWorld.fromDSL(
+            """
+            extend type Query {
+              viewer(id: ID!): User @resolver(script: "{'id': id}")
+            }
+            type User implements Node @nodeResolver(ids: ["known"], script: "{'score': 7}") {
+              id: ID!
+              score: Int
+            }
+            """.trimIndent()
+        )
+        val field = world.schema.requireObjectField("Query", "viewer")
+        Executors.newSingleThreadExecutor().asCoroutineDispatcher().use { dispatcher ->
+            val root = SharedOperationContext.create(world.assumptions).resolve(
+                world.schemas.operationSelectionsFrom("{ known: viewer(id: \"known\") { id score } missing: viewer(id: \"missing\") { id score } }"),
+                dispatcher,
+            )
+            val users = root.keys.filter { it.field == field }.associate { key ->
+                assertIs<Arguments.Resolved>(key.arguments).fieldValues.getValue("id") to root.getCell(key).value.get()
+            }
+            assertNull(users.getValue("missing"))
+            val known = assertIs<ObjectEngineResult>(users.getValue("known"))
+            assertEquals(viaduct.engine.runtime2.model.IDEngineResult.of("known"), known.getCell(known.keys.single { it.field.name == "id" }).value.get())
+            assertEquals(7, known.getCell(known.keys.single { it.field.name == "score" }).value.get())
+        }
+    }
+
+    @Test
+    fun `reference scripts reject invalid paths arguments and error inputs`() {
+        for (script in listOf("ref('')", "ref('missing')", "ref('items')", "ref('target', {'value': error})", "ref('target', {'unknown': 1})")) {
+            val world = TestWorld.fromDSL(
+                """
+                extend type Query {
+                  result: Int @resolver(script: "$script")
+                  target(value: Int): Int @resolver(script: "value")
+                  items: [Int] @resolver(script: "[]")
+                }
+                """.trimIndent()
+            )
+            assertThrows<JexlException>(script) { world.apply(world.schema.requireObjectField("Query", "result")) }
+        }
+    }
+
+    @Test
+    fun `reference argument errors retain the target and script location`() {
+        val world = TestWorld.fromDSL(
+            """
+            extend type Query {
+              result: Int @resolver(script: ""${'"'}
+                var supplied = 'wrong';
+                return ref('namespace.target', {'value': supplied});
+              ""${'"'})
+              namespace: Namespace @resolver(script: "error")
+            }
+            type Namespace { target(value: Int): Int @resolver(script: "value") }
+            """.trimIndent()
+        )
+        val failure = assertThrows<JexlException> { world.apply(world.schema.requireObjectField("Query", "result")) }
+        assertEquals("Query/result", failure.info.name)
+        assertEquals(2, failure.info.line)
+        val arguments = assertIs<IllegalArgumentException>(failure.cause)
+        assertEquals("Invalid reference arguments for namespace.target", arguments.message)
+        assertIs<ClassCastException>(arguments.cause)
+    }
+
+    @Test
     fun `scripted providers bind both fragments alongside path variables`() {
         val world = TestWorld.fromDSL(
             """
@@ -49,8 +170,8 @@ class ResolverTestDslTest {
                 vars: {names: ["provided"], script: "{'provided': seed * 2}"}
                 script: "objectValue.local + queryValue.remote + queryValue.fromPath"
               )
-              source: Int! @resolver(result: 7)
-              echo(value: Int!): Int! @resolver(result: "value(${'$'}value)")
+              source: Int! @resolver(script: "7")
+              echo(value: Int!): Int! @resolver(script: "value")
             }
             """.trimIndent()
         )
@@ -74,8 +195,8 @@ class ResolverTestDslTest {
                     vars: {names: ["first", "second"], script: "$script"}
                     script: "1"
                   )
-                  echo(value: Int): Int @resolver(result: "value(${'$'}value)")
-                  healthy: Int @resolver(result: 9)
+                  echo(value: Int): Int @resolver(script: "value")
+                  healthy: Int @resolver(script: "9")
                 }
                 """.trimIndent()
             )
@@ -96,65 +217,11 @@ class ResolverTestDslTest {
     }
 
     @Test
-    fun `compiles structured references at scalar object and nested list positions`() {
-        val world = TestWorld.fromDSL(
-            """
-            extend type Query {
-              item(seed: Int): Item @resolver(result: {
-                number: {__ref: "namespace.number", arguments: {value: "${'$'}seed", options: {weights: ["${'$'}seed", null]}}},
-                items: [[{__ref: "item", arguments: {seed: 3}}, null]]
-              })
-              namespace: Namespace
-            }
-            type Item { number: Int items: [[Item]] }
-            type Namespace { number(value: Int, options: Options): Int }
-            input Options { weights: [Int] }
-            """.trimIndent(),
-        )
-        val item = assertIs<EngineObjectData.Sync>(world.apply(world.schema.requireObjectField("Query", "item"), arguments = mapOf("seed" to 7)))
-        val number = assertIs<RootFieldReferenceData>(item.outputValue("number"))
-        assertEquals(listOf("namespace", "number"), number.path.map { it.name })
-        assertEquals(mapOf("value" to 7, "options" to mapOf("weights" to listOf(7, null))), number.arguments.fieldValues)
-        val list = assertIs<List<*>>(assertIs<List<*>>(item.outputValue("items")).single())
-        assertEquals(mapOf("seed" to 3), assertIs<RootFieldReferenceData>(list.first()).arguments.fieldValues)
-        assertNull(list.last())
-    }
-
-    @Test
-    fun `rejects malformed structured references and invalid target arguments`() {
-        for (result in listOf(
-            "{__ref: 7}",
-            "{__ref: \"\"}",
-            "{__ref: \"missing\"}",
-            "{__ref: \"target\", extra: 1}",
-            "{__ref: \"target\", arguments: 7}",
-            "{__ref: \"target\", arguments: {value: \"wrong\"}}",
-            "{__ref: \"target\", arguments: {value: \"${'$'}missing\"}}",
-            "{__ref: \"target\", arguments: {value: 1, value: 2}}",
-            "{__ref: \"targets\"}",
-            "{__ref: \"namespace.target\"}",
-        )) {
-            val world = TestWorld.fromDSL(
-                """
-                extend type Query {
-                  source: Int @resolver(result: $result)
-                  target(value: Int): Int
-                  targets: [Int]
-                  namespace(id: Int): Namespace
-                }
-                type Namespace { target: Int }
-                """.trimIndent(),
-            )
-            assertThrows<IllegalArgumentException>(result) { world.apply(world.schema.requireObjectField("Query", "source")) }
-        }
-    }
-
-    @Test
     fun `evaluates object Query and argument inputs in one result`() {
         val world = TestWorld.fromDSL(
             """
             extend type Query {
-              item: Item! @resolver(result: {local: 2})
+              item: Item! @resolver(script: "{'local': 2}")
               values: [Int]
             }
             type Item {
@@ -214,14 +281,14 @@ class ResolverTestDslTest {
         val world = TestWorld.fromDSL(
             """
             extend type Query {
-              source: Int @resolver(result: 7)
+              source: Int @resolver(script: "7")
               echo(value: Int): Int @resolver(script: "value")
               result(seed: Int): Int
                 @resolver(
                   of: "source local: echo(value: ${'$'}seed)"
                   qf: "fromPath: echo(value: ${'$'}fromSource) fromProvider: echo(value: ${'$'}provided)"
                   pathVars: [{name: "fromSource", path: ["source"]}]
-                  providerVars: {provided: "sum(${'$'}seed, ${'$'}seed)"}
+                  vars: {names: ["provided"], script: "{'provided': seed + seed}"}
                   script: "objectValue.local + queryValue.fromPath + queryValue.fromProvider"
                 )
             }
@@ -242,15 +309,15 @@ class ResolverTestDslTest {
         val world = TestWorld.fromDSL(
             """
             extend type Query {
-              source: Int! @resolver(result: 7)
-              echo(value: Int!): Int! @resolver(result: "value(${'$'}value)")
+              source: Int! @resolver(script: "7")
+              echo(value: Int!): Int! @resolver(script: "value")
               result(seed: Int!): Int!
                 @resolver(
                   of: "source echo(value: ${'$'}seed)"
                   qf: "byArgument: echo(value: ${'$'}seed) byPath: echo(value: ${'$'}fromSource) byProvider: echo(value: ${'$'}provided)"
                   pathVars: [{name: "fromSource", path: ["source"]}]
-                  providerVars: {provided: 3}
-                  result: "sum(echo, query:byArgument, query:byPath, query:byProvider)"
+                  vars: {names: ["provided"], script: "{'provided': 3}"}
+                  script: "(objectValue.echo == null ? 0 : objectValue.echo) + (queryValue.byArgument == null ? 0 : queryValue.byArgument) + (queryValue.byPath == null ? 0 : queryValue.byPath) + (queryValue.byProvider == null ? 0 : queryValue.byProvider)"
                 )
             }
             """.trimIndent(),
@@ -275,8 +342,8 @@ class ResolverTestDslTest {
                 TestWorld.fromDSL(
                     """
                     extend type Query {
-                      result: Int! @resolver($declaration, result: 1)
-                      echo(value: Int!): Int! @resolver(result: "value(${'$'}value)")
+                      result: Int! @resolver($declaration, script: "1")
+                      echo(value: Int!): Int! @resolver(script: "value")
                     }
                     """.trimIndent(),
                 )
@@ -337,11 +404,11 @@ class ResolverTestDslTest {
                     @resolver(
                       of: "source consume(value: ${'$'}value)"
                       pathVars: [{name: "value", path: ["source"]}]
-                      result: "sum(consume)"
+                      script: "(objectValue.consume == null ? 0 : objectValue.consume)"
                     )
-                  source: Int! @resolver(result: 7)
+                  source: Int! @resolver(script: "7")
                   consume(value: [[Int!]!]!): Int!
-                    @resolver(result: 14)
+                    @resolver(script: "14")
                 }
                 """.trimIndent(),
         )
@@ -357,11 +424,11 @@ class ResolverTestDslTest {
                     @resolver(
                       of: "source byArg(value: ${'$'}seed) byPath(value: ${'$'}fromSource)"
                       pathVars: [{name: "fromSource", path: ["source"]}]
-                      result: "sum(byArg, byPath)"
+                      script: "(objectValue.byArg == null ? 0 : objectValue.byArg) + (objectValue.byPath == null ? 0 : objectValue.byPath)"
                     )
-                  source: Int! @resolver(result: 7)
-                  byArg(value: Int!): Int! @resolver(result: "sum(${ '$' }value)")
-                  byPath(value: Int!): Int! @resolver(result: "sum(${ '$' }value)")
+                  source: Int! @resolver(script: "7")
+                  byArg(value: Int!): Int! @resolver(script: "value")
+                  byPath(value: Int!): Int! @resolver(script: "value")
                 }
                 """.trimIndent(),
             )
@@ -386,14 +453,11 @@ class ResolverTestDslTest {
                   result(seed: Int!): Int!
                     @resolver(
                       of: "consume(value: ${'$'}provided) consumeOther(value: ${'$'}constant)"
-                      providerVars: {
-                        provided: "sum(${'$'}seed, ${'$'}seed)"
-                        constant: 3
-                      }
-                      result: "sum(consume, consumeOther)"
+                      vars: {names: ["provided", "constant"], script: "{'provided': seed + seed, 'constant': 3}"}
+                      script: "(objectValue.consume == null ? 0 : objectValue.consume) + (objectValue.consumeOther == null ? 0 : objectValue.consumeOther)"
                     )
-                  consume(value: Int!): Int! @resolver(result: "sum(${ '$' }value)")
-                  consumeOther(value: Int!): Int! @resolver(result: "sum(${ '$' }value)")
+                  consume(value: Int!): Int! @resolver(script: "value")
+                  consumeOther(value: Int!): Int! @resolver(script: "value")
                 }
                 """.trimIndent(),
             )
@@ -419,10 +483,10 @@ class ResolverTestDslTest {
                       result(value: Int!): Int!
                         @resolver(
                           of: "consume(value: ${'$'}value)"
-                          providerVars: {value: 3}
-                          result: "sum(consume)"
+                          vars: {names: ["value"], script: "{'value': 3}"}
+                          script: "(objectValue.consume == null ? 0 : objectValue.consume)"
                         )
-                      consume(value: Int!): Int! @resolver(result: "sum(${ '$' }value)")
+                      consume(value: Int!): Int! @resolver(script: "value")
                     }
                     """.trimIndent(),
                 )
@@ -438,13 +502,13 @@ class ResolverTestDslTest {
                 TestWorld.fromDSL(
                     """
                     extend type Query {
-                      result: Int! @resolver(providerVars: {unused: 3}, result: 1)
+                      result: Int! @resolver(vars: {names: ["unused"], script: "{'unused': 3}"}, script: "1")
                     }
                     """.trimIndent(),
                 )
             }
 
-        assertEquals(true, exception.message.orEmpty().contains("Unused providerVars variables"))
+        assertEquals(true, exception.message.orEmpty().contains("Unused vars variables"))
     }
 
     @Test
@@ -453,8 +517,8 @@ class ResolverTestDslTest {
             TestWorld.fromDSL(
                 """
                 extend type Query {
-                  nullable: Int @resolver(result: null)
-                  failed: Int! @resolver(result: "ERROR")
+                  nullable: Int @resolver(script: "null")
+                  failed: Int! @resolver(script: "error")
                 }
                 """.trimIndent(),
             )
@@ -467,17 +531,17 @@ class ResolverTestDslTest {
     }
 
     @Test
-    fun `rejects error sentinels in object-fragment arguments`() {
+    fun `rejects invalid object-fragment arguments`() {
         assertThrows<IllegalArgumentException> {
             TestWorld.fromDSL(
                 """
                 extend type Query {
                   result: Int!
                     @resolver(
-                      of: "dependency(arg: \"ERROR\")"
-                      result: 1
+                      of: "dependency(arg: null)"
+                      script: "1"
                     )
-                  dependency(arg: Int!): Int! @resolver(result: 2)
+                  dependency(arg: Int!): Int! @resolver(script: "2")
                 }
                 """.trimIndent(),
             )
@@ -485,16 +549,36 @@ class ResolverTestDslTest {
     }
 
     @Test
-    fun `value expressions preserve integer null and error values`() {
+    fun `former sentinel strings are ordinary GraphQL and provider inputs`() {
+        val world = TestWorld.fromDSL(
+            """
+            extend type Query {
+              result: Int @resolver(
+                of: "literal: echo(value: \"ERROR\") provided: echo(value: ${'$'}text)"
+                vars: {names: ["text"], script: "{'text': 'ERROR'}"}
+                script: "objectValue.literal + objectValue.provided"
+              )
+              echo(value: String!): Int @resolver(script: "value == 'ERROR' ? 7 : 0")
+            }
+            """.trimIndent(),
+        )
+        Executors.newSingleThreadExecutor().asCoroutineDispatcher().use { dispatcher ->
+            val root = SharedOperationContext.create(world.assumptions).resolve(world.schemas.operationSelectionsFrom("{ result }"), dispatcher)
+            assertEquals(14, root.getCell(root.keys.single { it.field.name == "result" }).value.get())
+        }
+    }
+
+    @Test
+    fun `scripts preserve integer null and error values`() {
         val world =
             TestWorld.fromDSL(
                 """
                 extend type Query {
                   echo(input: Int): Int
-                    @resolver(result: "value(${'$'}input)")
+                    @resolver(script: "input")
                   echoPath: Int
-                    @resolver(of: "source", result: "value(source)")
-                  source: Int @resolver(result: null)
+                    @resolver(of: "source", script: "objectValue.source")
+                  source: Int @resolver(script: "null")
                 }
                 """.trimIndent(),
             )
@@ -558,16 +642,11 @@ class ResolverTestDslTest {
                 """
                 extend type Query {
                   viewer(id: ID!): User!
-                    @resolver(result: {id: "idFrom(${'$'}id)"})
+                    @resolver(script: "{'id': id}")
                 }
 
                 type User implements Node
-                  @nodeResolver(
-                    result: [
-                      {id: "user-1", result: {score: 7}},
-                      {id: "user-2", result: {score: 8}}
-                    ]
-                  ) {
+                  @nodeResolver(ids: ["user-1", "user-2"], script: "id == 'user-1' ? {'score': 7} : {'score': 8}") {
                   id: ID!
                   score: Int!
                 }
@@ -602,28 +681,13 @@ class ResolverTestDslTest {
     }
 
     @Test
-    fun `rejects an ID result expression backed by a String argument`() {
-        val world =
-            TestWorld.fromDSL(
-                """
-                extend type Query {
-                  value(text: String!): ID!
-                    @resolver(result: "idFrom(${'$'}text)")
-                }
-                """.trimIndent(),
-            )
-        val value = world.schema.requireObjectField("Query", "value")
-
-        val exception =
-            assertThrows<IllegalArgumentException> {
-                world.apply(value, arguments = mapOf("text" to "same"))
-            }
-
-        assertEquals(true, exception.message.orEmpty().contains("requires an ID argument"))
+    fun `ID results accept string arguments`() {
+        val world = TestWorld.fromDSL("extend type Query { value(text: String!): ID! @resolver(script: \"text\") }")
+        assertEquals("same", world.apply(world.schema.requireObjectField("Query", "value"), arguments = mapOf("text" to "same")))
     }
 
     @Test
-    fun `requires result or script even though result is nullable`() {
+    fun `requires a script even for nullable fields`() {
         val exception =
             assertThrows<IllegalArgumentException> {
                 TestWorld.fromDSL(
@@ -635,7 +699,7 @@ class ResolverTestDslTest {
                 )
             }
 
-        assertEquals(true, exception.message.orEmpty().contains("requires exactly one of result or script"))
+        assertEquals(true, exception.message.orEmpty().contains("requires script"))
     }
 
     @Test
@@ -648,7 +712,7 @@ class ResolverTestDslTest {
                 }
 
                 type Item {
-                  computed: Int! @resolver(result: 1)
+                  computed: Int! @resolver(script: "1")
                 }
                 """.trimIndent(),
             )
@@ -669,7 +733,7 @@ class ResolverTestDslTest {
                 return query('{ renamed: inner(value: ${'$'}value) }', {'value': seed + 0H}).renamed + 1;
               ${"\"\"\""})
               inner(value: Int!): Int! @resolver(qf: "base", script: "queryValue.base + value")
-              base: Int! @resolver(result: 7)
+              base: Int! @resolver(script: "7")
             }
             """.trimIndent(),
         )

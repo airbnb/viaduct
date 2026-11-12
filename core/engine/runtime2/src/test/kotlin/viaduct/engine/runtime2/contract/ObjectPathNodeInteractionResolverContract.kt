@@ -15,13 +15,13 @@ interface ObjectPathNodeInteractionResolverContract : ResolverContract {
                     """
                     extend type Query {
                       item: Item!
-                        @resolver(result: {profile: {id: "profile"}})
-                      source: Int! @resolver(result: 7)
+                        @resolver(script: "{'profile': {'__typename': 'Profile', 'id': 'profile'}}")
+                      source: Int! @resolver(script: "7")
                       driver: Int!
                         @resolver(
                           of: "source item { trigger(value: ${'$'}sourceValue) }"
                           pathVars: [{name: "sourceValue", path: ["source"]}]
-                          result: "sum(item.trigger)"
+                          script: "(objectValue.item == null ? 0 : objectValue.item.trigger == null ? 0 : objectValue.item.trigger)"
                         )
                     }
 
@@ -33,21 +33,14 @@ interface ObjectPathNodeInteractionResolverContract : ResolverContract {
                           pathVars: [
                             {name: "detailValue", path: ["profile", "details", "value"]}
                           ]
-                          result: "sum(consume)"
+                          script: "(objectValue.consume == null ? 0 : objectValue.consume)"
                         )
                       consume(value: Int!): Int!
-                        @resolver(result: "sum(${'$'}value)")
+                        @resolver(script: "value")
                     }
 
                     type Profile implements Node
-                      @nodeResolver(
-                        result: [
-                          {
-                            id: "profile"
-                            result: {details: {value: 11}}
-                          }
-                        ]
-                      ) {
+                      @nodeResolver(ids: ["profile"], script: "{'details': {'value': 11}}") {
                       id: ID!
                       details: Details!
                     }
@@ -100,13 +93,13 @@ interface ObjectPathNodeInteractionResolverContract : ResolverContract {
                     """
                     extend type Query {
                       item: Item!
-                        @resolver(result: {profile: {id: "profile"}})
-                      source: Int! @resolver(result: 7)
+                        @resolver(script: "{'profile': {'__typename': 'Profile', 'id': 'profile'}}")
+                      source: Int! @resolver(script: "7")
                       driver: Profile!
                         @resolver(
                           of: "source item { trigger(value: ${'$'}sourceValue) }"
                           pathVars: [{name: "sourceValue", path: ["source"]}]
-                          result: {id: "driver"}
+                          script: "{'__typename': 'Profile', 'id': 'driver'}"
                         )
                     }
 
@@ -115,21 +108,12 @@ interface ObjectPathNodeInteractionResolverContract : ResolverContract {
                       trigger(value: Int!): Int!
                         @resolver(
                           of: "account: profile { details { related { __typename } } }"
-                          result: 7
+                          script: "7"
                         )
                     }
 
                     type Profile implements Node
-                      @nodeResolver(
-                        result: [
-                          {
-                            id: "profile"
-                            result: {details: {related: {id: "related"}}}
-                          }
-                          {id: "related", result: {}}
-                          {id: "driver", result: {}}
-                        ]
-                      ) {
+                      @nodeResolver(ids: ["profile", "related", "driver"], script: "id == 'profile' ? {'details': {'related': {'id': 'related'}}} : id == 'related' ? {:} : {:}") {
                       id: ID!
                       details: Details!
                     }

@@ -72,7 +72,7 @@ class ParentVariableValidationAdversarialTest {
               result(locale: String!): String
                 @resolver(
                   of: "nodes { edge { ... on ParentB { localized(locale: ${'$'}locale) } } }"
-                  result: "ok"
+                  script: "'ok'"
                 )
             }
 
@@ -95,7 +95,7 @@ class ParentVariableValidationAdversarialTest {
 
             type ParentB implements ParentIface {
               id: ID
-              localized(locale: String!): String @resolver(result: "ok")
+              localized(locale: String!): String @resolver(script: "'ok'")
             }
             """.trimIndent(),
         )

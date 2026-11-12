@@ -29,11 +29,11 @@ interface CrossKeyRecursiveDemandResolverContract : ResolverContract {
                 schemaSDL =
                     """
                     extend type Query {
-                      item: Item! @resolver(result: {})
+                      item: Item! @resolver(script: "{:}")
                     }
 
                     type Item {
-                      children(depth: Int!): [Item!]! @resolver(result: [{}])
+                      children(depth: Int!): [Item!]! @resolver(script: "[{:}]")
                     }
                     """.trimIndent(),
             )

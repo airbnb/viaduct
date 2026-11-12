@@ -35,12 +35,12 @@ interface FragmentFreeCheckerProfileContract {
                 schemaSDL =
                     """
                     extend type Query {
-                      singular: Item! @resolver(result: {id: 1})
-                      repeated: [Item!]! @resolver(result: [{id: 2}, {id: 2}])
-                      nested: [[Item!]!]! @resolver(result: [[{id: 3}], [{id: 4}]])
-                      missing: Item @resolver(result: null)
-                      failed: Item @resolver(result: "ERROR")
-                      scalar: Int! @resolver(result: 5)
+                      singular: Item! @resolver(script: "{'id': 1}")
+                      repeated: [Item!]! @resolver(script: "[{'id': 2}, {'id': 2}]")
+                      nested: [[Item!]!]! @resolver(script: "[[{'id': 3}], [{'id': 4}]]")
+                      missing: Item @resolver(script: "null")
+                      failed: Item @resolver(script: "error")
+                      scalar: Int! @resolver(script: "5")
                     }
 
                     type Item {

@@ -30,10 +30,10 @@ interface ResolverSelectiveDemandWitnessContract : ResolverContract {
             TestWorld.fromDSL(
                 schemaSDL =
                     """
-                    extend type Query { item: Item! @resolver(result: {base: 7}) }
+                    extend type Query { item: Item! @resolver(script: "{'base': 7}") }
                     type Item {
                       base: Int!
-                      computed: Int! @resolver(of: "base", result: "sumplus1(base)")
+                      computed: Int! @resolver(of: "base", script: "1 + (objectValue.base == null ? 0 : objectValue.base)")
                     }
                     """.trimIndent(),
             )

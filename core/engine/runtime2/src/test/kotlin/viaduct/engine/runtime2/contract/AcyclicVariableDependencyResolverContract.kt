@@ -20,27 +20,27 @@ interface AcyclicVariableDependencyResolverContract : ResolverContract {
                 schemaSDL =
                     """
                     extend type Query {
-                      pa: Int! @resolver(result: 1)
-                      b(value: Int!): Int! @resolver(result: "sum(${'$'}value)")
+                      pa: Int! @resolver(script: "1")
+                      b(value: Int!): Int! @resolver(script: "value")
                       a(seed: Int!): Int!
                         @resolver(
                           of: "pa b(value: ${'$'}fromPa)"
                           pathVars: [{name: "fromPa", path: ["pa"]}]
-                          result: "sum(b)"
+                          script: "(objectValue.b == null ? 0 : objectValue.b)"
                         )
-                      q: Int! @resolver(of: "a(seed: 1)", result: "sum(a)")
-                      p2: Int! @resolver(result: 1)
+                      q: Int! @resolver(of: "a(seed: 1)", script: "(objectValue.a == null ? 0 : objectValue.a)")
+                      p2: Int! @resolver(script: "1")
                       d(seed: Int!): Int!
                         @resolver(
                           of: "p2 a(seed: ${'$'}fromP2)"
                           pathVars: [{name: "fromP2", path: ["p2"]}]
-                          result: "sum(a)"
+                          script: "(objectValue.a == null ? 0 : objectValue.a)"
                         )
                       c: Int!
                         @resolver(
                           of: "q d(seed: ${'$'}fromQ)"
                           pathVars: [{name: "fromQ", path: ["q"]}]
-                          result: "sum(d)"
+                          script: "(objectValue.d == null ? 0 : objectValue.d)"
                         )
                     }
                     """.trimIndent(),
@@ -72,19 +72,19 @@ interface AcyclicVariableDependencyResolverContract : ResolverContract {
                         @resolver(
                           of: "q5 q2(value: ${'$'}fromQ5)"
                           pathVars: [{name: "fromQ5", path: ["q5"]}]
-                          result: "sum(q2)"
+                          script: "(objectValue.q2 == null ? 0 : objectValue.q2)"
                         )
-                      q1(value: Int!): Int! @resolver(result: "sum(${'$'}value)")
+                      q1(value: Int!): Int! @resolver(script: "value")
                       q2(value: Int!): Int!
                         @resolver(
                           of: "q7(value: ${'$'}value)"
-                          result: "sum(q7)"
+                          script: "(objectValue.q7 == null ? 0 : objectValue.q7)"
                         )
-                      q5: Int! @resolver(of: "q1(value: 1)", result: "sum(q1)")
+                      q5: Int! @resolver(of: "q1(value: 1)", script: "(objectValue.q1 == null ? 0 : objectValue.q1)")
                       q7(value: Int!): Int!
                         @resolver(
                           of: "q1(value: ${'$'}value)"
-                          result: "sum(q1)"
+                          script: "(objectValue.q1 == null ? 0 : objectValue.q1)"
                         )
                     }
                     """.trimIndent(),
@@ -121,14 +121,14 @@ interface AcyclicVariableDependencyResolverContract : ResolverContract {
                         @resolver(
                           of: "source consume(value: ${'$'}fromSource)"
                           pathVars: [{name: "fromSource", path: ["source"]}]
-                          result: "sum(consume)"
+                          script: "(objectValue.consume == null ? 0 : objectValue.consume)"
                         )
                       source: Int!
-                        @resolver(of: "first(value: 1)", result: "sum(first)")
+                        @resolver(of: "first(value: 1)", script: "(objectValue.first == null ? 0 : objectValue.first)")
                       first(value: Int!): Int!
-                        @resolver(result: "sum(${'$'}value, ${'$'}value)")
+                        @resolver(script: "value + value")
                       consume(value: Int!): Int!
-                        @resolver(result: "sum(${'$'}value, ${'$'}value)")
+                        @resolver(script: "value + value")
                     }
                     """.trimIndent(),
             )

@@ -54,8 +54,8 @@ open class TypeCheckerLifecycleTest : ResolutionDispatcherResource {
         val fixture = TestWorld.fromDSL(
             """
             extend type Query {
-              checked: Int @resolver(result: 1)
-              dependency: Int @resolver(result: 7)
+              checked: Int @resolver(script: "1")
+              dependency: Int @resolver(script: "7")
             }
             """.trimIndent(),
             typeCheckers = { schemas ->
@@ -93,13 +93,13 @@ open class TypeCheckerLifecycleTest : ResolutionDispatcherResource {
         val world = TestWorld.fromDSL(
             """
             extend type Query {
-              synthetic: Item @resolver(result: {value: 1, children: [{value: 2}]})
-              ordinary: Item @resolver(result: {value: 3})
+              synthetic: Item @resolver(script: "{'value': 1, 'children': [{'value': 2}]}")
+              ordinary: Item @resolver(script: "{'value': 3}")
             }
             type Item {
               value: Int
               children: [Item]
-              required: Int @resolver(result: 9)
+              required: Int @resolver(script: "9")
             }
             """.trimIndent(),
             typeCheckers = { schemas ->
@@ -208,8 +208,8 @@ open class TypeCheckerLifecycleTest : ResolutionDispatcherResource {
         TestWorld.fromDSL(
             """
         extend type Query {
-          checked: Int! @resolver(result: 1)
-          dependency(value: Int): Int @resolver(result: "value(${'$'}value)")
+          checked: Int! @resolver(script: "1")
+          dependency(value: Int): Int @resolver(script: "value")
         }
             """.trimIndent(),
             typeCheckers = { schema ->

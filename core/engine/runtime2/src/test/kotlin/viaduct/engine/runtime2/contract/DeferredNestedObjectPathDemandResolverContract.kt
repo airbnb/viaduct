@@ -14,23 +14,23 @@ interface DeferredNestedObjectPathDemandResolverContract : ResolverContract {
                 schemaSDL =
                     """
                     extend type Query {
-                      item: Item! @resolver(result: {})
-                      source: Int! @resolver(result: 7)
+                      item: Item! @resolver(script: "{:}")
+                      source: Int! @resolver(script: "7")
                       driver: Int!
                         @resolver(
                           of: "source item { result(value: ${'$'}sourceValue) }"
                           pathVars: [{name: "sourceValue", path: ["source"]}]
-                          result: "sum(item.result)"
+                          script: "(objectValue.item == null ? 0 : objectValue.item.result == null ? 0 : objectValue.item.result)"
                         )
                     }
 
                     type Item {
-                      step: Item! @resolver(result: {passive: 7})
+                      step: Item! @resolver(script: "{'passive': 7}")
                       passive: Int!
                       result(value: Int!): Int!
                         @resolver(
                           of: "step { passive }"
-                          result: "sum(step.passive)"
+                          script: "(objectValue.step == null ? 0 : objectValue.step.passive == null ? 0 : objectValue.step.passive)"
                         )
                     }
                     """.trimIndent(),
