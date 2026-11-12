@@ -58,6 +58,12 @@ jobs:
         run: ./gradlew check --scan --continue -PtestJavaVersion=${{ matrix.java }}
         shell: bash
 
+      - name: Report test results
+        if: always()
+        uses: ./.github/actions/report-test-results
+        with:
+          artifact-name: junit-results-nightly-windows-java-${{ matrix.java }}
+
   # Exercises demoappsStandaloneTest on its own. As a finalizer of root `check` it is skipped
   # whenever anything else in that build fails, so windows-check alone leaves it unreported.
   demoapps-standalone-windows:

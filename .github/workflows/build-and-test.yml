@@ -157,12 +157,11 @@ jobs:
           fi
         shell: bash
 
-      - name: Upload JUnit test results
+      - name: Report test results
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: ./.github/actions/report-test-results
         with:
-          name: junit-results-java-${{ matrix.java }}-${{ matrix.os }}
-          path: '**/build/test-results/test/*.xml'
+          artifact-name: junit-results-java-${{ matrix.java }}-${{ matrix.os }}
 
 
   core-windows:
@@ -193,6 +192,12 @@ jobs:
       - name: Check core
         run: ./gradlew -p core check --scan --continue -PtestJavaVersion=${{ matrix.java }}
         shell: bash
+
+      - name: Report test results
+        if: always()
+        uses: ./.github/actions/report-test-results
+        with:
+          artifact-name: junit-results-core-windows-java-${{ matrix.java }}
 
   verify-publication-classpaths:
     runs-on: ubuntu-latest

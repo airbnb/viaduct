@@ -17,7 +17,7 @@ val onCi =
 tasks.withType<Test>().configureEach {
     retry {
         maxRetries.set(if (onCi) 2 else 0)
-        maxFailures.set(5) // >5 failures = systemic breakage; don't retry
+        maxFailures.set(5) // 5+ failures = systemic breakage; don't retry
         failOnPassedAfterRetry.set(false) // passed-on-retry stays green
     }
 }
