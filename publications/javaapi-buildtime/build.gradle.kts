@@ -17,4 +17,5 @@ dependencies {
     // depended on directly: its own dependencies (javaapi-api, tenant-codegen) are internal
     // coordinates that are not published individually.
     api(libs.viaduct.javaapi.registry.apt)
+    fatJarLayers(project(":buildtime"))
 }

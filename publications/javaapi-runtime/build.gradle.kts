@@ -11,8 +11,11 @@ viaductPublishing {
 
 dependencies {
     // Always expose as api so composite-build consumers (demo apps) get transitive deps.
-    // In the published shadow jar, these are bundled and transitive deps are suppressed below.
+    // In the published shadow jar, these are bundled, and its POM depends only on the fat jars in fatJarLayers.
     api(libs.viaduct.javaapi.runtime)
+    fatJarLayers(project(":api"))
+    fatJarLayers(project(":javaapi-api"))
+    fatJarLayers(project(":runtime"))
 }
 
 tasks.named<ShadowJar>("shadowJar") {
