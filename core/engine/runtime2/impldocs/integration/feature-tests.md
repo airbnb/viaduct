@@ -53,7 +53,7 @@ The following differences are gaps in the present Engine API integration rather 
 - physical batching and any compatible expansion of production data-loader reuse outside semantic occurrence scheduling;
 - mutation namespace checkers, subscriptions, application-defined custom scalars, `@stream`, and asynchronous EOD variants;
 - direct `Engine.resolveRootFieldReference` calls and `EngineExecutionContext.completeSelectionSet`; and
-- opaque checker variables providers with their own required selections, checker enforcement on `@parent` backedges and reference target paths, and other resolver and checker combinations listed as unsupported by [Engine API integration](engine-api.md).
+- opaque checker variables providers with their own required selections, checker enforcement on reference target paths, and other resolver and checker combinations listed as unsupported by [Engine API integration](engine-api.md).
 
 [Engine API integration](engine-api.md) defines the current adapter surface and its rejection boundaries. A copied test blocked only by one of these gaps should retain its `runtime` engine form with a specific `TODO` classification so that closing the gap means enabling the original test rather than inventing a Runtime2-specific substitute.
 

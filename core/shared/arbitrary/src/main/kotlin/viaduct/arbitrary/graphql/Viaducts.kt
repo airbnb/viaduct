@@ -167,7 +167,7 @@ private class ViaductGen(private val env: ViaductGenEnv) {
 
     private fun genFieldCheckerExecutors(): Map<Coordinate, CheckerExecutor> =
         env.schemas.viaductSchema.objectCoordinates.mapNotNull { coord ->
-            if (env.rs.sampleWeight(env.cfg[FieldCheckerWeight])) {
+            if (env.rs.sampleWeight(env.cfg[FieldCheckerWeight]) && !env.schemas.viaductSchema.isParentField(coord)) {
                 coord to env.checkerExecutorGen.gen(coord)
             } else {
                 null

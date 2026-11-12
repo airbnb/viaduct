@@ -35,6 +35,7 @@ class ExecutorValidator(
         checkerExecutorValidator = listOf(
             CheckerSelectionSetsAreProperlyTyped(schema),
             CheckerSelectionSetsDoNotSelectParentFields(schema),
+            CheckersAreNotOnParentFields(schema),
         ).flatten(),
     )
 

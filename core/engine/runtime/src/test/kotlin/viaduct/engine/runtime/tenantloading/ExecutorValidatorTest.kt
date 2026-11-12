@@ -128,6 +128,23 @@ class ExecutorValidatorTest {
         assertTrue(exception.message!!.contains("$expectedChecker selects @parent fields (rss: [User.parent])"), exception.message)
     }
 
+    @Test
+    fun `default set rejects a field checker registered on a @parent field`() {
+        val schema = MockSchema.mk(
+            """
+            extend type Query { empty: Int }
+            type User { id: ID, parent: Company @parent }
+            type Company { name: String }
+            """.trimIndent()
+        )
+        val checkerExecutorFactory = MockCheckerExecutorFactory(mapOf(("User" to "parent") to MockCheckerExecutor()), null)
+        val exception = assertThrows<Exception> {
+            emptyList<MockTenantModuleBootstrapper>().toDispatcherRegistryFactory(ExecutorValidator(schema), checkerExecutorFactory)
+                .create(schema)
+        }
+        assertTrue(exception.message!!.contains("Field checker for User.parent is registered on a @parent field"), exception.message)
+    }
+
     @ParameterizedTest
     @ValueSource(
         strings = [

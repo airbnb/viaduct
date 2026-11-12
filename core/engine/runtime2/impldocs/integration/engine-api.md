@@ -135,7 +135,7 @@ The execution layer rejects or does not provide:
 
 - physically batched dispatch, regardless of the value of `ENGINE2_BATCHING`;
 - checker variables resolvers with their own required selection sets and other legacy checker input graphs that cannot be losslessly converted to Runtime2's variable definitions;
-- field-checker enforcement on `@parent` backedges and along `RootFieldReference` target paths;
+- field-checker enforcement along `RootFieldReference` target paths;
 - mutation namespace field and type checkers, and object or Query required selections on mutation resolvers;
 - inline object materialization for Node-valued fields;
 - object required selections or `FromObjectField` variables on reference targets;

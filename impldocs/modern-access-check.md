@@ -88,13 +88,15 @@ Engineers implement the `CheckerExecutorFactory` SPI to define their own access 
 
 At tenant loading, `DispatcherRegistryFactory` iterates all object types in the schema. For each type and field, it calls `CheckerExecutorFactory.checkerExecutorForField()` and `checkerExecutorForType()`. Non-null results are wrapped in `InstrumentedCheckerDispatcher(CheckerDispatcherImpl(...))` and stored in the `DispatcherRegistry`.
 
-`ExecutorValidator` validates checker RSS during bootstrap: selections must be schematically valid, properly typed, and acyclic.
+`ExecutorValidator` validates checkers during bootstrap: their RSS must be schematically valid, properly typed, acyclic, and free of `@parent` fields, and no field checker may be registered on a `@parent` field.
 
 **Key files:**
 
 - `engine/runtime/.../tenantloading/DispatcherRegistryFactory.kt`
 - `engine/runtime/.../tenantloading/ExecutorValidator.kt`
 - `engine/runtime/.../tenantloading/CheckerSelectionSetsAreProperlyTyped.kt`
+- `engine/runtime/.../tenantloading/CheckerSelectionSetsDoNotSelectParentFields.kt`
+- `engine/runtime/.../tenantloading/CheckersAreNotOnParentFields.kt`
 
 ### Engine Assembly
 
