@@ -69,7 +69,8 @@ object ApolloSchemaGenerator {
             "Apollo schema generation requires Apollo @key(resolvable: Boolean = true); other federation dialects are unsupported."
         }
         val fieldsType = (definition.inputValueDefinitions.singleOrNull { it.name == "fields" }?.type as? NonNullType)?.type as? TypeName
-        require(fieldsType != null && (fieldsType.name == "String" || registry.scalars().containsKey(fieldsType.name))) {
+        val fieldsTypeName = fieldsType?.name
+        require(fieldsTypeName != null && (fieldsTypeName == "String" || registry.scalars().containsKey(fieldsTypeName))) {
             "Apollo schema generation requires @key(fields:) to be a non-null scalar."
         }
     }
