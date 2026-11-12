@@ -17,6 +17,7 @@ plugins {
     id("com.airbnb.viaduct.kotlinapi") apply false
     id("com.airbnb.viaduct.javaapi") apply false
     id("com.airbnb.viaduct.foundation-federation") apply false
+    id("com.airbnb.viaduct.apollo-schema") apply false
 }
 
 @Suppress("UnstableApiUsage")
@@ -82,3 +83,19 @@ includeViaductApplication {
 }
 
 include(":validation-rules", ":validation-rule-support")
+
+includeViaductApplication {
+    usePlugin("com.airbnb.viaduct.kotlinapi")
+    usePlugin("com.airbnb.viaduct.apollo-schema")
+    project(":apollo-schema")
+    modulePackagePrefix("com.example.apollo")
+
+    includeModule {
+        project(":apollo-schema:catalog")
+        modulePackageSuffix("catalog")
+    }
+    includeModule {
+        project(":apollo-schema:users")
+        modulePackageSuffix("users")
+    }
+}

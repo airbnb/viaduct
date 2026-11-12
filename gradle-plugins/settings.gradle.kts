@@ -51,6 +51,7 @@ include(":module")
 include(":module-java")
 include(":federation")
 include(":federation-validation")
+include(":apollo")
 
 gradle.allprojects {
     group = "com.airbnb.viaduct.gradle"

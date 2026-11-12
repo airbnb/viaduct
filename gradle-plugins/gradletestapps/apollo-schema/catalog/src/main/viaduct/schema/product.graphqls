@@ -1,0 +1,8 @@
+type Product @scope(to: ["catalog"]) @apollo__key(fields: "id") @apollo__key(fields: "sku") {
+  id: ID!
+  sku: String
+}
+
+type Reference @scope(to: ["catalog"]) @apollo__key(fields: "id", resolvable: false) {
+  id: ID!
+}

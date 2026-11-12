@@ -1,0 +1,5 @@
+type User @scope(to: ["users"]) {
+  id: ID!
+}
+
+extend type User @apollo__key(fields: "id")

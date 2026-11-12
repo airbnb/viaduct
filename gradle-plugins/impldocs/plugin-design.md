@@ -156,6 +156,24 @@ The application's `runtimeOnly` inherits its declared module dependencies. Each 
 
 The service engineer chooses the hosting framework, entry point, and distribution plugins that assemble the runnable service. See [bootstrap identity](../../impldocs/execution-registry-bootstrap.md) for runtime manifest loading.
 
+## Apollo schema generation
+
+The `com.airbnb.viaduct.apollo-schema` settings capability derives Apollo protocol SDL from the validated central schema and contributes it through `pluginFinalSchema`. It provides schema generation; executable subgraph support and runtime resolvers are supplied separately.
+
+Only central-schema keys contribute entity membership. An object qualifies when any of its keys has `resolvable: true` or omits `resolvable`, whose declaration must default to `true`. A mixed-key object remains an entity even if another key sets `resolvable: false`. Interface keys, including keys on interface extensions, are validated but do not create union members.
+
+In scoped applications, the synthetic `_Entity` union uses `@scope(to: ["*"])` so it can contain entities outside the query root's scopes. `_Service` and the generated root fields retain the root's scopes. Projection filters union members to the selected scopes and removes `_Entity` and `_entities` when no members remain.
+
+Loading this final schema without companion runtime executors fails the service's default strict startup validation: `GraphQLBuildError` wraps `MissingResolversException` for `_Service.sdl`, the query root's `_service`, and `_entities` when present. The plugin installs no executors, and successful schema packaging does not establish runtime compatibility. Executable applications must supply the separate runtime integration; accepting final-schema types without tenant GRTs and implementing these fields belong to that integration's tests. See [missing-resolver validation](../../core/engine/runtime/src/main/kotlin/viaduct/engine/runtime/tenantloading/MissingResolverValidator.kt).
+
+Applications supply the Apollo directive declarations through their central-schema inputs. The selected key directive must be declared even when no object uses it. For a namespaced or aliased key, configure the application task to match its declaration:
+
+```kotlin
+tasks.named<viaduct.gradle.apollo.GenerateApolloSchema>("generateApolloSchema") {
+    keyDirectiveName.set("apollo__key")
+}
+```
+
 ## Schema validation
 
 Central and final assembly both run structural schema checks, built-in Viaduct rules, plugin rules, and validation of declared scoped schemas. Validation is part of each assembly task, so consumers of that task's schema output depend on its successful validation. Final assembly revalidates the combined schema and attributes failures introduced by final additions to the contributing plugins, retaining central source locations as context.

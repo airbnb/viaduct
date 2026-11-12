@@ -1,0 +1,14 @@
+version: 1
+
+schemaScopes:
+  - catalog
+  - users
+  - empty
+
+scopedSchemas:
+  - id: CATALOG
+    scopes: [catalog]
+  - id: USERS
+    scopes: [users]
+  - id: EMPTY
+    scopes: [empty]

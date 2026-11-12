@@ -1,0 +1,3 @@
+scalar FieldSet
+
+directive @apollo__key(fields: FieldSet!, resolvable: Boolean = true) repeatable on OBJECT | INTERFACE
