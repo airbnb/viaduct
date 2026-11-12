@@ -30,7 +30,6 @@ import viaduct.engine.runtime2.execution.Runtime2EngineExecutionContext
 import viaduct.engine.runtime2.execution.toEngineSelectionSet
 import viaduct.engine.runtime2.model.Arguments
 import viaduct.engine.runtime2.model.EngineErrorData
-import viaduct.engine.runtime2.model.Fragment
 import viaduct.engine.runtime2.model.InclusionCondition
 import viaduct.engine.runtime2.model.MaterializeSelection
 import viaduct.engine.runtime2.model.MaterializeSelectionForest
@@ -71,9 +70,10 @@ import viaduct.engine.runtime2.model.schemaType
 import viaduct.engine.runtime2.model.selectionForestOf
 import viaduct.engine.runtime2.model.usedVariables
 import viaduct.engine.runtime2.resolution.currentVariablesProviderResolutionContext
+import viaduct.engine.runtime2.schema.ParsedSpecFragment
 import viaduct.engine.runtime2.schema.SourceSchemaAdapter
 import viaduct.engine.runtime2.schema.ViaductAndGJSchema
-import viaduct.engine.runtime2.schema.fragmentFromDocument
+import viaduct.engine.runtime2.schema.specFragmentFromDocument
 import viaduct.errors.resultOfTenantCallSuspend
 import viaduct.graphql.schema.ViaductSchema
 
@@ -154,14 +154,16 @@ private fun executorRegistryInputs(
             val sourceField =
                 requireNotNull(fullSchema.schema.getObjectType(coordinate.first))
                     .getFieldDefinition(coordinate.second)
-            val objectFragment = executor.objectFragment(schemas, field)
-            val queryFragment = executor.queryFragment(schemas, field)
+            val objectSelections = executor.objectSelectionSet?.parseFragment(schemas, field)
+            val querySelections = executor.querySelectionSet?.parseFragment(schemas, field)
+            val objectFragment = objectSelections?.fragment ?: schema.emptyFragmentOf(field.containingDef.name)
+            val queryFragment = querySelections?.fragment ?: schema.emptyFragmentOf(schema.requireQueryTypeDef().name)
             val variables =
                 executor.compileVariableDeclarations(
                     schema = schemas,
                     field = field,
-                    objectFragment = objectFragment,
-                    queryFragment = queryFragment,
+                    objectFragment = objectSelections,
+                    queryFragment = querySelections,
                     context = compilationContext,
                     contextForInvocation =
                         runtime2ContextForInvocation.takeIf { compilationContext == null },
@@ -581,10 +583,10 @@ private class CheckerInputCompiler(
         enclosingCondition: InclusionCondition = InclusionCondition.Always,
     ) {
         val fragment =
-            schemas.fragmentFromDocument(
+            schemas.specFragmentFromDocument(
                 document = required.selections.toDocument(),
                 variableTarget = target,
-            )
+            ).fragment
         val root = rootOf(required)
         val rootType = when (root) {
             CheckerInputRoot.OBJECT -> target.checkerObjectType()
@@ -932,27 +934,14 @@ private fun namespaceFieldResolvers(
             }
         }.toMap()
 
-private fun FieldResolverExecutor.objectFragment(
+private fun RequiredSelectionSet.parseFragment(
     schema: ViaductAndGJSchema,
     field: ViaductSchema.ObjectField,
-): Fragment =
-    objectSelectionSet?.let { required ->
-        schema.fragmentFromDocument(
-            document = required.selections.toDocument(),
-            variableField = field,
-        )
-    } ?: schema.loweredSchema.emptyFragmentOf(field.containingDef.name)
-
-private fun FieldResolverExecutor.queryFragment(
-    schema: ViaductAndGJSchema,
-    field: ViaductSchema.ObjectField,
-): Fragment =
-    querySelectionSet?.let { required ->
-        schema.fragmentFromDocument(
-            document = required.selections.toDocument(),
-            variableField = field,
-        )
-    } ?: schema.loweredSchema.emptyFragmentOf(schema.loweredSchema.requireQueryTypeDef().name)
+): ParsedSpecFragment =
+    schema.specFragmentFromDocument(
+        document = selections.toDocument(),
+        variableField = field,
+    )
 
 private fun builtInNodeFieldResolvers(
     fullSchema: EngineSchema,

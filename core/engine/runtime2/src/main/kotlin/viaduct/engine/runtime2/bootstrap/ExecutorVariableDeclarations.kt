@@ -1,21 +1,20 @@
 package viaduct.engine.runtime2.bootstrap
 
-import graphql.language.AstPrinter
 import viaduct.engine.api.EngineExecutionContext
-import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.spi.FieldResolverExecutor
 import viaduct.engine.api.spi.VariableFromFunctionDefinitions
 import viaduct.engine.runtime.tenantloading.InvalidVariableException
 import viaduct.engine.runtime2.model.Arguments
-import viaduct.engine.runtime2.model.Fragment
 import viaduct.engine.runtime2.model.ResolverTarget
 import viaduct.engine.runtime2.model.engineObjectDataOf
+import viaduct.engine.runtime2.model.registry.ProviderFragment
 import viaduct.engine.runtime2.model.registry.ResolutionExecutionContext
 import viaduct.engine.runtime2.model.registry.VariableDeclaration
 import viaduct.engine.runtime2.model.registry.VariablesProviderFunction
 import viaduct.engine.runtime2.model.registry.fromArgument
 import viaduct.engine.runtime2.model.usedVariables
 import viaduct.engine.runtime2.resolution.currentVariablesProviderResolutionContext
+import viaduct.engine.runtime2.schema.ParsedSpecFragment
 import viaduct.engine.runtime2.schema.ViaductAndGJSchema
 import viaduct.graphql.schema.ViaductSchema
 
@@ -29,14 +28,14 @@ internal class ExecutorVariableDeclarations(
 internal fun FieldResolverExecutor.compileVariableDeclarations(
     schema: ViaductAndGJSchema,
     field: ViaductSchema.ObjectField,
-    objectFragment: Fragment,
-    queryFragment: Fragment?,
+    objectFragment: ParsedSpecFragment?,
+    queryFragment: ParsedSpecFragment?,
     context: EngineExecutionContext?,
     contextForInvocation: ((ResolutionExecutionContext) -> EngineExecutionContext)? = null,
 ): ExecutorVariableDeclarations {
     val coordinate = "${field.containingDef.name}.${field.name}"
     val templates = listOfNotNull(objectFragment, queryFragment)
-        .flatMap { it.subselections.usedVariables() }.toSet()
+        .flatMap { it.fragment.subselections.usedVariables() }.toSet()
         .groupBy { it.variableName }
     require(
         templates.values.all { variables ->
@@ -85,19 +84,21 @@ internal fun FieldResolverExecutor.compileVariableDeclarations(
     }
     objectFieldVariables.variables.forEach { (name, path) ->
         declare(name) {
-            schema.fromObjectField(
-                requireNotNull(objectSelectionSet) { "Object variable $name requires an object RSS" }.fragmentSource(),
-                path.split('.'),
-                variableField = field,
+            compileFromField(
+                schema = schema,
+                parsed = requireNotNull(objectFragment) { "Object variable $name requires an object RSS" },
+                responsePath = path.split('.'),
+                providerFragment = ProviderFragment.OBJECT,
             )
         }
     }
     queryFieldVariables.variables.forEach { (name, path) ->
         declare(name) {
-            schema.fromQueryField(
-                requireNotNull(querySelectionSet) { "Query variable $name requires a Query RSS" }.fragmentSource(),
-                path.split('.'),
-                variableField = field,
+            compileFromField(
+                schema = schema,
+                parsed = requireNotNull(queryFragment) { "Query variable $name requires a Query RSS" },
+                responsePath = path.split('.'),
+                providerFragment = ProviderFragment.QUERY,
             )
         }
     }
@@ -134,5 +135,3 @@ internal fun FieldResolverExecutor.compileVariableDeclarations(
     }
     return ExecutorVariableDeclarations(declarations, providerNames, provider)
 }
-
-private fun RequiredSelectionSet.fragmentSource(): String = "fragment _ on ${selections.typeName} ${AstPrinter.printAst(selections.selections)}"

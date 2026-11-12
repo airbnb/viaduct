@@ -1,21 +1,19 @@
 package viaduct.engine.runtime2.bootstrap
 
+import graphql.parser.Parser
 import viaduct.engine.runtime2.model.EngineInputData
-import viaduct.engine.runtime2.model.Fragment
 import viaduct.engine.runtime2.model.ObjectEngineResult
-import viaduct.engine.runtime2.model.ResolverTarget
 import viaduct.engine.runtime2.model.isParentField
 import viaduct.engine.runtime2.model.registry.FromField
 import viaduct.engine.runtime2.model.registry.ProviderFragment
 import viaduct.engine.runtime2.model.requireField
 import viaduct.engine.runtime2.model.requireQueryTypeDef
 import viaduct.engine.runtime2.model.spec.SpecSelection
-import viaduct.engine.runtime2.model.spec.flattenForMaterialization
-import viaduct.engine.runtime2.schema.GJSelectionParser
 import viaduct.engine.runtime2.schema.ParsedSpecFragment
 import viaduct.engine.runtime2.schema.SourceSchemaAdapter
 import viaduct.engine.runtime2.schema.ViaductAndGJSchema
 import viaduct.engine.runtime2.schema.sourceCompositeType
+import viaduct.engine.runtime2.schema.specFragmentFromDocument
 import viaduct.graphql.schema.ViaductSchema
 import viaduct.graphql.utils.GraphQLTypeRelation
 
@@ -30,12 +28,11 @@ internal fun compileFromField(
     compileFromField(
         schema = schema,
         parsed =
-            GJSelectionParser(
-                sourceSchema = schema.graphQLSchema,
-                schema = schema.loweredSchema,
-                variableValues = bindings,
-                variableTarget = variableField?.let(ResolverTarget::FieldValueResolverTarget),
-            ).specSelectionsFrom(fragmentSource),
+            schema.specFragmentFromDocument(
+                document = Parser.parse(fragmentSource),
+                bindings = bindings,
+                variableField = variableField,
+            ),
         responsePath = responsePath,
         providerFragment = providerFragment,
     )
@@ -71,16 +68,7 @@ internal fun compileFromField(
     return FromField.ofCompiled(
         responsePath = responsePath,
         providerFragment = providerFragment,
-        fragment =
-            Fragment.of(
-                nominalType = parsed.nominalType,
-                materializeSelections =
-                    flattenForMaterialization(
-                        schema.loweredSchema,
-                        parsed.nominalType,
-                        parsed.selections,
-                    ),
-            ),
+        fragment = parsed.fragment,
         keyPath = path.keys,
         terminalType = path.terminalType,
         nullableTraversal = path.nullableTraversal,

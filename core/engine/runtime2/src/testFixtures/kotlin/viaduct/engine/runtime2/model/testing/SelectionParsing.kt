@@ -10,8 +10,8 @@ import viaduct.engine.runtime2.model.ResolverTarget
 import viaduct.engine.runtime2.model.emptyFragmentOf
 import viaduct.engine.runtime2.model.registry.Assumptions
 import viaduct.engine.runtime2.model.requireType
+import viaduct.engine.runtime2.schema.GJSelectionParser
 import viaduct.engine.runtime2.schema.ViaductAndGJSchema
-import viaduct.engine.runtime2.schema.materializeSelectionsFrom
 import viaduct.graphql.schema.ViaductSchema
 
 fun ViaductAndGJSchema.fragmentFrom(
@@ -20,20 +20,14 @@ fun ViaductAndGJSchema.fragmentFrom(
     variableField: ViaductSchema.ObjectField? = null,
     variableTarget: ResolverTarget? = null,
     preserveSourceResponseKeys: Boolean = false,
-): Fragment {
-    val (nominalType, selections) =
-        materializeSelectionsFrom(
-            source = source,
-            bindings = bindings,
-            variableField = variableField,
-            variableTarget = variableTarget ?: variableField?.let(ResolverTarget::FieldValueResolverTarget) ?: fixtureVariableTarget(source, bindings),
-            preserveSourceResponseKeys = preserveSourceResponseKeys,
-        )
-    return Fragment.of(
-        nominalType = nominalType,
-        materializeSelections = selections,
-    )
-}
+): Fragment =
+    GJSelectionParser(
+        sourceSchema = graphQLSchema,
+        schema = loweredSchema,
+        variableValues = bindings,
+        variableTarget = variableTarget ?: variableField?.let(ResolverTarget::FieldValueResolverTarget) ?: fixtureVariableTarget(source, bindings),
+        preserveSourceResponseKeys = preserveSourceResponseKeys,
+    ).specSelectionsFrom(Parser.parse(source)).fragment
 
 private fun ViaductAndGJSchema.fixtureVariableTarget(
     source: String,

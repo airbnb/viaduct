@@ -23,8 +23,8 @@ import viaduct.engine.runtime2.model.requireQueryTypeDef
 import viaduct.engine.runtime2.model.requireType
 import viaduct.engine.runtime2.schema.SourceSchemaAdapter
 import viaduct.engine.runtime2.schema.ViaductAndGJSchema
-import viaduct.engine.runtime2.schema.fragmentFromDocument
 import viaduct.engine.runtime2.schema.mutationSelections
+import viaduct.engine.runtime2.schema.specFragmentFromDocument
 import viaduct.errors.UnsetFieldException
 import viaduct.graphql.schema.ViaductSchema
 
@@ -144,10 +144,10 @@ internal class Runtime2ExecutionHandle(
             "Cannot execute selections with type ${selectionSet.type} on schema root type ${rootType.name}"
         }
         val fragment =
-            schemas.fragmentFromDocument(
+            schemas.specFragmentFromDocument(
                 document = selectionSet.toFragment().parsedDocument,
                 bindings = selectionSet.variables,
-            )
+            ).fragment
         val selections = fragment.materializeSelections
         return when (options.operationType) {
             Engine.OperationType.QUERY -> resolutionContext.resolveSelectionSet(selections)

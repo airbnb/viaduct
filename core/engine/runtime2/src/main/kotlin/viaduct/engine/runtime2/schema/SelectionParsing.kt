@@ -4,6 +4,7 @@ import graphql.GraphQLContext
 import graphql.execution.CoercedVariables
 import graphql.execution.RawVariables
 import graphql.execution.ValuesResolver
+import graphql.language.Document
 import graphql.language.FragmentDefinition
 import graphql.language.OperationDefinition
 import graphql.parser.Parser
@@ -103,6 +104,20 @@ fun ViaductAndGJSchema.materializeSelectionsFrom(
                 ?: variableField?.let(ResolverTarget::FieldValueResolverTarget),
         preserveSourceResponseKeys = preserveSourceResponseKeys,
     ).materializeSelectionsFrom(source)
+
+internal fun ViaductAndGJSchema.specFragmentFromDocument(
+    document: Document,
+    bindings: Map<String, EngineInputData?> = emptyMap(),
+    variableField: ViaductSchema.ObjectField? = null,
+    variableTarget: ResolverTarget? = null,
+): ParsedSpecFragment =
+    GJSelectionParser(
+        sourceSchema = graphQLSchema,
+        schema = loweredSchema,
+        variableValues = bindings,
+        variableTarget = variableTarget ?: variableField?.let(ResolverTarget::FieldValueResolverTarget),
+        preserveSourceResponseKeys = true,
+    ).specSelectionsFrom(document)
 
 private fun ViaductAndGJSchema.selectionParser(): GJSelectionParser =
     GJSelectionParser(

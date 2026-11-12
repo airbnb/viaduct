@@ -24,6 +24,97 @@ import viaduct.engine.api.spi.VariableFromFieldDefinitions
 import viaduct.graphql.test.assertJson
 
 interface FromFieldVariablesContract : QueryExecutionContract {
+    @Test
+    fun `field variables use source response keys for typename through named fragments`() {
+        fun selections(type: String) =
+            """
+            fragment Main on $type {
+              ...Inputs
+              plain: echo(value: ${'$'}typename)
+              aliased: echo(value: ${'$'}alias)
+            }
+            fragment Inputs on $type { __typename kind: __typename }
+            """.trimIndent()
+
+        EngineTestModule(
+            """
+            type Obj { objectResult: String queryResult: String echo(value: String): String }
+            extend type Query { obj: Obj echo(value: String): String }
+            """.trimIndent(),
+        ) {
+            field("Query" to "obj") {
+                resolver { fn { _, _, _, _, _ -> createEngineObjectData(schema.schema.getObjectType("Obj"), emptyMap()) } }
+            }
+            for (type in listOf("Obj", "Query")) {
+                field(type to "echo") { resolver { fn { args, _, _, _, _ -> args["value"] } } }
+            }
+            fieldWithFromFieldVariables(
+                coord = "Obj" to "objectResult",
+                objectSelectionsText = selections("Obj"),
+                variables = listOf(
+                    FromObjectFieldVariable("typename", "__typename"),
+                    FromObjectFieldVariable("alias", "kind"),
+                ),
+            ) { _, obj, _, _, _ ->
+                "${obj.getAs<String>("plain")}/${obj.getAs<String>("aliased")}"
+            }
+            fieldWithFromFieldVariables(
+                coord = "Obj" to "queryResult",
+                querySelectionsText = selections("Query"),
+                variables = listOf(
+                    FromQueryFieldVariable("typename", "__typename"),
+                    FromQueryFieldVariable("alias", "kind"),
+                ),
+            ) { _, _, query, _, _ ->
+                "${query.getAs<String>("plain")}/${query.getAs<String>("aliased")}"
+            }
+        }.runContractTest {
+            withTimeout("{ obj { objectResult queryResult } }", timeoutMillis = 5_000)
+                .assertJson("{data: {obj: {objectResult: \"Obj/Obj\", queryResult: \"Query/Query\"}}}")
+        }
+    }
+
+    @Test
+    fun `field variables resolve aliases through nested named fragments`() {
+        fun selections(
+            left: String,
+            right: String
+        ) = """
+            fragment Main on Query {
+              ...Inputs @include(if: ${'$'}enabled)
+              use(x: ${'$'}$left, y: ${'$'}$right)
+            }
+            fragment Inputs on Query { ...Source }
+            fragment Source on Query { ${left}Source: source(x: 9) ${right}Source: source(x: 4) }
+            """.trimIndent()
+
+        EngineTestModule(
+            "extend type Query { source(x: Int!): Int use(x: Int, y: Int): Int! result(enabled: Boolean!): Int! }",
+        ) {
+            field("Query" to "source") { resolver { fn { args, _, _, _, _ -> args.getValue("x") } } }
+            field("Query" to "use") {
+                resolver { fn { args, _, _, _, _ -> (args["x"] as Int? ?: -1) + (args["y"] as Int? ?: -1) } }
+            }
+            fieldWithFromFieldVariables(
+                coord = "Query" to "result",
+                objectSelectionsText = selections("object", "otherObject"),
+                querySelectionsText = selections("query", "otherQuery"),
+                variables = listOf(
+                    FromArgumentVariable("enabled", "enabled"),
+                    FromObjectFieldVariable("object", "objectSource"),
+                    FromObjectFieldVariable("otherObject", "otherObjectSource"),
+                    FromQueryFieldVariable("query", "querySource"),
+                    FromQueryFieldVariable("otherQuery", "otherQuerySource"),
+                ),
+            ) { _, obj, query, _, _ ->
+                obj.getAs<Int>("use") + query.getAs<Int>("use")
+            }
+        }.runContractTest {
+            withTimeout("{ enabled: result(enabled: true) disabled: result(enabled: false) }", timeoutMillis = 5_000)
+                .assertJson("{data: {enabled: 26, disabled: -4}}")
+        }
+    }
+
     fun invalidVariableName(error: Throwable): String
 
     fun isRequiredSelectionsCycle(error: Throwable): Boolean

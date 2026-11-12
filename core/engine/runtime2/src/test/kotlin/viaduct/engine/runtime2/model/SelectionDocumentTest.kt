@@ -6,7 +6,8 @@ import kotlin.test.assertEquals
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 import viaduct.engine.runtime2.model.testing.TestWorld
-import viaduct.engine.runtime2.schema.fragmentFromDocument
+import viaduct.engine.runtime2.model.testing.fragmentFrom
+import viaduct.engine.runtime2.schema.specFragmentFromDocument
 
 class SelectionDocumentTest {
     @Test
@@ -21,7 +22,7 @@ class SelectionDocumentTest {
             )
 
         val fragment =
-            world.schemas.fragmentFromDocument(
+            world.schemas.specFragmentFromDocument(
                 Parser.parse(
                     """
                     fragment Main on Query {
@@ -34,7 +35,7 @@ class SelectionDocumentTest {
                     }
                     """.trimIndent(),
                 ),
-            )
+            ).fragment
 
         val selection = fragment.subselections.merge(world.schema.requireQueryTypeDef()).single()
         assertEquals("V_A_typename", selection.key.field.name)
@@ -58,20 +59,19 @@ class SelectionDocumentTest {
             )
 
         val fragment =
-            world.schemas.fragmentFromDocument(
-                Parser.parse(
-                    """
-                    fragment Value on Query {
-                      renamed: value
-                    }
-                    fragment Outer on Query {
-                      ...Value
-                    }
-                    fragment Main on Query {
-                      ...Outer
-                    }
-                    """.trimIndent(),
-                ),
+            world.schemas.fragmentFrom(
+                """
+                fragment Value on Query {
+                  renamed: value
+                }
+                fragment Outer on Query {
+                  ...Value
+                }
+                fragment Main on Query {
+                  ...Outer
+                }
+                """.trimIndent(),
+                preserveSourceResponseKeys = true,
             )
 
         assertEquals("value", fragment.subselections.single().key.field.name)
@@ -92,7 +92,7 @@ class SelectionDocumentTest {
             )
 
         val fragment =
-            world.schemas.fragmentFromDocument(
+            world.schemas.specFragmentFromDocument(
                 Parser.parse(
                     """
                     fragment Directed on Query {
@@ -103,7 +103,7 @@ class SelectionDocumentTest {
                     }
                     """.trimIndent(),
                 ),
-            )
+            ).fragment
 
         val selection = fragment.materializeSelections.single()
         assertEquals("renamed", selection.responseKey)

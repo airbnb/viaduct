@@ -26,6 +26,7 @@ import java.util.Locale
 import viaduct.engine.api.FieldDirectives
 import viaduct.engine.runtime2.model.Arguments
 import viaduct.engine.runtime2.model.EngineInputData
+import viaduct.engine.runtime2.model.Fragment
 import viaduct.engine.runtime2.model.InclusionCondition
 import viaduct.engine.runtime2.model.MaterializeSelectionForest
 import viaduct.engine.runtime2.model.ResolverTarget
@@ -37,9 +38,10 @@ import viaduct.engine.runtime2.model.spec.flatten
 import viaduct.engine.runtime2.model.spec.flattenForMaterialization
 import viaduct.engine.runtime2.schema.lowering.loweredFieldFromSourceCoordinate
 import viaduct.graphql.schema.ViaductSchema
+import viaduct.graphql.utils.SelectionsParserUtils
 
 /**
- * Parses and validates external GraphQL fragment text against the unaugmented source schema.
+ * Validates and decodes GraphQL fragment text or ASTs against the unaugmented source schema.
  *
  * Decoded selections are mapped directly to canonical definitions in [schema]. Node-valued source
  * fields retain their source coordinates.
@@ -98,20 +100,31 @@ internal class GJSelectionParser(
 
     fun materializeSelectionsFrom(fragment: String): Pair<ViaductSchema.CompositeTypeDef, MaterializeSelectionForest> {
         val parsed = specSelectionsFrom(fragment)
-        val selections =
-            flattenForMaterialization(schema, parsed.nominalType, parsed.selections)
-        return parsed.nominalType to selections
+        return parsed.nominalType to parsed.fragment.materializeSelections
     }
 
     fun specSelectionsFrom(fragment: String): ParsedSpecFragment {
         val document = Parser.parse(fragment)
-        val definition =
-            document.definitions.singleOrNull() as? FragmentDefinition
-                ?: throw IllegalArgumentException("Expected exactly one named fragment definition")
-        require(definition.directives.isEmpty()) {
+        require(document.definitions.singleOrNull() is FragmentDefinition) {
+            "Expected exactly one named fragment definition"
+        }
+        return specSelectionsFrom(document)
+    }
+
+    fun specSelectionsFrom(document: Document): ParsedSpecFragment {
+        val fragments = document.getDefinitionsOfType(FragmentDefinition::class.java)
+        require(fragments.size == document.definitions.size) {
+            "A resolver selection document may contain only fragment definitions"
+        }
+        val fragmentsByName = fragments.associateBy(FragmentDefinition::getName)
+        require(fragmentsByName.size == fragments.size) {
+            "A resolver selection document may not contain duplicate fragment definitions"
+        }
+        require(fragments.all { it.directives.isEmpty() }) {
             "Fragment definitions cannot be conditional"
         }
         validateFragment(document)
+        val definition = SelectionsParserUtils.findEntryPointFragment(fragments)
 
         val typeConditionName = definition.typeCondition.name!!
         val typeCondition = schema.requireType(typeConditionName) as ViaductSchema.CompositeTypeDef
@@ -123,8 +136,9 @@ internal class GJSelectionParser(
                 typeInScope = graphQLTypeCondition,
                 argumentDecoder = LiteralArgumentDecoder(),
                 mode = TranslationMode.INTERNAL_FRAGMENT,
+                fragmentsByName = fragmentsByName,
             )
-        return ParsedSpecFragment(typeCondition, specSelections)
+        return ParsedSpecFragment(typeCondition, specSelections, schema)
     }
 
     private fun validateFragment(document: Document) {
@@ -170,9 +184,6 @@ internal class GJSelectionParser(
                         ),
                     )
                 is FragmentSpread -> {
-                    require(mode == TranslationMode.EXTERNAL_OPERATION) {
-                        "Named fragment spreads must be inlined before constructing spec selections"
-                    }
                     val fragment =
                         fragmentsByName[selection.name]
                             ?: throw IllegalArgumentException(
@@ -183,6 +194,7 @@ internal class GJSelectionParser(
                             fragment = fragment,
                             inclusionCondition = argumentDecoder.decodeCondition(selection),
                             argumentDecoder = argumentDecoder,
+                            mode = mode,
                             fragmentsByName = fragmentsByName,
                         ),
                     )
@@ -268,6 +280,7 @@ internal class GJSelectionParser(
         fragment: FragmentDefinition,
         inclusionCondition: InclusionCondition,
         argumentDecoder: ArgumentDecoder,
+        mode: TranslationMode,
         fragmentsByName: Map<String, FragmentDefinition>,
     ): SpecSelection.InlineFragment? {
         require(fragment.directives.isEmpty()) { "Fragment definitions cannot be conditional" }
@@ -279,7 +292,7 @@ internal class GJSelectionParser(
                 fragment.selectionSet,
                 graphQLTypeCondition,
                 argumentDecoder,
-                TranslationMode.EXTERNAL_OPERATION,
+                mode,
                 fragmentsByName,
             )
         if (selections.isEmpty()) return null
@@ -447,7 +460,12 @@ internal class GJSelectionParser(
 internal data class ParsedSpecFragment(
     val nominalType: ViaductSchema.CompositeTypeDef,
     val selections: List<SpecSelection>,
-)
+    private val schema: ViaductSchema,
+) {
+    val fragment: Fragment by lazy {
+        Fragment.of(nominalType, flattenForMaterialization(schema, nominalType, selections))
+    }
+}
 
 /** Generic no-argument field directives retained by the parser. */
 private class ParsedFieldDirectives(
