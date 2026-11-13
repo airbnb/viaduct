@@ -58,6 +58,7 @@ import viaduct.engine.runtime.instrumentation.ResolverDataFetcherInstrumentation
 import viaduct.engine.runtime.instrumentation.ScopeInstrumentation
 import viaduct.engine.runtime.instrumentation.TaggedMetricInstrumentation
 import viaduct.engine.runtime.result.ObjectEngineResult
+import viaduct.engine.runtime.validation.IncrementalDirectiveValidation
 import viaduct.service.api.spi.FlagManager
 import viaduct.utils.string.sha256Hash
 
@@ -145,7 +146,7 @@ class EngineImpl(
     )
 
     private val graphql = GraphQL.newGraphQL(schema.schema)
-        .preparsedDocumentProvider(IntrospectionRestrictingPreparsedDocumentProvider(documentProvider))
+        .preparsedDocumentProvider(IntrospectionRestrictingPreparsedDocumentProvider(IncrementalDirectiveValidation(documentProvider)))
         .queryExecutionStrategy(queryExecutionStrategy)
         .mutationExecutionStrategy(mutationExecutionStrategy)
         .subscriptionExecutionStrategy(subscriptionExecutionStrategy)

@@ -51,6 +51,7 @@ import viaduct.engine.runtime.context.CompositeLocalContext
 import viaduct.engine.runtime.execution.DefaultCoroutineInterop
 import viaduct.engine.runtime.execution.WrappedCoroutineExecutionStrategy
 import viaduct.engine.runtime.select.EngineSelectionSetFactoryImpl
+import viaduct.engine.runtime.validation.IncrementalDirectiveValidation
 import viaduct.engine.runtime2.airbnb.DispatcherResolverRegistryFactory
 import viaduct.engine.runtime2.airbnb.Engine2ResolverRegistryFactory
 import viaduct.engine.runtime2.execution.Engine2ExecutionContext
@@ -99,7 +100,7 @@ class Engine2(
     private val graphql =
         GraphQL
             .newGraphQL(Runtime2WiringFactory(schemas.loweredSchema).wire(schema.schema))
-            .preparsedDocumentProvider(documentProvider)
+            .preparsedDocumentProvider(IncrementalDirectiveValidation(documentProvider))
             .queryExecutionStrategy(createExecutionStrategy())
             .mutationExecutionStrategy(createExecutionStrategy())
             .subscriptionExecutionStrategy(createExecutionStrategy())
