@@ -73,9 +73,6 @@ internal class GJSelectionParser(
             subscription -> requireNotNull(sourceSchema.subscriptionType)
             else -> sourceSchema.queryType
         }
-        require(operation.directives.isEmpty()) {
-            "Applied operation directives are unsupported"
-        }
         val selections =
             decodeSelectionSet(
                 selectionSet = operation.selectionSet,

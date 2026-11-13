@@ -1,0 +1,5 @@
+package viaduct.engine.runtime2.execution
+
+import viaduct.engine.runtime.execution.OperationDirectivesContract
+
+class OperationDirectivesContractTest : OperationDirectivesContract, Engine2QueryExecutionContract
