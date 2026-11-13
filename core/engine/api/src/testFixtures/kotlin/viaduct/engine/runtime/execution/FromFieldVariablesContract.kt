@@ -1532,6 +1532,23 @@ interface FromFieldVariablesContract : QueryExecutionContract {
     }
 
     @Test
+    fun `from arg -- omitted nullable argument binds null`() {
+        EngineTestModule("extend type Query { foo(x:Int):Int, bar(x:Int=17):Int }") {
+            fieldWithFromFieldVariables(
+                coord = "Query" to "foo",
+                objectSelectionsText = "bar(x:\$x)",
+                variables = listOf(FromArgumentVariable("x", "x")),
+            ) { _, obj, _, _, _ -> obj.fetchAs<Int?>("bar") }
+            field("Query" to "bar") {
+                resolver { fn { args, _, _, _, _ -> args["x"] } }
+            }
+        }.runContractTest {
+            runQuery("{ omitted:foo explicitNull:foo(x:null) supplied:foo(x:3) }")
+                .assertJson("{data: {omitted: null, explicitNull: null, supplied: 3}}")
+        }
+    }
+
+    @Test
     fun `from arg -- binds argument to variable with a different name`() {
         EngineTestModule("extend type Query { foo(y: Int!): Int!, bar(x:Int!): Int! }") {
             fieldWithFromFieldVariables(
@@ -1585,6 +1602,7 @@ interface FromFieldVariablesContract : QueryExecutionContract {
                 resolver { fn { args, _, _, _, _ -> (args["x"] as? Int)?.let { it * 3 } } }
             }
         }.runContractTest {
+            runQuery("{foo}").assertJson("{data: {foo: 7}}")
             runQuery("{foo(inp:null)}").assertJson("{data: {foo: 7}}")
         }
     }

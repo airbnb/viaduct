@@ -25,7 +25,7 @@ class FromArgumentVariableDefinitionTest {
             }
 
             type Query {
-              result(input: Input, inputs: [Input]): Int
+              result(input: Input, inputs: [Input], value: Int): Int
             }
             """.trimIndent(),
         )
@@ -38,6 +38,20 @@ class FromArgumentVariableDefinitionTest {
             input.requireField("nested"),
             nested.requireField("value"),
         )
+
+    @Test
+    fun `reads an omitted nullable scalar argument as null`() {
+        val definition = VariableDefinition.FromArgument.of(result.requireArg("value"))
+
+        assertEquals(null, definition.read(Arguments.Resolved.of(result, emptyMap())))
+    }
+
+    @Test
+    fun `short-circuits a nested path when the input argument is omitted`() {
+        val definition = VariableDefinition.FromArgument.of(result.requireArg("input"), inputPath)
+
+        assertEquals(null, definition.read(Arguments.Resolved.of(result, emptyMap())))
+    }
 
     @Test
     fun `reads a nested input path and short-circuits null traversal`() {

@@ -127,7 +127,7 @@ private data class FromArgumentImpl(
     override val inputPath: List<ViaductSchema.Field>,
 ) : VariableDefinition.FromArgument {
     override fun read(arguments: Arguments.Resolved): EngineInputData? {
-        var value = arguments.fieldValues.getValue(argument.name)
+        var value = arguments.fieldValues[argument.name]
         inputPath.forEach { field ->
             if (value == null) return null
             val fields = value as? Map<*, *>
