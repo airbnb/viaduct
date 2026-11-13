@@ -1,5 +1,7 @@
 package viaduct.engine.runtime.instrumentation
 
+import graphql.ExecutionInput
+import graphql.GraphQLContext
 import graphql.execution.ExecutionContext
 import graphql.execution.ExecutionContextBuilder
 import io.mockk.clearMocks
@@ -11,10 +13,14 @@ import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
+import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.instrumentation.ViaductInstrumentationBase
 import viaduct.engine.runtime.EngineExecutionContextImpl
+import viaduct.engine.runtime.context.CompositeLocalContext
 import viaduct.engine.runtime.context.findLocalContextForType
 import viaduct.engine.runtime.context.isIntrospective
+import viaduct.engine.runtime.context.setIsEngine2
 import viaduct.engine.runtime.createSchema
 import viaduct.engine.runtime.mocks.ContextMocks
 import viaduct.service.api.spi.FlagManager
@@ -49,6 +55,33 @@ internal class ScopeInstrumentationTest {
         )
 
         clearMocks(mockExecutionContext)
+        every { mockExecutionContext.graphQLContext } returns GraphQLContext.newContext().build()
+    }
+
+    @Test
+    fun `Engine2 execution leaves the context unchanged regardless of its local context`() {
+        val input = ExecutionInput.newExecutionInput().query("{ __typename }").build()
+        input.setIsEngine2()
+        every { mockExecutionContext.graphQLContext } returns input.graphQLContext
+        for (localContext in listOf(null, CompositeLocalContext.withContexts(mockk<EngineExecutionContext>()), contextMocks.localContext)) {
+            every { mockExecutionContext.getLocalContext<Any>() } returns localContext
+
+            assertSame(
+                mockExecutionContext,
+                ScopeInstrumentation().instrumentExecutionContext(mockExecutionContext, mockk(), null),
+            )
+        }
+    }
+
+    @Test
+    fun `missing Engine1 context fails instead of silently skipping schema scoping`() {
+        every { mockExecutionContext.getLocalContext<Any>() } returns CompositeLocalContext.empty
+        every { mockExecutionContext.graphQLContext } returns ExecutionInput.newExecutionInput().query("{ __typename }").build().graphQLContext
+
+        val failure = assertThrows<IllegalStateException> {
+            ScopeInstrumentation().instrumentExecutionContext(mockExecutionContext, mockk(), null)
+        }
+        assertEquals("Missing EngineExecutionContextImpl for Engine1 execution", failure.message)
     }
 
     @Test

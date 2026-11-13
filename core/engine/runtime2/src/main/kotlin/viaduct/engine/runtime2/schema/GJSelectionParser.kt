@@ -207,7 +207,7 @@ internal class GJSelectionParser(
         mode: TranslationMode,
         fragmentsByName: Map<String, FragmentDefinition>,
     ): SpecSelection.Field? {
-        if (mode == TranslationMode.EXTERNAL_OPERATION && field.name == "__typename") {
+        if (mode == TranslationMode.EXTERNAL_OPERATION && field.name in Introspection.INTROSPECTION_SYSTEM_FIELDS) {
             return null
         }
         val fieldDefinition =

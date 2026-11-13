@@ -1,6 +1,7 @@
 package viaduct.engine.runtime.context
 
 import graphql.ExecutionInput
+import graphql.GraphQLContext
 import graphql.execution.ExecutionContext
 import graphql.execution.ExecutionStrategyParameters
 import graphql.schema.DataFetchingEnvironment
@@ -63,6 +64,15 @@ fun <T : Any> find(
 }
 
 // ExecutionContext
+private const val IS_ENGINE2 = "viaduct.engine.runtime.isEngine2"
+
+val GraphQLContext.isEngine2: Boolean
+    get() = get<Boolean>(IS_ENGINE2) == true
+
+fun ExecutionInput.setIsEngine2() {
+    graphQLContext.put(IS_ENGINE2, true)
+}
+
 private const val IS_INTROSPECTIVE = "viaduct.service.runtime.isIntrospective"
 
 val ExecutionContext.isIntrospective: Boolean

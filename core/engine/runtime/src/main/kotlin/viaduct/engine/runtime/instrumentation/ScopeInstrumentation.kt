@@ -5,7 +5,8 @@ import graphql.execution.instrumentation.InstrumentationState
 import graphql.execution.instrumentation.parameters.InstrumentationExecutionParameters
 import viaduct.engine.api.instrumentation.ViaductInstrumentationBase
 import viaduct.engine.runtime.EngineExecutionContextImpl
-import viaduct.engine.runtime.context.findLocalContextForType
+import viaduct.engine.runtime.context.getLocalContextForType
+import viaduct.engine.runtime.context.isEngine2
 import viaduct.engine.runtime.context.isIntrospective
 import viaduct.engine.runtime.context.updateCompositeLocalContext
 
@@ -15,9 +16,14 @@ class ScopeInstrumentation : ViaductInstrumentationBase() {
         parameters: InstrumentationExecutionParameters,
         state: InstrumentationState?
     ): ExecutionContext {
+        // Engine2 already uses the scoped schema.
+        if (executionContext.graphQLContext.isEngine2) return executionContext
+        val currentExecutionContext = checkNotNull(executionContext.getLocalContextForType<EngineExecutionContextImpl>()) {
+            "Missing EngineExecutionContextImpl for Engine1 execution"
+        }
         return executionContext.transform { contextBuilder ->
             // If introspective, we need to use the scoped schema, which is the correct schema to return the introspective query scoped.
-            val engineExecutionContext = executionContext.findLocalContextForType<EngineExecutionContextImpl>().let { currentExecutionContext ->
+            val engineExecutionContext = currentExecutionContext.let {
                 if (executionContext.isIntrospective) {
                     val scopedExecutionContext = currentExecutionContext.copy(activeSchema = currentExecutionContext.scopedSchema)
 
