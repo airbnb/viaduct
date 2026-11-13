@@ -243,6 +243,6 @@ jobs:
           else
             echo "Publishing ${MODE^^} artifacts to the Central snapshot repository..."
             export RELEASE=false
-            ./gradlew publishToSnapshots --no-daemon --stacktrace
+            ./gradlew publishToSnapshots --no-daemon --stacktrace --no-parallel --max-workers=1
           fi
         shell: bash
