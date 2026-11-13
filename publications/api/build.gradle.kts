@@ -11,7 +11,7 @@ viaductPublishing {
 
 dependencies {
     // Always expose as api so composite-build consumers (demo apps) get transitive deps.
-    // In the published shadow jar, these are bundled and transitive deps are suppressed below.
+    // In the published shadow jar, these are bundled, and its POM depends only on the fat jars in fatJarLayers.
     api(libs.viaduct.tenant.api)
     api(libs.viaduct.service.api)
     api(libs.graphql.java)  // Needed for generated resolver bases

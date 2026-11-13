@@ -12,6 +12,8 @@ viaductPublishing {
 
 dependencies {
     api(testFixtures(libs.viaduct.tenant.api))
+    fatJarLayers(project(":api"))
+    fatJarLayers(project(":runtime"))
 }
 
 tasks.named<ShadowJar>("shadowJar") {

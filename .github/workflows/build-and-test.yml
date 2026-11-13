@@ -223,6 +223,10 @@ jobs:
         run: ./gradlew -p publications checkRuntimeClasspathArtifactNamesAreUnique --scan --continue
         shell: bash
 
+      - name: Check that no fat jar ships what a lower fat jar ships
+        run: ./gradlew -p publications checkFatJarLayers --scan --continue
+        shell: bash
+
   coverage-reports:
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: ${{ matrix.os }}

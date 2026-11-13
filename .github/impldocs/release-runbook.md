@@ -358,7 +358,7 @@ grep -iE "junit|mockk|mockito|byte-buddy|objenesis|assertj|strikt|hamcrest|truth
 
 The SBOM lists the full dependency graph, including libraries the fat-jar build strips, so a hit here is a lead rather than a verdict. For every library the last command prints, and for any entry with `test`, `assert`, or `mock` in the name, check whether the jar from step 3 contains its package. If it does, a test/build dependency leaked into a published artifact — **stop**, fix the offending module's `build.gradle.kts` on main (look for a stray `testFixtures(...)` or a test-lib `api`/`implementation`), and bring the fix over with [Fix the branch before publishing](#fix-the-branch-before-publishing) before publishing.
 
-> **Expected — not a leak:** `kotlin`, `kotest`, `opentest4j` and JUnit can appear in the `test-fixtures` SBOM through module test fixtures; the `exclude(...)` list in `publications/test-fixtures/build.gradle.kts` keeps them out of the jar. `javassist` is bundled on purpose in `buildtime` and `javaapi-buildtime`, which use it for code generation.
+> **Expected — not a leak:** `kotlin`, `kotest`, `opentest4j` and JUnit can appear in the `test-fixtures` SBOM through module test fixtures; the `exclude(...)` list in `publications/test-fixtures/build.gradle.kts` keeps them out of the jar. `javassist` is bundled on purpose in `buildtime`, which `javaapi-buildtime` depends on; both use it for code generation.
 
 **3. Check the jar contents.** The jars are the ground truth:
 
@@ -371,7 +371,7 @@ for j in publications/*/build/libs/*-$(cat VERSION).jar; do
 done
 ```
 
-Every count must be `0`. `buildtime` and `javaapi-buildtime` currently also ship `io/kotest` classes; that is a known issue, not a new leak.
+Every count must be `0`. `buildtime` currently also ships `io/kotest` classes; that is a known issue, not a new leak.
 
 > **Gradle trap:** after an `exclude(...)` change, `shadowJar` can report `UP-TO-DATE` and keep the old jar contents, with or without the build cache. Always pass `--rerun` when you inspect jar contents.
 
@@ -379,6 +379,12 @@ Every count must be `0`. `buildtime` and `javaapi-buildtime` currently also ship
 
 ```bash
 ./gradlew -p publications :test-fixtures:checkTestFixturesPublication --no-build-cache
+```
+
+Then check that no jar ships a class, resource or `META-INF/maven` descriptor that one of its lower jars ships. `runtime`, `test-fixtures`, `javaapi-api`, `javaapi-runtime` and `javaapi-buildtime` each leave out the classes of the jars they depend on in their POMs:
+
+```bash
+./gradlew -p publications checkFatJarLayers --no-build-cache
 ```
 
 **5. (Optional) Scan for CVEs.** `security-scan.yml` is advisory and never fails the release. To get its report for the branch, dispatch it and read the run's summary:
@@ -717,6 +723,7 @@ Push the branch to your fork and open a PR against main as in [Step 3](#3-bump-v
 | `unbumpSnapshotVersion` | Removes the `-rc.XXXX` marker from a SNAPSHOT version, syncs demo apps |
 | `writePublishedCoordinates` | Records every published coordinate to `<module>/build/reports/publication/coordinates.txt`; `release.yml` probes these for CDN visibility |
 | `-p publications :test-fixtures:checkTestFixturesPublication` | Fails if the `test-fixtures` jar bundles JUnit or `engine-api`'s test-fixture classes under `viaduct/engine/runtime/execution/` |
+| `-p publications checkFatJarLayers` | Fails if a fat jar ships a class, resource or `META-INF/maven` descriptor that one of its lower jars (its POM dependencies) ships; other top-level `META-INF` files are exempt |
 
 `bumpSnapshotVersion` / `unbumpSnapshotVersion` are only for ephemeral SNAPSHOT publication testing. Public release candidates use explicit versions like `X.Y.Z-rc.N-SNAPSHOT`.
 
