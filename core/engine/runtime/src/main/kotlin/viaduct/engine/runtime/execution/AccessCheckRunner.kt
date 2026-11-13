@@ -8,6 +8,9 @@ import graphql.schema.GraphQLCompositeType
 import graphql.schema.GraphQLObjectType
 import graphql.schema.GraphQLOutputType
 import java.util.function.Supplier
+import kotlinx.coroutines.ensureActive
+import viaduct.dataloader.undispatchedStartIfRunning
+import viaduct.deferred.threadLocalCoroutineContext
 import viaduct.engine.api.CheckerResult
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
@@ -211,7 +214,9 @@ class AccessCheckRunner(
             parameters.executionContext.instrumentationState
         )
 
-        val deferred = coroutineInterop.scopedAsync {
+        val deferred = coroutineInterop.scopedAsync(start = undispatchedStartIfRunning(threadLocalCoroutineContext())) {
+            // UNDISPATCHED enters the body even if its parent has already been cancelled.
+            ensureActive()
             log.ifDebug {
                 val fieldCoord = if (checkerType == CheckerExecutor.CheckerType.FIELD) {
                     "${parameters.executionStepInfo.objectType.name}.${parameters.field!!.fieldName}"

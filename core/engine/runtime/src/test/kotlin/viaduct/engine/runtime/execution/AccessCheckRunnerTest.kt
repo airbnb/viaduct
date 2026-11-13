@@ -21,14 +21,29 @@ import io.mockk.verify
 import java.util.Locale
 import java.util.function.Supplier
 import kotlin.coroutines.EmptyCoroutineContext
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.withContext
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.EnumSource
+import viaduct.dataloader.NextTickDispatcher
+import viaduct.dataloader.nextTick
+import viaduct.deferred.ThreadLocalCoroutineContextManager
+import viaduct.deferred.threadLocalCoroutineContext
 import viaduct.engine.api.CheckerResult
 import viaduct.engine.api.CheckerResultContext
 import viaduct.engine.api.EngineExecutionContext
@@ -52,6 +67,7 @@ import viaduct.engine.runtime.mocks.ContextMocks
 import viaduct.engine.runtime.objectEngineResult
 import viaduct.graphql.utils.ParsedSelections
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class AccessCheckRunnerTest {
     val runner = AccessCheckRunner(DefaultCoroutineInterop)
     private val emptyFooSelectionSet = createEngineSelectionSet(
@@ -67,6 +83,200 @@ class AccessCheckRunnerTest {
     fun setUp() {
         every { mockSupplier.get() } returns mockDataFetchingEnvironment
     }
+
+    @ParameterizedTest
+    @EnumSource(CheckerExecutor.CheckerType::class)
+    fun `synchronous checks finish inline before the next tick`(checkerType: CheckerExecutor.CheckerType) =
+        runTest {
+            val dispatcher = NextTickDispatcher(StandardTestDispatcher(testScheduler), UnconfinedTestDispatcher(testScheduler))
+            val order = mutableListOf<String>()
+            val flushed = CompletableDeferred<Unit>()
+
+            withContext(dispatcher) {
+                withThreadLocalCoroutineContext {
+                    nextTick(coroutineContext) {
+                        order.add("tick")
+                        flushed.complete(Unit)
+                    }
+                    for (outcome in listOf(CheckerResult.Success, errorCheckerResult)) {
+                        val result = check(
+                            checkerType,
+                            checker { actualType ->
+                                assertEquals(checkerType, actualType)
+                                order.add("checker")
+                                outcome
+                            }
+                        )
+                        assertTrue(result is Value.Sync)
+                        assertSame(outcome, result.getCompleted())
+                    }
+                    order.add("caller")
+                    assertEquals(listOf("checker", "checker", "caller"), order)
+                    assertFalse(threadLocalCoroutineContext()[Job]!!.children.any())
+                }
+            }
+            flushed.await()
+            assertEquals(listOf("checker", "checker", "caller", "tick"), order)
+        }
+
+    @ParameterizedTest
+    @EnumSource(CheckerExecutor.CheckerType::class)
+    fun `checks outside NextTickDispatcher keep their scheduled start`(checkerType: CheckerExecutor.CheckerType) =
+        runTest {
+            withThreadLocalCoroutineContext {
+                var executed = false
+                val result = check(
+                    checkerType,
+                    checker {
+                        executed = true
+                        CheckerResult.Success
+                    }
+                )
+
+                assertFalse(executed)
+                assertFalse(result.asDeferred().isCompleted)
+                assertSame(CheckerResult.Success, result.await())
+                assertTrue(executed)
+            }
+        }
+
+    @ParameterizedTest
+    @EnumSource(CheckerExecutor.CheckerType::class)
+    fun `suspended checks let siblings run and resume on their dispatcher`(checkerType: CheckerExecutor.CheckerType) =
+        runTest {
+            val dispatcher = NextTickDispatcher(StandardTestDispatcher(testScheduler), UnconfinedTestDispatcher(testScheduler))
+            val release = CompletableDeferred<Unit>()
+            val order = mutableListOf<String>()
+
+            withContext(dispatcher) {
+                withThreadLocalCoroutineContext {
+                    val result = check(
+                        checkerType,
+                        checker {
+                            order.add("prefix")
+                            release.await()
+                            assertTrue(dispatcher.isRunningOnCurrentThread())
+                            order.add("resumed")
+                            CheckerResult.Success
+                        }
+                    )
+                    assertEquals(listOf("prefix"), order)
+                    assertFalse(result.asDeferred().isCompleted)
+                    val sibling = check(
+                        checkerType,
+                        checker {
+                            order.add("sibling")
+                            CheckerResult.Success
+                        }
+                    )
+                    assertSame(CheckerResult.Success, sibling.getCompleted())
+
+                    release.complete(Unit)
+                    assertSame(CheckerResult.Success, result.await())
+                    assertEquals(listOf("prefix", "sibling", "resumed"), order)
+                    assertFalse(threadLocalCoroutineContext()[Job]!!.children.any())
+                }
+            }
+        }
+
+    @ParameterizedTest
+    @EnumSource(CheckerExecutor.CheckerType::class)
+    fun `inline checker failures stay in the result and leave siblings active`(checkerType: CheckerExecutor.CheckerType) =
+        runTest {
+            val dispatcher = NextTickDispatcher(StandardTestDispatcher(testScheduler), UnconfinedTestDispatcher(testScheduler))
+            val failure = IllegalStateException("authorization backend failed")
+
+            withContext(dispatcher) {
+                withThreadLocalCoroutineContext {
+                    val result = check(checkerType, checker { throw failure })
+
+                    assertSame(failure, assertThrows<IllegalStateException> { result.await() })
+                    assertTrue(threadLocalCoroutineContext()[Job]!!.isActive)
+                    assertSame(CheckerResult.Success, check(checkerType, successCheckerExecutor).getCompleted())
+                    assertFalse(threadLocalCoroutineContext()[Job]!!.children.any())
+                }
+            }
+        }
+
+    @ParameterizedTest
+    @EnumSource(CheckerExecutor.CheckerType::class)
+    fun `cancelling a suspended checker cleans it up without cancelling siblings`(checkerType: CheckerExecutor.CheckerType) =
+        runTest {
+            val dispatcher = NextTickDispatcher(StandardTestDispatcher(testScheduler), UnconfinedTestDispatcher(testScheduler))
+            val release = CompletableDeferred<Unit>()
+            var cleanedUp = false
+
+            withContext(dispatcher) {
+                withThreadLocalCoroutineContext {
+                    val result = check(
+                        checkerType,
+                        checker {
+                            try {
+                                release.await()
+                                CheckerResult.Success
+                            } finally {
+                                cleanedUp = true
+                            }
+                        }
+                    )
+
+                    result.asDeferred().cancel()
+                    assertThrows<CancellationException> { result.await() }
+                    result.asDeferred().join()
+                    assertTrue(cleanedUp)
+                    assertSame(CheckerResult.Success, check(checkerType, successCheckerExecutor).getCompleted())
+                    assertFalse(threadLocalCoroutineContext()[Job]!!.children.any())
+                }
+            }
+        }
+
+    @ParameterizedTest
+    @EnumSource(CheckerExecutor.CheckerType::class)
+    fun `already cancelled parents do not execute checker side effects`(checkerType: CheckerExecutor.CheckerType) =
+        runTest {
+            val dispatcher = NextTickDispatcher(StandardTestDispatcher(testScheduler), UnconfinedTestDispatcher(testScheduler))
+            val parent = Job().apply { cancel() }
+            var executed = false
+
+            withContext(dispatcher) {
+                val contextElement = ThreadLocalCoroutineContextManager.ContextElement(parent)
+                val previous = contextElement.updateThreadContext(coroutineContext + contextElement + parent)
+                try {
+                    val result = check(
+                        checkerType,
+                        checker {
+                            executed = true
+                            CheckerResult.Success
+                        }
+                    )
+
+                    assertThrows<CancellationException> { result.await() }
+                    assertFalse(executed)
+                    assertFalse(parent.children.any())
+                } finally {
+                    contextElement.restoreThreadContext(coroutineContext, previous)
+                }
+            }
+        }
+
+    private fun check(
+        checkerType: CheckerExecutor.CheckerType,
+        checker: CheckerExecutor,
+    ): Value<out CheckerResult?> =
+        when (checkerType) {
+            CheckerExecutor.CheckerType.FIELD -> checkField(checker)
+            CheckerExecutor.CheckerType.TYPE -> checkType(checker)
+        }
+
+    private fun checker(block: suspend (CheckerExecutor.CheckerType) -> CheckerResult): CheckerExecutor =
+        object : CheckerExecutor by successCheckerExecutor {
+            override suspend fun execute(
+                arguments: Map<String, Any?>,
+                objectDataMap: Map<String, EngineObjectData.Sync>,
+                context: EngineExecutionContext,
+                checkerType: CheckerExecutor.CheckerType,
+            ): CheckerResult = block(checkerType)
+        }
 
     @Test
     fun `fieldCheck - no checker`(): Unit =
@@ -657,6 +867,14 @@ class AccessCheckRunnerTest {
     }
 
     companion object {
+        private val errorCheckerResult = object : CheckerResult.Error {
+            override val error: Exception = IllegalAccessException("denied")
+
+            override fun isErrorForResolver(ctx: CheckerResultContext) = true
+
+            override fun combine(fieldResult: CheckerResult.Error) = this
+        }
+
         private val fooObjectType = mockk<GraphQLObjectType> { every { name } returns "Foo" }
         private val successCheckerExecutor = object : CheckerExecutor {
             override val requiredSelectionSets: Map<String, RequiredSelectionSet?> = mapOf()
@@ -680,13 +898,7 @@ class AccessCheckRunnerTest {
                 context: EngineExecutionContext,
                 checkerType: CheckerExecutor.CheckerType
             ): CheckerResult {
-                return object : CheckerResult.Error {
-                    override val error: Exception = IllegalAccessException("denied")
-
-                    override fun isErrorForResolver(ctx: CheckerResultContext) = true
-
-                    override fun combine(fieldResult: CheckerResult.Error) = this
-                }
+                return errorCheckerResult
             }
         }
     }
