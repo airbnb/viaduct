@@ -136,17 +136,27 @@ class SelectiveNodeExecutionContractTest : SelectiveNodeExecutionContract, Engin
     @Nested
     inner class ErrorTests {
         @ParameterizedTest
-        @CsvSource("false, x", "true, x", "false, id __typename", "true, id __typename")
+        @CsvSource(
+            "false, x, false",
+            "true, x, false",
+            "false, id __typename, false",
+            "true, id __typename, false",
+            "false, x, true",
+            "true, x, true",
+            "false, id __typename, true",
+            "true, id __typename, true",
+        )
         fun `selective node failures preserve embedder error classification`(
             matEnabled: Boolean,
-            fields: String
+            fields: String,
+            tenantException: Boolean,
         ) {
-            val failure = MissingNodeException()
+            val failure = if (tenantException) MissingNodeException() else RuntimeException("node not found")
             val reported = mutableListOf<Throwable>()
             val handler = ViaductDataFetcherExceptionHandler(
                 ErrorReporter { error, _, _ -> reported.add(error) },
                 ResolverErrorBuilder { error, _ ->
-                    if (error is MissingNodeException) {
+                    if (error === failure) {
                         listOf(GraphQLError(message = error.message!!, extensions = mapOf("errorType" to "NOT_FOUND", "fatal" to false)))
                     } else {
                         null

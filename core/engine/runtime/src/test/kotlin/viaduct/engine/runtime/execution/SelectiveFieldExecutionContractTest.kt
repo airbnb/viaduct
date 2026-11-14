@@ -18,6 +18,7 @@ import java.util.concurrent.atomic.AtomicReference
 import kotlin.random.Random
 import org.junit.jupiter.api.Assertions.assertAll
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
@@ -71,8 +72,11 @@ import viaduct.engine.runtime.Engine1QueryExecutionContract
 import viaduct.engine.runtime.dfe.engineExecutionContext
 import viaduct.graphql.test.assertMatches
 import viaduct.service.api.ExecutionInput
+import viaduct.service.api.GraphQLError
 import viaduct.service.api.Viaduct
+import viaduct.service.api.spi.ErrorReporter
 import viaduct.service.api.spi.FlagManager
+import viaduct.service.api.spi.ResolverErrorBuilder
 import viaduct.service.api.spi.mocks.MockFlagManager
 
 /**
@@ -86,6 +90,62 @@ import viaduct.service.api.spi.mocks.MockFlagManager
  * run modes
  */
 class SelectiveFieldExecutionContractTest : SelectiveFieldExecutionContract, Engine1QueryExecutionContract {
+    @Test
+    fun `later selective field failures preserve embedder error classification`() {
+        val failure = NullPointerException("resolver failed")
+        val calls = AtomicInteger()
+        val reported = ConcurrentLinkedQueue<Throwable>()
+
+        MockTenantModuleBootstrapper(
+            """
+                extend type Query { foo: Foo }
+                type Foo { x: Int, y: Int }
+            """.trimIndent()
+        ) {
+            field("Query" to "foo") {
+                resolverExecutor {
+                    MockFieldUnbatchedResolverExecutor(
+                        isSelective = true,
+                        resolverId = resolverId,
+                        unbatchedResolveFn = { _, _, _, sels, _ ->
+                            calls.incrementAndGet()
+                            if (sels!!.containsField("Foo", "y")) throw failure
+                            createEngineObjectData("Foo", emptyMap())
+                        }
+                    )
+                }
+            }
+            field("Foo" to "x") {
+                resolver {
+                    objectSelections("y")
+                    fn { _, obj, _, _, _ -> obj.fetchAs<Int>("y") * 3 }
+                }
+            }
+        }.runFeatureTest(
+            engineConfig = EngineConfiguration.featureTestDefault.copy(
+                dataFetcherExceptionHandler = ViaductDataFetcherExceptionHandler(
+                    ErrorReporter { error, _, _ -> reported.add(error) },
+                    ResolverErrorBuilder { error, _ ->
+                        if (error === failure) {
+                            listOf(GraphQLError(message = error.message!!, extensions = mapOf("errorType" to "RESOLVER_FAILURE")))
+                        } else {
+                            null
+                        }
+                    },
+                ),
+            )
+        ) {
+            val result = runQueryWithTimeout("{ foo { x } }")
+            assertEquals(mapOf("foo" to mapOf("x" to null)), result.getData())
+            val error = result.errors.single()
+            assertEquals(listOf("foo", "x"), error.path)
+            assertEquals("RESOLVER_FAILURE", error.extensions["errorType"])
+        }
+
+        assertSame(failure, reported.single())
+        assertEquals(2, calls.get())
+    }
+
     @ParameterizedTest
     @ValueSource(booleans = [false, true])
     fun `supplied nested polymorphic values do not rematerialize a selective connection`(parentSupplied: Boolean) {

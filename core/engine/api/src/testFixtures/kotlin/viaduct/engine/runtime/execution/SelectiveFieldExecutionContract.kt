@@ -2517,7 +2517,7 @@ interface SelectiveFieldExecutionContract : QueryExecutionContract {
                 }
                 "errors" to arrayOf(
                     {
-                        "message" to ".*failed when materialized.*"
+                        "message" to ".*wrap object type.*Bar.*with value 2.*"
                         "path" to listOf("foo", "bar", "x")
                     }
                 )
@@ -2565,7 +2565,7 @@ interface SelectiveFieldExecutionContract : QueryExecutionContract {
                 }
                 "errors" to arrayOf(
                     {
-                        "message" to ".*failed when materialized.*"
+                        "message" to ".*foo second materialization failed.*"
                         "path" to listOf("foo", "x")
                     }
                 )

@@ -344,10 +344,12 @@ internal fun Mat.failedResultFor(
     parameters: ExecutionParameters,
     cause: Exception,
 ): MatResult {
-    val unwrappedCause = UnwrapExceptionUtil.unwrapExceptionForError(cause)
+    val attributedCause = UnwrapExceptionUtil.unwrapException(cause, UnwrapExceptionUtil::isConcurrencyWrapper)
+    val unwrappedCause = UnwrapExceptionUtil.unwrapExceptionForError(attributedCause)
     val failure =
-        when (unwrappedCause) {
-            is TenantException -> unwrappedCause
+        when {
+            unwrappedCause is TenantException -> unwrappedCause
+            UnwrapExceptionUtil.isViaductWrapper(attributedCause) -> attributedCause
             else ->
                 materializationException(
                     buildString {

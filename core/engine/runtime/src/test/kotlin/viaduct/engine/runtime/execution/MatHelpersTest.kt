@@ -4,16 +4,21 @@ import graphql.execution.CoercedVariables
 import graphql.schema.idl.RuntimeWiring
 import graphql.schema.idl.SchemaGenerator
 import graphql.schema.idl.SchemaParser
+import java.util.concurrent.CompletionException
+import java.util.concurrent.ExecutionException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.future.await
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertInstanceOf
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.CsvSource
 import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.ParentManagedValue
 import viaduct.engine.api.ResolvedEngineObjectData
@@ -26,6 +31,7 @@ import viaduct.engine.runtime.FieldResolutionResult
 import viaduct.engine.runtime.MatSource
 import viaduct.engine.runtime.ObjectEngineResultImpl
 import viaduct.engine.runtime.ObjectEngineResultImpl.Companion.RAW_VALUE_SLOT
+import viaduct.engine.runtime.exceptions.FieldFetchingException
 import viaduct.engine.runtime.mat.KeyTree
 import viaduct.engine.runtime.mat.KeyTreeFilter
 import viaduct.engine.runtime.mat.KeyTreeFilter.Result.DROP
@@ -529,6 +535,46 @@ class MatHelpersTest {
             val result = Mat.Null.failedResultFor(KeyTree.empty, parameters, wrappedFailure)
 
             assertSame(failure, result.source.exceptionOrNull())
+        }
+
+        @ParameterizedTest
+        @CsvSource("field, false", "field, true", "tenant, false", "tenant, true")
+        fun `failed materialization preserves resolver failures`(
+            resolverType: String,
+            async: Boolean,
+        ) {
+            val parameters = mkExecutionParameters(
+                "extend type Query { x:Int }",
+                "Query" to "x",
+                "{ x }",
+            )
+            val failure = NullPointerException("resolver failed")
+            val attributedFailure = when (resolverType) {
+                "field" -> FieldFetchingException.wrapWithPathAndLocation(failure, parameters.path, parameters.field!!.sourceLocation)
+                else -> TenantResolverException(failure, "Query.x")
+            }
+            val cause = if (async) CompletionException(ExecutionException(attributedFailure)) else attributedFailure
+            val coverage = KeyTree.build(parameters) { field("Query", key("x")) }
+
+            val result = Mat.Null.failedResultFor(coverage, parameters, cause)
+
+            assertSame(attributedFailure, result.source.exceptionOrNull())
+            assertEquals(coverage, result.coverage)
+        }
+
+        @Test
+        fun `failed materialization wraps unattributed failures as internal errors`() {
+            val parameters = mkExecutionParameters(
+                "extend type Query { x:Int }",
+                "Query" to "x",
+                "{ x }",
+            )
+            val failure = IllegalStateException("broken materialization")
+
+            val result = Mat.Null.failedResultFor(KeyTree.empty, parameters, failure)
+
+            val internalError = assertInstanceOf(InternalEngineException::class.java, result.source.exceptionOrNull())
+            assertSame(failure, internalError.cause!!.cause)
         }
     }
 }
