@@ -1,0 +1,5 @@
+package viaduct.engine.runtime2.execution
+
+import viaduct.engine.runtime.execution.ResolveSelectionSetContract
+
+class Engine2ResolveSelectionSetContractTest : ResolveSelectionSetContract, Engine2QueryExecutionContract

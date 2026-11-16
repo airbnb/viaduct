@@ -80,6 +80,7 @@ interface Engine2QueryExecutionContract : QueryExecutionContract {
                 QueryRunner(
                     { query, variables -> runQuery(query, variables) },
                     { query, variables, timeoutMillis -> runQueryWithTimeout(query, variables, timeoutMillis) },
+                    engine,
                 )
             )
         }
