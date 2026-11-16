@@ -1,0 +1,16 @@
+--- a/core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/model/SelectionVariables.kt
++++ b/core/engine/runtime2/src/main/kotlin/viaduct/engine/runtime2/model/SelectionVariables.kt
+@@ -8,12 +8,7 @@
+     if (!containsVariables()) return this
+     return mapSelections { selection ->
+         Selection.of(
+-            key =
+-                if (selection.key.arguments is Arguments.Ground) {
+-                    selection.key
+-                } else {
+-                    ObjectEngineResult.Key.of(selection.key.field, mapArguments(selection.key))
+-                },
++            key = ObjectEngineResult.Key.of(selection.key.field, mapArguments(selection.key)),
+             possibleTypes = selection.possibleTypes,
+             subselections = selection.subselections.mapSelectionVariables(transform, mapArguments),
+             inclusionCondition = selection.inclusionCondition.mapVariables(transform),

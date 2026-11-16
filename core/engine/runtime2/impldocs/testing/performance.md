@@ -24,6 +24,19 @@ After every run, report each measured iteration, the final JMH score and error, 
 
 Run closeout controls serially on an otherwise idle host with default parameters unless the investigation explicitly requires and records an override. Comparisons must identify the tested revision, host and relevant hardware, JVM and JMH versions, benchmark parameters, corpus revision or hashes, and any semantic change that altered the measured workload. Do not infer a speedup across different hosts, JVMs, parameters, or corpora.
 
+## Selection Forest Preparation
+
+`SelectionForestUnificationBenchmark.createAndConsume` measures conversion of the already-validated upstream schema-4 large query into a fresh selection forest, followed by traversal of all 187,215 logical selections. Setup parses the schema/query, validates with `QueryComplexityLimits.NONE`, lowers the schema and coerces request variables. Those setup stages, resolver execution and result materialization are excluded. Both pre-unification and unified implementations use the same benchmark source and published GraphQL Java dependency.
+
+```sh
+./gradlew :core:engine:runtime2:jmhJar --no-configuration-cache
+java -cp core/engine/runtime2/build/libs/engine-runtime2-4.0.0-SNAPSHOT-jmh.jar \
+  org.openjdk.jmh.Main '.*SelectionForestUnificationBenchmark.createAndConsume' \
+  -t 1 -prof gc -rf json -rff results.json
+```
+
+The annotations specify two forks, two 30-second warmups and three 60-second measurements per fork, with G1 and a 2–8 GiB heap. One variant schedules eight minutes; a baseline/candidate comparison schedules 16 minutes plus setup. Build both artifacts before starting measurements and run them serially on the same idle host. The [unification evidence](../evidence/profiles/2026-11-16-selection-forest-unification/README.md) records the baseline revision, measured artifacts, fixture origin, host-state restoration and exact reproduction script.
+
 ## Choosing A Profiling Target
 
 Use the narrowest JFR target that still contains the behavior under investigation:
