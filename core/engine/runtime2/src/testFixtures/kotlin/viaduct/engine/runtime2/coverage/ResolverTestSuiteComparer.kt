@@ -23,7 +23,7 @@ import viaduct.engine.runtime2.resolution.resolve
 object ResolverTestSuiteComparer {
     private const val USAGE =
         "Usage: ResolverTestSuiteComparer <candidate-a> <candidate-b> [--json <path>] [--html <path>]\n" +
-            "  candidate: <suite-id> replays the stored suite; <suite-id>@seed=<n>,size=<S:Q> regenerates it with either override"
+            "  candidate: <suite-id> replays the stored suite; <suite-id>@seed=<n>,size=<S:Q>,config=<name:value;...> regenerates it with any override"
 
     @JvmStatic
     fun main(args: Array<String>) {
@@ -76,7 +76,7 @@ object ResolverTestSuiteComparer {
     private fun ResolverContract.measure(candidate: CoverageCandidate): CandidateCoverage {
         val preparation = measureTime { runBlocking { candidate.prepare() } }
         val (measurement, elapsed) = measureTimedValue { runBlocking { measureCoverage(candidate) } }
-        return CandidateCoverage.of(candidate.label, elapsed.inWholeMilliseconds, measurement, preparation.inWholeMilliseconds)
+        return CandidateCoverage.of(candidate.label, elapsed.inWholeMilliseconds, measurement, preparation.inWholeMilliseconds, inapplicableObligationIds(candidate.config))
     }
 }
 

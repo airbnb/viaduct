@@ -13,9 +13,9 @@ import viaduct.engine.api.mocks.createEngineObjectData
 import viaduct.engine.api.mocks.createRSS
 import viaduct.engine.api.mocks.featureTestDefault
 import viaduct.engine.api.mocks.fetchAs
-import viaduct.engine.api.mocks.runFeatureTest
+import viaduct.graphql.test.assertJson
 
-class ResolverInstrumentationFeatureTest {
+interface ResolverInstrumentationFeatureContract : QueryExecutionContract {
     @Test
     fun `field resolver invokes instrumentation`() {
         val resolverToFields = ConcurrentHashMap<String, CopyOnWriteArrayList<String>>()
@@ -35,7 +35,7 @@ class ResolverInstrumentationFeatureTest {
                     fn { _, obj, _, _, _ -> obj.fetchAs<String>("idField") }
                 }
             }
-        }.runFeatureTest(
+        }.runContractTest(
             engineConfig = EngineConfiguration.featureTestDefault.copy(resolverInstrumentation = instrumentation)
         ) {
             runQuery("query testQuery {string1}").assertJson("{data: {string1: \"id-value\"}}")
@@ -62,7 +62,7 @@ class ResolverInstrumentationFeatureTest {
                 }
             }
             fieldWithValue("Query" to "string2", "string2")
-        }.runFeatureTest(
+        }.runContractTest(
             engineConfig = EngineConfiguration.featureTestDefault.copy(resolverInstrumentation = instrumentation)
         ) {
             runQuery("query { string1 }").assertJson("{data: {string1: \"string1\"}}")
@@ -102,7 +102,7 @@ class ResolverInstrumentationFeatureTest {
             }
             fieldWithValue("Query" to "string2", "string2")
             fieldWithValue("Query" to "gateField", true)
-        }.runFeatureTest(
+        }.runContractTest(
             engineConfig = EngineConfiguration.featureTestDefault.copy(resolverInstrumentation = instrumentation)
         ) {
             runQuery("query { string1 }").assertJson("{data: {string1: \"string1\"}}")
@@ -165,7 +165,7 @@ class ResolverInstrumentationFeatureTest {
                     }
                 }
             }
-        }.runFeatureTest(
+        }.runContractTest(
             engineConfig = EngineConfiguration.featureTestDefault.copy(resolverInstrumentation = instrumentation)
         ) {
             runQuery("{ container { derivedFromQuery } }")
@@ -236,7 +236,7 @@ class ResolverInstrumentationFeatureTest {
                     }
                 }
             }
-        }.runFeatureTest(
+        }.runContractTest(
             engineConfig = EngineConfiguration.featureTestDefault.copy(resolverInstrumentation = instrumentation)
         ) {
             runQuery("{ container { triggerMutation } }")

@@ -12,6 +12,7 @@ import graphql.schema.GraphQLOutputType
 import graphql.schema.GraphQLScalarType
 import java.util.Locale
 import viaduct.engine.EngineConfiguration
+import viaduct.engine.api.Engine
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.EngineSchema
@@ -50,6 +51,8 @@ class Runtime2FeatureTest internal constructor(
         variables: Map<String, Any?> = emptyMap(),
         timeoutMillis: Long = 1_000,
     ): ExecutionResult = delegate.runQueryWithin(query, variables, timeoutMillis)
+
+    val engine: Engine get() = delegate.engine
 
     fun ExecutionResult.assertJson(expectedJson: String): Unit = with(delegate) { assertJson(expectedJson) }
 }

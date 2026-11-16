@@ -82,7 +82,7 @@ class ObjectConstructionTest {
     fun `object values retain only explicitly supplied fields`() {
         val schema = TestWorld.fromSDL(SCHEMA_SDL).schema
         val userType = schema.requireType("User") as ViaductSchema.Object
-        val typenameKey = "V_A_typename"
+        val typenameKey = "_viaduct_internal__typename"
         val typenameValue = "User"
 
         val implicit = engineObjectDataOf(userType)

@@ -133,6 +133,7 @@ class ResolverCoverageAnalysisTest {
                                 "declared_output_shape:scalar",
                                 "output_kind:scalar",
                                 "list_ancestor_count:0",
+                                "object_fragment_depth:0",
                             ),
                         evidence =
                             listOf(

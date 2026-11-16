@@ -16,8 +16,9 @@ import graphql.util.TraversalControl
 import graphql.util.TraverserContext
 import graphql.util.TreeTransformerUtil
 import viaduct.engine.runtime2.schema.ViaductAndGJSchema
-import viaduct.engine.runtime2.schema.lowering.LOWERING_SYNTHETIC_NAME_TOKEN
+import viaduct.engine.runtime2.schema.lowering.LOWERING_SYNTHETIC_NAME_PREFIX
 import viaduct.engine.runtime2.schema.lowering.VIADUCT_IGNORE_SYMBOL
+import viaduct.engine.runtime2.schema.lowering.isSyntheticName
 import viaduct.graphql.Scalars
 import viaduct.graphql.schema.graphqljava.toGraphQLSchema
 
@@ -106,7 +107,7 @@ private fun validateReservedNames(schemaSDL: String) {
 
     fun visit(node: Node<*>) {
         val name = (node as? NamedNode<*>)?.name
-        if (name != null && name.contains(LOWERING_SYNTHETIC_NAME_TOKEN)) {
+        if (name != null && isSyntheticName(name)) {
             invalidNames.add(name)
         }
         if (name == VIADUCT_IGNORE_SYMBOL) {
@@ -117,8 +118,8 @@ private fun validateReservedNames(schemaSDL: String) {
 
     Parser.parse(schemaSDL).children.forEach(::visit)
     require(invalidNames.isEmpty()) {
-        "Source schema names cannot contain reserved token " +
-            "$LOWERING_SYNTHETIC_NAME_TOKEN: ${invalidNames.sorted().joinToString()}"
+        "Source schema names cannot start with reserved prefix " +
+            "$LOWERING_SYNTHETIC_NAME_PREFIX: ${invalidNames.sorted().joinToString()}"
     }
     require(ignoredNames.isEmpty()) {
         "Source schema names cannot use reserved symbol $VIADUCT_IGNORE_SYMBOL"

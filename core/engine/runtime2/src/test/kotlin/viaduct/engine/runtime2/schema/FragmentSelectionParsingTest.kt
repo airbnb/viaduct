@@ -91,7 +91,7 @@ class FragmentSelectionParsingTest {
             buildSet {
                 fragment.materializeSelections.forEach { selection ->
                     add(selection.responseKey)
-                    assertEquals("V_A_typename", selection.key.field.name)
+                    assertEquals("_viaduct_internal__typename", selection.key.field.name)
                 }
             }
         )
@@ -108,7 +108,7 @@ class FragmentSelectionParsingTest {
             )
             for (provider in providers) {
                 assertEquals(listOf(responseKey), provider.responsePath)
-                assertEquals("V_A_typename", provider.keyPath.single().field.name)
+                assertEquals("_viaduct_internal__typename", provider.keyPath.single().field.name)
             }
         }
     }

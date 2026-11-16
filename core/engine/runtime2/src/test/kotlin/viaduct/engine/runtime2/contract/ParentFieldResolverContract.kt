@@ -286,7 +286,7 @@ interface ParentFieldResolverContract : ResolverContract {
                     val parent = assertIs<EngineObjectData.Sync>(input.outputValue("parent"))
                     val child = assertIs<EngineObjectData.Sync>(parent.outputValue("child"))
                     val revisitedParent = assertIs<EngineObjectData.Sync>(child.outputValue("parent"))
-                    assertEquals("Root", revisitedParent.outputValue("V_A_typename"))
+                    assertEquals("Root", revisitedParent.outputValue("_viaduct_internal__typename"))
                 }
             }
         }
@@ -474,7 +474,7 @@ interface ParentFieldResolverContract : ResolverContract {
                     val child = assertIs<EngineObjectData.Sync>(input.outputValue("child"))
                     val parent = assertIs<EngineObjectData.Sync>(child.outputValue("parent"))
                     val sibling = assertIs<EngineObjectData.Sync>(parent.outputValue("sibling"))
-                    assertEquals("Sibling", sibling.outputValue("V_A_typename"))
+                    assertEquals("Sibling", sibling.outputValue("_viaduct_internal__typename"))
                 }
             }
         }

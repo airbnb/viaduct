@@ -42,6 +42,7 @@ dependencies {
     testFixturesApi(testFixtures(libs.viaduct.engine.runtime))
     testFixturesImplementation(libs.viaduct.engine.wiring)
     testFixturesImplementation(libs.javax.inject)
+    testFixturesImplementation(libs.kotest.assertions.core.jvm)
     testFixturesImplementation(libs.kotlinx.coroutines.core)
     testFixturesImplementation(libs.viaduct.service.api)
     testFixturesImplementation(testFixtures(libs.viaduct.service.api))

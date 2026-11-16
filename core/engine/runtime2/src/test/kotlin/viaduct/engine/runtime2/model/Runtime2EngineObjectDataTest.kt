@@ -296,7 +296,7 @@ class Runtime2EngineObjectDataTest {
         assertSame(userType, data.schemaType)
         assertSame(graphQLUserType, data.type)
         assertTrue(data.type.getFieldDefinition("name") != null)
-        assertNull(data.type.getFieldDefinition("V_A_typename"))
+        assertNull(data.type.getFieldDefinition("_viaduct_internal__typename"))
     }
 
     @Test

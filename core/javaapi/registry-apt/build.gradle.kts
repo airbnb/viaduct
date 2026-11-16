@@ -1,15 +1,6 @@
 plugins {
     id("conventions.kotlin")
     id("conventions.kotlin-static-analysis")
-    id("conventions.viaduct-publishing")
-}
-
-viaductPublishing {
-    name.set("Java API Registry Annotation Processor")
-    description.set(
-        "javac annotation processor that extracts the file-based execution registry descriptors " +
-            "from Java tenant resolvers (the Java twin of the Kotlin KSP RegistryExtractorProcessor).",
-    )
 }
 
 dependencies {

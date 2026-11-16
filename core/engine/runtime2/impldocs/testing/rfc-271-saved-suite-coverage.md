@@ -15,12 +15,40 @@ bazel test //projects/viaduct/oss/core/engine/runtime2/src/test/kotlin/viaduct/e
 The experimental mode is opt-in and local. It measures one deterministic case from each saved suite, checks the CSV and JSON round trips, and prints sample metrics. It is much cheaper than replaying every case, but its results are partial: do not use them as complete suite scores or to decide that a behavior is missing.
 
 ```shell
-bazel test //projects/viaduct/oss/core/engine/runtime2/src/test/kotlin/viaduct/engine/runtime2/resolution:saved_suite_coverage --test_filter=viaduct.engine.runtime2.resolution.SavedSuiteCoverageExperimentTest --test_env=VIADUCT_RFC271_COVERAGE_EXPERIMENT=true --nocache_test_results --test_strategy=local --test_output=streamed
+bazel test //projects/viaduct/oss/core/engine/runtime2/src/test/kotlin/viaduct/engine/runtime2/resolution:saved_suite_coverage --test_filter=viaduct.engine.runtime2.resolution.SavedSuiteCoverageExperimentTest --test_env=VIADUCT_RFC271_COVERAGE_EXPERIMENT=true --nocache_test_results --test_output=streamed
 ```
 
 Without the environment variable, the experimental test is disabled. The `saved_suite_coverage` target is tagged `manual`, `local`, and `no_ci`; it is intended for a developer to run locally. No timeout is raised for the regular test suite or stored in `.bazelrc`.
 
 The test code is in [SavedSuiteCoverageExperimentTest.kt](../../src/test/kotlin/viaduct/engine/runtime2/resolution/SavedSuiteCoverageExperimentTest.kt), and the local-only target is defined in [BUILD.bazel](../../src/test/kotlin/viaduct/engine/runtime2/resolution/BUILD.bazel).
+
+## Compare two candidates and read the page
+
+`compare_resolver_test_suites` replays two candidates and writes a text report and an HTML page. A candidate is a stored suite ID, or `<suite-id>@seed=<n>,size=<S:Q>,config=<name:value;...>` to regenerate the definition with overrides.
+
+```shell
+bazel run //projects/viaduct/oss/core/engine/runtime2:compare_resolver_test_suites -- object-fragment@size=30:5 object-fragment --html /tmp/object-fragment.html
+```
+
+Read the page in this order:
+
+1. **Not applicable by config.** An obligation shows `n/a` on a side whose generator config cannot produce its evidence. A, X and LOE need argument and object-field variable bindings; FO, FI, DA, LX, DD and NE need recorded provider reads, which only exist with `resolverVariablesEnabled` and an object-field or Query-field provider. A suite with variables off cannot exercise them whatever batches it keeps; pick a variables-enabled suite for those obligations instead of changing the suite's purpose. "Not exercised" means the config could produce the evidence but no case did.
+2. **D0 is relative.** "N of M combinations" counts the combinations seen in either candidate, not every combination the obligations could form. For a suite with variables off, the core five can only form the empty signature and {B}, so its D0 comes from the candidate interactions.
+3. **D1, D2 and singletons.** D0 ignores support; a suite can reach full D0 with one case per combination. The tiles show D1 and D2 beside D0 and count combinations carried by a single case, which one regenerated schema can drop.
+
+## Select stored batches from a generated pool
+
+A definition with `retainedBatches` stores only the batches that `StoredSuiteSelectionExperimentTest` chose from a larger pool generated with the definition's `counts`. Selection requires every catalog obligation and every attribute matching `selectionAttributePrefixes` with `selectionMinimumCases` distinct cases across `selectionMinimumBatches` batches, and keeps every obligation combination the pool produced with `selectionMinimumCombinationCases` cases. Requirements the pool cannot meet, including obligations the config cannot generate, stay at their attainable support rather than failing the run.
+
+```shell
+bazel test //projects/viaduct/oss/core/engine/runtime2/src/test/kotlin/viaduct/engine/runtime2/resolution:saved_suite_coverage --test_filter=viaduct.engine.runtime2.resolution.StoredSuiteSelectionExperimentTest --nocache_test_results --test_output=all
+```
+
+The run prints, per suite, pool-versus-selected support for every requirement and every combination, with `n/a` on requirements the config cannot generate. When the selection differs from the stored `retainedBatches`, the test fails naming the definition to update; after updating it, run `materialize_resolver_test_suites <suite-id>` to rewrite the archive. System properties `viaduct.runtime2.selection.poolSchemas`, `minimumCases`, `minimumCombinationCases` and `coverEveryCombination` try other settings without changing the definition, and `viaduct.runtime2.selection.suite` runs selection on a suite that has no retained batches yet, for example to see which core obligations a variables-enabled suite can keep. The test launcher takes them through `JVM_FLAGS`:
+
+```shell
+bazel test //projects/viaduct/oss/core/engine/runtime2/src/test/kotlin/viaduct/engine/runtime2/resolution:saved_suite_coverage --test_filter=viaduct.engine.runtime2.resolution.StoredSuiteSelectionExperimentTest --test_env='JVM_FLAGS=-Dviaduct.runtime2.selection.suite=resolution-object-fragment-from-object-field -Dviaduct.runtime2.selection.poolSchemas=200' --nocache_test_results --test_output=all
+```
 
 ## Compare source lines across batches
 

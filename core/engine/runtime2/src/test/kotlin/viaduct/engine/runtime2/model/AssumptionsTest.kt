@@ -201,7 +201,7 @@ class AssumptionsTest {
         assertEquals(setOf(user, admin), node.possibleObjectTypes)
         assertEquals(setOf(user, admin), actor.possibleObjectTypes)
 
-        val typeName = schema.requireField("Node", "V_A_typename")
+        val typeName = schema.requireField("Node", "_viaduct_internal__typename")
         assertEquals(node, typeName.containingDef)
         assertEquals(emptyList(), typeName.args)
         assertEquals("String", typeName.type.baseTypeDef.name)

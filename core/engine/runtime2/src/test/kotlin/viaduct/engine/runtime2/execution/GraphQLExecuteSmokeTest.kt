@@ -135,7 +135,7 @@ class GraphQLExecuteSmokeTest : ExecutionTestFixtureResource {
                 "choice" to mapOf("__typename" to "B"),
             ),
         )
-        assertTrue(applications.none { it.endsWith(".V_A_typename") })
+        assertTrue(applications.none { it.endsWith("._viaduct_internal__typename") })
     }
 
     @Test

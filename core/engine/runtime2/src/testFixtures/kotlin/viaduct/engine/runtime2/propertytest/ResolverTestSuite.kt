@@ -1,11 +1,13 @@
 package viaduct.engine.runtime2.propertytest
 
 import java.io.ByteArrayOutputStream
+import java.nio.file.Files
 import java.nio.file.Path
 import java.time.LocalDateTime
 import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
+import viaduct.engine.runtime2.arbitrary.Config
 import viaduct.engine.runtime2.arbitrary.GeneratedFieldCheckerMode
 import viaduct.engine.runtime2.arbitrary.GeneratedTypeCheckerMode
 import viaduct.engine.runtime2.arbitrary.GeneratorConfigData
@@ -234,6 +236,34 @@ class ResolverTestSuite private constructor(
         )
     }
 
+    /** Keeps only [batchIds]; retained batches keep their generation ordinals and the schemas they use. */
+    fun retaining(batchIds: Collection<String>): ResolverTestSuite {
+        val retained = batchIds.toSet()
+        require(retained.isNotEmpty()) { "Resolver test suite ${definition.id} must retain at least one batch" }
+        val unknown = retained - batches.map(ResolverTestSuiteBatch::id).toSet()
+        require(unknown.isEmpty()) { "Resolver test suite ${definition.id} holds no batches $unknown" }
+        val keptBatches = batches.filter { batch -> batch.id in retained }
+        val keptSchemas = keptBatches.mapTo(mutableSetOf(), ResolverTestSuiteBatch::schema)
+        return of(definition, manifest.copy(schemas = manifest.schemas.filter { schema -> schema.id in keptSchemas }, batches = keptBatches), entries)
+    }
+
+    /** Applies [ResolverTestSuiteDefinition.retainedBatches]; a definition without them keeps every batch. */
+    fun retainingDefinitionBatches(): ResolverTestSuite = if (definition.retainedBatches.isEmpty()) this else retaining(definition.retainedBatches)
+
+    fun parts(partBytes: Int = RESOLVER_TEST_SUITE_PART_BYTES): List<ByteArray> = writeResolverTestSuiteParts(entries, partBytes)
+
+    fun writeTo(
+        resourcesRoot: Path,
+        partBytes: Int = RESOLVER_TEST_SUITE_PART_BYTES,
+    ) {
+        Files.createDirectories(resourcesRoot.resolve(suiteArchiveResource(definition.id)).parent)
+        val parts = parts(partBytes)
+        parts.forEachIndexed { index, part -> Files.write(resourcesRoot.resolve(suiteArchiveResource(definition.id, index + 1)), part) }
+        // A regenerated suite that shrank must not leave a stale trailing part for the loader to merge.
+        var stalePart = parts.size + 1
+        while (Files.deleteIfExists(resourcesRoot.resolve(suiteArchiveResource(definition.id, stalePart)))) stalePart += 1
+    }
+
     private fun ResolverTestSuiteBatch.caseCoordinate(
         schemaIndex: Int,
         selected: ResolverTestCaseId,
@@ -249,6 +279,54 @@ class ResolverTestSuite private constructor(
         fun load(definition: ResolverTestSuiteDefinition): ResolverTestSuite {
             val entries = readResolverTestSuiteParts(definition.id, PropertyTestJson::readResourceBytesOrNull)
             val manifest = PropertyTestJson.read<ResolverTestSuiteManifest>(definition.readEntry(entries, MANIFEST_ENTRY).inputStream())
+            require(definition.retainedBatches.isEmpty() || manifest.batches.map(ResolverTestSuiteBatch::id) == definition.retainedBatches) {
+                "Resolver test suite ${definition.id} does not hold exactly its retained batches; $REGENERATE_HINT"
+            }
+            return validated(definition, manifest, entries)
+        }
+
+        /** Stores every batch, including batches that share a schema; their SDL is stored once. */
+        fun fromGenerated(
+            definition: ResolverTestSuiteDefinition,
+            generated: List<ResolverTestBatch>,
+        ): ResolverTestSuite {
+            val shards = linkedMapOf<String, ByteArray>()
+            val sdlBySchema = linkedMapOf<String, ByteArray>()
+            val batches =
+                definition.numberBatches(generated).map { (batchId, batch, ids) ->
+                    val shard = ResolverTestShardCodec.encode(batchId, batch)
+                    val reencoded = ResolverTestShardCodec.encode(batchId, ResolverTestShardCodec.decode(batchId, shard.sdl, shard.json))
+                    check(reencoded.sdl.contentEquals(shard.sdl) && reencoded.json.contentEquals(shard.json)) {
+                        "Suite ${definition.id} batch $batchId does not round-trip through the shard codec"
+                    }
+                    check(sdlBySchema.getOrPut(ids.schema) { shard.sdl }.contentEquals(shard.sdl)) {
+                        "Suite ${definition.id} has distinct schemas whose IDs collide at ${ids.schema}"
+                    }
+                    shards[shardEntry(batchId)] = shard.json
+                    ResolverTestSuiteBatch(batchId, ids.schema, shard.json.sha256Hash(), ids.registry, ids.queries)
+                }
+            val schemas = sdlBySchema.map { (schemaId, sdl) -> ResolverTestSuiteSchema(schemaId, sdl.sha256Hash()) }
+            val manifest = definition.manifest(schemas, batches)
+            return of(definition, manifest, sdlBySchema.mapKeys { (schemaId, _) -> sdlEntry(schemaId) } + shards)
+        }
+
+        private fun of(
+            definition: ResolverTestSuiteDefinition,
+            manifest: ResolverTestSuiteManifest,
+            source: Map<String, ByteArray>,
+        ): ResolverTestSuite {
+            val entries =
+                linkedMapOf(MANIFEST_ENTRY to PropertyTestJson.write(manifest).toByteArray()) +
+                    manifest.schemas.associate { schema -> sdlEntry(schema.id) to definition.readEntry(source, sdlEntry(schema.id)) } +
+                    manifest.batches.associate { batch -> shardEntry(batch.id) to definition.readEntry(source, shardEntry(batch.id)) }
+            return validated(definition, manifest, entries)
+        }
+
+        private fun validated(
+            definition: ResolverTestSuiteDefinition,
+            manifest: ResolverTestSuiteManifest,
+            entries: Map<String, ByteArray>,
+        ): ResolverTestSuite {
             require(manifest.copy(schemas = emptyList(), batches = emptyList()) == definition.manifest(emptyList(), emptyList())) {
                 "Resolver test suite ${definition.id} is stale relative to its definition; $REGENERATE_HINT"
             }
@@ -397,7 +475,7 @@ internal fun ResolverTestSuiteDefinition.numberBatches(generated: List<ResolverT
         NumberedResolverTestBatch(batchId, batch, ids)
     }
 
-/** Checks one numbered batch, stamping each case with its stable [ResolverTestCaseId]. */
+/** Checks one numbered batch, stamping each case with its stable [ResolverTestCaseId]; [config] is the one the batch was generated with. */
 internal suspend fun ResolverTestSuiteDefinition.checkNumberedBatch(
     batchId: String,
     batch: ResolverTestBatch,
@@ -407,6 +485,7 @@ internal suspend fun ResolverTestSuiteDefinition.checkNumberedBatch(
     counts: TestCaseCount,
     selected: ResolverTestCaseCoordinate? = null,
     selectiveResolvers: Boolean = true,
+    config: Config = this.config,
     property: suspend (TestWorld, ResolverTestCase) -> Unit,
 ): Int =
     checkResolverTestBatch(

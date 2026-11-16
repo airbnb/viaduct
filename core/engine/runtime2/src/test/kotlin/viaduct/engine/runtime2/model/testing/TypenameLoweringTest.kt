@@ -24,14 +24,14 @@ class TypenameLoweringTest {
         val world = TestWorld.fromSDL(SCHEMA)
         val schema = world.schemas
         val allSourceObjects =
-            assertIs<ViaductSchema.Interface>(schema.loweredSchema.requireType("V_A_AllSourceObjects"))
+            assertIs<ViaductSchema.Interface>(schema.loweredSchema.requireType("_viaduct_internal__AllSourceObjects"))
         val objectTypes =
             listOf("Query", "A", "B")
                 .map { name -> schema.loweredSchema.requireType(name) as ViaductSchema.Object }
 
         assertEquals(objectTypes.toSet(), allSourceObjects.possibleObjectTypes)
         assertEquals(
-            setOf("V_A_typename"),
+            setOf("_viaduct_internal__typename"),
             allSourceObjects.fields.mapTo(linkedSetOf(), ViaductSchema.Field::name),
         )
         listOf(
@@ -41,7 +41,7 @@ class TypenameLoweringTest {
             "A",
             "B",
         ).forEach { typeName ->
-            val field = schema.loweredSchema.requireField(typeName, "V_A_typename")
+            val field = schema.loweredSchema.requireField(typeName, "_viaduct_internal__typename")
             assertEquals(typeName, field.containingDef.name)
             assertTrue(field.args.isEmpty())
             assertEquals("String", field.type.baseTypeDef.name)
@@ -74,9 +74,9 @@ class TypenameLoweringTest {
         val objectFragment = schema.fragmentFrom("fragment F on A { __typename }")
         val objectSelection = objectFragment.subselections.single()
         assertEquals("A", objectSelection.key.field.containingDef.name)
-        assertEquals("V_A_typename", objectSelection.key.field.name)
+        assertEquals("_viaduct_internal__typename", objectSelection.key.field.name)
         assertEquals(
-            "V_A_typename",
+            "_viaduct_internal__typename",
             objectFragment.materializeSelections.single().responseKey,
         )
 
@@ -91,7 +91,7 @@ class TypenameLoweringTest {
 
         val unionFragment = schema.fragmentFrom("fragment F on Choice { kind: __typename }")
         val unionSelection = unionFragment.subselections.single()
-        assertEquals("V_A_AllSourceObjects", unionSelection.key.field.containingDef.name)
+        assertEquals("_viaduct_internal__AllSourceObjects", unionSelection.key.field.containingDef.name)
         assertEquals(
             "kind",
             unionFragment.materializeSelections.single().responseKey,
@@ -102,7 +102,7 @@ class TypenameLoweringTest {
                 .subselections
                 .single()
         assertEquals(
-            "V_A_typename",
+            "_viaduct_internal__typename",
             nodeSelection.subselections.single().key.field.name,
         )
     }
@@ -143,10 +143,10 @@ class TypenameLoweringTest {
             val schema = world.schemas
             val registry = world.resolverRegistry
             val allSourceObjects =
-                schema.loweredSchema.requireType("V_A_AllSourceObjects") as ViaductSchema.Interface
+                schema.loweredSchema.requireType("_viaduct_internal__AllSourceObjects") as ViaductSchema.Interface
 
             allSourceObjects.possibleObjectTypes.forEach { type ->
-                val field = schema.loweredSchema.requireObjectField(type.name, "V_A_typename")
+                val field = schema.loweredSchema.requireObjectField(type.name, "_viaduct_internal__typename")
                 val resolver = registry.resolver(field)
                 assertTrue(field in registry)
                 assertTrue(field.args.isEmpty())
@@ -168,11 +168,38 @@ class TypenameLoweringTest {
     fun `rejects source names in the typename lowering namespace`() {
         val exception =
             assertFailsWith<IllegalArgumentException> {
-                TestWorld.fromSDL("type Query { V_A_typename: String }")
+                TestWorld.fromSDL("type Query { _viaduct_internal__typename: String }")
             }
 
-        assertTrue(exception.message.orEmpty().contains("reserved token V_A"))
-        assertTrue(exception.message.orEmpty().contains("V_A_typename"))
+        assertTrue(exception.message.orEmpty().contains("reserved prefix _viaduct_internal__"))
+        assertTrue(exception.message.orEmpty().contains("_viaduct_internal__typename"))
+    }
+
+    @Test
+    fun `source names outside the internal namespace survive fixture parsing`() {
+        val schemas =
+            TestWorld.fromSDL(
+                """
+                type Query {
+                  V_A_typename: String
+                  user_viaduct_internal__typename: String
+                  _viaduct_internal_typename: String
+                }
+                """,
+            ).schemas
+
+        val fragment =
+            schemas.fragmentFrom(
+                "fragment F on Query { V_A_typename user_viaduct_internal__typename _viaduct_internal_typename }",
+            )
+        val fieldNames = buildSet {
+            fragment.subselections.forEach { add(it.key.field.name) }
+        }
+
+        assertEquals(
+            setOf("V_A_typename", "user_viaduct_internal__typename", "_viaduct_internal_typename"),
+            fieldNames,
+        )
     }
 
     private companion object {
