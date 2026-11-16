@@ -67,12 +67,12 @@ internal class ReservedNamesRule :
         name: String,
         location: SchemaLocation,
     ) {
-        if (containsSyntheticNameToken(name)) {
+        if (isSyntheticName(name)) {
             ctx.reportError(
                 code = "RUNTIME2_RESERVED_NAME",
                 message =
-                    "Source schema names cannot contain reserved token " +
-                        "$LOWERING_SYNTHETIC_NAME_TOKEN: $name",
+                    "Source schema names cannot start with reserved prefix " +
+                        "$LOWERING_SYNTHETIC_NAME_PREFIX: $name",
                 location = location,
             )
         }

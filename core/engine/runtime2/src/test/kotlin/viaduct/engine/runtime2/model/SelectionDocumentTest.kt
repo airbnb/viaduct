@@ -38,7 +38,7 @@ class SelectionDocumentTest {
             ).fragment
 
         val selection = fragment.subselections.merge(world.schema.requireQueryTypeDef()).single()
-        assertEquals("V_A_typename", selection.key.field.name)
+        assertEquals("_viaduct_internal__typename", selection.key.field.name)
         assertSame(InclusionCondition.Always, selection.inclusionCondition)
         assertTrue(
             fragment.materializeSelections.all { materializeSelection ->

@@ -20,6 +20,7 @@ import viaduct.engine.runtime2.model.InclusionCondition
 import viaduct.engine.runtime2.model.Selection
 import viaduct.engine.runtime2.model.SelectionForest
 import viaduct.engine.runtime2.model.objectKey
+import viaduct.engine.runtime2.schema.lowering.LOWERED_TYPENAME_FIELD
 import viaduct.graphql.schema.ViaductSchema
 import viaduct.graphql.utils.ParsedSelections
 
@@ -152,5 +153,3 @@ private fun Selection.toField(
     }
     return field.build()
 }
-
-private const val LOWERED_TYPENAME_FIELD = "V_A_typename"

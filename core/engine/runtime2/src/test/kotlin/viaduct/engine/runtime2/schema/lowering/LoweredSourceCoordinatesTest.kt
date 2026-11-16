@@ -17,29 +17,31 @@ class LoweredSourceCoordinatesTest {
     }
 
     @Test
-    fun `incidental V_A substrings do not hide source fields or typename`() {
-        val schema =
-            lowerSchema(
-                graphQLSchema(
-                    """
-                    type Query { DEV_API: DEV_API }
-                    type DEV_API { value: String }
-                    """,
-                ),
-            )
+    fun `names outside the internal namespace remain usable as source coordinates`() {
+        listOf("DEV_API", "V_A", "V_A_typename", "user_V_A_node", "user_viaduct_internal__node", "_viaduct_internal_node").forEach { name ->
+            val schema =
+                lowerSchema(
+                    graphQLSchema(
+                        """
+                        type Query { $name: $name }
+                        type $name { value: String }
+                        """,
+                    ),
+                )
 
-        assertSame(
-            schema.requireField("Query", "DEV_API"),
-            schema.loweredFieldFromSourceCoordinate("Query", "DEV_API"),
-        )
-        assertSame(
-            schema.requireField("DEV_API", "value"),
-            schema.loweredFieldFromSourceCoordinate("DEV_API", "value"),
-        )
-        assertSame(
-            schema.requireField("DEV_API", LOWERED_TYPENAME_FIELD),
-            schema.loweredTypenameField("DEV_API"),
-        )
+            assertSame(
+                schema.requireField("Query", name),
+                schema.loweredFieldFromSourceCoordinate("Query", name),
+            )
+            assertSame(
+                schema.requireField(name, "value"),
+                schema.loweredFieldFromSourceCoordinate(name, "value"),
+            )
+            assertSame(
+                schema.requireField(name, LOWERED_TYPENAME_FIELD),
+                schema.loweredTypenameField(name),
+            )
+        }
     }
 
     @Test

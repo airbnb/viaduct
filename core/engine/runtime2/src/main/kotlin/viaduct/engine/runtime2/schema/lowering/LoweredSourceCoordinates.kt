@@ -54,8 +54,8 @@ private fun requireSourceName(
     sourceFieldName: String,
 ) {
     if (
-        containsSyntheticNameToken(sourceTypeName) ||
-        containsSyntheticNameToken(sourceFieldName)
+        isSyntheticName(sourceTypeName) ||
+        isSyntheticName(sourceFieldName)
     ) {
         throw invalidSourceField(sourceTypeName, sourceFieldName)
     }

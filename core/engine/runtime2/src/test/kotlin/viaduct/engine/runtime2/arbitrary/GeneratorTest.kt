@@ -826,7 +826,7 @@ class GeneratorTest {
 
             val counts = registry.resolutionApplicationCounts()
             assertEquals(1L, counts.getValue(coordinate))
-            assertTrue(counts.filterKeys { it != coordinate }.keys.all { it.fieldName == "V_A_typename" })
+            assertTrue(counts.filterKeys { it != coordinate }.keys.all { it.fieldName == "_viaduct_internal__typename" })
             assertTrue(counts.values.all { it == 1L })
             assertTrue(registry.resolutionWitness().applications.isEmpty())
         }
