@@ -216,6 +216,8 @@ class EngineFactoryTest {
         "true, same, false",
         "false, omitted, false",
         "true, omitted, false",
+        "false, omitted, true",
+        "true, omitted, true",
         "false, different, false",
         "true, different, false",
         "false, different, true",
@@ -228,6 +230,7 @@ class EngineFactoryTest {
     ): Unit =
         runTest {
             val requestContext = if (nullRequestContext) null else Any()
+            val legacyRequestContext = if (legacyContext == "different") Any() else requestContext
             val schema = createSchemaWithWiring("extend type Query { value: String @resolver }")
             val engine = createCompatibilityEngine(schema, engine2Enabled, requestContext)
 
@@ -245,7 +248,7 @@ class EngineFactoryTest {
                         .apply {
                             when (legacyContext) {
                                 "same" -> context(requestContext)
-                                "different" -> context(Any())
+                                "different" -> context(legacyRequestContext)
                             }
                         }
                         .localContext(CompositeLocalContext.withContexts(context))
