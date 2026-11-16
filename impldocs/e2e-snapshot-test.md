@@ -64,15 +64,13 @@ The workflow runs these steps in sequence:
 
 1. **publish-branch** — validates version state, runs checks, publishes SNAPSHOT artifacts to Maven Central
 2. **push-demoapps** — copies demo apps to `tmp/$REF` branches in `viaduct-dev/*` repos via Copybara
-3. **wait-for-publication** — polls Maven Central until the published artifacts are resolvable
+3. **verify-snapshot** — waits until the snapshot repository lists this run's build of every published coordinate, then checks that its files are signed with the release key
 4. **check-published-demoapps** — clones each standalone demo app repo and runs `./gradlew test` against the published artifacts
 
-**Note on step 3 (wait-for-publication):** The built-in polling for Maven Central propagation can be unreliable and will eventually time out. Propagation typically takes 5-15 minutes but can occasionally take longer. If the verify step fails with "Could not find" dependency errors, wait a few minutes and re-run just the verification:
+**Note on step 3 (verify-snapshot):** It gives up after 10 minutes. If it times out, or `check-published-demoapps` fails with "Could not find" dependency errors, wait a few minutes and re-run the failed jobs. That waits for the same build again before the demo app checks run:
 
 ```bash
-gh workflow run check-published-demoapps.yml \
-  --repo airbnb/viaduct \
-  -f ref=tmp/$REF
+gh run rerun <RUN_ID> --repo airbnb/viaduct --failed
 ```
 
 ### 3. Fix and iterate

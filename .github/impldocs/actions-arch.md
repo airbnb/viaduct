@@ -339,14 +339,15 @@ demoapps-nightly-check.yml  [orchestrator]
   |      v
   |    publish-branch.yml  [atomic, mode=snapshot]
   |
-  |--- push-demoapps (parallel)       wait-for-publication (parallel)
+  |--- push-demoapps (parallel)       verify-snapshot (parallel)
   |      v                               v
-  |    push-demoapps.yml  [atomic]     (poll Sonatype until 200)
+  |    push-demoapps.yml  [atomic]     verify-published-snapshot.yml
+  |                                      (wait for this run's build, then
+  |                                       check every file's signature)
   |
-  |--- check-demoapps (parallel)     verify-signatures (parallel)
-  |      v                              (wait for this run's build, then
-  |    check-published-demoapps.yml     check every file's signature)
-  |      [atomic]
+  |--- check-demoapps (after both)
+  |      v
+  |    check-published-demoapps.yml  [atomic]
   |
   '--- cleanup (if tmp/* branch)
          delete tmp branches from viaduct-dev/* repos
