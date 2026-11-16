@@ -450,7 +450,7 @@ private data class Execution(val task: ResolutionTask, val state: ResolutionTask
 private val ResolutionTask.occurrence: OEROccurrence
     get() = when (this) {
         is SharedOrchestrationTask<*> -> objectOER.occurrence
-        is MutationOrchestrationTask<*> -> namespace.occurrence
+        is MutationOrchestrationTask<*> -> this.occurrence
         is FieldResolverTask -> publication.oerOccurrence
         else -> error("Unexpected observed task: $this")
     }

@@ -7,7 +7,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.suspendCancellableCoroutine
 import viaduct.engine.api.EngineObjectData
-import viaduct.engine.runtime2.model.MutationObjectEngineResult
 import viaduct.engine.runtime2.model.MutationSelectionForest
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.SelectionForest
@@ -16,7 +15,6 @@ import viaduct.engine.runtime2.model.requireQueryTypeDef
 import viaduct.engine.runtime2.model.schemaType
 import viaduct.engine.runtime2.resolution.framework.CycleCheckState
 import viaduct.engine.runtime2.resolution.framework.Demand
-import viaduct.engine.runtime2.resolution.framework.MutationNamespaceOccurrence
 import viaduct.engine.runtime2.resolution.framework.MutationOrchestrationTask
 import viaduct.engine.runtime2.resolution.framework.OEROccurrence
 import viaduct.engine.runtime2.resolution.framework.ResolutionTask
@@ -86,17 +84,15 @@ internal fun OperationContext.startResolve(
     creator: ResolutionTask? = null,
 ): ObjectEngineResult {
     if (selections is MutationSelectionForest) {
-        require(selections.type == world.schema.mutationTypeDef) { "Mutation execution must start at the Mutation root" }
-        val result = MutationObjectEngineResult.of(selections)
-        val task = MutationOrchestrationTask.create(
+        val task = MutationOrchestrationTask.createRoot(
             operation = this,
-            namespace = MutationNamespaceOccurrence(OEROccurrence(result, emptyList(), result), selections),
+            selections = selections,
             prepareField = { task, occurrence, selection -> FieldResolverTask.prepareMutation(this, occurrence, selection, task) },
             namespacePrepared = { bindingsState.markBindingsDeclared(it.target) },
             creator = creator,
         )
         dispatcher.dispatchMutationOrchestration(task)
-        return result
+        return task.occurrence.target
     }
     val input = if (rootType == world.schema.requireQueryTypeDef()) {
         world.resolverRegistry.createRootQueryInput()

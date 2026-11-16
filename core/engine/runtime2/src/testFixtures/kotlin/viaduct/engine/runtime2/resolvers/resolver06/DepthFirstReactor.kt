@@ -3,14 +3,13 @@ package viaduct.engine.runtime2.resolvers.resolver06
 import java.util.PriorityQueue
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.runtime2.model.EngineResultCell
-import viaduct.engine.runtime2.model.MutationObjectEngineResult
 import viaduct.engine.runtime2.model.MutationSelectionForest
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.ResolverOccurrenceId
 import viaduct.engine.runtime2.model.SelectionForest
 import viaduct.engine.runtime2.model.schemaType
 import viaduct.engine.runtime2.resolution.framework.Demand
-import viaduct.engine.runtime2.resolution.framework.MutationNamespaceOccurrence
+import viaduct.engine.runtime2.resolution.framework.MutationOrchestrationTask
 import viaduct.engine.runtime2.resolution.framework.OEROccurrence
 import viaduct.engine.runtime2.resolution.framework.ResolutionTask
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
@@ -48,9 +47,15 @@ class DepthFirstReactor(
         started = true
         val result: ObjectEngineResult
         if (selections is MutationSelectionForest) {
-            require(selections.type == operation.world.schema.mutationTypeDef) { "Mutations must start at their root" }
-            result = MutationObjectEngineResult.of(selections)
-            val task = DepthFirstMutationTask(operation, MutationNamespaceOccurrence(OEROccurrence(result, emptyList(), result), selections), creator)
+            val orchestration = MutationOrchestrationTask.createRoot(
+                operation = operation,
+                selections = selections,
+                prepareField = { task, occurrence, selection -> DepthFirstFieldResolverTask.prepareMutation(operation, occurrence, selection, task) },
+                namespacePrepared = ::mutationNamespacePrepared,
+                creator = creator,
+            )
+            result = orchestration.occurrence.target
+            val task = DepthFirstMutationTask(orchestration)
             dispatchedTasks += task
             enqueue(task)
         } else {

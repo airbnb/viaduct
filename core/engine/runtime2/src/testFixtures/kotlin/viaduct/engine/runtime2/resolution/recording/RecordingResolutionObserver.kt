@@ -210,7 +210,7 @@ class RecordingResolutionObserver(
         taskIds[task] = id
         val occurrence = when (task) {
             is SharedOrchestrationTask<*> -> task.objectOER.occurrence
-            is MutationOrchestrationTask<*> -> task.namespace.occurrence
+            is MutationOrchestrationTask<*> -> task.occurrence
             is SharedFieldResolverTask<*> -> task.publication.oerOccurrence
             else -> null
         }
@@ -235,7 +235,7 @@ class RecordingResolutionObserver(
         val id = taskId(task)
         val occurrence = when (task) {
             is SharedOrchestrationTask<*> -> task.objectOER.occurrence
-            is MutationOrchestrationTask<*> -> task.namespace.occurrence
+            is MutationOrchestrationTask<*> -> task.occurrence
             is SharedFieldResolverTask<*> -> task.publication.oerOccurrence
             else -> null
         }

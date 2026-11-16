@@ -47,10 +47,18 @@ import viaduct.engine.runtime2.resolvers.variablesProviderFailed
 class DepthFirstFieldResolverTask private constructor(
     override val publication: GroundedFieldPublicationOccurrence<DepthFirstOperationContext>,
     override val queryOERDepth: Int,
-    private val activateOnDispatch: Boolean,
 ) : SharedFieldResolverTask<GroundedFieldPublicationOccurrence<DepthFirstOperationContext>>, DepthFirstTask {
     // List-element references sit deeper than the field whose output contains them.
     override val path get() = publication.publicationPath.dropLast(1)
+
+    init {
+        require(queryOERDepth >= 0) { "Query-OER depth must be nonnegative" }
+        require(publication.selection.key.field.containingDef == publication.oerOccurrence.target.type) {
+            "Resolver selection does not belong to its target object"
+        }
+        // The reactor may freeze the OER before this task runs.
+        publication.publicationCell.value.claim()
+    }
 
     companion object {
         fun prepareMutation(
@@ -59,27 +67,19 @@ class DepthFirstFieldResolverTask private constructor(
             selection: ObjectSelection,
             creator: ResolutionTask? = null,
         ): DepthFirstFieldResolverTask =
-            prepare(
+            DepthFirstFieldResolverTask(
                 GroundedFieldPublicationOccurrence(operation, occurrence, selection, occurrence.target.getCell(selection.key), creator = creator),
                 queryOERDepth = 0,
-                activateOnDispatch = true,
             )
 
         /** Claims the publication synchronously before reactor enqueue. */
         fun prepare(
             publication: GroundedFieldPublicationOccurrence<DepthFirstOperationContext>,
             queryOERDepth: Int,
-            activateOnDispatch: Boolean = false,
-        ): DepthFirstFieldResolverTask {
-            require(queryOERDepth >= 0) { "Query-OER depth must be nonnegative" }
-            require(publication.selection.key.field.containingDef == publication.oerOccurrence.target.type) {
-                "Resolver selection does not belong to its target object"
+        ): DepthFirstFieldResolverTask =
+            DepthFirstFieldResolverTask(publication, queryOERDepth).also {
+                activatePublication(publication)
             }
-            // The reactor may freeze the OER before this task runs.
-            publication.publicationCell.value.claim()
-            if (!activateOnDispatch) activatePublication(publication)
-            return DepthFirstFieldResolverTask(publication, queryOERDepth, activateOnDispatch)
-        }
 
         private fun activatePublication(publication: GroundedFieldPublicationOccurrence<DepthFirstOperationContext>) {
             publication.publicationCell.setActivated(true)
@@ -94,7 +94,6 @@ class DepthFirstFieldResolverTask private constructor(
     /** Invokes one field, follows reference tails, and publishes its passively resolved output. */
     fun run(): Unit =
         with(publication) {
-            if (activateOnDispatch) activatePublication(publication)
             val key = selection.groundKey()
             val invocationDemand = this.invocationDemand ?: operation.complete(selection.subselections)
             var fieldValue: ResolverOutputData? = reference ?: when (val arguments = key.arguments) {

@@ -194,6 +194,10 @@ internal class FieldResolutionLogic(
     private suspend fun activatePublication(): Boolean {
         val publication = fieldResolverTask.publication
         val sourceOccurrence = publication.sourceOccurrence
+        if (sourceOccurrence.selection.key is ObjectEngineResult.MutationKey) {
+            publication.publicationCell.checkActivated()
+            return true
+        }
         val publicationCellNeedsActivation =
             sourceOccurrence.publicationPath.lastOrNull() is ObjectEngineResult.ObjectKey
         if (!publicationCellNeedsActivation) return true

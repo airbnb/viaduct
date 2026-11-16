@@ -1140,6 +1140,140 @@ class ExecutorRegistryInputsTest {
     }
 
     @Test
+    fun `omits mutation-only namespace value resolvers and their dependencies from executor and dispatcher inputs`() {
+        val fixture = Fixture(
+            """
+            directive @namespaceType on OBJECT
+            directive @resolver on FIELD_DEFINITION
+            type Query { value(input: Int): Int }
+            type Mutation { ns: MutationNamespace }
+            type MutationNamespace @namespaceType { nested: NestedNamespace, update: Int @resolver }
+            type NestedNamespace @namespaceType { update: Int @resolver }
+            """.trimIndent(),
+        )
+        val leaves = listOf("Query" to "value", "MutationNamespace" to "update", "NestedNamespace" to "update")
+        val namespaces = listOf("Mutation" to "ns", "MutationNamespace" to "nested")
+        for (supplyNamespaces in listOf(false, true)) {
+            val executors = (leaves + if (supplyNamespaces) namespaces else emptyList()).associateWith { coordinate ->
+                val namespace = coordinate in namespaces
+                MockFieldUnbatchedResolverExecutor(
+                    objectSelectionSet = if (namespace) createRSS(coordinate.first, "__typename") else null,
+                    querySelectionSet = if (namespace) {
+                        createRSS(
+                            "Query",
+                            "value(input: \$unused)",
+                            variableProviders = listOf(FromFieldVariablesResolver("unused", listOf("value"), createRSS("Query", "value"))),
+                        )
+                    } else {
+                        null
+                    },
+                    resolverId = "${coordinate.first}.${coordinate.second}",
+                )
+            }
+            for (inputs in listOf(fixture.adapt(executors.toList()), fixture.dispatch(executors))) {
+                assertEquals(leaves.toSet(), inputs.fieldResolvers.keys.map { it.containingDef.name to it.name }.toSet())
+                assertTrue(inputs.variableProviders.isEmpty())
+                fixture.registry(inputs)
+            }
+        }
+    }
+
+    @Test
+    fun `omitting mutation namespace value resolvers preserves checker registrations`() {
+        val fixture = Fixture(
+            """
+            directive @namespaceType on OBJECT
+            type Query { value: Int }
+            type Mutation { ns: MutationNamespace }
+            type MutationNamespace @namespaceType { value: Int }
+            """.trimIndent(),
+        )
+        val coordinate = "Mutation" to "ns"
+        val inputs = dispatcherRegistryInputs(
+            fullSchema = fixture.engineSchema,
+            schemas = fixture.schemas,
+            dispatcherRegistry = DispatcherRegistry.Impl(
+                fieldResolverDispatchers = mapOf(coordinate to FieldResolverDispatcherImpl(MockFieldUnbatchedResolverExecutor(resolverId = "Mutation.ns"))),
+                nodeResolverDispatchers = emptyMap(),
+                fieldCheckerDispatchers = mapOf(coordinate to CheckerDispatcherImpl(MockCheckerExecutor())),
+                typeCheckerDispatchers = mapOf("MutationNamespace" to CheckerDispatcherImpl(MockCheckerExecutor())),
+            ),
+        )
+
+        assertTrue(inputs.fieldResolvers.isEmpty())
+        assertEquals(setOf(fixture.schemas.loweredSchema.requireObjectField("Mutation", "ns")), inputs.fieldCheckers.keys)
+        assertEquals(setOf(fixture.schemas.loweredSchema.requireType("MutationNamespace")), inputs.typeCheckers.keys)
+    }
+
+    @Test
+    fun `namespace types shared with Query retain synthesized and supplied nested value resolvers`() =
+        runTest {
+            val fixture = Fixture(
+                """
+                directive @namespaceType on OBJECT
+                type Query { shared: SharedNamespace }
+                type Mutation { ns: SharedNamespace }
+                type SharedNamespace @namespaceType { child: ChildNamespace }
+                type ChildNamespace @namespaceType { value: Int }
+                """.trimIndent(),
+            )
+            for (supplyChild in listOf(false, true)) {
+                val childCalls = AtomicInteger()
+                val executors = buildMap {
+                    put("ChildNamespace" to "value", MockFieldUnbatchedResolverExecutor(resolverId = "ChildNamespace.value") { _, _, _, _, _ -> 7 })
+                    if (supplyChild) {
+                        put(
+                            "SharedNamespace" to "child",
+                            MockFieldUnbatchedResolverExecutor(resolverId = "SharedNamespace.child") { _, _, _, _, _ ->
+                                childCalls.incrementAndGet()
+                                fixture.resolved("ChildNamespace", emptyMap())
+                            }
+                        )
+                    }
+                }
+                for (inputs in listOf(fixture.adapt(executors.toList()), fixture.dispatch(executors))) {
+                    assertFalse(fixture.schemas.loweredSchema.requireObjectField("Mutation", "ns") in inputs.fieldResolvers)
+                    val result = fixture.execute(inputs, "{ shared { child { value } } }")
+                    assertEquals(emptyList<Any>(), result.errors)
+                    assertEquals(mapOf("shared" to mapOf("child" to mapOf("value" to 7))), result.getData())
+                }
+                assertEquals(if (supplyChild) 2 else 0, childCalls.get())
+            }
+        }
+
+    @Test
+    fun `namespace value resolvers remain available through ordinary output paths`() {
+        val entries = listOf(
+            "extend type Mutation { payload: Payload @resolver } type Payload { shared: SharedNamespace }" to ("Mutation" to "payload"),
+            "extend type Mutation { resolved: SharedNamespace @resolver }" to ("Mutation" to "resolved"),
+            "extend type Mutation { many: [SharedNamespace] }" to ("Mutation" to "many"),
+            "extend type Query { shared: NamespaceInterface } interface NamespaceInterface { child: ChildNamespace } extend type SharedNamespace implements NamespaceInterface" to ("Query" to "shared"),
+            "extend type Query { shared: NamespaceUnion } union NamespaceUnion = SharedNamespace" to ("Query" to "shared"),
+            "type Subscription { shared: SharedNamespace }" to ("Subscription" to "shared"),
+        )
+        for ((entry, coordinate) in entries) {
+            val fixture = Fixture(
+                """
+                directive @namespaceType on OBJECT
+                directive @resolver on FIELD_DEFINITION
+                type Query { value: Int }
+                type Mutation { ns: SharedNamespace }
+                type SharedNamespace @namespaceType { child: ChildNamespace }
+                type ChildNamespace @namespaceType { value: Int }
+                $entry
+                """.trimIndent(),
+            )
+            val executor = MockFieldUnbatchedResolverExecutor(resolverId = "${coordinate.first}.${coordinate.second}")
+            for (inputs in listOf(fixture.adapt(listOf(coordinate to executor)), fixture.dispatch(mapOf(coordinate to executor)))) {
+                val schema = fixture.schemas.loweredSchema
+                assertFalse(schema.requireObjectField("Mutation", "ns") in inputs.fieldResolvers, entry)
+                assertTrue(schema.requireObjectField("SharedNamespace", "child") in inputs.fieldResolvers, entry)
+                assertTrue(schema.requireObjectField(coordinate.first, coordinate.second) in inputs.fieldResolvers, entry)
+            }
+        }
+    }
+
+    @Test
     fun `rejects duplicates and batching before compiling registrations`() {
         val fixture = Fixture("type Query { value: Int }")
         val field = ("Query" to "value") to MockFieldUnbatchedResolverExecutor(resolverId = "Query.value")
