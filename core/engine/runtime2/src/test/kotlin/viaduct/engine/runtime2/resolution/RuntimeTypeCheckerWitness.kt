@@ -78,8 +78,8 @@ internal fun validateRuntimeTypeCheckerCase(
                     schema.fragmentFrom(
                         "fragment Input on Item { source { token } localSource: source @include(if: ${'$'}enabled) { token } remote: echo(value: ${'$'}remote) provided: echo(value: ${'$'}provided) derived }",
                         variableTarget = target,
-                    ).materializeSelections,
-                    schema.fragmentFrom("fragment Input on Query { viewer local: echo(value: ${'$'}local) }", variableTarget = target).materializeSelections,
+                    ).subselections,
+                    schema.fragmentFrom("fragment Input on Query { viewer local: echo(value: ${'$'}local) }", variableTarget = target).subselections,
                     mapOf(
                         Arguments.Variable.of(target, "enabled") to VariableDefinition.FromProvider,
                         Arguments.Variable.of(target, "provided") to VariableDefinition.FromProvider,

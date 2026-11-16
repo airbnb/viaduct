@@ -3,19 +3,16 @@ package viaduct.engine.runtime2.model.registry
 import viaduct.engine.runtime2.model.Arguments
 import viaduct.engine.runtime2.model.Fragment
 import viaduct.engine.runtime2.model.InclusionCondition
-import viaduct.engine.runtime2.model.MaterializeSelection
-import viaduct.engine.runtime2.model.MaterializeSelectionForest
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.ObjectSelection
 import viaduct.engine.runtime2.model.ObjectSelectionForest
 import viaduct.engine.runtime2.model.ResolverOccurrenceId
 import viaduct.engine.runtime2.model.Selection
 import viaduct.engine.runtime2.model.SelectionForest
-import viaduct.engine.runtime2.model.containsVariables
 import viaduct.engine.runtime2.model.instantiateVariables
 import viaduct.engine.runtime2.model.isParentField
-import viaduct.engine.runtime2.model.mapSelections
-import viaduct.engine.runtime2.model.materializeSelectionForestOf
+import viaduct.engine.runtime2.model.mapSelectionVariables
+import viaduct.engine.runtime2.model.selectionForestOf
 import viaduct.engine.runtime2.model.toSelectionForest
 import viaduct.engine.runtime2.model.usedVariables
 import viaduct.graphql.schema.ViaductSchema
@@ -24,16 +21,16 @@ import viaduct.graphql.schema.ViaductSchema
 internal fun Fragment.normalizeRoot(
     expectedType: ViaductSchema.Object,
     role: String,
-): MaterializeSelectionForest {
+): SelectionForest {
     require(nominalType == expectedType) {
         "$role type ${nominalType.name} does not match ${expectedType.name}"
     }
-    return materializeSelections.flatMap { selection ->
+    return subselections.flatMap { selection ->
         if (expectedType !in selection.possibleTypes) {
-            materializeSelectionForestOf()
+            selectionForestOf()
         } else {
-            materializeSelectionForestOf(
-                MaterializeSelection.of(
+            selectionForestOf(
+                Selection.of(
                     responseKey = selection.responseKey,
                     key = selection.key.objectKey(expectedType),
                     possibleTypes = setOf(expectedType),
@@ -77,16 +74,7 @@ private fun SelectionForest.partitionVariableSelections(): Pair<List<Selection>,
     return static to dynamic
 }
 
-internal fun MaterializeSelectionForest.usedVariables(): Set<Arguments.Variable> =
-    buildSet {
-        this@usedVariables.forEach { selection ->
-            addAll(selection.key.arguments.usedVariables())
-            addAll(selection.inclusionCondition.usedVariables())
-            addAll(selection.subselections.usedVariables())
-        }
-    }
-
-internal fun MaterializeSelectionForest.requireNoErroneousArguments() {
+internal fun SelectionForest.requireNoErroneousArguments() {
     forEach { selection ->
         require(selection.key.arguments != Arguments.Error) {
             "Registry fragment contains erroneous arguments for " +
@@ -151,7 +139,7 @@ internal fun instantiateResolverFragment(
 
 internal fun Map<Arguments.Variable, VariableDefinition>.fieldPathInclusionConditions(
     providerFragment: ProviderFragment,
-    materializeSelections: MaterializeSelectionForest,
+    materializeSelections: SelectionForest,
 ): Map<Arguments.Variable, List<InclusionCondition>> =
     mapNotNull { (variable, definition) ->
         (definition as? VariableDefinition.FromField)
@@ -159,7 +147,7 @@ internal fun Map<Arguments.Variable, VariableDefinition>.fieldPathInclusionCondi
             ?.let { variable to it.inclusionConditions(materializeSelections) }
     }.toMap()
 
-internal fun MaterializeSelectionForest.requireNoVariablesBeneathParent(inputOwner: String) {
+internal fun SelectionForest.requireNoVariablesBeneathParent(inputOwner: String) {
     forEach { selection ->
         if (selection.inclusionCondition === InclusionCondition.Never) return@forEach
         require(
@@ -181,7 +169,7 @@ internal fun MaterializeSelectionForest.requireNoVariablesBeneathParent(inputOwn
     }
 }
 
-internal fun MaterializeSelectionForest.requireNoParentFieldSelections(inputOwner: String) {
+internal fun SelectionForest.requireNoParentFieldSelections(inputOwner: String) {
     forEach { selection ->
         require(!selection.key.field.isParentField()) {
             "$inputOwner must not select @parent field ${selection.key.field.containingDef.name}/${selection.key.field.name}"
@@ -190,7 +178,7 @@ internal fun MaterializeSelectionForest.requireNoParentFieldSelections(inputOwne
     }
 }
 
-private fun MaterializeSelectionForest.usedVariablesApplicableTo(type: ViaductSchema.Object): Set<Arguments.Variable> {
+private fun SelectionForest.usedVariablesApplicableTo(type: ViaductSchema.Object): Set<Arguments.Variable> {
     val variables = linkedSetOf<Arguments.Variable>()
     forEach { selection ->
         if (selection.inclusionCondition === InclusionCondition.Never) return@forEach
@@ -206,66 +194,8 @@ private fun MaterializeSelectionForest.usedVariablesApplicableTo(type: ViaductSc
     return variables
 }
 
-internal fun SelectionForest.instantiateVariables(resolverOccurrenceId: ResolverOccurrenceId): SelectionForest {
-    if (!containsVariables()) return this
-    return mapSelections { selection ->
-        Selection.of(
-            key =
-                if (selection.key.arguments is Arguments.Ground) {
-                    selection.key
-                } else {
-                    ObjectEngineResult.Key.of(
-                        field = selection.key.field,
-                        arguments =
-                            selection.key.arguments.instantiateVariables(
-                                selection.key.field,
-                                resolverOccurrenceId,
-                            ),
-                    )
-                },
-            possibleTypes = selection.possibleTypes,
-            inclusionCondition =
-                selection.inclusionCondition.mapVariables { variable ->
-                    variable.instantiate(resolverOccurrenceId)
-                },
-            subselections =
-                selection.subselections.instantiateVariables(
-                    resolverOccurrenceId,
-                ),
-        )
-    }
-}
-
-internal fun MaterializeSelectionForest.instantiateVariables(resolverOccurrenceId: ResolverOccurrenceId): MaterializeSelectionForest {
-    if (!containsVariables()) return this
-    return flatMap { selection ->
-        materializeSelectionForestOf(
-            MaterializeSelection.of(
-                responseKey = selection.responseKey,
-                key =
-                    if (selection.key.arguments is Arguments.Ground) {
-                        selection.key
-                    } else {
-                        ObjectEngineResult.Key.of(
-                            field = selection.key.field,
-                            arguments =
-                                selection.key.arguments.instantiateVariables(
-                                    selection.key.field,
-                                    resolverOccurrenceId,
-                                ),
-                        )
-                    },
-                possibleTypes = selection.possibleTypes,
-                inclusionCondition =
-                    selection.inclusionCondition.mapVariables { variable ->
-                        variable.instantiate(resolverOccurrenceId)
-                    },
-                fieldDirectives = selection.fieldDirectives,
-                subselections =
-                    selection.subselections.instantiateVariables(
-                        resolverOccurrenceId,
-                    ),
-            ),
-        )
-    }
-}
+internal fun SelectionForest.instantiateVariables(resolverOccurrenceId: ResolverOccurrenceId): SelectionForest =
+    mapSelectionVariables(
+        transform = { it.instantiate(resolverOccurrenceId) },
+        mapArguments = { it.arguments.instantiateVariables(it.field, resolverOccurrenceId) },
+    )

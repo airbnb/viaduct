@@ -6,12 +6,12 @@ import kotlin.test.assertTrue
 import viaduct.engine.api.CheckerResult
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.runtime2.model.ObjectEngineResult
-import viaduct.engine.runtime2.model.materializeSelectionForestOf
 import viaduct.engine.runtime2.model.merge
 import viaduct.engine.runtime2.model.registry.FieldCheckerResolver
 import viaduct.engine.runtime2.model.registry.ResolverFragmentTemplates
 import viaduct.engine.runtime2.model.requireObjectField
 import viaduct.engine.runtime2.model.requireQueryTypeDef
+import viaduct.engine.runtime2.model.selectionForestOf
 import viaduct.engine.runtime2.model.testing.TestWorld
 import viaduct.engine.runtime2.model.testing.fragmentFrom
 import viaduct.engine.runtime2.resolution.framework.ResolutionObserver
@@ -52,8 +52,8 @@ class CheckerParentReadingResolverDemandTest : ResolutionDispatcherResource {
                         schemas.loweredSchema.requireQueryTypeDef(),
                         mapOf(
                             "input" to ResolverFragmentTemplates(
-                                schemas.fragmentFrom("fragment F on Query { root { child { derived } } }").materializeSelections,
-                                materializeSelectionForestOf(),
+                                schemas.fragmentFrom("fragment F on Query { root { child { derived } } }").subselections,
+                                selectionForestOf(),
                             )
                         ),
                     ) { _, inputs, _ ->

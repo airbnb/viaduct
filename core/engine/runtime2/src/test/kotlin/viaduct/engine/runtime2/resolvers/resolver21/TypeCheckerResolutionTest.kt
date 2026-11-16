@@ -23,7 +23,6 @@ import viaduct.engine.api.CheckerResultContext
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.runtime2.model.EngineErrorData
 import viaduct.engine.runtime2.model.ObjectEngineResult
-import viaduct.engine.runtime2.model.materializeSelectionForestOf
 import viaduct.engine.runtime2.model.outputValue
 import viaduct.engine.runtime2.model.registry.FieldCheckerResolver
 import viaduct.engine.runtime2.model.registry.ResolverFragmentTemplates
@@ -32,6 +31,7 @@ import viaduct.engine.runtime2.model.requireObjectField
 import viaduct.engine.runtime2.model.requireQueryTypeDef
 import viaduct.engine.runtime2.model.requireType
 import viaduct.engine.runtime2.model.schemaType
+import viaduct.engine.runtime2.model.selectionForestOf
 import viaduct.engine.runtime2.model.testing.TestWorld
 import viaduct.engine.runtime2.model.testing.fragmentFrom
 import viaduct.engine.runtime2.resolution.framework.CycleCheckState
@@ -63,8 +63,8 @@ class TypeCheckerResolutionTest {
                     val item = schema.loweredSchema.requireType("Item") as ViaductSchema.Object
                     val emptyPair =
                         ResolverFragmentTemplates(
-                            objectFragmentTemplate = materializeSelectionForestOf(),
-                            queryFragmentTemplate = materializeSelectionForestOf(),
+                            objectFragmentTemplate = selectionForestOf(),
+                            queryFragmentTemplate = selectionForestOf(),
                         )
                     mapOf(
                         item to
@@ -135,7 +135,7 @@ class TypeCheckerResolutionTest {
                     operation = operation,
                     cycleChecker = CycleCheckState.createNOP(),
                     selections =
-                        worldFixture.schemas.fragmentFrom("fragment Input on Query { denied { id } }").materializeSelections,
+                        worldFixture.schemas.fragmentFrom("fragment Input on Query { denied { id } }").subselections,
                     reader = result.fieldResolverCycleTask(emptyList()),
                 )
             assertSame(denial.error, assertIs<EngineErrorData>(materialized.outputValue("denied")).cause)
@@ -157,7 +157,7 @@ class TypeCheckerResolutionTest {
                     """.trimIndent(),
                 fieldCheckers = { schema ->
                     val checked = schema.loweredSchema.requireObjectField("Query", "checked")
-                    val raw = schema.fragmentFrom("fragment Raw on Query { raw { id } }").materializeSelections
+                    val raw = schema.fragmentFrom("fragment Raw on Query { raw { id } }").subselections
                     mapOf(
                         checked to
                             FieldCheckerResolver.of(
@@ -168,7 +168,7 @@ class TypeCheckerResolutionTest {
                                         "raw" to
                                             ResolverFragmentTemplates(
                                                 objectFragmentTemplate = raw,
-                                                queryFragmentTemplate = materializeSelectionForestOf(),
+                                                queryFragmentTemplate = selectionForestOf(),
                                             ),
                                     ),
                             ) { _, inputs, _ ->

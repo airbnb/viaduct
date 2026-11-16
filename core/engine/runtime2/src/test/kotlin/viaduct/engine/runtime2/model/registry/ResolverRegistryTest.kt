@@ -28,7 +28,6 @@ import viaduct.engine.runtime2.model.SelectionForest
 import viaduct.engine.runtime2.model.additionalContextForResolver
 import viaduct.engine.runtime2.model.emptyFragmentOf
 import viaduct.engine.runtime2.model.engineObjectDataOf
-import viaduct.engine.runtime2.model.materializeSelectionForestOf
 import viaduct.engine.runtime2.model.nodeReferenceIdentityOrNull
 import viaduct.engine.runtime2.model.outputType
 import viaduct.engine.runtime2.model.outputValue
@@ -50,6 +49,7 @@ import viaduct.engine.runtime2.model.testing.objectOf
 import viaduct.engine.runtime2.model.testing.snipToDemand
 import viaduct.engine.runtime2.model.testing.testRoot
 import viaduct.engine.runtime2.model.testing.withGeneratedOutputPolicy
+import viaduct.engine.runtime2.model.usedVariables
 import viaduct.engine.runtime2.schema.ViaductAndGJSchema
 import viaduct.graphql.schema.ViaductSchema
 
@@ -450,8 +450,8 @@ class ResolverRegistryTest {
                     field = userField,
                     fragmentTemplates =
                         ResolverFragmentTemplates(
-                            objectFragmentTemplate = materializeSelectionForestOf(),
-                            queryFragmentTemplate = materializeSelectionForestOf(),
+                            objectFragmentTemplate = selectionForestOf(),
+                            queryFragmentTemplate = selectionForestOf(),
                         ),
                     queryType = query,
                     function = { _, _, _, selections, additionalContext, executionContext ->
@@ -507,8 +507,8 @@ class ResolverRegistryTest {
                     field = userField,
                     fragmentTemplates =
                         ResolverFragmentTemplates(
-                            objectFragmentTemplate = materializeSelectionForestOf(),
-                            queryFragmentTemplate = materializeSelectionForestOf(),
+                            objectFragmentTemplate = selectionForestOf(),
+                            queryFragmentTemplate = selectionForestOf(),
                         ),
                     queryType = query,
                     function = { _, _, _, additionalContext, _ ->
@@ -568,8 +568,8 @@ class ResolverRegistryTest {
                     field = userField,
                     fragmentTemplates =
                         ResolverFragmentTemplates(
-                            objectFragmentTemplate = materializeSelectionForestOf(),
-                            queryFragmentTemplate = materializeSelectionForestOf(),
+                            objectFragmentTemplate = selectionForestOf(),
+                            queryFragmentTemplate = selectionForestOf(),
                         ),
                     queryType = query,
                     function = { _, _, _, selections, additionalContext, _ ->

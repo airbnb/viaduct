@@ -12,7 +12,6 @@ import graphql.schema.GraphQLSchema
 import graphql.validation.Validator
 import java.util.Locale
 import viaduct.engine.runtime2.model.EngineInputData
-import viaduct.engine.runtime2.model.MaterializeSelectionForest
 import viaduct.engine.runtime2.model.ResolverTarget
 import viaduct.engine.runtime2.model.SelectionForest
 import viaduct.engine.runtime2.model.registry.Assumptions
@@ -94,7 +93,7 @@ fun ViaductAndGJSchema.materializeSelectionsFrom(
     variableField: ViaductSchema.ObjectField? = null,
     variableTarget: ResolverTarget? = null,
     preserveSourceResponseKeys: Boolean = false,
-): Pair<ViaductSchema.CompositeTypeDef, MaterializeSelectionForest> =
+): Pair<ViaductSchema.CompositeTypeDef, SelectionForest> =
     GJSelectionParser(
         sourceSchema = graphQLSchema,
         schema = loweredSchema,

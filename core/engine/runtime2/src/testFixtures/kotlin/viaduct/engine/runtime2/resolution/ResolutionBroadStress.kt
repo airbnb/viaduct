@@ -37,9 +37,10 @@ import viaduct.engine.runtime2.correctresolution.correctResolution
 import viaduct.engine.runtime2.model.EngineOutputData
 import viaduct.engine.runtime2.model.Fragment
 import viaduct.engine.runtime2.model.ListEngineResult
-import viaduct.engine.runtime2.model.MaterializeSelectionForest
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.ResolverOccurrenceId
+import viaduct.engine.runtime2.model.SelectionForest
+import viaduct.engine.runtime2.model.collect
 import viaduct.engine.runtime2.model.nodeReferenceIdentityOrNull
 import viaduct.engine.runtime2.model.outputValue
 import viaduct.engine.runtime2.model.registry.Assumptions
@@ -780,7 +781,7 @@ private data class MaterializedParentFieldActivation(
 )
 
 private fun EngineOutputData?.materializedParentFieldActivations(
-    selections: MaterializeSelectionForest,
+    selections: SelectionForest,
     parentDepth: Int = 0,
 ): List<MaterializedParentFieldActivation> =
     when (this) {

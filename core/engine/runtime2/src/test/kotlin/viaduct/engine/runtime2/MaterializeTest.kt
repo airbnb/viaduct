@@ -25,17 +25,17 @@ import viaduct.engine.runtime2.model.ErrorEngineResult
 import viaduct.engine.runtime2.model.IDEngineResult
 import viaduct.engine.runtime2.model.InclusionCondition
 import viaduct.engine.runtime2.model.ListEngineResult
-import viaduct.engine.runtime2.model.MaterializeSelection
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.PathComponent
 import viaduct.engine.runtime2.model.Promise
 import viaduct.engine.runtime2.model.ResolverOccurrenceId
-import viaduct.engine.runtime2.model.materializeSelectionForestOf
+import viaduct.engine.runtime2.model.Selection
 import viaduct.engine.runtime2.model.outputType
 import viaduct.engine.runtime2.model.outputValue
 import viaduct.engine.runtime2.model.requireObjectField
 import viaduct.engine.runtime2.model.requireQueryTypeDef
 import viaduct.engine.runtime2.model.requireType
+import viaduct.engine.runtime2.model.selectionForestOf
 import viaduct.engine.runtime2.model.testing.TestWorld
 import viaduct.engine.runtime2.model.testing.fragmentFrom
 import viaduct.engine.runtime2.resolution.framework.CycleCheckState
@@ -60,12 +60,12 @@ class MaterializeTest {
                         ResolverOccurrenceId.at(result, listOf(fixture.key)),
                     )
                 val selections =
-                    materializeSelectionForestOf(
-                        MaterializeSelection.of(
+                    selectionForestOf(
+                        Selection.of(
                             responseKey = "value",
                             key = fixture.key,
                             possibleTypes = setOf(fixture.type),
-                            subselections = materializeSelectionForestOf(),
+                            subselections = selectionForestOf(),
                             inclusionCondition =
                                 InclusionCondition.requires(mapOf(variable to true)),
                         ),
@@ -112,12 +112,12 @@ class MaterializeTest {
                         ResolverOccurrenceId.at(result, listOf(fixture.key)),
                     )
                 val selections =
-                    materializeSelectionForestOf(
-                        MaterializeSelection.of(
+                    selectionForestOf(
+                        Selection.of(
                             responseKey = "value",
                             key = fixture.key,
                             possibleTypes = setOf(fixture.type),
-                            subselections = materializeSelectionForestOf(),
+                            subselections = selectionForestOf(),
                             inclusionCondition =
                                 InclusionCondition.requires(mapOf(variable to true)),
                         ),
@@ -221,7 +221,7 @@ class MaterializeTest {
             )
         val selections =
             worldFixture.schemas.fragmentFrom("fragment ignored on Query { child { value } }")
-                .materializeSelections
+                .subselections
         val cycleChecker = CycleCheckState.create()
         val readerIdentity = result.fieldResolverCycleTask(reader)
         cycleChecker.registerWriter(
@@ -315,7 +315,7 @@ class MaterializeTest {
                 worldFixture.schemas.fragmentFrom(
                     "fragment ParentInput on Parent { user { id } users { id } }",
                 )
-                    .materializeSelections
+                    .subselections
 
             val materialized =
                 parentResult.materializeResult(
@@ -352,18 +352,18 @@ class MaterializeTest {
         runBlocking {
             val fixture = ScalarValueWorld()
             val selections =
-                materializeSelectionForestOf(
-                    MaterializeSelection.of(
+                selectionForestOf(
+                    Selection.of(
                         responseKey = "first",
                         key = fixture.key,
                         possibleTypes = setOf(fixture.type),
-                        subselections = materializeSelectionForestOf(),
+                        subselections = selectionForestOf(),
                     ),
-                    MaterializeSelection.of(
+                    Selection.of(
                         responseKey = "second",
                         key = fixture.key,
                         possibleTypes = setOf(fixture.type),
-                        subselections = materializeSelectionForestOf(),
+                        subselections = selectionForestOf(),
                     ),
                 )
             val result =
@@ -494,7 +494,7 @@ class MaterializeTest {
             val fieldChecker = cell.fieldCheckerResult
             val selections =
                 worldFixture.schemas.fragmentFrom("fragment ignored on Query { value { text } }")
-                    .materializeSelections
+                    .subselections
 
             val materialized =
                 withTimeout(1_000) {
@@ -578,7 +578,7 @@ class MaterializeTest {
                 )
             val selections =
                 worldFixture.schemas.fragmentFrom("fragment ignored on Query { values { text } }")
-                    .materializeSelections
+                    .subselections
 
             val materialized =
                 result.materializeResult(
@@ -600,7 +600,7 @@ private class ScalarValueWorld {
     val type = fixture.schema.requireQueryTypeDef()
     val field = fixture.schema.requireObjectField("Query", "value")
     val key = ObjectEngineResult.GroundKey.of(field, emptyMap())
-    val selections = fixture.schemas.fragmentFrom("fragment ignored on Query { value }").materializeSelections
+    val selections = fixture.schemas.fragmentFrom("fragment ignored on Query { value }").subselections
 }
 
 private class MaterializationDenial : CheckerResult.Error {

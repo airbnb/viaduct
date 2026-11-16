@@ -8,13 +8,14 @@ import viaduct.engine.api.FieldDirectives
 import viaduct.engine.runtime2.model.EngineErrorData
 import viaduct.engine.runtime2.model.EngineResultCell
 import viaduct.engine.runtime2.model.ListEngineResult
-import viaduct.engine.runtime2.model.MaterializeSelectionForest
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.ResolverOccurrenceId
 import viaduct.engine.runtime2.model.ResolverOutputData
-import viaduct.engine.runtime2.model.materializeSelectionForestOf
+import viaduct.engine.runtime2.model.SelectionForest
+import viaduct.engine.runtime2.model.collect
 import viaduct.engine.runtime2.model.outputValue
 import viaduct.engine.runtime2.model.schemaType
+import viaduct.engine.runtime2.model.selectionForestOf
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
 import viaduct.engine.runtime2.resolution.framework.findStoredKey
 import viaduct.engine.runtime2.resolution.framework.isIncluded
@@ -34,8 +35,8 @@ class ResolverReplayInputs(
 fun SharedOperationContext<*>.resolverInputsForReplay(
     occurrenceId: ResolverOccurrenceId,
     objectResult: ObjectEngineResult?,
-    objectSelections: MaterializeSelectionForest,
-    querySelections: MaterializeSelectionForest,
+    objectSelections: SelectionForest,
+    querySelections: SelectionForest,
     expectedObjectValue: EngineObjectData.Sync,
     expectedQueryValue: EngineObjectData.Sync,
 ): ResolverReplayInputs? {
@@ -63,15 +64,15 @@ fun SharedOperationContext<*>.resolverInputsForReplay(
 private class ResolverInputConformanceLogic(private val operation: SharedOperationContext<*>) {
     fun objectInputConforms(
         result: ObjectEngineResult?,
-        selections: MaterializeSelectionForest,
+        selections: SelectionForest,
         actual: EngineObjectData.Sync,
         expected: EngineObjectData.Sync,
     ): Boolean {
         if (actual.sameMaterializedValueAs(expected)) return true
         if (result == null || actual.schemaType != expected.schemaType || actual.schemaType != result.type) return false
         if (actual.getSelections().toSet() != expected.getSelections().toSet()) return false
-        var included = materializeSelectionForestOf()
-        selections.forEach { if (it.inclusionCondition.isIncluded(operation)) included += materializeSelectionForestOf(it) }
+        var included = selectionForestOf()
+        selections.forEach { if (it.inclusionCondition.isIncluded(operation)) included += selectionForestOf(it) }
         return included.collect(result.type).byResponseKey().all { (responseKey, selection) ->
             val key = result.findStoredKey(operation, selection.key) ?: return@all false
             cellInputConforms(
@@ -86,7 +87,7 @@ private class ResolverInputConformanceLogic(private val operation: SharedOperati
 
     private fun cellInputConforms(
         cell: EngineResultCell,
-        selections: MaterializeSelectionForest,
+        selections: SelectionForest,
         fieldDirectives: FieldDirectives?,
         actual: ResolverOutputData?,
         expected: ResolverOutputData?,

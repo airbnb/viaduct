@@ -26,7 +26,6 @@ import viaduct.engine.runtime2.model.ListEngineResult
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.RootFieldReferenceData
 import viaduct.engine.runtime2.model.emptyFragmentOf
-import viaduct.engine.runtime2.model.materializeSelectionForestOf
 import viaduct.engine.runtime2.model.outputValue
 import viaduct.engine.runtime2.model.registry.FieldCheckerResolver
 import viaduct.engine.runtime2.model.registry.ResolverFragmentTemplates
@@ -35,6 +34,7 @@ import viaduct.engine.runtime2.model.registry.fieldResolverOf
 import viaduct.engine.runtime2.model.requireObjectField
 import viaduct.engine.runtime2.model.requireQueryTypeDef
 import viaduct.engine.runtime2.model.requireType
+import viaduct.engine.runtime2.model.selectionForestOf
 import viaduct.engine.runtime2.model.testing.TestWorld
 import viaduct.engine.runtime2.model.testing.emptyFragmentOf
 import viaduct.engine.runtime2.model.testing.fragmentFrom
@@ -410,7 +410,7 @@ interface FragmentFreeTypeCheckerEnforcementContract {
                 fieldCheckers = { schema ->
                     val item = schema.loweredSchema.requireObjectField("Query", "item")
                     val trigger = schema.loweredSchema.requireObjectField("Query", "trigger")
-                    val raw = schema.fragmentFrom("fragment Raw on Query { item { value } }").materializeSelections
+                    val raw = schema.fragmentFrom("fragment Raw on Query { item { value } }").subselections
                     mapOf(
                         trigger to
                             FieldCheckerResolver.of(
@@ -421,7 +421,7 @@ interface FragmentFreeTypeCheckerEnforcementContract {
                                         "raw" to
                                             ResolverFragmentTemplates(
                                                 objectFragmentTemplate = raw,
-                                                queryFragmentTemplate = materializeSelectionForestOf(),
+                                                queryFragmentTemplate = selectionForestOf(),
                                             ),
                                     ),
                             ) { _, inputs, _ ->

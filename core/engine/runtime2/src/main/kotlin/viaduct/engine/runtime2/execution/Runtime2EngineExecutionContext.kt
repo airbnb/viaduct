@@ -148,7 +148,7 @@ internal class Runtime2ExecutionHandle(
                 document = selectionSet.toFragment().parsedDocument,
                 bindings = selectionSet.variables,
             ).fragment
-        val selections = fragment.materializeSelections
+        val selections = fragment.subselections
         return when (options.operationType) {
             Engine.OperationType.QUERY -> resolutionContext.resolveSelectionSet(selections)
             Engine.OperationType.MUTATION -> resolutionContext.resolveMutationSelectionSet(

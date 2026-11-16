@@ -6,11 +6,12 @@ import viaduct.engine.runtime2.model.EngineInputData
 import viaduct.engine.runtime2.model.EngineResult
 import viaduct.engine.runtime2.model.ErrorEngineResult
 import viaduct.engine.runtime2.model.ListEngineResult
-import viaduct.engine.runtime2.model.MaterializeSelectionForest
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.PathComponent
 import viaduct.engine.runtime2.model.ResolverOccurrenceId
+import viaduct.engine.runtime2.model.SelectionForest
 import viaduct.engine.runtime2.model.VariableBinding
+import viaduct.engine.runtime2.model.collect
 import viaduct.engine.runtime2.model.outputType
 import viaduct.engine.runtime2.model.registry.FieldValueResolver
 import viaduct.engine.runtime2.model.registry.InstantiatedFieldPathDefinition
@@ -145,7 +146,7 @@ private fun ObjectEngineResult.requestQueryRoots(operation: SharedOperationConte
 private fun ObjectEngineResult.readCompletedProvider(
     operation: SharedOperationContext<*>,
     responsePath: List<String>,
-    selections: MaterializeSelectionForest,
+    selections: SelectionForest,
 ): VariableBinding {
     var current = this
     var localSelections = selections

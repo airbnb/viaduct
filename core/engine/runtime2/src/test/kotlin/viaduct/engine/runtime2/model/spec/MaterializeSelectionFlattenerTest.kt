@@ -8,9 +8,10 @@ import kotlin.test.assertTrue
 import viaduct.engine.api.FieldDirectives
 import viaduct.engine.runtime2.model.Arguments
 import viaduct.engine.runtime2.model.InclusionCondition
-import viaduct.engine.runtime2.model.MaterializeSelectionForest
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.ResolverTarget
+import viaduct.engine.runtime2.model.SelectionForest
+import viaduct.engine.runtime2.model.collect
 import viaduct.engine.runtime2.model.merge
 import viaduct.engine.runtime2.model.requireField
 import viaduct.engine.runtime2.model.requireObjectField
@@ -110,7 +111,7 @@ class MaterializeSelectionFlattenerTest {
         assertEquals(setOf("release", "version"), collected.responseKeys())
         assertEquals(collected["release"].key, collected["version"].key)
         assertTrue(
-            selections.constructionSelections().all { selection ->
+            selections.all { selection ->
                 selection.key.field == fixture.schema.requireField("Query", "version")
             },
         )
@@ -366,14 +367,13 @@ class MaterializeSelectionFlattenerTest {
                     "fragment ResolverInput on Query { account: user { id } }",
                 )
         val selections =
-            flattenForMaterialization(schema.loweredSchema, parsed.nominalType, parsed.selections)
+            flatten(schema.loweredSchema, parsed.nominalType, parsed.selections)
 
         val account = selections.collect(schema.loweredSchema.requireQueryTypeDef())["account"]
         assertEquals("user", account.key.field.name)
         assertEquals(
             setOf("user"),
             selections
-                .constructionSelections()
                 .merge(schema.loweredSchema.requireQueryTypeDef())
                 .keys()
                 .mapTo(linkedSetOf()) { key -> key.field.name },
@@ -424,7 +424,7 @@ class MaterializeSelectionFlattenerTest {
         fun flatten(
             typeInScope: ViaductSchema.CompositeTypeDef,
             selectionSet: List<SpecSelection>,
-        ): MaterializeSelectionForest = flattenForMaterialization(schema, typeInScope, selectionSet)
+        ): SelectionForest = flatten(schema, typeInScope, selectionSet)
     }
 
     private companion object {

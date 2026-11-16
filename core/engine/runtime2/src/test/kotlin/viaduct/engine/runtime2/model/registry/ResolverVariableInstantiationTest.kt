@@ -7,9 +7,10 @@ import kotlin.test.assertTrue
 import viaduct.engine.runtime2.bootstrap.fromObjectField
 import viaduct.engine.runtime2.model.Arguments
 import viaduct.engine.runtime2.model.InclusionCondition
-import viaduct.engine.runtime2.model.MaterializeSelection
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.ResolverOccurrenceId
+import viaduct.engine.runtime2.model.Selection
+import viaduct.engine.runtime2.model.collect
 import viaduct.engine.runtime2.model.emptyFragmentOf
 import viaduct.engine.runtime2.model.fieldExpressions
 import viaduct.engine.runtime2.model.instantiatedVariables
@@ -92,7 +93,7 @@ class ResolverVariableInstantiationTest {
             schemas.fragmentFrom(
                 "fragment Input on $type { always: echo conditional: echo @include(if: ${'$'}flag) }",
                 variableField = field,
-            ).materializeSelections
+            ).subselections
         val resolver = FieldValueResolver.of(
             field,
             ResolverFragmentTemplates(input("Item"), input("Query"), mapOf(variable to VariableDefinition.FromArgument.of(field.requireArg("flag")))),
@@ -111,7 +112,7 @@ class ResolverVariableInstantiationTest {
             resolver.declaredDependencies.instantiateQueryMaterializationSelections(occurrence),
         ).forEach { materialization ->
             assertEquals(2, materialization.size)
-            val selections = mutableListOf<MaterializeSelection>()
+            val selections = mutableListOf<Selection>()
             materialization.forEach(selections::add)
             assertEquals(setOf(variable.instantiate(occurrence)), selections.single { it.responseKey == "conditional" }.inclusionCondition.usedVariables())
         }

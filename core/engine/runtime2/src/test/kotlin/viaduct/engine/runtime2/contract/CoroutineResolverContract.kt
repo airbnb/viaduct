@@ -48,7 +48,6 @@ import viaduct.engine.runtime2.model.sameCompletedResultAs
 import viaduct.engine.runtime2.model.testing.TestWorld
 import viaduct.engine.runtime2.model.testing.emptyFragmentOf
 import viaduct.engine.runtime2.model.testing.fragmentFrom
-import viaduct.engine.runtime2.model.toCanonicalMaterializeSelectionForest
 import viaduct.engine.runtime2.resolution.framework.CycleCheckState
 import viaduct.engine.runtime2.resolution.framework.CycleSlotKind
 import viaduct.engine.runtime2.resolution.framework.CycleTask
@@ -250,13 +249,11 @@ interface CoroutineResolverContract {
                     objectFragmentTemplate =
                         testWorld.resolverRegistry
                             .resolver(first)
-                            .declaredDependencies.objectFragment
-                            .toCanonicalMaterializeSelectionForest(),
+                            .declaredDependencies.objectFragment,
                     queryFragmentTemplate =
                         testWorld.resolverRegistry
                             .resolver(second)
-                            .declaredDependencies.queryFragment
-                            .toCanonicalMaterializeSelectionForest(),
+                            .declaredDependencies.queryFragment,
                 ),
             queryType = testWorld.schema.requireQueryTypeDef(),
             function = { _, _, _, _, _ -> 2 },

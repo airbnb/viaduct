@@ -24,7 +24,6 @@ import viaduct.engine.runtime2.model.emptyFragmentOf
 import viaduct.engine.runtime2.model.engineObjectDataOf
 import viaduct.engine.runtime2.model.guardedBy
 import viaduct.engine.runtime2.model.isParentField
-import viaduct.engine.runtime2.model.materializeSelectionForestOf
 import viaduct.engine.runtime2.model.merge
 import viaduct.engine.runtime2.model.registry.Assumptions
 import viaduct.engine.runtime2.model.registry.CheckerInput
@@ -76,8 +75,8 @@ class ParentConstructionDemandTest : ResolutionDispatcherResource {
             val checked = schema.requireObjectField("Container", "checked")
             val templates = mapOf(
                 "input" to ResolverFragmentTemplates(
-                    objectFragmentTemplate = fixture.schemas.fragmentFrom("fragment F on Container { branch { child { demand } } }").materializeSelections,
-                    queryFragmentTemplate = materializeSelectionForestOf(),
+                    objectFragmentTemplate = fixture.schemas.fragmentFrom("fragment F on Container { branch { child { demand } } }").subselections,
+                    queryFragmentTemplate = selectionForestOf(),
                 ),
             )
             val checkerCalls = mutableListOf<Int>()
@@ -330,8 +329,8 @@ class ParentConstructionDemandTest : ResolutionDispatcherResource {
                             schemas.loweredSchema.requireQueryTypeDef(),
                             fragmentTemplates = mapOf(
                                 "input" to ResolverFragmentTemplates(
-                                    objectFragmentTemplate = schemas.fragmentFrom("fragment F on Child { probe }").materializeSelections,
-                                    queryFragmentTemplate = materializeSelectionForestOf(),
+                                    objectFragmentTemplate = schemas.fragmentFrom("fragment F on Child { probe }").subselections,
+                                    queryFragmentTemplate = selectionForestOf(),
                                 ),
                             ),
                         ) { _, _ -> CheckerResult.Success },

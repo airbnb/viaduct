@@ -2,7 +2,6 @@ package viaduct.engine.runtime2.resolution.framework
 
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.runtime2.model.Arguments
-import viaduct.engine.runtime2.model.MaterializeSelectionForest
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.ObjectEngineResult.ObjectKey
 import viaduct.engine.runtime2.model.PathComponent
@@ -28,9 +27,9 @@ data class ResolverInvocationObservation(
     val occurrencePath: List<PathComponent>,
     val field: ViaductSchema.ObjectField,
     val input: EngineObjectData.Sync,
-    val inputSelections: MaterializeSelectionForest,
+    val inputSelections: SelectionForest,
     val queryValue: EngineObjectData.Sync,
-    val queryInputSelections: MaterializeSelectionForest,
+    val queryInputSelections: SelectionForest,
     val arguments: Arguments.Resolved,
     val suppliedDemand: SelectionForest?,
     val resolverOccurrenceId: ResolverOccurrenceId,

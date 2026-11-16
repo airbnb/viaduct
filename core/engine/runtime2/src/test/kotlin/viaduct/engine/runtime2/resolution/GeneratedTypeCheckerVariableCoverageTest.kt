@@ -117,8 +117,8 @@ class GeneratedTypeCheckerVariableCoverageTest : ResolverContract, ResolutionDis
                 }
                 val allVariables = variables + (Arguments.Variable.of(target, "provided") to VariableDefinition.FromProvider)
                 val pair = ResolverFragmentTemplates(
-                    schema.fragmentFrom("fragment Input on Item { source { token } echo(value: ${'$'}remote) callback: echo(value: ${'$'}provided) }", variableTarget = target).materializeSelections,
-                    schema.fragmentFrom("fragment Input on Query { source { token } echo(value: ${'$'}local) callback: echo(value: ${'$'}provided) }", variableTarget = target).materializeSelections,
+                    schema.fragmentFrom("fragment Input on Item { source { token } echo(value: ${'$'}remote) callback: echo(value: ${'$'}provided) }", variableTarget = target).subselections,
+                    schema.fragmentFrom("fragment Input on Query { source { token } echo(value: ${'$'}local) callback: echo(value: ${'$'}provided) }", variableTarget = target).subselections,
                     allVariables,
                     variablesProvider = { mapOf("provided" to 3) },
                 )

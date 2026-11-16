@@ -19,13 +19,13 @@ import kotlinx.coroutines.withTimeout
 import viaduct.engine.api.CheckerResult
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.emptyFragmentOf
-import viaduct.engine.runtime2.model.materializeSelectionForestOf
 import viaduct.engine.runtime2.model.registry.ResolverFragmentTemplates
 import viaduct.engine.runtime2.model.registry.TypeCheckerResolver
 import viaduct.engine.runtime2.model.registry.fieldResolverOf
 import viaduct.engine.runtime2.model.requireObjectField
 import viaduct.engine.runtime2.model.requireQueryTypeDef
 import viaduct.engine.runtime2.model.requireType
+import viaduct.engine.runtime2.model.selectionForestOf
 import viaduct.engine.runtime2.model.testing.TestWorld
 import viaduct.engine.runtime2.model.testing.emptyFragmentOf
 import viaduct.engine.runtime2.model.testing.fragmentFrom
@@ -70,8 +70,8 @@ interface GroundedTypeCheckerLifecycleContract {
                             schema.loweredSchema.requireQueryTypeDef(),
                             mapOf(
                                 "input" to ResolverFragmentTemplates(
-                                    schema.fragmentFrom("fragment Input on Root { child { derived } }").materializeSelections,
-                                    materializeSelectionForestOf(),
+                                    schema.fragmentFrom("fragment Input on Root { child { derived } }").subselections,
+                                    selectionForestOf(),
                                 )
                             )
                         ) { inputs, _ ->
@@ -117,8 +117,8 @@ interface GroundedTypeCheckerLifecycleContract {
                             schema.loweredSchema.requireQueryTypeDef(),
                             mapOf(
                                 "input" to ResolverFragmentTemplates(
-                                    materializeSelectionForestOf(),
-                                    schema.fragmentFrom("fragment Input on Query { dependency }").materializeSelections,
+                                    selectionForestOf(),
+                                    schema.fragmentFrom("fragment Input on Query { dependency }").subselections,
                                 )
                             )
                         ) { _, _ ->

@@ -5,7 +5,6 @@ import viaduct.engine.api.EngineObjectData
 import viaduct.engine.runtime2.model.Arguments
 import viaduct.engine.runtime2.model.EngineErrorDataReadException
 import viaduct.engine.runtime2.model.EngineInputData
-import viaduct.engine.runtime2.model.MaterializeSelectionForest
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.ObjectSelectionForest
 import viaduct.engine.runtime2.model.PathComponent
@@ -14,14 +13,15 @@ import viaduct.engine.runtime2.model.ResolverOutputData
 import viaduct.engine.runtime2.model.ResolverTarget
 import viaduct.engine.runtime2.model.SelectionForest
 import viaduct.engine.runtime2.model.arg
+import viaduct.engine.runtime2.model.collect
 import viaduct.engine.runtime2.model.engineObjectDataOf
 import viaduct.engine.runtime2.model.instantiateVariables
-import viaduct.engine.runtime2.model.materializeSelectionForestOf
 import viaduct.engine.runtime2.model.merge
 import viaduct.engine.runtime2.model.outputValue
 import viaduct.engine.runtime2.model.rootFieldReferenceDataOrNull
 import viaduct.engine.runtime2.model.schemaType
 import viaduct.engine.runtime2.model.selectionForestOf
+import viaduct.engine.runtime2.model.usedVariables
 import viaduct.graphql.schema.ViaductSchema
 
 /**
@@ -65,8 +65,8 @@ typealias VariablesProviderFunction =
  * [variables] and [variablesProvider] are shared by both templates. Equality is undefined.
  */
 class ResolverFragmentTemplates(
-    val objectFragmentTemplate: MaterializeSelectionForest,
-    val queryFragmentTemplate: MaterializeSelectionForest,
+    val objectFragmentTemplate: SelectionForest,
+    val queryFragmentTemplate: SelectionForest,
     variables: Map<Arguments.Variable, VariableDefinition> = emptyMap(),
     val variablesProvider: VariablesProviderFunction? = null,
 ) {
@@ -114,10 +114,10 @@ class FieldResolverDependencies internal constructor(
         get() = fragmentTemplates.variablesProvider
 
     val objectFragment: ObjectSelectionForest =
-        fragmentTemplates.objectFragmentTemplate.constructionSelections().merge(field.containingDef)
+        fragmentTemplates.objectFragmentTemplate.merge(field.containingDef)
 
     val queryFragment: ObjectSelectionForest =
-        fragmentTemplates.queryFragmentTemplate.constructionSelections().merge(queryType)
+        fragmentTemplates.queryFragmentTemplate.merge(queryType)
 
     private val objectFragmentVariableTemplates = fragmentTemplates.objectFragmentTemplate.usedVariables()
     private val queryFragmentVariableTemplates = fragmentTemplates.queryFragmentTemplate.usedVariables()
@@ -135,12 +135,10 @@ class FieldResolverDependencies internal constructor(
         )
 
     /** Instantiates the object-fragment template when its input is ready to be materialized. */
-    fun instantiateObjectMaterializationSelections(resolverOccurrenceId: ResolverOccurrenceId): MaterializeSelectionForest =
-        fragmentTemplates.objectFragmentTemplate.instantiateVariables(resolverOccurrenceId)
+    fun instantiateObjectMaterializationSelections(resolverOccurrenceId: ResolverOccurrenceId): SelectionForest = fragmentTemplates.objectFragmentTemplate.instantiateVariables(resolverOccurrenceId)
 
     /** Instantiates the Query-fragment template when its input is ready to be materialized. */
-    fun instantiateQueryMaterializationSelections(resolverOccurrenceId: ResolverOccurrenceId): MaterializeSelectionForest =
-        fragmentTemplates.queryFragmentTemplate.instantiateVariables(resolverOccurrenceId)
+    fun instantiateQueryMaterializationSelections(resolverOccurrenceId: ResolverOccurrenceId): SelectionForest = fragmentTemplates.queryFragmentTemplate.instantiateVariables(resolverOccurrenceId)
 
     /** Instantiates both resolver input fragments at one exact resolver path. */
     fun instantiateFragmentsAt(
@@ -257,7 +255,7 @@ class FieldValueResolver private constructor(
     private val emptyDependencies = if (useDeclaredDependencies != null &&
         (!declaredDependencies.objectFragment.isEmpty() || !declaredDependencies.queryFragment.isEmpty() || declaredDependencies.variables.isNotEmpty())
     ) {
-        FieldResolverDependencies(ResolverFragmentTemplates(materializeSelectionForestOf(), materializeSelectionForestOf()), field, queryType)
+        FieldResolverDependencies(ResolverFragmentTemplates(selectionForestOf(), selectionForestOf()), field, queryType)
     } else {
         null
     }

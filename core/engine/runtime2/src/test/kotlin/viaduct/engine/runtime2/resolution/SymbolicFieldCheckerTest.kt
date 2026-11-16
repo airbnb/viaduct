@@ -49,8 +49,8 @@ open class SymbolicFieldCheckerTest : ResolutionDispatcherResource {
                         val input = schema.fragmentFrom(
                             "fragment Input on Query { source { token } echo(value: ${'$'}v) }",
                             variableTarget = ResolverTarget.FieldCheckerTarget(field),
-                        ).materializeSelections
-                        val empty = viaduct.engine.runtime2.model.materializeSelectionForestOf()
+                        ).subselections
+                        val empty = viaduct.engine.runtime2.model.selectionForestOf()
                         val pair = ResolverFragmentTemplates(
                             if (providerRoot == ProviderFragment.OBJECT) input else empty,
                             if (providerRoot == ProviderFragment.QUERY) input else empty,
@@ -103,8 +103,8 @@ open class SymbolicFieldCheckerTest : ResolutionDispatcherResource {
 
                 fun pair(value: Int) =
                     ResolverFragmentTemplates(
-                        objectFragmentTemplate = schema.fragmentFrom(objectSource, variableTarget = ResolverTarget.FieldCheckerTarget(field)).materializeSelections,
-                        queryFragmentTemplate = schema.fragmentFrom(querySource, variableTarget = ResolverTarget.FieldCheckerTarget(field)).materializeSelections,
+                        objectFragmentTemplate = schema.fragmentFrom(objectSource, variableTarget = ResolverTarget.FieldCheckerTarget(field)).subselections,
+                        queryFragmentTemplate = schema.fragmentFrom(querySource, variableTarget = ResolverTarget.FieldCheckerTarget(field)).subselections,
                         variables = mapOf(
                             Arguments.Variable.of(
                                 ResolverTarget.FieldCheckerTarget(field),
@@ -177,8 +177,8 @@ open class SymbolicFieldCheckerTest : ResolutionDispatcherResource {
                     val objectSource = "fragment Input on Item { excluded: token @include(if: ${'$'}enabled) included: token }"
                     val querySource = "fragment Input on Query { excluded: echo(value: ${'$'}excluded) included: echo(value: ${'$'}included) }"
                     val pair = ResolverFragmentTemplates(
-                        schema.fragmentFrom(objectSource, variableTarget = ResolverTarget.FieldCheckerTarget(field)).materializeSelections,
-                        schema.fragmentFrom(querySource, variableTarget = ResolverTarget.FieldCheckerTarget(field)).materializeSelections,
+                        schema.fragmentFrom(objectSource, variableTarget = ResolverTarget.FieldCheckerTarget(field)).subselections,
+                        schema.fragmentFrom(querySource, variableTarget = ResolverTarget.FieldCheckerTarget(field)).subselections,
                         mapOf(
                             Arguments.Variable.of(ResolverTarget.FieldCheckerTarget(field), "enabled") to VariableDefinition.FromProvider,
                             Arguments.Variable.of(
@@ -201,8 +201,8 @@ open class SymbolicFieldCheckerTest : ResolutionDispatcherResource {
                         variablesProvider = { mapOf("enabled" to enabled) },
                     )
                     val physical = ResolverFragmentTemplates(
-                        schema.fragmentFrom("fragment Physical on Item { token }").materializeSelections,
-                        viaduct.engine.runtime2.model.materializeSelectionForestOf(),
+                        schema.fragmentFrom("fragment Physical on Item { token }").subselections,
+                        viaduct.engine.runtime2.model.selectionForestOf(),
                     )
                     mapOf(
                         field to FieldCheckerResolver.of(field, schema.loweredSchema.requireQueryTypeDef(), mapOf("local" to pair, "physical" to physical)) { _, inputs, _ ->
@@ -241,8 +241,8 @@ open class SymbolicFieldCheckerTest : ResolutionDispatcherResource {
                         schema.loweredSchema.requireQueryTypeDef(),
                         mapOf(
                             "input" to ResolverFragmentTemplates(
-                                schema.fragmentFrom("fragment Input on Query { dependency }").materializeSelections,
-                                viaduct.engine.runtime2.model.materializeSelectionForestOf(),
+                                schema.fragmentFrom("fragment Input on Query { dependency }").subselections,
+                                viaduct.engine.runtime2.model.selectionForestOf(),
                             )
                         )
                     ) { _, inputs, _ ->
@@ -257,8 +257,8 @@ open class SymbolicFieldCheckerTest : ResolutionDispatcherResource {
                                 schema.fragmentFrom(
                                     "fragment Input on Query { raw @include(if: ${'$'}enabled) }",
                                     variableTarget = ResolverTarget.FieldCheckerTarget(dependency)
-                                ).materializeSelections,
-                                viaduct.engine.runtime2.model.materializeSelectionForestOf(),
+                                ).subselections,
+                                viaduct.engine.runtime2.model.selectionForestOf(),
                                 mapOf(Arguments.Variable.of(ResolverTarget.FieldCheckerTarget(dependency), "enabled") to VariableDefinition.FromProvider),
                                 variablesProvider = { error("Excluded checker provider must not run") },
                             )

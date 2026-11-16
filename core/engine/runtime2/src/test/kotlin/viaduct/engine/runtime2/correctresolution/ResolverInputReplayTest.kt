@@ -47,8 +47,8 @@ class ResolverInputReplayTest {
             val consumer = schema.loweredSchema.requireObjectField("Query", "consume")
             val consumerKey = ObjectEngineResult.GroundKey.of(consumer, emptyMap())
             val id = ResolverOccurrenceId.at(root, listOf(consumerKey))
-            val selections = schema.fragmentFrom("fragment Input on Query { alias: item { value } }").materializeSelections
-            val emptySelections = schema.loweredSchema.emptyFragmentOf("Query").materializeSelections
+            val selections = schema.fragmentFrom("fragment Input on Query { alias: item { value } }").subselections
+            val emptySelections = schema.loweredSchema.emptyFragmentOf("Query").subselections
             val emptyQuery = engineObjectDataOf(query)
 
             fun input(error: Throwable) = materializedEngineObjectDataOf(query, listOf(EngineObjectDataEntry.of("alias", itemField, EngineErrorData.of(error))))

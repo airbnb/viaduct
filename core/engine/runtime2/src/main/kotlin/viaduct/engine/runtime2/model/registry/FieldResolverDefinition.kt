@@ -5,7 +5,7 @@ import viaduct.engine.runtime2.model.Arguments
 import viaduct.engine.runtime2.model.Fragment
 import viaduct.engine.runtime2.model.ResolverOutputData
 import viaduct.engine.runtime2.model.SelectionForest
-import viaduct.engine.runtime2.model.materializeSelectionForestOf
+import viaduct.engine.runtime2.model.selectionForestOf
 import viaduct.graphql.schema.ViaductSchema
 
 /**
@@ -121,7 +121,7 @@ class FieldResolverDefinition private constructor(
 
         validateObjectFragment(objectFragment)
         val normalizedQueryFragment =
-            queryFragment?.normalizeRoot(queryType, "Query fragment") ?: materializeSelectionForestOf()
+            queryFragment?.normalizeRoot(queryType, "Query fragment") ?: selectionForestOf()
 
         val normalizedObjectFragment = objectFragment.normalizeRoot(objectType, "Object fragment")
         val fragmentTemplates =

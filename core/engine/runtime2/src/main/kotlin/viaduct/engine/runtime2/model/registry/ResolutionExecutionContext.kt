@@ -3,7 +3,6 @@ package viaduct.engine.runtime2.model.registry
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.runtime2.model.Arguments
-import viaduct.engine.runtime2.model.MaterializeSelectionForest
 import viaduct.engine.runtime2.model.MutationSelectionForest
 import viaduct.engine.runtime2.model.PathComponent
 import viaduct.engine.runtime2.model.SelectionForest
@@ -26,11 +25,11 @@ interface ResolutionExecutionContext {
         get() = null
 
     /** Resolves a response-key-preserving selection set from the Query root. */
-    suspend fun resolveSelectionSet(selections: MaterializeSelectionForest): EngineObjectData.Sync
+    suspend fun resolveSelectionSet(selections: SelectionForest): EngineObjectData.Sync
 
     /** Resolves an ordered Mutation selection and returns its response-keyed projection. */
     suspend fun resolveMutationSelectionSet(
-        selections: MaterializeSelectionForest,
+        selections: SelectionForest,
         mutations: MutationSelectionForest,
     ): EngineObjectData.Sync =
         throw UnsupportedOperationException(
@@ -39,7 +38,7 @@ interface ResolutionExecutionContext {
 
     /** Context for semantic applications whose resolver does not use execution capabilities. */
     object Unsupported : ResolutionExecutionContext {
-        override suspend fun resolveSelectionSet(selections: MaterializeSelectionForest): EngineObjectData.Sync =
+        override suspend fun resolveSelectionSet(selections: SelectionForest): EngineObjectData.Sync =
             throw UnsupportedOperationException(
                 "Selection execution is not available in this resolver application",
             )

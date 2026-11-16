@@ -12,7 +12,6 @@ import viaduct.engine.runtime2.model.ResolverOccurrenceId
 import viaduct.engine.runtime2.model.ResolverTarget
 import viaduct.engine.runtime2.model.VariableBinding
 import viaduct.engine.runtime2.model.emptyFragmentOf
-import viaduct.engine.runtime2.model.materializeSelectionForestOf
 import viaduct.engine.runtime2.model.merge
 import viaduct.engine.runtime2.model.registry.CheckerResolverBase
 import viaduct.engine.runtime2.model.registry.FieldCheckerResolver
@@ -22,6 +21,7 @@ import viaduct.engine.runtime2.model.registry.VariableDefinition
 import viaduct.engine.runtime2.model.registry.fieldResolverOf
 import viaduct.engine.runtime2.model.requireObjectField
 import viaduct.engine.runtime2.model.requireQueryTypeDef
+import viaduct.engine.runtime2.model.selectionForestOf
 import viaduct.engine.runtime2.model.testing.TestWorld
 import viaduct.engine.runtime2.model.testing.emptyFragmentOf
 import viaduct.engine.runtime2.model.testing.fragmentFrom
@@ -53,10 +53,10 @@ class CheckerProviderCorrectResolutionTest {
                 val input = schema.fragmentFrom(
                     "fragment Input on Query { echo(value: ${'$'}v) }",
                     variableTarget = target,
-                ).materializeSelections
+                ).subselections
                 ResolverFragmentTemplates(
-                    if (name == "object") input else materializeSelectionForestOf(),
-                    if (name == "query") input else materializeSelectionForestOf(),
+                    if (name == "object") input else selectionForestOf(),
+                    if (name == "query") input else selectionForestOf(),
                     mapOf(Arguments.Variable.of(target, "v") to VariableDefinition.FromProvider),
                     variablesProvider = { arguments ->
                         providerReplays[name] = (providerReplays[name] ?: 0) + 1

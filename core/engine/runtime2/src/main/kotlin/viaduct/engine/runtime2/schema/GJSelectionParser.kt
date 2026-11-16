@@ -28,14 +28,12 @@ import viaduct.engine.runtime2.model.Arguments
 import viaduct.engine.runtime2.model.EngineInputData
 import viaduct.engine.runtime2.model.Fragment
 import viaduct.engine.runtime2.model.InclusionCondition
-import viaduct.engine.runtime2.model.MaterializeSelectionForest
 import viaduct.engine.runtime2.model.ResolverTarget
 import viaduct.engine.runtime2.model.SelectionForest
 import viaduct.engine.runtime2.model.requireQueryTypeDef
 import viaduct.engine.runtime2.model.requireType
 import viaduct.engine.runtime2.model.spec.SpecSelection
 import viaduct.engine.runtime2.model.spec.flatten
-import viaduct.engine.runtime2.model.spec.flattenForMaterialization
 import viaduct.engine.runtime2.schema.lowering.loweredFieldFromSourceCoordinate
 import viaduct.graphql.schema.ViaductSchema
 import viaduct.graphql.utils.SelectionsParserUtils
@@ -88,16 +86,16 @@ internal class GJSelectionParser(
             )
         return if (mutation) {
             val type = requireNotNull(schema.mutationTypeDef)
-            flattenForMaterialization(schema, type, selections).mutationSelections(schema, type)
+            flatten(schema, type, selections).mutationSelections(schema, type)
         } else {
             val root = if (subscription) requireNotNull(schema.subscriptionTypeDef) else schema.requireQueryTypeDef()
             flatten(schema, root, selections)
         }
     }
 
-    fun materializeSelectionsFrom(fragment: String): Pair<ViaductSchema.CompositeTypeDef, MaterializeSelectionForest> {
+    fun materializeSelectionsFrom(fragment: String): Pair<ViaductSchema.CompositeTypeDef, SelectionForest> {
         val parsed = specSelectionsFrom(fragment)
-        return parsed.nominalType to parsed.fragment.materializeSelections
+        return parsed.nominalType to parsed.fragment.subselections
     }
 
     fun specSelectionsFrom(fragment: String): ParsedSpecFragment {
@@ -456,7 +454,7 @@ internal data class ParsedSpecFragment(
     private val schema: ViaductSchema,
 ) {
     val fragment: Fragment by lazy {
-        Fragment.of(nominalType, flattenForMaterialization(schema, nominalType, selections))
+        Fragment.of(nominalType, flatten(schema, nominalType, selections))
     }
 }
 

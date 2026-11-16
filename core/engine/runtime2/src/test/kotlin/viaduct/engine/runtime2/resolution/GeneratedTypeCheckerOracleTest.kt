@@ -13,13 +13,13 @@ import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.Promise
 import viaduct.engine.runtime2.model.ResolverTarget
 import viaduct.engine.runtime2.model.emptyFragmentOf
-import viaduct.engine.runtime2.model.materializeSelectionForestOf
 import viaduct.engine.runtime2.model.registry.ResolverFragmentTemplates
 import viaduct.engine.runtime2.model.registry.TypeCheckerResolver
 import viaduct.engine.runtime2.model.registry.fieldResolverOf
 import viaduct.engine.runtime2.model.requireObjectField
 import viaduct.engine.runtime2.model.requireQueryTypeDef
 import viaduct.engine.runtime2.model.requireType
+import viaduct.engine.runtime2.model.selectionForestOf
 import viaduct.engine.runtime2.model.testing.TestWorld
 import viaduct.engine.runtime2.model.testing.emptyFragmentOf
 import viaduct.engine.runtime2.model.testing.fragmentFrom
@@ -145,8 +145,8 @@ class GeneratedTypeCheckerOracleTest : ResolutionDispatcherResource {
                         schema.loweredSchema.requireQueryTypeDef(),
                         mapOf(
                             "input" to ResolverFragmentTemplates(
-                                schema.fragmentFrom("fragment Input on Item { raw { token } }").materializeSelections,
-                                materializeSelectionForestOf(),
+                                schema.fragmentFrom("fragment Input on Item { raw { token } }").subselections,
+                                selectionForestOf(),
                             )
                         ),
                     ) { _, _ -> CheckerResult.Success },
