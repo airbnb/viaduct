@@ -31,6 +31,13 @@ plugins {
 
 base.archivesName.set(project.path.removePrefix(":").replace(":", "-"))
 
+val publishingBuilds = setOf("publications", "gradle-plugins")
+val publishingExceptions = mapOf("core" to setOf(":x:federation:validation"))
+check(rootDir.name in publishingBuilds || path in publishingExceptions[rootDir.name].orEmpty()) {
+    "$path in build ${rootDir.name} applies conventions.viaduct-publishing, " +
+        "but only the $publishingBuilds builds publish, plus $publishingExceptions"
+}
+
 abstract class ViaductPublishingExtension @Inject constructor(objects: ObjectFactory) {
     val name: Property<String> = objects.property(String::class.java).convention("")
     val description: Property<String> = objects.property(String::class.java).convention("")
