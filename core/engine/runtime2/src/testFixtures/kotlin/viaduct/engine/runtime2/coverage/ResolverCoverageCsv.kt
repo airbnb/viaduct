@@ -25,7 +25,7 @@ object ResolverCoverageCsv {
         "argument_state",
         "declared_output_shape",
         "output_kind",
-    )
+    ) + ObjectFragmentShape.CSV_COLUMNS
 
     fun write(
         rows: List<ResolverCoverageRow>,
@@ -54,7 +54,7 @@ object ResolverCoverageCsv {
                         row.argumentState.name,
                         row.declaredOutputShape.name,
                         row.outputKind.name,
-                    )
+                    ) + row.objectFragment.csvValues()
                 )
             }
             flush()
@@ -91,6 +91,7 @@ object ResolverCoverageCsv {
                     argumentState = ArgumentState.valueOf(record[15]),
                     declaredOutputShape = DeclaredOutputShape.valueOf(record[16]),
                     outputKind = OutputKind.valueOf(record[17]),
+                    objectFragment = ObjectFragmentShape.fromCsvValues((18 until header.size).map { record[it].toInt() }),
                 )
             }
         }

@@ -150,6 +150,39 @@ class ResolverTestSuiteTest {
             assertContains(assertFailsWith<IllegalStateException> { readResolverTestSuiteParts(definition.id, readPart) }.message.orEmpty(), "more than one part")
         }
 
+    @Test
+    fun `the generated pool pruned to the retained batches reproduces the stored archive`(): Unit =
+        runBlocking {
+            val definition = ResolverTestSuiteDefinition.OBJECT_FRAGMENT
+
+            val pruned = generatedSuite(definition, definition.counts.schemas).retainingDefinitionBatches()
+
+            val stored = ResolverTestSuite.load(definition).parts()
+            val regenerated = pruned.parts()
+            assertEquals(stored.size, regenerated.size)
+            assertTrue(stored.zip(regenerated).all { (expected, actual) -> expected.contentEquals(actual) })
+        }
+
+    @Test
+    fun `retaining batches keeps their IDs and only the schemas they use`(): Unit =
+        runBlocking {
+            val definition = ResolverTestSuiteDefinition.OBJECT_FRAGMENT
+            val pool = generatedSuite(definition, 3)
+            val kept = pool.batches[2]
+
+            val pruned = pool.retaining(listOf(kept.id))
+            val root = Files.createTempDirectory("resolver-test-suite")
+            pruned.writeTo(root)
+
+            assertEquals(listOf(kept), pruned.batches)
+            assertEquals(pruned.caseCount, pruned.testCaseIds().size)
+            assertEquals(ResolverTestShardCodec.ids(pool.loadShard(kept.id)), ResolverTestShardCodec.ids(pruned.loadShard(kept.id)))
+            val entries = readResolverTestSuiteArchive(Files.readAllBytes(root.resolve(suiteArchiveResource(definition.id))))
+            assertEquals(setOf(MANIFEST_ENTRY, sdlEntry(kept.schema), shardEntry(kept.id)), entries.keys)
+            assertContains(assertFailsWith<IllegalArgumentException> { pool.retaining(listOf("b999")) }.message.orEmpty(), "b999")
+            assertFailsWith<IllegalArgumentException> { pool.retaining(emptyList()) }
+        }
+
     @ParameterizedTest
     @EnumSource(ResolverTestSuiteDefinition::class)
     fun `stored suite loads every shard`(definition: ResolverTestSuiteDefinition) {
@@ -165,23 +198,23 @@ class ResolverTestSuiteTest {
     @EnumSource(ResolverTestSuiteDefinition::class)
     fun `stored suite matches live generation for its seed`(definition: ResolverTestSuiteDefinition): Unit =
         runBlocking {
-            val firstSchemaOnly = definition.counts.copy(schemas = 1)
-            val batch = ResolverTestShardCodec.withoutDuplicates(generateResolverTestBatches(firstSchemaOnly, definition.config, definition.seed).single())
-            val ids = ResolverTestShardCodec.ids(batch)
-            val shard = ResolverTestShardCodec.encode("b001", batch)
             val stored = ResolverTestSuite.load(definition).batches.first()
+            val throughFirstStored = definition.counts.copy(schemas = stored.id.drop(1).toInt())
+            val batch = ResolverTestShardCodec.withoutDuplicates(generateResolverTestBatches(throughFirstStored, definition.config, definition.seed).last())
+            val ids = ResolverTestShardCodec.ids(batch)
+            val shard = ResolverTestShardCodec.encode(stored.id, batch)
 
-            assertEquals(ResolverTestSuiteBatch("b001", ids.schema, shard.json.sha256Hash(), ids.registry, ids.queries), stored)
+            assertEquals(ResolverTestSuiteBatch(stored.id, ids.schema, shard.json.sha256Hash(), ids.registry, ids.queries), stored)
             val entries = readResolverTestSuiteParts(definition.id, PropertyTestJson::readResourceBytesOrNull)
             assertTrue(entries.getValue(sdlEntry(ids.schema)).contentEquals(shard.sdl), sdlEntry(ids.schema))
-            assertTrue(entries.getValue(shardEntry("b001")).contentEquals(shard.json), shardEntry("b001"))
+            assertTrue(entries.getValue(shardEntry(stored.id)).contentEquals(shard.json), shardEntry(stored.id))
         }
 
     @Test
     fun `stored suite replays one case by ID without earlier shards`(): Unit =
         runBlocking {
             val suite = ResolverTestSuite.load(ResolverTestSuiteDefinition.OBJECT_FRAGMENT)
-            val batch = suite.batches[6]
+            val batch = suite.batches[3]
             val selected = ResolverTestCaseId(suite.definition.id, batch.id, batch.queries[2])
             val expectedQuery = suite.loadShard(batch.id).queries[2].source
             val visited = mutableListOf<String>()
@@ -192,7 +225,7 @@ class ResolverTestSuiteTest {
                 }
 
             assertEquals(1, run.attemptedCases)
-            assertEquals(listOf("$selected profile=object-fragment seed=1 S=7 Q=3 true"), visited)
+            assertEquals(listOf("$selected profile=object-fragment seed=1 S=4 Q=3 true"), visited)
             assertEquals(selected.toString(), run.selectedTestCase)
             assertTrue(run.stored && run.singleCase)
         }
@@ -376,3 +409,8 @@ private fun ArbitraryRegistry.snapshot(): List<Any?> =
     )
 
 private fun ArbitraryQuery.snapshot(): List<Any?> = listOf(source, permutationEquivalentSource, selectionDepth, features)
+
+private suspend fun generatedSuite(
+    definition: ResolverTestSuiteDefinition,
+    schemas: Int,
+): ResolverTestSuite = ResolverTestSuite.fromGenerated(definition, generateResolverTestBatches(definition.counts.copy(schemas = schemas), definition.config, definition.seed))

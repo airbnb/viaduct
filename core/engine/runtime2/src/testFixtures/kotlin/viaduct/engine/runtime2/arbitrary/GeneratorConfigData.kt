@@ -113,3 +113,28 @@ private fun validateValue(
         "$message for generator config key ${key.wireName}: $value"
     }
 }
+
+/** Applies `wireName:value` overrides separated by `;`, e.g. `resolverVariablesEnabled:true;resolverVariableCount:2..4`. */
+fun Config.withOverrides(spec: String): Config =
+    spec.split(';').map(String::trim).filter(String::isNotEmpty).fold(this) { config, override ->
+        val parts = override.split(':', limit = 2)
+        require(parts.size == 2) { "Generator config override must be name:value: $override" }
+        val (name, raw) = parts
+        @Suppress("UNCHECKED_CAST")
+        val key =
+            requireNotNull(ConfigKeys.all.singleOrNull { it.wireName == name }) {
+                "Unknown generator config key $name; known keys: ${ConfigKeys.all.joinToString { it.wireName }}"
+            } as ConfigKey<Any>
+        val value: Any =
+            when (key.wireType) {
+                ConfigValueType.BOOLEAN -> requireNotNull(raw.toBooleanStrictOrNull()) { "$name must be true or false: $raw" }
+                ConfigValueType.INTEGER -> requireNotNull(raw.toIntOrNull()) { "$name must be an integer: $raw" }
+                ConfigValueType.DOUBLE -> requireNotNull(raw.toDoubleOrNull()) { "$name must be a number: $raw" }
+                ConfigValueType.INTEGER_RANGE -> {
+                    val bounds = raw.split("..").map(String::toIntOrNull)
+                    require(bounds.size == 2 && bounds.all { it != null }) { "$name must be a range like 2..4: $raw" }
+                    bounds[0]!!..bounds[1]!!
+                }
+            }
+        config + (key to value)
+    }

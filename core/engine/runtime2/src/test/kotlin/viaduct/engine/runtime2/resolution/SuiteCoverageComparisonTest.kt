@@ -10,9 +10,17 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import org.junit.jupiter.api.assertThrows
 import viaduct.engine.api.EngineObjectData
+import viaduct.engine.runtime2.arbitrary.Config
+import viaduct.engine.runtime2.arbitrary.ErrorValueWeight
+import viaduct.engine.runtime2.arbitrary.FieldArgumentWeight
+import viaduct.engine.runtime2.arbitrary.ListsEnabled
+import viaduct.engine.runtime2.arbitrary.ResolverFromArgumentVariablesEnabled
+import viaduct.engine.runtime2.arbitrary.ResolverVariableCount
+import viaduct.engine.runtime2.arbitrary.ResolverVariablesEnabled
 import viaduct.engine.runtime2.arbitrary.TestCaseCount
 import viaduct.engine.runtime2.contract.CorrectResolutionPostTestPolicy
 import viaduct.engine.runtime2.coverage.CandidateCoverage
+import viaduct.engine.runtime2.coverage.ConfigSweepVariant
 import viaduct.engine.runtime2.coverage.CoverageCandidate
 import viaduct.engine.runtime2.coverage.CoverageSupport
 import viaduct.engine.runtime2.coverage.CoverageVerdict
@@ -22,7 +30,11 @@ import viaduct.engine.runtime2.coverage.ResolverTestSuiteComparer
 import viaduct.engine.runtime2.coverage.SuiteCoverageComparison
 import viaduct.engine.runtime2.coverage.SuiteCoverageComparisonPage
 import viaduct.engine.runtime2.coverage.forBatch
+import viaduct.engine.runtime2.coverage.inapplicableObligationIds
 import viaduct.engine.runtime2.coverage.measureCoverage
+import viaduct.engine.runtime2.coverage.render
+import viaduct.engine.runtime2.coverage.resolverCoverageMetricCodes
+import viaduct.engine.runtime2.coverage.sweepConfigs
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.SelectionForest
 import viaduct.engine.runtime2.propertytest.PropertyTestJson
@@ -67,6 +79,19 @@ class SuiteCoverageComparisonTest : CorrectResolutionPostTestPolicy, ResolutionD
 
             assertEquals(measurement, measureCoverage(candidate, runId = "run"))
         }
+
+    @Test
+    fun `richness counts distinct obligation signatures for the suite and for each batch`() {
+        val signatures = coverage.report.analysis.signatures
+        val byBatch = signatures.groupBy { it.test.batchId }.mapValues { (_, cases) -> cases.map { it.obligations }.distinct().size }
+
+        assertEquals(signatures.map { it.obligations }.distinct().size, coverage.richness)
+        assertEquals(byBatch, coverage.batchRichness)
+        assertTrue(coverage.batchRichness.values.all { it in 1..coverage.richness })
+        val rendered = StringBuilder().also { SuiteCoverageComparison(coverage, coverage).render(it) }.toString()
+        assertTrue(Regex("D0 distinct signatures +${coverage.richness} +${coverage.richness} +0").containsMatchIn(rendered), rendered)
+        assertTrue(Regex("batch +d0").containsMatchIn(rendered), rendered)
+    }
 
     @Test
     fun `a verdict between candidates of different cost is flagged as raw coverage`() {
@@ -118,6 +143,71 @@ class SuiteCoverageComparisonTest : CorrectResolutionPostTestPolicy, ResolutionD
     }
 
     @Test
+    fun `obligations a config cannot generate are reported as not applicable`() {
+        val objectFragment = ResolverTestSuiteDefinition.OBJECT_FRAGMENT.config
+        val variables = Config.default + (ResolverVariablesEnabled to true) + (ResolverFromArgumentVariablesEnabled to true)
+
+        assertEquals(setOf("A", "FO", "FI", "X", "LOE", "DA", "LX", "DD", "NE"), inapplicableObligationIds(objectFragment).mapTo(mutableSetOf()) { resolverCoverageMetricCodes.getValue(it) })
+        assertEquals(emptySet<String>(), inapplicableObligationIds(variables))
+        assertEquals(
+            setOf("FL", "FE"),
+            inapplicableObligationIds(ResolverTestSuiteDefinition.EMPTY_OBJECT_FRAGMENT.config).mapTo(mutableSetOf()) {
+                resolverCoverageMetricCodes.getValue(it)
+            } - inapplicableObligationIds(objectFragment).map { resolverCoverageMetricCodes.getValue(it) }
+        )
+        assertEquals(
+            setOf("list_object_field_error", "provider_read_crosses_list_boundary", "object_fragment_resolver_field_in_list_element"),
+            inapplicableObligationIds(variables + (ListsEnabled to false))
+        )
+        assertEquals(setOf("both_sources_on_one_occurrence", "both_sources_within_one_execution"), inapplicableObligationIds(Config.default + (ResolverVariablesEnabled to true)))
+    }
+
+    @Test
+    fun `the comparison marks inapplicable obligations instead of counting them as not exercised`(): Unit =
+        runTest {
+            val inapplicable = inapplicableObligationIds(definition.config)
+            val annotated = CandidateCoverage.of("b", 0, measurement, inapplicableObligations = inapplicable)
+            val comparison = SuiteCoverageComparison(coverage, annotated)
+
+            assertTrue(inapplicable.isNotEmpty())
+            val fanOut = comparison.metrics.single { it.id == "shared_provider_fan_out" }
+            assertTrue(fanOut.leftApplicable && !fanOut.rightApplicable && !fanOut.inapplicable)
+            assertTrue(SuiteCoverageComparison(annotated, annotated).metrics.single { it.id == "shared_provider_fan_out" }.inapplicable)
+            val rendered = StringBuilder().also { comparison.render(it) }.toString()
+            assertTrue(Regex("shared_provider_fan_out +0/0 +n/a").containsMatchIn(rendered), rendered)
+            val page = SuiteCoverageComparisonPage.render(comparison, stored.batches(), stored.batches())
+            val json = page.substringAfter("<script type=\"application/json\" id=\"data\">").substringBefore("</script>")
+            val data = PropertyTestJson.read<Map<String, Any?>>(json.byteInputStream())
+            val embedded = data["inapplicable"] as Map<*, *>
+            assertEquals(emptyList<String>(), embedded["a"])
+            assertEquals(inapplicable.toList(), embedded["b"])
+            val diversity = (data["diversity"] as Map<*, *>)["a"] as Map<*, *>
+            assertEquals(coverage.richness, diversity["d0"])
+            assertEquals(coverage.report.analysis.suite.diversity.frequencies.count { it.testCases == 1 }, diversity["singletons"])
+            assertThrows<IllegalArgumentException> { CandidateCoverage.of("c", 0, measurement, inapplicableObligations = setOf("no_such_metric")) }
+        }
+
+    @Test
+    fun `a metric only one config can generate is incomparable and does not decide the suite verdict`() {
+        val fanOut = coverage.report.metrics.indexOfFirst { it.id == "shared_provider_fan_out" }
+        val applicableWithSupport = coverage.bumped(fanOut)
+        val inapplicable = CandidateCoverage.of("b", 0, measurement, inapplicableObligations = inapplicableObligationIds(definition.config))
+        val comparison = SuiteCoverageComparison(applicableWithSupport, inapplicable)
+
+        val metric = comparison.metrics.single { it.id == "shared_provider_fan_out" }
+        assertTrue(metric.left.tests > metric.right.tests)
+        assertTrue(metric.leftApplicable && !metric.rightApplicable)
+        assertFalse(metric.comparable)
+        assertEquals(CoverageVerdict.INCOMPARABLE, metric.verdict)
+        assertEquals(CoverageVerdict.EQUAL, comparison.verdict)
+        assertEquals(CoverageVerdict.EQUAL, SuiteCoverageComparison(inapplicable, applicableWithSupport).verdict)
+        val rendered = StringBuilder().also { comparison.render(it) }.toString()
+        assertTrue(Regex("shared_provider_fan_out +${metric.left.tests}/${metric.left.batches} +n/a +n/a").containsMatchIn(rendered), rendered)
+        assertTrue("verdict (raw coverage): =" in rendered, rendered)
+        assertEquals(CoverageVerdict.RIGHT_DOMINATES, SuiteCoverageComparison(coverage, applicableWithSupport).verdict)
+    }
+
+    @Test
     fun `occurrence volume alone does not win a metric`() {
         val few = CoverageSupport(occurrences = 3, executions = 2, tests = 2, registries = 2, batches = 1, schemas = 1)
         val many = few.copy(occurrences = 300)
@@ -148,6 +238,67 @@ class SuiteCoverageComparisonTest : CorrectResolutionPostTestPolicy, ResolutionD
             assertEquals(mapOf("a" to suite.batches.size, "b" to 2), sides.mapValues { it.value.size })
             assertEquals(comparison.left.cases, sides.getValue("a").sum())
             assertEquals(comparison.right.cases, sides.getValue("b").sum())
+        }
+
+    @Test
+    fun `the comparison page lists each resolver attribute either candidate reports once`(): Unit =
+        runTest {
+            val candidate = CoverageCandidate.Generated(definition, seed = 2, counts = TestCaseCount(2, 2))
+            val comparison = ResolverTestSuiteComparer.compare(stored, candidate)
+
+            val page = SuiteCoverageComparisonPage.render(comparison, stored.batches(), candidate.batches())
+
+            val listed = page.embeddedList("attributes").map { it["id"] }
+            assertEquals(listed.distinct(), listed)
+            assertEquals((comparison.left.report.attributes + comparison.right.report.attributes).mapTo(mutableSetOf()) { it.id }, listed.toSet())
+            val onCases = page.embeddedBatches().flatMap { batch -> (batch["cases"] as List<*>).flatMap { case -> (case as Map<*, *>)["attributes"] as List<*> } }
+            assertTrue(onCases.isNotEmpty())
+            assertTrue(listed.containsAll(onCases), "Case attributes missing from the page's attribute list: ${onCases.toSet() - listed.toSet()}")
+        }
+
+    @Test
+    fun `the comparison page labels each obligation with its RFC-271 code and evidence type`(): Unit =
+        runTest {
+            val page = SuiteCoverageComparisonPage.render(SuiteCoverageComparison(coverage, coverage), stored.batches(), stored.batches())
+
+            val behaviors = page.embeddedList("behaviors")
+            assertEquals(coverage.report.metrics.map { it.id }, behaviors.map { it["id"] })
+            assertEquals(listOf("A", "FO", "FI", "X", "B"), behaviors.filter { it["core"] == true }.map { it["code"] })
+            assertEquals(behaviors.size, behaviors.map { it["code"] }.distinct().size)
+            assertEquals(coverage.report.metrics.map { it.evidenceKind.name }, behaviors.map { it["evidence"] })
+        }
+
+    @Test
+    fun `candidate specs apply generator config overrides by wire name`() {
+        val candidate = assertInstanceOf(
+            CoverageCandidate.Generated::class.java,
+            CoverageCandidate.parse("${definition.id}@size=2:2,config=resolverVariablesEnabled:true;resolverVariableCount:2..4;errorValueWeight:0.25"),
+        )
+
+        assertEquals(true, candidate.config[ResolverVariablesEnabled])
+        assertEquals(2..4, candidate.config[ResolverVariableCount])
+        assertEquals(0.25, candidate.config[ErrorValueWeight])
+        assertEquals(definition.config[FieldArgumentWeight], candidate.config[FieldArgumentWeight])
+        assertTrue(candidate.label.endsWith(",config=resolverVariablesEnabled:true;resolverVariableCount:2..4;errorValueWeight:0.25"), candidate.label)
+        assertThrows<IllegalArgumentException> { CoverageCandidate.parse("${definition.id}@config=noSuchKey:true") }
+        assertThrows<IllegalArgumentException> { CoverageCandidate.parse("${definition.id}@config=resolverVariablesEnabled:yes") }
+        assertThrows<IllegalArgumentException> { CoverageCandidate.parse("${definition.id}@config=errorValueWeight:2.0") }
+    }
+
+    @Test
+    fun `a config sweep reports each variant's support by obligation code`(): Unit =
+        runTest {
+            val variants = ConfigSweepVariant.parseAll("base=|errors=errorValueWeight:0.5")
+
+            val results = sweepConfigs(definition, TestCaseCount(2, 2), variants)
+
+            assertEquals(listOf("base", "errors"), results.map { it.variant.name })
+            assertTrue(results.all { it.cases in 1..4 && it.richness >= 1 })
+            assertEquals(coverage.report.metrics.map { it.id }.toSet(), results.first().obligationTests.keys)
+            val rendered = StringBuilder().also { results.render(it) }.toString()
+            assertTrue(Regex("variant +cases +D0 +A +FO +FI +X +B ").containsMatchIn(rendered), rendered)
+            assertTrue("errors (" in rendered && "errorValueWeight:0.5" in rendered, rendered)
+            assertThrows<IllegalArgumentException> { ConfigSweepVariant.parseAll("missing-equals") }
         }
 
     @Test
@@ -190,7 +341,9 @@ private fun CandidateCoverage.bumped(metricIndex: Int): CandidateCoverage =
             ),
     )
 
-private fun String.embeddedBatches(): List<Map<*, *>> {
+private fun String.embeddedBatches(): List<Map<*, *>> = embeddedList("batches")
+
+private fun String.embeddedList(key: String): List<Map<*, *>> {
     val json = substringAfter("<script type=\"application/json\" id=\"data\">").substringBefore("</script>")
-    return (PropertyTestJson.read<Map<String, Any?>>(json.byteInputStream())["batches"] as List<*>).map { it as Map<*, *> }
+    return (PropertyTestJson.read<Map<String, Any?>>(json.byteInputStream())[key] as List<*>).map { it as Map<*, *> }
 }

@@ -62,6 +62,10 @@ import viaduct.engine.runtime2.resolution.rootFieldReferenceFocusedConfig
 /**
  * Generation inputs for a stored suite; changing any of them requires regenerating its resources.
  * [profile] is the replay profile name, shared by suites that differ only in a family's configuration.
+ * A nonempty [retainedBatches] stores only those batches, chosen from all [counts] generated ones by coverage selection.
+ * Selection also requires every pool attribute starting with one of [selectionAttributePrefixes]; each requirement needs
+ * [selectionMinimumCases] cases across [selectionMinimumBatches] batches, and each obligation combination the pool produces
+ * needs [selectionMinimumCombinationCases] cases so one regenerated schema cannot drop it.
  */
 enum class ResolverTestSuiteDefinition(
     val id: String,
@@ -72,6 +76,11 @@ enum class ResolverTestSuiteDefinition(
     val typeCheckerMode: GeneratedTypeCheckerMode = GeneratedTypeCheckerMode.NONE,
     val profile: String = id,
     val variant: ResolverTestSuiteVariant = ResolverTestSuiteVariant.STANDARD,
+    val retainedBatches: List<String> = emptyList(),
+    val selectionAttributePrefixes: List<String> = emptyList(),
+    val selectionMinimumCases: Int = 3,
+    val selectionMinimumBatches: Int = 1,
+    val selectionMinimumCombinationCases: Int = 1,
 ) {
     EMPTY_OBJECT_FRAGMENT(
         id = "empty-object-fragment",
@@ -133,18 +142,29 @@ enum class ResolverTestSuiteDefinition(
     ),
     OBJECT_FRAGMENT(
         id = "object-fragment",
+        counts = OBJECT_FRAGMENT_POOL_COUNTS,
+        retainedBatches = OBJECT_FRAGMENT_RETAINED_BATCHES,
+        selectionAttributePrefixes = listOf("object_fragment:", "object_fragment_depth:"),
+        selectionMinimumCases = 5,
+        selectionMinimumBatches = 15,
+        selectionMinimumCombinationCases = 2,
         config =
             Config.default +
+                (SchemaObjectCount to 3..4) +
+                (ObjectFieldCount to 3..4) +
                 (FieldArgumentWeight to 1.0) +
                 (InputListTypeWeight to 0.0) +
                 (InputObjectCount to 2..3) +
                 (InputObjectTypeWeight to 0.6) +
                 (MaxInputTypeDepth to 2) +
                 (NullableTypeWeight to 1.0) +
-                (ExplicitFieldResolverWeight to 1.0) +
+                (ListTypeWeight to 0.4) +
+                (ErrorValueWeight to 0.12) +
+                (ExplicitFieldResolverWeight to 0.6) +
                 (NodeResolversEnabled to false) +
                 (ResolverFragmentsEnabled to true) +
                 (ResolverFragmentWeight to 1.0) +
+                (ResolverFragmentDepth to 3) +
                 (ResolverFromArgumentVariablesEnabled to false) +
                 (ResolverVariablesEnabled to false),
     ),
@@ -492,6 +512,8 @@ enum class ResolverTestSuiteDefinition(
     )
 
     companion object {
+        fun byId(id: String): ResolverTestSuiteDefinition = requireNotNull(entries.singleOrNull { it.id == id }) { "Unknown resolver test suite $id; known suites: ${entries.joinToString { it.id }}" }
+
         /**
          * The stored [profile] suite generated with [config] and checker modes, in the configured [ResolverTestSuiteVariant];
          * a family whose configuration has none must add one.
@@ -523,6 +545,34 @@ enum class ResolverTestSuiteDefinition(
 }
 
 private val GENERATED_PROFILE_COUNTS = TestCaseCount(schemas = 30, queriesPerSchema = 5)
+
+private val OBJECT_FRAGMENT_POOL_COUNTS = GENERATED_PROFILE_COUNTS.copy(schemas = 500)
+
+// StoredSuiteSelectionExperimentTest chose these to keep every pool obligation combination with at least two cases.
+private val OBJECT_FRAGMENT_RETAINED_BATCHES =
+    listOf(
+        "b027",
+        "b034",
+        "b043",
+        "b056",
+        "b079",
+        "b080",
+        "b082",
+        "b090",
+        "b103",
+        "b104",
+        "b168",
+        "b184",
+        "b187",
+        "b226",
+        "b238",
+        "b275",
+        "b329",
+        "b337",
+        "b345",
+        "b354",
+        "b473",
+    )
 
 private val FEATURE_INTERACTION_PROFILE_COUNTS = TestCaseCount(schemas = 60, queriesPerSchema = 5)
 
