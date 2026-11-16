@@ -9,10 +9,13 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.ValueSource
 import viaduct.engine.api.mocks.MockSchema
 import viaduct.engine.api.mocks.MockTenantModuleBootstrapper
 import viaduct.engine.api.mocks.createEngineObjectData
 import viaduct.engine.api.mocks.runFeatureTest
+import viaduct.engine.api.mocks.runStandardViaductFeatureTest
 import viaduct.engine.api.spi.FieldResolverExecutor
 import viaduct.graphql.test.assertJson
 import viaduct.service.api.spi.globalid.GlobalIDCodecDefault
@@ -40,6 +43,7 @@ class ViaductNodeResolversTest {
               }
           """
         private val bootstrapper = MockTenantModuleBootstrapper(SCHEMA) {
+            fieldWithValue("Query" to "user", null)
             type("User") {
                 nodeUnbatchedExecutor { id, _, _ ->
                     createEngineObjectData(
@@ -61,10 +65,11 @@ class ViaductNodeResolversTest {
         ): String = GlobalIDCodecDefault.serialize(typeName, internalID)
     }
 
-    @Test
-    fun `node query with globalId resolves automatically`() {
+    @ParameterizedTest
+    @ValueSource(booleans = [false, true])
+    fun `node query with globalId resolves automatically`(engine2Enabled: Boolean) {
         bootstrapper
-            .runFeatureTest {
+            .toEngineTestModule().runStandardViaductFeatureTest(engine2Enabled) {
                 runQuery(
                     """
                   query TestNodeQuery {
@@ -84,10 +89,11 @@ class ViaductNodeResolversTest {
             }
     }
 
-    @Test
-    fun `nodes query with mulitiple globalIds resolves automatically`() {
+    @ParameterizedTest
+    @ValueSource(booleans = [false, true])
+    fun `nodes query with mulitiple globalIds resolves automatically`(engine2Enabled: Boolean) {
         bootstrapper
-            .runFeatureTest {
+            .toEngineTestModule().runStandardViaductFeatureTest(engine2Enabled) {
                 runQuery(
                     """
                   query TestNodeQuery {
@@ -154,10 +160,11 @@ class ViaductNodeResolversTest {
             }
     }
 
-    @Test
-    fun `errors with a syntactically invalid global id string`() {
+    @ParameterizedTest
+    @ValueSource(booleans = [false, true])
+    fun `errors with a syntactically invalid global id string`(engine2Enabled: Boolean) {
         bootstrapper
-            .runFeatureTest {
+            .toEngineTestModule().runStandardViaductFeatureTest(engine2Enabled) {
                 // Create a Base64 string that decodes to something without a colon delimiter
                 val invalidGlobalId = Base64.getEncoder().encodeToString("NoDelimiterHere".toByteArray())
 
@@ -185,10 +192,11 @@ class ViaductNodeResolversTest {
             }
     }
 
-    @Test
-    fun `errors with a syntactically valid global id that does not exist`() {
+    @ParameterizedTest
+    @ValueSource(booleans = [false, true])
+    fun `errors with a syntactically valid global id that does not exist`(engine2Enabled: Boolean) {
         bootstrapper
-            .runFeatureTest {
+            .toEngineTestModule().runStandardViaductFeatureTest(engine2Enabled) {
                 val nonexistentGlobalId = getGlobalId("People", INTERNAL_ID_1)
 
                 val result = runQuery(
@@ -211,10 +219,11 @@ class ViaductNodeResolversTest {
             }
     }
 
-    @Test
-    fun `errors with a global id that exists but is not an object type`() {
+    @ParameterizedTest
+    @ValueSource(booleans = [false, true])
+    fun `errors with a global id that exists but is not an object type`(engine2Enabled: Boolean) {
         bootstrapper
-            .runFeatureTest {
+            .toEngineTestModule().runStandardViaductFeatureTest(engine2Enabled) {
                 val interfaceTypeGlobalId = getGlobalId("InterfaceType", INTERNAL_ID_1)
 
                 val result = runQuery(
@@ -241,10 +250,11 @@ class ViaductNodeResolversTest {
             }
     }
 
-    @Test
-    fun `errors with a global id that is an object type but does not extend node interface `() {
+    @ParameterizedTest
+    @ValueSource(booleans = [false, true])
+    fun `errors with a global id that is an object type but does not extend node interface `(engine2Enabled: Boolean) {
         bootstrapper
-            .runFeatureTest {
+            .toEngineTestModule().runStandardViaductFeatureTest(engine2Enabled) {
                 val nonNodeTypeGlobalId = getGlobalId("NonNode", INTERNAL_ID_1)
 
                 val result = runQuery(
@@ -269,8 +279,9 @@ class ViaductNodeResolversTest {
             }
     }
 
-    @Test
-    fun `undefined query node and nodes fields with query node resolvers enabled does not break standard viaduct bootstrapping`() {
+    @ParameterizedTest
+    @ValueSource(booleans = [false, true])
+    fun `undefined query node and nodes fields with query node resolvers enabled does not break standard viaduct bootstrapping`(engine2Enabled: Boolean) {
         val schemaWithoutNodes = """
               extend type Query {
                 user: User
@@ -291,7 +302,7 @@ class ViaductNodeResolversTest {
                     }
                 }
             }
-        }.runFeatureTest {
+        }.toEngineTestModule().runStandardViaductFeatureTest(engine2Enabled) {
             runQuery(
                 """
                   query _ {

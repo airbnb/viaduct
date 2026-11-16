@@ -29,10 +29,12 @@ import viaduct.engine.api.ResolverMetadata
 import viaduct.engine.api.ResolverType
 import viaduct.engine.api.instrumentation.resolver.ResolverInstrumentationContext
 import viaduct.engine.api.instrumentation.resolver.ViaductResolverInstrumentation
+import viaduct.engine.api.mocks.EngineTestModule
 import viaduct.engine.api.mocks.MockFieldBatchResolverExecutor
 import viaduct.engine.api.mocks.MockFieldUnbatchedResolverExecutor
 import viaduct.engine.api.mocks.createEngineObjectData
 import viaduct.engine.api.mocks.createSchemaWithWiring
+import viaduct.engine.api.mocks.runStandardViaductFeatureTest
 import viaduct.engine.api.spi.FieldResolverExecutor
 import viaduct.engine.api.spi.NodeResolverExecutor
 import viaduct.engine.runtime.DispatcherRegistry
@@ -48,6 +50,20 @@ import viaduct.service.api.spi.FlagManager
 import viaduct.service.api.spi.mocks.MockFlagManager
 
 class EngineFactoryTest {
+    @ParameterizedTest(name = "shared harness engine2={0}")
+    @ValueSource(booleans = [false, true])
+    fun `shared harness selects and executes the requested engine`(engine2Enabled: Boolean) {
+        EngineTestModule("extend type Query { hello: String @resolver }") {
+            fieldWithValue("Query" to "hello", "world")
+        }.runStandardViaductFeatureTest(
+            engine2Enabled = engine2Enabled,
+            engineConfig = EngineConfiguration.default.copy(flagManager = MockFlagManager.const(!engine2Enabled)),
+        ) {
+            assertInstanceOf(if (engine2Enabled) Engine2::class.java else EngineImpl::class.java, engine)
+            runQuery("{ hello }").assertJson("""{"data": {"hello": "world"}}""")
+        }
+    }
+
     @ParameterizedTest
     @ValueSource(booleans = [false, true])
     fun `incremental capability follows the configured engine and current feature gate`(engine2: Boolean) {

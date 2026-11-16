@@ -7,11 +7,13 @@ import io.kotest.property.RandomSource
 import io.kotest.property.arbitrary.arbitrary
 import viaduct.apiannotations.InternalApi
 import viaduct.apiannotations.VisibleForTest
+import viaduct.arbitrary.common.CompoundingWeight.Companion.Never
 import viaduct.arbitrary.common.Config
 import viaduct.arbitrary.common.fork
 import viaduct.arbitrary.common.sampleWeight
 import viaduct.engine.api.Coordinate
 import viaduct.engine.api.EngineSchema
+import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.spi.CheckerExecutor
 import viaduct.engine.api.spi.CheckerExecutorFactory as EngineCheckerExecutorFactory
 import viaduct.engine.api.spi.FieldResolverExecutor
@@ -31,7 +33,13 @@ import viaduct.service.runtime.StandardViaduct
  * Note that when using this generator with arbitrarily-generated [EngineSchema]s, you will likely want
  * to increase the resolver density with [UndeclaredFieldResolverWeight] and [UndeclaredNodeResolverWeight].
  *
- * For all configurations, generated Viaduct instances are guaranteed to be free of illegal RSS cycles
+ * For all configurations, generated Viaduct instances are guaranteed to be free of illegal RSS cycles.
+ * Runtime2 defaults to [RequiredSelectionSetWeight] with maximum depth one and disables
+ * [AppliedDirectiveWeight]. Variables callbacks with their own required selections are unsupported,
+ * and declarations used only in statically eliminated selections are currently rejected by runtime2.
+ * Explicit configurations that can generate nested callbacks are rejected before sampling.
+ * Use the same explicit configuration and seed for both engines when comparing generated fixtures;
+ * runtime retains its existing defaults.
  *
  * # Configuration
  * This generator supports these configurations:
@@ -51,12 +59,26 @@ import viaduct.service.runtime.StandardViaduct
 @VisibleForTest
 fun Arb.Companion.viaduct(
     schema: EngineSchema,
-    cfg: Config = Config.default
-): Arb<Viaduct> =
-    arbitrary { rs ->
-        ViaductGen(ViaductGenEnv(schema, cfg, rs))
+    cfg: Config? = null,
+    engine2Enabled: Boolean = false,
+): Arb<Viaduct> {
+    val config = cfg ?: if (engine2Enabled) {
+        Config.default +
+            (RequiredSelectionSetWeight to RequiredSelectionSetWeight.default.copy(max = 1)) +
+            (AppliedDirectiveWeight to Never)
+    } else {
+        Config.default
+    }
+    val requiredSelections = config[RequiredSelectionSetWeight]
+    require(!engine2Enabled || config[VariableWeight] == 0.0 || requiredSelections.weight == 0.0 || requiredSelections.max <= 1) {
+        "Arb.viaduct(engine2Enabled = true) does not support variables callbacks with their own required selection sets; " +
+            "set RequiredSelectionSetWeight.max to at most 1."
+    }
+    return arbitrary { rs ->
+        ViaductGen(ViaductGenEnv(schema, config, rs), engine2Enabled)
             .gen()
     }
+}
 
 internal interface ViaductGenEnv {
     val schemas: Schemas
@@ -111,7 +133,7 @@ internal interface ViaductGenEnv {
     }
 }
 
-private class ViaductGen(private val env: ViaductGenEnv) {
+private class ViaductGen(private val env: ViaductGenEnv, private val engine2Enabled: Boolean) {
     private companion object {
         const val GENERATED_TENANT_NAME = "viaduct/arbitrary/generated"
     }
@@ -121,6 +143,26 @@ private class ViaductGen(private val env: ViaductGenEnv) {
         val nodeResolverExecutors = genNodeResolverExecutors()
         val fieldCheckerExecutors = genFieldCheckerExecutors()
         val typeCheckerExecutors = genTypeCheckerExecutors()
+        if (engine2Enabled) {
+            fun validateCallbacks(
+                location: String,
+                selections: Collection<RequiredSelectionSet?>
+            ) {
+                require(selections.filterNotNull().flatMap { it.variablesResolvers }.all { it.requiredSelectionSet == null }) {
+                    "Arb.viaduct(engine2Enabled = true) does not support variables callbacks with their own required selection sets at $location; " +
+                        "set RequiredSelectionSetWeight.max to at most 1."
+                }
+            }
+            fieldResolverExecutors.forEach { (coordinate, executor) ->
+                validateCallbacks("${coordinate.first}.${coordinate.second}", listOfNotNull(executor.objectSelectionSet, executor.querySelectionSet))
+            }
+            fieldCheckerExecutors.forEach { (coordinate, executor) ->
+                validateCallbacks("field checker ${coordinate.first}.${coordinate.second}", executor.requiredSelectionSets.values)
+            }
+            typeCheckerExecutors.forEach { (typeName, executor) ->
+                validateCallbacks("type checker $typeName", executor.requiredSelectionSets.values)
+            }
+        }
         val executors = ArbitraryExecutors(fieldResolverExecutors, nodeResolverExecutors)
 
         @Suppress("DEPRECATION") // withSchemaConfiguration is "for Airbnb use only"
@@ -129,13 +171,14 @@ private class ViaductGen(private val env: ViaductGenEnv) {
             .withTenantModuleInjectorFactory(ArbitraryExecutorCodeInjector(executors))
             .withExecutorRegistryConfigSources(listOf(executors.moduleConfigSource(GENERATED_TENANT_NAME)))
             .withCheckerExecutorFactory(genCheckerExecutorFactory(fieldCheckerExecutors, typeCheckerExecutors))
-            // Supported framework flags on — in particular selective resolver execution, which
-            // the generated resolvers exercise. Engine2 rollout flags require dedicated tests.
+            // Engine selection consumes no randomness; identical fixtures require the same explicit configuration and seed.
             .withFlagManager(object : FlagManager {
                 override fun isEnabled(flag: FlagManager.Flag): Boolean =
-                    flag != FlagManager.Flags.ENGINE2_ENABLED &&
-                        flag != FlagManager.Flags.ENGINE2_PER_REQUEST &&
-                        flag != FlagManager.Flags.ENGINE2_BATCHING
+                    when (flag) {
+                        FlagManager.Flags.ENGINE2_ENABLED -> engine2Enabled
+                        FlagManager.Flags.ENGINE2_PER_REQUEST, FlagManager.Flags.ENGINE2_BATCHING -> false
+                        else -> true
+                    }
             })
             .build()
 

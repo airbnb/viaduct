@@ -15,7 +15,6 @@ import viaduct.engine.api.GraphQLBuildError
 import viaduct.graphql.test.assertJson as realAssertJson
 import viaduct.service.api.ExecutionInput
 import viaduct.service.api.SchemaId
-import viaduct.service.api.spi.FlagManager
 import viaduct.service.api.spi.mocks.MockFlagManager
 import viaduct.service.runtime.SchemaConfiguration
 import viaduct.service.runtime.StandardViaduct
@@ -97,6 +96,7 @@ fun EngineTestModule.runStandardViaductFeatureTest(
     withoutDefaultQueryNodeResolvers: Boolean = false,
     schema: EngineSchema? = null,
     engineConfig: EngineConfiguration? = null,
+    lenientResolverValidation: Boolean = true,
     block: FeatureTest.() -> Unit,
 ) {
     val config = engineConfig ?: EngineConfiguration.featureTestDefault
@@ -113,18 +113,9 @@ fun EngineTestModule.runStandardViaductFeatureTest(
                     typeCheckerExecutors = typeCheckerExecutors,
                 ),
             ).withSchemaConfiguration(schemaConfiguration)
-            .withLenientResolverValidation()
             .allowSubscriptions(true)
-            .withFlagManager(
-                object : FlagManager by config.flagManager {
-                    override fun isEnabled(flag: FlagManager.Flag): Boolean =
-                        when (flag) {
-                            FlagManager.Flags.ENGINE2_ENABLED -> engine2Enabled
-                            FlagManager.Flags.ENGINE2_PER_REQUEST -> false
-                            else -> config.flagManager.isEnabled(flag)
-                        }
-                },
-            ).withDataFetcherExceptionHandler(config.dataFetcherExceptionHandler)
+            .withFlagManager(MockFlagManager.forEngine(engine2Enabled, config.flagManager))
+            .withDataFetcherExceptionHandler(config.dataFetcherExceptionHandler)
             .withResolverErrorReporter(config.resolverErrorReporter)
             .withDataFetcherErrorBuilder(config.resolverErrorBuilder)
             .withInstrumentation(config.additionalInstrumentation, config.chainInstrumentationWithDefaults)
@@ -134,6 +125,7 @@ fun EngineTestModule.runStandardViaductFeatureTest(
             .withMaterializedFieldValueReader(config.materializedFieldValueReader)
             .withGlobalIDCodec(config.globalIDCodec)
 
+    if (lenientResolverValidation) builder.withLenientResolverValidation()
     config.meterRegistry?.let(builder::withMeterRegistry)
     if (config.airbnbBypassPolicyCheckDuringCompletion) {
         builder.enableAirbnbBypassDoNotUse(config.tenantNameResolver)

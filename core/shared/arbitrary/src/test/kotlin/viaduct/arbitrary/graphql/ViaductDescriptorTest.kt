@@ -12,6 +12,8 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.ValueSource
 import viaduct.arbitrary.common.CompoundingWeight.Companion.Never
 import viaduct.arbitrary.common.CompoundingWeight.Companion.Once
 import viaduct.arbitrary.common.Config
@@ -238,8 +240,9 @@ class ViaductDescriptorTest {
             assertFalse(rendered.contains("calls:"))
         }
 
-    @Test
-    fun `generated viaduct descriptor includes field resolver calls when factory is instrumented`(): Unit =
+    @ParameterizedTest
+    @ValueSource(booleans = [false, true])
+    fun `generated viaduct descriptor includes field resolver calls when factory is instrumented`(engine2Enabled: Boolean): Unit =
         runBlocking {
             val schema = """
                 type Foo { x: Int!, y: Int }
@@ -247,7 +250,7 @@ class ViaductDescriptorTest {
             """.asViaductSchema
             val fieldResolverFactory = FieldResolver.Factory.Instrumented()
             val cfg = dumpCallConfig + (FieldResolverFactory to fieldResolverFactory)
-            val viaduct = Arb.viaduct(schema, cfg).next(RandomSource.seeded(0))
+            val viaduct = Arb.viaduct(schema, cfg, engine2Enabled = engine2Enabled).next(RandomSource.seeded(0))
 
             val beforeExecution = viaduct.dump()
             assertTrue(beforeExecution.contains("calls: <none>"))
@@ -274,15 +277,16 @@ class ViaductDescriptorTest {
             assertTrue(rendered.contains("time:"))
         }
 
-    @Test
-    fun `generated viaduct descriptor includes field resolver failures when factory is instrumented`(): Unit =
+    @ParameterizedTest
+    @ValueSource(booleans = [false, true])
+    fun `generated viaduct descriptor includes field resolver failures when factory is instrumented`(engine2Enabled: Boolean): Unit =
         runBlocking {
             val schema = "extend type Query { value: Int @resolver }".asViaductSchema
             val fieldResolverFactory = FieldResolver.Factory.Instrumented()
             val cfg = dumpCallConfig +
                 (FieldResolverFactory to fieldResolverFactory) +
                 (FieldResolverExceptionWeight to 1.0)
-            val viaduct = Arb.viaduct(schema, cfg).next(RandomSource.seeded(0))
+            val viaduct = Arb.viaduct(schema, cfg, engine2Enabled = engine2Enabled).next(RandomSource.seeded(0))
 
             viaduct.execute(ExecutionInput.create(operationText = "{ value }", requestContext = Any()))
 
@@ -293,15 +297,16 @@ class ViaductDescriptorTest {
             assertTrue(rendered.contains("message: This is a synthetic ResolverException"))
         }
 
-    @Test
-    fun `generated viaduct descriptor includes checker calls when factory is instrumented`(): Unit =
+    @ParameterizedTest
+    @ValueSource(booleans = [false, true])
+    fun `generated viaduct descriptor includes checker calls when factory is instrumented`(engine2Enabled: Boolean): Unit =
         runBlocking {
             val schema = "extend type Query { value: Int @resolver }".asViaductSchema
             val checkerExecutorFactory = CheckerExecutor.Factory.Instrumented()
             val cfg = dumpCallConfig +
                 (FieldCheckerWeight to 1.0) +
                 (CheckerExecutorFactory to checkerExecutorFactory)
-            val viaduct = Arb.viaduct(schema, cfg).next(RandomSource.seeded(0))
+            val viaduct = Arb.viaduct(schema, cfg, engine2Enabled = engine2Enabled).next(RandomSource.seeded(0))
 
             val beforeExecution = viaduct.dump()
             assertTrue(beforeExecution.contains("calls: <none>"))

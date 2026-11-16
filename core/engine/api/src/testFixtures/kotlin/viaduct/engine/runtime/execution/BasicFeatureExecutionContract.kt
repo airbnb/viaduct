@@ -1,5 +1,6 @@
 package viaduct.engine.runtime.execution
 
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -51,6 +52,59 @@ interface BasicFeatureExecutionContract : QueryExecutionContract {
                 }
             }
         }
+
+    @Test
+    fun `introspection schema and type meta fields preserve response aliases`() {
+        val module = createResolverTestModule()
+        assertQuery(
+            module,
+            """{ schema: __schema { queryType { name } } type: __type(name: "Query") { name } }""",
+            """{"data": {"schema": {"queryType": {"name": "Query"}}, "type": {"name": "Query"}}}""",
+        )
+    }
+
+    @Test
+    fun `JSON scalars preserve heterogeneous nested values`() {
+        val value = mapOf("items" to listOf(1, null, mapOf("nested" to listOf(true, "value"))))
+        val module = EngineTestModule("extend type Query { json: JSON }") {
+            fieldWithValue("Query" to "json", value)
+        }
+        val result = executeQuery(module, "{ alias: json }")
+        assertEquals(emptyList<Any>(), result.errors)
+        assertEquals(mapOf("alias" to value), result.getData())
+    }
+
+    @Test
+    fun `non-null list items bubble to the nearest nullable boundary with indexed error paths`() {
+        val module = EngineTestModule(
+            """
+            extend type Query { nullableItems: [Item] requiredItems: [Item!] sibling: String }
+            type Item { fail: Boolean value: String! }
+            """.trimIndent()
+        ) {
+            val itemType = schema.schema.getObjectType("Item")
+            val items = listOf(
+                createEngineObjectData(itemType, mapOf("fail" to false)),
+                createEngineObjectData(itemType, mapOf("fail" to true)),
+            )
+            fieldWithValue("Query" to "nullableItems", items)
+            fieldWithValue("Query" to "requiredItems", items)
+            fieldWithValue("Query" to "sibling", "survives")
+            field("Item" to "value") {
+                resolver {
+                    objectSelections("fail")
+                    fn { _, obj, _, _, _ -> if (obj.fetchAs<Boolean>("fail")) null else "ok" }
+                }
+            }
+        }
+        val result = executeQuery(module, "{ nullableItems { value } requiredItems { value } sibling }")
+        assertEquals(
+            mapOf("nullableItems" to listOf(mapOf("value" to "ok"), null), "requiredItems" to null, "sibling" to "survives"),
+            result.getData(),
+        )
+        assertEquals(setOf(listOf("nullableItems", 1, "value"), listOf("requiredItems", 1, "value")), result.errors.map { it.path }.toSet())
+        assertEquals(2, result.errors.size)
+    }
 
     @Test
     fun `simple resolver test`() {

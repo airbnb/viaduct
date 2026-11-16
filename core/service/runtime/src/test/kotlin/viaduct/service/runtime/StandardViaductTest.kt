@@ -971,8 +971,9 @@ class StandardViaductTest {
         }
     }
 
-    @Test
-    fun `build should throw GraphQLBuildError when resolver field has no registered executor`() {
+    @ParameterizedTest
+    @ValueSource(booleans = [false, true])
+    fun `build should throw GraphQLBuildError when resolver field has no registered executor`(engine2Enabled: Boolean) {
         val sdl = """
             extend type Query {
                 missing: String @resolver
@@ -982,6 +983,7 @@ class StandardViaductTest {
 
         val exception = assertThrows<GraphQLBuildError> {
             StandardViaduct.Builder()
+                .withFlagManager(MockFlagManager.forEngine(engine2Enabled))
                 .withSchemaConfiguration(schemaConfiguration)
                 .build()
         }
@@ -1012,8 +1014,9 @@ class StandardViaductTest {
         }
     }
 
-    @Test
-    fun `build should validate tenant-local resolver fields against full schema`() {
+    @ParameterizedTest
+    @ValueSource(booleans = [false, true])
+    fun `build should validate tenant-local resolver fields against full schema`(engine2Enabled: Boolean) {
         val sdl = """
             extend type Query {
                 visible: String
@@ -1024,6 +1027,7 @@ class StandardViaductTest {
 
         val exception = assertThrows<GraphQLBuildError> {
             StandardViaduct.Builder()
+                .withFlagManager(MockFlagManager.forEngine(engine2Enabled))
                 .withSchemaConfiguration(schemaConfiguration)
                 .build()
         }
@@ -1085,11 +1089,7 @@ class StandardViaductTest {
             .withTenantModuleInjectorFactory(MockExecutorCodeInjector(suppliedModule.mockExecutorRegistry))
             .withExecutorRegistryConfigSources(listOf(suppliedModule.toModuleConfigSource()))
             .withSchemaConfiguration(SchemaConfiguration.fromSdl(sdl))
-            .withFlagManager(
-                object : FlagManager {
-                    override fun isEnabled(flag: FlagManager.Flag): Boolean = engine2Enabled && flag == FlagManager.Flags.ENGINE2_ENABLED
-                },
-            )
+            .withFlagManager(MockFlagManager.forEngine(engine2Enabled))
             .build()
 
         val result = runBlocking {
@@ -1107,8 +1107,12 @@ class StandardViaductTest {
     }
 
     @ParameterizedTest
-    @ValueSource(booleans = [false, true])
-    fun `configured materialized reader reaches nested field execution`(customReader: Boolean) {
+    // Runtime2 reads compliant Sync EODs directly; the custom-reader SPI is runtime compatibility coverage.
+    @CsvSource("false, false", "false, true", "true, false")
+    fun `configured materialized reader reaches nested field execution`(
+        engine2Enabled: Boolean,
+        customReader: Boolean
+    ) {
         val sdl = """
             extend type Query { outer: Outer @resolver }
             type Outer { inner: Inner inners: [Inner] }
@@ -1133,9 +1137,7 @@ class StandardViaductTest {
             .withTenantModuleInjectorFactory(MockExecutorCodeInjector(suppliedModule.mockExecutorRegistry))
             .withExecutorRegistryConfigSources(listOf(suppliedModule.toModuleConfigSource()))
             .withSchemaConfiguration(SchemaConfiguration.fromSdl(sdl))
-            .withFlagManager(object : FlagManager {
-                override fun isEnabled(flag: FlagManager.Flag): Boolean = flag == FlagManager.Flags.ENABLE_MAT_RESOLUTION
-            })
+            .withFlagManager(MockFlagManager.forEngine(engine2Enabled, MockFlagManager(setOf(FlagManager.Flags.ENABLE_MAT_RESOLUTION))))
         if (customReader) {
             builder.withMaterializedFieldValueReader(
                 MaterializedFieldValueReader { source, fieldName, responseKey ->
@@ -1173,8 +1175,9 @@ class StandardViaductTest {
         assertEquals(1, resolverCalls.get())
     }
 
-    @Test
-    fun `buildWithReusedSchemas refreshes generated registry sources without rebuilding schemas`() {
+    @ParameterizedTest
+    @ValueSource(booleans = [false, true])
+    fun `buildWithReusedSchemas refreshes generated registry sources without rebuilding schemas`(engine2Enabled: Boolean) {
         val sdl = """
             extend type Query {
                 generatedRegistryTestField: String @resolver
@@ -1182,6 +1185,7 @@ class StandardViaductTest {
         """.trimIndent()
         val schemaConfiguration = SchemaConfiguration.fromSdl(sdl)
         val oldViaduct = StandardViaduct.Builder()
+            .withFlagManager(MockFlagManager.forEngine(engine2Enabled))
             .withTenantModuleInjectorFactory(SharedTenantModuleInjectorFactory(CodeInjector.Naive))
             .withExecutorRegistryConfigSources(
                 listOf(generatedRegistryConfigSource(value = "old-registry"))
@@ -1190,6 +1194,7 @@ class StandardViaductTest {
             .build()
 
         val newViaduct = StandardViaduct.Builder()
+            .withFlagManager(MockFlagManager.forEngine(engine2Enabled))
             .withTenantModuleInjectorFactory(SharedTenantModuleInjectorFactory(CodeInjector.Naive))
             .withExecutorRegistryConfigSources(
                 listOf(generatedRegistryConfigSource(value = "new-registry"))

@@ -7,8 +7,11 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.future.await
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.BeforeEach
-import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.Assertions.assertInstanceOf
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.ValueSource
+import viaduct.engine.EngineImpl
+import viaduct.engine.runtime2.Engine2
 import viaduct.service.api.ExecutionInput
 import viaduct.service.api.SchemaId
 import viaduct.service.api.spi.mocks.MockFlagManager
@@ -42,24 +45,27 @@ class ScopeFilteringIntrospectionTest {
         }
         """
 
-    @BeforeEach
-    fun setUp() {
+    private fun setUp(engine2Enabled: Boolean) {
         schemaId = SchemaId.Scoped("public", setOf("publicScope"))
         schemaConfiguration = SchemaConfiguration.fromSdl(
             sdl,
             scopes = setOf(schemaId.toScopeConfig())
         )
         subject = StandardViaduct.Builder()
-            .withFlagManager(flagManager)
+            .withFlagManager(MockFlagManager.forEngine(engine2Enabled, flagManager))
             .withLenientResolverValidation()
             .withDataFetcherExceptionHandler(mockk())
             .withSchemaConfiguration(schemaConfiguration)
+            .withNullQueryResolvers(schemaConfiguration)
             .build()
     }
 
-    @Test
-    fun `introspection results exclude fields from unregistered scopes`(): Unit =
+    @ParameterizedTest
+    @ValueSource(booleans = [false, true])
+    fun `introspection results exclude fields from unregistered scopes`(engine2Enabled: Boolean): Unit =
         runBlocking {
+            setUp(engine2Enabled)
+            assertInstanceOf(if (engine2Enabled) Engine2::class.java else EngineImpl::class.java, subject.engineRegistry.getEngine(schemaId))
             // Schema defines fields in both "publicScope" and "unregisteredScope"
             // Only "publicScope" is registered in the SchemaId
             // Verify that introspection only returns fields from "publicScope"

@@ -1,0 +1,49 @@
+{
+  "version": "1",
+  "tenantName": "service-wiring-test",
+  "apiName": "test",
+  "executorFactory": "viaduct.service.fixtures.TestQueryExecutorFactory",
+  "nodes": [],
+  "fields": [
+    {
+      "typeName": "Query",
+      "fieldName": "helloWorld",
+      "isBatching": false,
+      "isSelective": false,
+      "attribution": "service-wiring-test",
+      "tenantAPIData": {}
+    },
+    {
+      "typeName": "Query",
+      "fieldName": "basePublicFieldA",
+      "isBatching": false,
+      "isSelective": false,
+      "attribution": "service-wiring-test",
+      "tenantAPIData": {}
+    },
+    {
+      "typeName": "Query",
+      "fieldName": "basePublicFieldB",
+      "isBatching": false,
+      "isSelective": false,
+      "attribution": "service-wiring-test",
+      "tenantAPIData": {}
+    },
+    {
+      "typeName": "Query",
+      "fieldName": "baseTenantLocalField",
+      "isBatching": false,
+      "isSelective": false,
+      "attribution": "service-wiring-test",
+      "tenantAPIData": {}
+    },
+    {
+      "typeName": "Query",
+      "fieldName": "greeting",
+      "isBatching": false,
+      "isSelective": false,
+      "attribution": "service-wiring-test",
+      "tenantAPIData": {}
+    }
+  ]
+}

@@ -5,7 +5,6 @@ package viaduct.engine.runtime.execution
 import io.kotest.property.Arb
 import io.kotest.property.arbitrary.arbitrary
 import java.util.concurrent.atomic.AtomicInteger
-import kotlin.random.Random
 import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withTimeout
@@ -21,6 +20,7 @@ import org.junit.jupiter.params.provider.ValueSource
 import viaduct.arbitrary.common.CheckedArb
 import viaduct.arbitrary.common.Config
 import viaduct.arbitrary.common.DeepArbSuite
+import viaduct.arbitrary.common.KotestPropertyBase
 import viaduct.arbitrary.common.withCheck
 import viaduct.arbitrary.graphql.BatchingResolverWeight
 import viaduct.arbitrary.graphql.CheckerErrorWeight
@@ -809,7 +809,7 @@ class SelectiveNodeExecutionContractTest : SelectiveNodeExecutionContract, Engin
     abstract class SelectiveNodeArbTest(
         val sdl: String,
         val cfg: Config = defaultCfg,
-        seed: Long = Random.nextLong(),
+        seed: Long = KotestPropertyBase.defaultSeed(),
         iterations: Int = 100,
         minViolationIterations: Int = 10_000
     ) : DeepArbSuite<Pair<Viaduct, ExecutionInput>>(

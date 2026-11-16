@@ -16,6 +16,8 @@ import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.ValueSource
 import viaduct.engine.api.EngineSchema
 import viaduct.service.api.ExecutionInput
 import viaduct.service.api.SchemaId
@@ -41,14 +43,20 @@ class ViaductOSSEndToEndTest {
         """.trimIndent()
 
     @BeforeEach
-    fun setUp() {
+    fun setUp() = createSubject(engine2Enabled = false)
+
+    private fun createSubject(engine2Enabled: Boolean) {
         schemaId = SchemaId.Scoped("public", setOf("viaduct-public"))
         schemaConfiguration = SchemaConfiguration.fromSdl(
             sdl,
             scopes = setOf(schemaId.toScopeConfig())
         )
         subject = StandardViaduct.Builder()
-            .withFlagManager(flagManager)
+            .withFlagManager(MockFlagManager.forEngine(engine2Enabled, flagManager))
+            .apply {
+                // Runtime2 requires explicit Query resolvers; runtime retains its original fallback coverage.
+                if (engine2Enabled) withNullQueryResolvers(schemaConfiguration)
+            }
             .withSchemaConfiguration(schemaConfiguration)
             .build()
     }
@@ -66,9 +74,11 @@ class ViaductOSSEndToEndTest {
         }
     }
 
-    @Test
-    fun `Viaduct with no instrumentations or wirings successfully returns null for valid query`(): Unit =
+    @ParameterizedTest
+    @ValueSource(booleans = [false, true])
+    fun `Viaduct returns null for a valid query`(engine2Enabled: Boolean): Unit =
         runBlocking {
+            createSubject(engine2Enabled)
             val query = """
             query TestQuery {
                 field
@@ -89,9 +99,11 @@ class ViaductOSSEndToEndTest {
             assertEquals(actual.toSpecification(), actualAsynced.toSpecification())
         }
 
-    @Test
-    fun `Viaduct with no instrumentations or wirings returns failure for invalid query`(): Unit =
+    @ParameterizedTest
+    @ValueSource(booleans = [false, true])
+    fun `Viaduct returns failure for an invalid query`(engine2Enabled: Boolean): Unit =
         runBlocking {
+            createSubject(engine2Enabled)
             val query = "query"
             val executionInput = ExecutionInput.create(operationText = query, requestContext = object {})
 
