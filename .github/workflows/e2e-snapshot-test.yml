@@ -37,7 +37,7 @@ jobs:
 
   # ---------------------------------------------------------------------------
   # Push demoapp code to viaduct-dev/* repos via Copybara
-  # Runs in parallel with wait-for-publication
+  # Runs in parallel with verify-snapshot
   # ---------------------------------------------------------------------------
   push-demoapps:
     needs: [publish]
@@ -48,38 +48,22 @@ jobs:
     secrets: inherit
 
   # ---------------------------------------------------------------------------
-  # Poll Sonatype until snapshot artifacts are visible
+  # Wait until the snapshot repository lists this run's build, then verify its signatures
   # Runs in parallel with push-demoapps
   # ---------------------------------------------------------------------------
-  wait-for-publication:
+  verify-snapshot:
     needs: [publish]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Wait for Sonatype snapshot visibility
-        env:
-          VERSION: ${{ needs.publish.outputs.version }}
-        run: |
-          set -euo pipefail
-          URL="https://central.sonatype.com/repository/maven-snapshots/com/airbnb/viaduct/api/${VERSION}/"
-          echo "Waiting for ${URL} to return 200..."
-          for i in $(seq 1 30); do
-            STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$URL")
-            if [ "$STATUS" = "200" ]; then
-              echo "Artifacts visible after ${i} attempts"
-              exit 0
-            fi
-            echo "Attempt ${i}: HTTP ${STATUS}, waiting 30s..."
-            sleep 30
-          done
-          echo "::error::Timed out waiting for Sonatype snapshot visibility after 15 minutes"
-          exit 1
-        shell: bash
+    uses: ./.github/workflows/verify-published-snapshot.yml
+    with:
+      source_sha: ${{ needs.publish.outputs.source_sha }}
+      version: ${{ needs.publish.outputs.version }}
+      built_after: ${{ needs.publish.outputs.publish_started_at }}
 
   # ---------------------------------------------------------------------------
   # Verify standalone repos build against published snapshot artifacts
   # ---------------------------------------------------------------------------
   check-demoapps:
-    needs: [push-demoapps, wait-for-publication]
+    needs: [push-demoapps, verify-snapshot]
     uses: ./.github/workflows/check-published-demoapps.yml
     with:
       ref: ${{ needs.push-demoapps.outputs.destination_branch }}
