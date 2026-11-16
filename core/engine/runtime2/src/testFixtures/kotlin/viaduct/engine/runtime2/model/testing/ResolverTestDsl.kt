@@ -27,9 +27,8 @@ import viaduct.engine.runtime2.model.registry.VariableDeclaration
 import viaduct.engine.runtime2.model.registry.fieldResolverOf
 import viaduct.engine.runtime2.model.registry.fromArgument
 import viaduct.engine.runtime2.model.requireType
-import viaduct.engine.runtime2.model.spec.flattenForMaterialization
-import viaduct.engine.runtime2.schema.GJSelectionParser
-import viaduct.engine.runtime2.schema.ParsedSpecFragment
+import viaduct.engine.runtime2.schema.NormalizedFragmentParser
+import viaduct.engine.runtime2.schema.ParsedSelectionFragment
 import viaduct.engine.runtime2.schema.SourceSchemaAdapter
 import viaduct.engine.runtime2.schema.ViaductAndGJSchema
 import viaduct.graphql.schema.ViaductSchema
@@ -436,20 +435,20 @@ private class Compiler(
             val parsed = parseFragment(field, fragmentSource(field, source, typeName))
             Fragment.of(
                 nominalType = parsed.nominalType,
-                materializeSelections = flattenForMaterialization(schema, parsed.nominalType, parsed.selections),
+                subselections = parsed.fragment.subselections,
             )
         }
 
     private fun parseFragment(
         field: ViaductSchema.ObjectField,
         fragment: String,
-    ): ParsedSpecFragment {
-        return GJSelectionParser(
+    ): ParsedSelectionFragment {
+        return NormalizedFragmentParser(
             sourceSchema = schemas.graphQLSchema,
             schema = schema,
             variableValues = emptyMap(),
             variableTarget = ResolverTarget.FieldValueResolverTarget(field),
-        ).specSelectionsFrom(fragment)
+        ).parseFragment(fragment)
     }
 
     private fun variablesIn(

@@ -7,7 +7,7 @@ import kotlin.test.assertSame
 import kotlin.test.assertTrue
 import viaduct.engine.runtime2.model.testing.TestWorld
 import viaduct.engine.runtime2.model.testing.fragmentFrom
-import viaduct.engine.runtime2.schema.specFragmentFromDocument
+import viaduct.engine.runtime2.schema.fragmentFromDocument
 
 class SelectionDocumentTest {
     @Test
@@ -22,7 +22,7 @@ class SelectionDocumentTest {
             )
 
         val fragment =
-            world.schemas.specFragmentFromDocument(
+            world.schemas.fragmentFromDocument(
                 Parser.parse(
                     """
                     fragment Main on Query {
@@ -41,7 +41,7 @@ class SelectionDocumentTest {
         assertEquals("V_A_typename", selection.key.field.name)
         assertSame(InclusionCondition.Always, selection.inclusionCondition)
         assertTrue(
-            fragment.materializeSelections.all { materializeSelection ->
+            fragment.subselections.all { materializeSelection ->
                 materializeSelection.responseKey == "__typename"
             },
         )
@@ -75,7 +75,7 @@ class SelectionDocumentTest {
             )
 
         assertEquals("value", fragment.subselections.single().key.field.name)
-        assertEquals("renamed", fragment.materializeSelections.single().responseKey)
+        assertEquals("renamed", fragment.subselections.single().responseKey)
     }
 
     @Test
@@ -92,7 +92,7 @@ class SelectionDocumentTest {
             )
 
         val fragment =
-            world.schemas.specFragmentFromDocument(
+            world.schemas.fragmentFromDocument(
                 Parser.parse(
                     """
                     fragment Directed on Query {
@@ -105,7 +105,7 @@ class SelectionDocumentTest {
                 ),
             ).fragment
 
-        val selection = fragment.materializeSelections.single()
+        val selection = fragment.subselections.single()
         assertEquals("renamed", selection.responseKey)
         assertTrue(checkNotNull(selection.fieldDirectives).hasDirective("consumerPolicy"))
     }

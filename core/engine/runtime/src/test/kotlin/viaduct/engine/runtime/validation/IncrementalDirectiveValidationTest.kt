@@ -7,12 +7,20 @@ import graphql.parser.Parser
 import graphql.validation.ValidationError
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertInstanceOf
+import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.ValueSource
 
 class IncrementalDirectiveValidationTest {
     private val provider = IncrementalDirectiveValidation(NoOpPreparsedDocumentProvider.INSTANCE)
+
+    @Test
+    fun `successful label validation preserves the original preparsed entry`() {
+        val input = ExecutionInput.newExecutionInput().query("{ item { ... @defer(label: \"details\") { value } } }").build()
+        val entry = PreparsedDocumentEntry(Parser.parse(input.query))
+        assertSame(entry, provider.getDocumentAsync(input) { entry }.join())
+    }
 
     @ParameterizedTest
     @ValueSource(strings = ["inline", "fragment"])

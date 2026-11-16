@@ -8,11 +8,11 @@ import viaduct.engine.runtime2.model.Arguments
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.ResolverTarget
 import viaduct.engine.runtime2.model.arg
-import viaduct.engine.runtime2.model.materializeSelectionForestOf
 import viaduct.engine.runtime2.model.merge
 import viaduct.engine.runtime2.model.requireObjectField
 import viaduct.engine.runtime2.model.requireQueryTypeDef
 import viaduct.engine.runtime2.model.requireType
+import viaduct.engine.runtime2.model.selectionForestOf
 import viaduct.engine.runtime2.model.testing.TestWorld
 import viaduct.engine.runtime2.model.testing.fragmentFrom
 import viaduct.engine.runtime2.model.usedVariables
@@ -40,8 +40,8 @@ class FieldCheckerTest {
             )
         val emptyInput =
             ResolverFragmentTemplates(
-                objectFragmentTemplate = materializeSelectionForestOf(),
-                queryFragmentTemplate = materializeSelectionForestOf(),
+                objectFragmentTemplate = selectionForestOf(),
+                queryFragmentTemplate = selectionForestOf(),
             )
         val checker =
             FieldCheckerResolver.of(
@@ -117,11 +117,11 @@ class FieldCheckerTest {
                         .fragmentFrom(
                             objectFragment,
                             variableTarget = ResolverTarget.FieldCheckerTarget(field),
-                        ).materializeSelections,
+                        ).subselections,
                 queryFragmentTemplate =
                     schema
                         .fragmentFrom(queryFragment, variableTarget = ResolverTarget.FieldCheckerTarget(field))
-                        .materializeSelections,
+                        .subselections,
                 variables =
                     mapOf(
                         objectVariable to objectDefinition,
@@ -186,19 +186,19 @@ class FieldCheckerTest {
                         .fragmentFrom(
                             "fragment Owner on Item { owner(seed: ${'$'}seed) }",
                             variableTarget = ResolverTarget.FieldCheckerTarget(field),
-                        ).materializeSelections,
-                queryFragmentTemplate = materializeSelectionForestOf(),
+                        ).subselections,
+                queryFragmentTemplate = selectionForestOf(),
                 variables = mapOf(variable to definition),
             )
         val viewerInput =
             ResolverFragmentTemplates(
-                objectFragmentTemplate = materializeSelectionForestOf(),
+                objectFragmentTemplate = selectionForestOf(),
                 queryFragmentTemplate =
                     schema
                         .fragmentFrom(
                             "fragment Viewer on Query { viewer(seed: ${'$'}seed) }",
                             variableTarget = ResolverTarget.FieldCheckerTarget(field),
-                        ).materializeSelections,
+                        ).subselections,
                 variables = mapOf(variable to definition),
             )
         val checker =
@@ -237,8 +237,8 @@ class FieldCheckerTest {
         queryFragment: String,
     ): ResolverFragmentTemplates =
         ResolverFragmentTemplates(
-            objectFragmentTemplate = schema.fragmentFrom(objectFragment).materializeSelections,
-            queryFragmentTemplate = schema.fragmentFrom(queryFragment).materializeSelections,
+            objectFragmentTemplate = schema.fragmentFrom(objectFragment).subselections,
+            queryFragmentTemplate = schema.fragmentFrom(queryFragment).subselections,
         )
 
     private companion object {

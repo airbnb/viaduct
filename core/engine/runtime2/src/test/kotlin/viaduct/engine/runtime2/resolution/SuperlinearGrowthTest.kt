@@ -14,7 +14,6 @@ import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.ResolverOccurrenceId
 import viaduct.engine.runtime2.model.SelectionForest
 import viaduct.engine.runtime2.model.emptyFragmentOf
-import viaduct.engine.runtime2.model.materializeSelectionForestOf
 import viaduct.engine.runtime2.model.merge
 import viaduct.engine.runtime2.model.nodeCount
 import viaduct.engine.runtime2.model.registry.Assumptions
@@ -25,6 +24,7 @@ import viaduct.engine.runtime2.model.registry.TypeCheckerResolver
 import viaduct.engine.runtime2.model.registry.fieldResolverOf
 import viaduct.engine.runtime2.model.requireObjectField
 import viaduct.engine.runtime2.model.requireQueryTypeDef
+import viaduct.engine.runtime2.model.selectionForestOf
 import viaduct.engine.runtime2.model.testing.TestWorld
 import viaduct.engine.runtime2.model.testing.fragmentFrom
 import viaduct.engine.runtime2.model.testing.objectOf
@@ -55,8 +55,8 @@ class SuperlinearGrowthTest : ResolutionDispatcherResource {
                 val checked = schema.loweredSchema.requireObjectField("Box", "field0")
                 val pair =
                     ResolverFragmentTemplates(
-                        schema.fragmentFrom("fragment CheckerInput on Box { field1 field2 }").materializeSelections,
-                        materializeSelectionForestOf(),
+                        schema.fragmentFrom("fragment CheckerInput on Box { field1 field2 }").subselections,
+                        selectionForestOf(),
                     )
                 mapOf(
                     checked to
@@ -71,8 +71,8 @@ class SuperlinearGrowthTest : ResolutionDispatcherResource {
                 val type = schema.loweredSchema.requireObjectField("Query", "root").type.baseTypeDef as ViaductSchema.Object
                 val pair =
                     ResolverFragmentTemplates(
-                        schema.fragmentFrom("fragment TypeInput on Box { field0 }").materializeSelections,
-                        materializeSelectionForestOf(),
+                        schema.fragmentFrom("fragment TypeInput on Box { field0 }").subselections,
+                        selectionForestOf(),
                     )
                 mapOf(
                     type to
@@ -149,8 +149,8 @@ class SuperlinearGrowthTest : ResolutionDispatcherResource {
                     fieldCheckers = { schema ->
                         val pair =
                             ResolverFragmentTemplates(
-                                schema.fragmentFrom("fragment CheckerInput on Child { leaf }").materializeSelections,
-                                materializeSelectionForestOf(),
+                                schema.fragmentFrom("fragment CheckerInput on Child { leaf }").subselections,
+                                selectionForestOf(),
                             )
                         (0..depth).associate { index ->
                             val field = schema.loweredSchema.requireObjectField("Child", "field$index")
@@ -202,8 +202,8 @@ class SuperlinearGrowthTest : ResolutionDispatcherResource {
                 """.trimIndent(),
                 fieldCheckers = { schema ->
                     val pair = ResolverFragmentTemplates(
-                        schema.fragmentFrom("fragment FC on Child { leaf }").materializeSelections,
-                        materializeSelectionForestOf(),
+                        schema.fragmentFrom("fragment FC on Child { leaf }").subselections,
+                        selectionForestOf(),
                     )
                     (0..depth).associate { index ->
                         val field = schema.loweredSchema.requireObjectField("Child", "field$index")
@@ -213,8 +213,8 @@ class SuperlinearGrowthTest : ResolutionDispatcherResource {
                 typeCheckers = { schema ->
                     val child = schema.loweredSchema.requireObjectField("Child", "parent").containingDef
                     val pair = ResolverFragmentTemplates(
-                        schema.fragmentFrom("fragment TC on Child { field0 field1 leaf }").materializeSelections,
-                        materializeSelectionForestOf(),
+                        schema.fragmentFrom("fragment TC on Child { field0 field1 leaf }").subselections,
+                        selectionForestOf(),
                     )
                     mapOf(child to TypeCheckerResolver.of(child, schema.loweredSchema.requireQueryTypeDef(), mapOf("input" to pair)) { _, _ -> CheckerResult.Success })
                 },
@@ -281,8 +281,8 @@ class SuperlinearGrowthTest : ResolutionDispatcherResource {
                         val checked = schema.loweredSchema.requireObjectField("Query", "field$depth")
                         val pair =
                             ResolverFragmentTemplates(
-                                schema.fragmentFrom("fragment CheckerInput on Query { audit }").materializeSelections,
-                                materializeSelectionForestOf(),
+                                schema.fragmentFrom("fragment CheckerInput on Query { audit }").subselections,
+                                selectionForestOf(),
                             )
                         mapOf(
                             checked to
@@ -340,8 +340,8 @@ class SuperlinearGrowthTest : ResolutionDispatcherResource {
                     val shared = schema.loweredSchema.requireObjectField("Query", "shared")
                     val pair =
                         ResolverFragmentTemplates(
-                            schema.loweredSchema.emptyFragmentOf("Query").materializeSelections,
-                            schema.fragmentFrom("fragment CheckerInput on Query { audit }").materializeSelections,
+                            schema.loweredSchema.emptyFragmentOf("Query").subselections,
+                            schema.fragmentFrom("fragment CheckerInput on Query { audit }").subselections,
                         )
                     mapOf(
                         shared to
@@ -434,8 +434,8 @@ class SuperlinearGrowthTest : ResolutionDispatcherResource {
                         val type = schema.loweredSchema.requireObjectField("Box", "audit").containingDef
                         val pair =
                             ResolverFragmentTemplates(
-                                schema.fragmentFrom("fragment CheckerInput on Box { audit }").materializeSelections,
-                                materializeSelectionForestOf(),
+                                schema.fragmentFrom("fragment CheckerInput on Box { audit }").subselections,
+                                selectionForestOf(),
                             )
                         mapOf(
                             type to

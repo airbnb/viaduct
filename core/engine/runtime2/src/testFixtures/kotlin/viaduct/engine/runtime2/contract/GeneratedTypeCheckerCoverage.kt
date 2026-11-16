@@ -201,9 +201,9 @@ fun GeneratedResolutionObservation.typeCheckerCoverage(): Set<GeneratedTypeCheck
                                 GeneratedTypeCheckerSignature.SUCCESS_WITH_RESOLVER_INPUT
                             },
                         )
-                        recordCheckedInputs(root, selectedPath.dropLast(1), invocation.inputSelections.constructionSelections())
+                        recordCheckedInputs(root, selectedPath.dropLast(1), invocation.inputSelections)
                         observer.queryFragmentResults(id).forEach { queryRoot ->
-                            recordCheckedInputs(queryRoot, emptyList(), invocation.queryInputSelections.constructionSelections())
+                            recordCheckedInputs(queryRoot, emptyList(), invocation.queryInputSelections)
                         }
                     }
                 }

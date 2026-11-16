@@ -3,17 +3,17 @@ package viaduct.engine.runtime2.model.registry
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.runtime2.model.Arguments
 import viaduct.engine.runtime2.model.InclusionCondition
-import viaduct.engine.runtime2.model.MaterializeSelection
-import viaduct.engine.runtime2.model.MaterializeSelectionForest
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.ObjectSelectionForest
 import viaduct.engine.runtime2.model.PathComponent
 import viaduct.engine.runtime2.model.ResolverOccurrenceId
 import viaduct.engine.runtime2.model.ResolverTarget
+import viaduct.engine.runtime2.model.SelectionForest
 import viaduct.engine.runtime2.model.arg
+import viaduct.engine.runtime2.model.collectProjection
 import viaduct.engine.runtime2.model.containsVariables
+import viaduct.engine.runtime2.model.mapSelectionVariables
 import viaduct.engine.runtime2.model.mapVariableTemplates
-import viaduct.engine.runtime2.model.materializeSelectionForestOf
 import viaduct.engine.runtime2.model.merge
 import viaduct.engine.runtime2.model.render
 import viaduct.engine.runtime2.model.selectionForestOf
@@ -62,8 +62,8 @@ abstract class CheckerResolverBase<out T : ResolverTarget> internal constructor(
             ) {
                 "Checker Query fragment template must be rooted at Query"
             }
-            templates.objectFragmentTemplate.collect(objectType)
-            templates.queryFragmentTemplate.collect(queryType)
+            templates.objectFragmentTemplate.collectProjection(objectType)
+            templates.queryFragmentTemplate.collectProjection(queryType)
             templates.requireVariablesBelongTo(target)
             templates.requireCheckerVariableDependencies()
             templates.objectFragmentTemplate.requireNoParentFieldSelections(inputOwner)
@@ -143,11 +143,11 @@ abstract class CheckerResolverBase<out T : ResolverTarget> internal constructor(
         )
 
     /** Instantiates each named object template without combining its response-key namespace. */
-    fun instantiateObjectMaterializationSelections(resolverOccurrenceId: ResolverOccurrenceId): Map<String, MaterializeSelectionForest> =
+    fun instantiateObjectMaterializationSelections(resolverOccurrenceId: ResolverOccurrenceId): Map<String, SelectionForest> =
         if (!objectMaterializationHasVariables) objectMaterializationTemplates else objectMaterializationTemplates.mapValues { it.value.instantiateVariables(resolverOccurrenceId) }
 
     /** Instantiates each named Query template without combining its response-key namespace. */
-    fun instantiateQueryMaterializationSelections(resolverOccurrenceId: ResolverOccurrenceId): Map<String, MaterializeSelectionForest> =
+    fun instantiateQueryMaterializationSelections(resolverOccurrenceId: ResolverOccurrenceId): Map<String, SelectionForest> =
         if (!queryMaterializationHasVariables) queryMaterializationTemplates else queryMaterializationTemplates.mapValues { it.value.instantiateVariables(resolverOccurrenceId) }
 
     /** Runs each named provider once and returns its pair-qualified variable names. */
@@ -189,7 +189,7 @@ private fun Map<String, ResolverFragmentTemplates>.combineForResolution(
                 ProviderFragment.OBJECT -> lowered.objectFragmentTemplate
                 ProviderFragment.QUERY -> lowered.queryFragmentTemplate
             }
-        constructionSelections += materializeSelections.constructionSelections()
+        constructionSelections += materializeSelections
         val loweredFieldPathInclusionConditions =
             lowered.variables.fieldPathInclusionConditions(
                 fragmentRoot,
@@ -222,8 +222,8 @@ private fun ResolverFragmentTemplates.lowerForResolution(fragmentName: String): 
     }
 
     return ResolverFragmentTemplates(
-        objectFragmentTemplate = objectFragmentTemplate.mapVariableTemplates(::lower),
-        queryFragmentTemplate = queryFragmentTemplate.mapVariableTemplates(::lower),
+        objectFragmentTemplate = objectFragmentTemplate.mapSelectionVariables(::lower),
+        queryFragmentTemplate = queryFragmentTemplate.mapSelectionVariables(::lower),
         variables =
             variables.map { (variable, definition) ->
                 lower(variable) to definition.mapVariableTemplates(::lower)
@@ -236,27 +236,6 @@ private fun loweredCheckerVariableName(
     fragmentName: String,
     variableName: String,
 ): String = "$fragmentName:$variableName"
-
-private fun MaterializeSelectionForest.mapVariableTemplates(transform: (Arguments.Variable) -> Arguments.Variable): MaterializeSelectionForest =
-    flatMap { selection ->
-        materializeSelectionForestOf(
-            MaterializeSelection.of(
-                responseKey = selection.responseKey,
-                key =
-                    ObjectEngineResult.Key.of(
-                        selection.key.field,
-                        selection.key.arguments.mapVariableTemplates(
-                            selection.key.field,
-                            transform,
-                        ),
-                    ),
-                possibleTypes = selection.possibleTypes,
-                subselections = selection.subselections.mapVariableTemplates(transform),
-                inclusionCondition = selection.inclusionCondition.mapVariables(transform),
-                fieldDirectives = selection.fieldDirectives,
-            ),
-        )
-    }
 
 private fun VariableDefinition.mapVariableTemplates(transform: (Arguments.Variable) -> Arguments.Variable): VariableDefinition =
     when (this) {
@@ -344,8 +323,8 @@ private fun ResolverTarget.requireArgumentOwner(
 /** Checker path bindings must be computable without depending on their own unresolved value. */
 private fun ResolverFragmentTemplates.requireCheckerVariableDependencies() {
     val used =
-        objectFragmentTemplate.constructionSelections().usedVariables() +
-            queryFragmentTemplate.constructionSelections().usedVariables()
+        objectFragmentTemplate.usedVariables() +
+            queryFragmentTemplate.usedVariables()
     require(used == variables.keys) {
         "Checker variable definitions must match the variables used by its named pair: used=$used, declared=${variables.keys}"
     }

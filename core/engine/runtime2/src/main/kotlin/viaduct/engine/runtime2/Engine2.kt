@@ -55,12 +55,14 @@ import viaduct.engine.runtime.validation.IncrementalDirectiveValidation
 import viaduct.engine.runtime2.airbnb.DispatcherResolverRegistryFactory
 import viaduct.engine.runtime2.airbnb.Engine2ResolverRegistryFactory
 import viaduct.engine.runtime2.execution.Engine2ExecutionContext
+import viaduct.engine.runtime2.execution.NormalizedOperationSelectionProvider
 import viaduct.engine.runtime2.execution.RequestLifetimeInstrumentation
 import viaduct.engine.runtime2.execution.Runtime2CallerCancellation
 import viaduct.engine.runtime2.execution.Runtime2CallerCancellationKey
 import viaduct.engine.runtime2.execution.Runtime2DispatchStrategy
 import viaduct.engine.runtime2.execution.Runtime2ExecutionHandle
 import viaduct.engine.runtime2.execution.Runtime2ExecutionStrategy
+import viaduct.engine.runtime2.execution.Runtime2OperationSelectionProvider
 import viaduct.engine.runtime2.execution.Runtime2WiringFactory
 import viaduct.engine.runtime2.execution.completeResolvedData
 import viaduct.engine.runtime2.execution.instrumentForRuntime2
@@ -84,6 +86,7 @@ class Engine2(
     private val coroutineInterop: CoroutineInterop = DefaultCoroutineInterop,
     resolverRegistryFactory: Engine2ResolverRegistryFactory = DispatcherResolverRegistryFactory,
     usePrecomputedConstructionDemand: Boolean = true,
+    private val operationSelectionProvider: Runtime2OperationSelectionProvider = NormalizedOperationSelectionProvider,
 ) : Engine, EngineGraphQLJavaCompat {
     private val schemas = ViaductAndGJSchema.fromGraphQLSchema(fullSchema.schema)
     private val engineSelectionSetFactory = EngineSelectionSetFactoryImpl(fullSchema)
@@ -132,6 +135,7 @@ class Engine2(
                                 resolverCoroutineContext = coroutineContext,
                                 engineExecutionContextFactory = ::invocationContext,
                                 dataFetcherExceptionHandler = dataFetcherExceptionHandler,
+                                operationSelectionProvider = operationSelectionProvider,
                             ).execute(context, parameters).await()
                         }
                 },
@@ -187,6 +191,7 @@ class Engine2(
                         .query(executionInput.operationText)
                         .variables(executionInput.variables)
                         .graphQLContext { context ->
+                            operationSelectionProvider.configureContext(context)
                             context.put(requestContextKey, RequestContext(engineContext, coroutineContext))
                             context.put(Runtime2CallerCancellationKey, callerCancellation)
                         }

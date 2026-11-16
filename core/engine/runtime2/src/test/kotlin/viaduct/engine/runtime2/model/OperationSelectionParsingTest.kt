@@ -13,7 +13,7 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import viaduct.engine.runtime2.model.testing.TestWorld
-import viaduct.engine.runtime2.schema.GJSelectionParser
+import viaduct.engine.runtime2.schema.AstSelectionParser
 import viaduct.engine.runtime2.schema.ViaductAndGJSchema
 import viaduct.engine.runtime2.schema.lowering.LOWERED_TYPENAME_FIELD
 import viaduct.engine.runtime2.schema.lowering.lowerSchema
@@ -93,7 +93,7 @@ class OperationSelectionParsingTest {
             UnExecutableSchemaGenerator.makeUnExecutableSchema(SchemaParser().parse(ARGUMENT_SCHEMA))
         val schema = lowerSchema(sourceSchema)
         val parser =
-            GJSelectionParser(
+            AstSelectionParser(
                 sourceSchema = sourceSchema,
                 schema = schema,
                 variableValues = emptyMap(),

@@ -25,7 +25,6 @@ import viaduct.engine.runtime2.model.RootFieldReferenceData
 import viaduct.engine.runtime2.model.emptyFragmentOf
 import viaduct.engine.runtime2.model.engineObjectDataOf
 import viaduct.engine.runtime2.model.materializeCheckedValue
-import viaduct.engine.runtime2.model.materializeSelectionForestOf
 import viaduct.engine.runtime2.model.merge
 import viaduct.engine.runtime2.model.registry.Assumptions
 import viaduct.engine.runtime2.model.registry.FieldCheckerResolver
@@ -37,6 +36,7 @@ import viaduct.engine.runtime2.model.registry.fieldResolverOf
 import viaduct.engine.runtime2.model.registry.selectiveFieldResolverOf
 import viaduct.engine.runtime2.model.requireObjectField
 import viaduct.engine.runtime2.model.requireType
+import viaduct.engine.runtime2.model.selectionForestOf
 import viaduct.engine.runtime2.model.testing.TestWorld
 import viaduct.engine.runtime2.model.testing.fragmentFrom
 import viaduct.engine.runtime2.resolution.framework.Demand
@@ -82,8 +82,8 @@ class EngineExecutionContextPropagationTest : ResolutionDispatcherResource {
                             query,
                             mapOf(
                                 "input" to ResolverFragmentTemplates(
-                                    fixture.schemas.fragmentFrom("fragment Input on Item { permission }").materializeSelections,
-                                    materializeSelectionForestOf(),
+                                    fixture.schemas.fragmentFrom("fragment Input on Item { permission }").subselections,
+                                    selectionForestOf(),
                                 ),
                             ),
                             isApplicableForExecution = { context, _, _ -> context === applicable },
@@ -465,7 +465,7 @@ class EngineExecutionContextPropagationTest : ResolutionDispatcherResource {
                 combined to FieldCheckerResolver.of(
                     combined,
                     query,
-                    mapOf("input" to ResolverFragmentTemplates(requirements.materializeSelections, materializeSelectionForestOf())),
+                    mapOf("input" to ResolverFragmentTemplates(requirements.subselections, selectionForestOf())),
                 ) { _, inputs, _ ->
                     val value = inputs.getValue("input").objectValue.get("child") as EngineObjectData.Sync
                     org.junit.jupiter.api.Assertions.assertNotNull(value.get("left"))

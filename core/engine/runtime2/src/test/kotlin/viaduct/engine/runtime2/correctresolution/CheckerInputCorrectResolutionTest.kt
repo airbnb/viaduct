@@ -37,7 +37,7 @@ class CheckerInputCorrectResolutionTest {
             },
             typeCheckers = { schema ->
                 val query = schema.loweredSchema.requireQueryTypeDef()
-                val selections = schema.fragmentFrom("fragment Input on Query { alias: marker }").materializeSelections
+                val selections = schema.fragmentFrom("fragment Input on Query { alias: marker }").subselections
                 mapOf(
                     query to TypeCheckerResolver.of(
                         query,

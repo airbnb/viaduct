@@ -13,7 +13,6 @@ import viaduct.engine.runtime2.model.ResolverOccurrenceId
 import viaduct.engine.runtime2.model.Selection
 import viaduct.engine.runtime2.model.SelectionForest
 import viaduct.engine.runtime2.model.VariableBinding
-import viaduct.engine.runtime2.model.materializeSelectionForestOf
 import viaduct.engine.runtime2.model.merge
 import viaduct.engine.runtime2.model.registry.FieldCheckerResolver
 import viaduct.engine.runtime2.model.registry.ResolverFragmentTemplates
@@ -186,21 +185,21 @@ class FieldCheckerDemandClosureTest {
                         fragmentTemplates = mapOf(
                             "empty" to
                                 ResolverFragmentTemplates(
-                                    objectFragmentTemplate = materializeSelectionForestOf(),
-                                    queryFragmentTemplate = materializeSelectionForestOf(),
+                                    objectFragmentTemplate = selectionForestOf(),
+                                    queryFragmentTemplate = selectionForestOf(),
                                 ),
                             "viewer" to
                                 ResolverFragmentTemplates(
-                                    objectFragmentTemplate = materializeSelectionForestOf(),
+                                    objectFragmentTemplate = selectionForestOf(),
                                     queryFragmentTemplate =
                                         schema
                                             .fragmentFrom("fragment F on Query { viewer }")
-                                            .materializeSelections,
+                                            .subselections,
                                 ),
                             "emptyQuery" to
                                 ResolverFragmentTemplates(
-                                    objectFragmentTemplate = materializeSelectionForestOf(),
-                                    queryFragmentTemplate = materializeSelectionForestOf(),
+                                    objectFragmentTemplate = selectionForestOf(),
+                                    queryFragmentTemplate = selectionForestOf(),
                                 ),
                         ),
                     ) { _, _, _ -> error("Closure must not execute checkers") },
@@ -437,8 +436,8 @@ class FieldCheckerDemandClosureTest {
                             objectFragmentTemplate =
                                 schema
                                     .fragmentFrom("fragment F on $type { $input }")
-                                    .materializeSelections,
-                            queryFragmentTemplate = materializeSelectionForestOf(),
+                                    .subselections,
+                            queryFragmentTemplate = selectionForestOf(),
                         )
                 }.toMap(),
         ) { _, _, _ -> error("Closure must not execute checkers") }

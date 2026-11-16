@@ -188,7 +188,7 @@ class RecordingResolutionObserverTest : ResolutionDispatcherResource {
         payload["notFinite"] = Double.NaN
         payload["argumentError"] = ArgumentResolutionError
         val input = engineObjectDataOf(type, mapOf("payload" to payload))
-        val selections = world.assumptions.emptyFragmentOf("Query").materializeSelections
+        val selections = world.assumptions.emptyFragmentOf("Query").subselections
         val observation = ResolverInvocationObservation(
             emptyList(),
             field,

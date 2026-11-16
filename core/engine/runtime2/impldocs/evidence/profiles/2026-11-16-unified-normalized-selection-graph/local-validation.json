@@ -1,0 +1,508 @@
+{
+  "command": "with-graphql-java-pr.sh <pinned-jar> test :core:engine:runtime2:check :core:engine:runtime:ktlintCheck :core:shared:graphql:ktlintCheck :core:shared:arbitrary:ktlintCheck :core:shared:viaductschema:ktlintCheck :gradle-plugins:apollo:ktlintCheck --no-configuration-cache --continue",
+  "result": "BUILD SUCCESSFUL in 9m 38s",
+  "tests": 14987,
+  "skipped": 202,
+  "failures": 0,
+  "errors": 0,
+  "suites": 1263,
+  "modules": [
+    {
+      "task": ":core:engine:api:test",
+      "tests": 342,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0,
+      "suites": 50
+    },
+    {
+      "task": ":core:engine:runtime2:test",
+      "tests": 4475,
+      "skipped": 144,
+      "failures": 0,
+      "errors": 0,
+      "suites": 289
+    },
+    {
+      "task": ":core:engine:runtime:test",
+      "tests": 3950,
+      "skipped": 45,
+      "failures": 0,
+      "errors": 0,
+      "suites": 278
+    },
+    {
+      "task": ":core:engine:wiring:test",
+      "tests": 71,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0,
+      "suites": 7
+    },
+    {
+      "task": ":core:javaapi:api:test",
+      "tests": 171,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0,
+      "suites": 10
+    },
+    {
+      "task": ":core:javaapi:codegen:test",
+      "tests": 186,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0,
+      "suites": 20
+    },
+    {
+      "task": ":core:javaapi:registry-apt:test",
+      "tests": 29,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0,
+      "suites": 1
+    },
+    {
+      "task": ":core:javaapi:runtime:test",
+      "tests": 326,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0,
+      "suites": 50
+    },
+    {
+      "task": ":core:service:api:test",
+      "tests": 76,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0,
+      "suites": 13
+    },
+    {
+      "task": ":core:service:runtime:test",
+      "tests": 185,
+      "skipped": 3,
+      "failures": 0,
+      "errors": 0,
+      "suites": 18
+    },
+    {
+      "task": ":core:service:wiring:test",
+      "tests": 44,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0,
+      "suites": 7
+    },
+    {
+      "task": ":core:shared:arbitrary-cli:test",
+      "tests": 8,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0,
+      "suites": 1
+    },
+    {
+      "task": ":core:shared:arbitrary:test",
+      "tests": 493,
+      "skipped": 4,
+      "failures": 0,
+      "errors": 0,
+      "suites": 48
+    },
+    {
+      "task": ":core:shared:bootstrap:test",
+      "tests": 12,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0,
+      "suites": 1
+    },
+    {
+      "task": ":core:shared:codegen:test",
+      "tests": 250,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0,
+      "suites": 42
+    },
+    {
+      "task": ":core:shared:dataloader:test",
+      "tests": 274,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0,
+      "suites": 14
+    },
+    {
+      "task": ":core:shared:deferred:test",
+      "tests": 131,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0,
+      "suites": 20
+    },
+    {
+      "task": ":core:shared:graphql:test",
+      "tests": 409,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0,
+      "suites": 30
+    },
+    {
+      "task": ":core:shared:invariants:test",
+      "tests": 35,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0,
+      "suites": 2
+    },
+    {
+      "task": ":core:shared:mapping:test",
+      "tests": 65,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0,
+      "suites": 6
+    },
+    {
+      "task": ":core:shared:scoping:test",
+      "tests": 73,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0,
+      "suites": 4
+    },
+    {
+      "task": ":core:shared:utils:test",
+      "tests": 171,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0,
+      "suites": 16
+    },
+    {
+      "task": ":core:shared:viaductschema:test",
+      "tests": 1258,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0,
+      "suites": 99
+    },
+    {
+      "task": ":core:tenant:api:test",
+      "tests": 501,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0,
+      "suites": 42
+    },
+    {
+      "task": ":core:tenant:codegen:test",
+      "tests": 495,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0,
+      "suites": 44
+    },
+    {
+      "task": ":core:tenant:ksp:test",
+      "tests": 73,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0,
+      "suites": 9
+    },
+    {
+      "task": ":core:tenant:runtime:test",
+      "tests": 425,
+      "skipped": 6,
+      "failures": 0,
+      "errors": 0,
+      "suites": 84
+    },
+    {
+      "task": ":core:tenant:shared:test",
+      "tests": 67,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0,
+      "suites": 8
+    },
+    {
+      "task": ":core:tenant:tutorials:test",
+      "tests": 48,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0,
+      "suites": 15
+    },
+    {
+      "task": ":core:tenant:validation:test",
+      "tests": 0,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0,
+      "suites": 0
+    },
+    {
+      "task": ":core:tenant:wiring:test",
+      "tests": 0,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0,
+      "suites": 0
+    },
+    {
+      "task": ":core:x:federation:validation:test",
+      "tests": 42,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0,
+      "suites": 1
+    },
+    {
+      "task": ":gradle-plugins:apollo:test",
+      "tests": 39,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0,
+      "suites": 4
+    },
+    {
+      "task": ":gradle-plugins:application:test",
+      "tests": 51,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0,
+      "suites": 5
+    },
+    {
+      "task": ":gradle-plugins:common:test",
+      "tests": 55,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0,
+      "suites": 5
+    },
+    {
+      "task": ":gradle-plugins:conventions:test",
+      "tests": 63,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0,
+      "suites": 5
+    },
+    {
+      "task": ":gradle-plugins:federation-validation:test",
+      "tests": 5,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0,
+      "suites": 1
+    },
+    {
+      "task": ":gradle-plugins:federation:test",
+      "tests": 2,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0,
+      "suites": 1
+    },
+    {
+      "task": ":gradle-plugins:gradletestapps:apollo-schema:catalog:test",
+      "tests": 0,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0,
+      "suites": 0
+    },
+    {
+      "task": ":gradle-plugins:gradletestapps:apollo-schema:test",
+      "tests": 2,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0,
+      "suites": 1
+    },
+    {
+      "task": ":gradle-plugins:gradletestapps:apollo-schema:users:test",
+      "tests": 0,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0,
+      "suites": 0
+    },
+    {
+      "task": ":gradle-plugins:gradletestapps:java-one-project:test",
+      "tests": 7,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0,
+      "suites": 1
+    },
+    {
+      "task": ":gradle-plugins:gradletestapps:multi-project:alpha:test",
+      "tests": 0,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0,
+      "suites": 0
+    },
+    {
+      "task": ":gradle-plugins:gradletestapps:multi-project:beta:test",
+      "tests": 0,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0,
+      "suites": 0
+    },
+    {
+      "task": ":gradle-plugins:gradletestapps:multi-project:test",
+      "tests": 7,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0,
+      "suites": 1
+    },
+    {
+      "task": ":gradle-plugins:gradletestapps:one-project:test",
+      "tests": 6,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0,
+      "suites": 1
+    },
+    {
+      "task": ":gradle-plugins:gradletestapps:two-project:resolvers:test",
+      "tests": 1,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0,
+      "suites": 1
+    },
+    {
+      "task": ":gradle-plugins:gradletestapps:two-project:test",
+      "tests": 6,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0,
+      "suites": 1
+    },
+    {
+      "task": ":gradle-plugins:gradletestapps:validation-rule-support:test",
+      "tests": 0,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0,
+      "suites": 0
+    },
+    {
+      "task": ":gradle-plugins:gradletestapps:validation-rules:test",
+      "tests": 0,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0,
+      "suites": 0
+    },
+    {
+      "task": ":gradle-plugins:metamodule:test",
+      "tests": 5,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0,
+      "suites": 1
+    },
+    {
+      "task": ":gradle-plugins:module-java:test",
+      "tests": 7,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0,
+      "suites": 1
+    },
+    {
+      "task": ":gradle-plugins:module:test",
+      "tests": 28,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0,
+      "suites": 3
+    },
+    {
+      "task": ":gradle-plugins:settings:test",
+      "tests": 18,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0,
+      "suites": 2
+    },
+    {
+      "task": ":publications:api:test",
+      "tests": 0,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0,
+      "suites": 0
+    },
+    {
+      "task": ":publications:buildtime:test",
+      "tests": 0,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0,
+      "suites": 0
+    },
+    {
+      "task": ":publications:javaapi-api:test",
+      "tests": 0,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0,
+      "suites": 0
+    },
+    {
+      "task": ":publications:javaapi-buildtime:test",
+      "tests": 0,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0,
+      "suites": 0
+    },
+    {
+      "task": ":publications:javaapi-runtime:test",
+      "tests": 0,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0,
+      "suites": 0
+    },
+    {
+      "task": ":publications:runtime:test",
+      "tests": 0,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0,
+      "suites": 0
+    },
+    {
+      "task": ":publications:test-fixtures:test",
+      "tests": 0,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0,
+      "suites": 0
+    }
+  ],
+  "additional_documentation_checks": {
+    "gradle_documentation_labels": "passed after report updates",
+    "html_tour_validator": {
+      "base_diagnostics": 372,
+      "final_diagnostics": 359,
+      "new_diagnostic_signatures": 0,
+      "result": "pre-existing failures remain"
+    }
+  }
+}

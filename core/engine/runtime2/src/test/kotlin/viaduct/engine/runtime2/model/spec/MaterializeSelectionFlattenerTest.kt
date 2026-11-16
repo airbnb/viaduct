@@ -8,9 +8,10 @@ import kotlin.test.assertTrue
 import viaduct.engine.api.FieldDirectives
 import viaduct.engine.runtime2.model.Arguments
 import viaduct.engine.runtime2.model.InclusionCondition
-import viaduct.engine.runtime2.model.MaterializeSelectionForest
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.ResolverTarget
+import viaduct.engine.runtime2.model.SelectionForest
+import viaduct.engine.runtime2.model.collectProjection
 import viaduct.engine.runtime2.model.merge
 import viaduct.engine.runtime2.model.requireField
 import viaduct.engine.runtime2.model.requireObjectField
@@ -18,7 +19,7 @@ import viaduct.engine.runtime2.model.requireQueryTypeDef
 import viaduct.engine.runtime2.model.requireType
 import viaduct.engine.runtime2.model.testing.TestWorld
 import viaduct.engine.runtime2.model.usedVariables
-import viaduct.engine.runtime2.schema.GJSelectionParser
+import viaduct.engine.runtime2.schema.AstSelectionParser
 import viaduct.graphql.schema.ViaductSchema
 
 class MaterializeSelectionFlattenerTest {
@@ -27,7 +28,7 @@ class MaterializeSelectionFlattenerTest {
         val world = TestWorld.fromSDL("type Query { value: String }")
         val schema = world.schemas
         val (_, selections) =
-            GJSelectionParser(schema.graphQLSchema, schema.loweredSchema, emptyMap())
+            AstSelectionParser(schema.graphQLSchema, schema.loweredSchema, emptyMap())
                 .materializeSelectionsFrom(
                     """
                     fragment ResolverInput on Query {
@@ -56,7 +57,7 @@ class MaterializeSelectionFlattenerTest {
         val world = TestWorld.fromSDL("type Query { value: String }")
         val schema = world.schemas
         val (_, selections) =
-            GJSelectionParser(
+            AstSelectionParser(
                 schema.graphQLSchema,
                 schema.loweredSchema,
                 emptyMap(),
@@ -106,11 +107,11 @@ class MaterializeSelectionFlattenerTest {
                 ),
             )
 
-        val collected = selections.collect(fixture.query)
+        val collected = selections.collectProjection(fixture.query)
         assertEquals(setOf("release", "version"), collected.responseKeys())
         assertEquals(collected["release"].key, collected["version"].key)
         assertTrue(
-            selections.constructionSelections().all { selection ->
+            selections.all { selection ->
                 selection.key.field == fixture.schema.requireField("Query", "version")
             },
         )
@@ -139,14 +140,14 @@ class MaterializeSelectionFlattenerTest {
             )
 
         assertEquals(2, selections.size)
-        val collected = selections.collect(fixture.query)
+        val collected = selections.collectProjection(fixture.query)
         assertEquals(1, collected.size)
 
         val chosen = collected["chosen"]
         assertEquals(2, chosen.subselections.size)
         assertEquals(
             setOf("name", "code"),
-            chosen.subselections.collect(fixture.item).responseKeys(),
+            chosen.subselections.collectProjection(fixture.item).responseKeys(),
         )
     }
 
@@ -172,8 +173,8 @@ class MaterializeSelectionFlattenerTest {
                 ),
             )
 
-        assertFalse(checkNotNull(mixed.collect(fixture.query)["result"].fieldDirectives).hasDirective("consumerPolicy"))
-        assertTrue(checkNotNull(unanimous.collect(fixture.query)["result"].fieldDirectives).hasDirective("consumerPolicy"))
+        assertFalse(checkNotNull(mixed.collectProjection(fixture.query)["result"].fieldDirectives).hasDirective("consumerPolicy"))
+        assertTrue(checkNotNull(unanimous.collectProjection(fixture.query)["result"].fieldDirectives).hasDirective("consumerPolicy"))
     }
 
     @Test
@@ -217,10 +218,10 @@ class MaterializeSelectionFlattenerTest {
             )
 
         assertFailsWith<IllegalArgumentException> {
-            conflictingArguments.collect(fixture.query)
+            conflictingArguments.collectProjection(fixture.query)
         }
         assertFailsWith<IllegalArgumentException> {
-            conflictingFields.collect(fixture.query)
+            conflictingFields.collectProjection(fixture.query)
         }
     }
 
@@ -245,7 +246,7 @@ class MaterializeSelectionFlattenerTest {
                 ),
             )
 
-        val result = selections.collect(fixture.query)["result"]
+        val result = selections.collectProjection(fixture.query)["result"]
         assertFalse(result.key is ObjectEngineResult.GroundKey)
         assertEquals(setOf(variable), result.key.arguments.usedVariables())
     }
@@ -288,15 +289,15 @@ class MaterializeSelectionFlattenerTest {
             )
 
         val alternatives =
-            selections.collect(fixture.query)["pet"].subselections
+            selections.collectProjection(fixture.query)["pet"].subselections
         assertEquals(2, alternatives.size)
         assertEquals(
             fixture.schema.requireObjectField("Dog", "barkVolume"),
-            alternatives.collect(fixture.dog)["sound"].key.field,
+            alternatives.collectProjection(fixture.dog)["sound"].key.field,
         )
         assertEquals(
             fixture.schema.requireObjectField("Cat", "lives"),
-            alternatives.collect(fixture.cat)["sound"].key.field,
+            alternatives.collectProjection(fixture.cat)["sound"].key.field,
         )
     }
 
@@ -331,13 +332,13 @@ class MaterializeSelectionFlattenerTest {
                 ),
             )
 
-        val bundles = selections.collect(fixture.query)["bundles"]
+        val bundles = selections.collectProjection(fixture.query)["bundles"]
         assertEquals(fixture.pack, bundles.key.field.type.baseTypeDef)
-        val animals = bundles.subselections.collect(fixture.pack)["animals"]
+        val animals = bundles.subselections.collectProjection(fixture.pack)["animals"]
         assertEquals(fixture.pet, animals.key.field.type.baseTypeDef)
         assertEquals(
             setOf("label"),
-            animals.subselections.collect(fixture.dog).responseKeys(),
+            animals.subselections.collectProjection(fixture.dog).responseKeys(),
         )
     }
 
@@ -361,19 +362,18 @@ class MaterializeSelectionFlattenerTest {
             )
         val schema = world.schemas
         val parsed =
-            GJSelectionParser(schema.graphQLSchema, schema.loweredSchema, emptyMap())
+            AstSelectionParser(schema.graphQLSchema, schema.loweredSchema, emptyMap())
                 .specSelectionsFrom(
                     "fragment ResolverInput on Query { account: user { id } }",
                 )
         val selections =
             flattenForMaterialization(schema.loweredSchema, parsed.nominalType, parsed.selections)
 
-        val account = selections.collect(schema.loweredSchema.requireQueryTypeDef())["account"]
+        val account = selections.collectProjection(schema.loweredSchema.requireQueryTypeDef())["account"]
         assertEquals("user", account.key.field.name)
         assertEquals(
             setOf("user"),
             selections
-                .constructionSelections()
                 .merge(schema.loweredSchema.requireQueryTypeDef())
                 .keys()
                 .mapTo(linkedSetOf()) { key -> key.field.name },
@@ -382,7 +382,7 @@ class MaterializeSelectionFlattenerTest {
         assertEquals(
             setOf("id"),
             account.subselections
-                .collect(schema.loweredSchema.requireType("User") as ViaductSchema.Object)
+                .collectProjection(schema.loweredSchema.requireType("User") as ViaductSchema.Object)
                 .responseKeys(),
         )
     }
@@ -424,7 +424,7 @@ class MaterializeSelectionFlattenerTest {
         fun flatten(
             typeInScope: ViaductSchema.CompositeTypeDef,
             selectionSet: List<SpecSelection>,
-        ): MaterializeSelectionForest = flattenForMaterialization(schema, typeInScope, selectionSet)
+        ): SelectionForest = flattenForMaterialization(schema, typeInScope, selectionSet)
     }
 
     private companion object {

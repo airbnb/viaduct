@@ -1,0 +1,3 @@
+AST: forests=43241 selections=187215 keys=187215 logicalOccurrences=187215
+eager ND: forests=43241 selections=187215 keys=3014 logicalOccurrences=187215
+shared ND: forests=994 selections=8314 keys=3014 logicalOccurrences=187215

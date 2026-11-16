@@ -159,7 +159,6 @@ class ScopedSchemaBuilder(
             it.additionalDirectives(
                 inputSchema.directives
                     .map(replaceDirectiveChildrenWithTypeReferences)
-                    .toMutableSet()
             )
 
             it.clearSchemaDirectives()
@@ -337,7 +336,7 @@ class ScopedSchemaBuilder(
             it.additionalDirectives(
                 directives.filterNot { directive ->
                     directive.name == AIRBNB_BYPASS_POLICY_CHECK_DIRECTIVE
-                }.toSet()
+                }.toList()
             )
         }
 }

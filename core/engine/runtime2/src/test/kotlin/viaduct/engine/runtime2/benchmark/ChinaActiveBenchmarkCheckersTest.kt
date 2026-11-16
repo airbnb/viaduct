@@ -18,8 +18,8 @@ import viaduct.engine.runtime2.arbitrary.ResolverBenchmarkCorpus
 import viaduct.engine.runtime2.arbitrary.ResolverBenchmarkQueryCorpus
 import viaduct.engine.runtime2.arbitrary.resolutionFingerprint
 import viaduct.engine.runtime2.model.Arguments
-import viaduct.engine.runtime2.model.MaterializeSelectionForest
 import viaduct.engine.runtime2.model.ResolverTarget
+import viaduct.engine.runtime2.model.SelectionForest
 import viaduct.engine.runtime2.model.registry.CheckerInput
 import viaduct.engine.runtime2.model.registry.ResolutionExecutionContext
 import viaduct.engine.runtime2.model.registry.VariableDefinition
@@ -62,7 +62,7 @@ class ChinaActiveBenchmarkCheckersTest : ResolutionDispatcherResource {
             comparison.typeCheckers(world.schemas).values.flatMap { it.fragmentTemplates.values }
         val privacyFields = mutableListOf<String>()
 
-        fun verify(forest: MaterializeSelectionForest) {
+        fun verify(forest: SelectionForest) {
             forest.forEach { selection ->
                 val field = selection.key.field as ViaductSchema.ObjectField
                 assertEquals(null, world.resolverRegistry.fieldChecker(field), "${field.containingDef.name}.${field.name}")
@@ -195,7 +195,7 @@ class ChinaActiveBenchmarkCheckersTest : ResolutionDispatcherResource {
                 val fragment = world.schemas.fragmentFrom(source)
                 val operation = SharedOperationContext.create(world.newAssumptions())
                 val result = operation.resolveWithTestDispatcher(fragment.subselections)
-                return result.materializeResult(operation, fragment.materializeSelections, result.fieldResolverCycleTask(emptyList())).resolutionFingerprint()
+                return result.materializeResult(operation, fragment.subselections, result.fieldResolverCycleTask(emptyList())).resolutionFingerprint()
             }
             val oldDiscovery = PrecomputedResolverOutputs()
             val newDiscovery = PrecomputedResolverOutputs()

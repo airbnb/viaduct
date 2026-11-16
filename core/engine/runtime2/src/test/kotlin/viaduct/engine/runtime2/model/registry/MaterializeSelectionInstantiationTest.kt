@@ -9,6 +9,7 @@ import kotlin.test.assertTrue
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.ResolverOccurrenceId
 import viaduct.engine.runtime2.model.ResolverTarget
+import viaduct.engine.runtime2.model.collectProjection
 import viaduct.engine.runtime2.model.requireObjectField
 import viaduct.engine.runtime2.model.requireQueryTypeDef
 import viaduct.engine.runtime2.model.testing.TestWorld
@@ -24,28 +25,28 @@ class MaterializeSelectionInstantiationTest {
 
     @Test
     fun `constant trees are shared across distinct applications`() {
-        val source = schema.fragmentFrom("fragment Input on Query { child { flag } echo(value: 1) }", variableTarget = target).materializeSelections
+        val source = schema.fragmentFrom("fragment Input on Query { child { flag } echo(value: 1) }", variableTarget = target).subselections
         assertSame(source, source.instantiateVariables(occurrence()))
         assertSame(source, source.instantiateVariables(occurrence()))
-        val construction = source.constructionSelections()
+        val construction = source
         assertSame(construction, construction.instantiateVariables(occurrence()))
     }
 
     @Test
     fun `mixed trees retain static children and distinct occurrence bindings`() {
-        val source = schema.fragmentFrom("fragment Input on Query { child { flag } echo(value: ${'$'}v) }", variableTarget = target).materializeSelections
+        val source = schema.fragmentFrom("fragment Input on Query { child { flag } echo(value: ${'$'}v) }", variableTarget = target).subselections
         val first = source.instantiateVariables(occurrence())
         val second = source.instantiateVariables(occurrence())
         assertSame(source.filter { it.responseKey == "child" }.single().subselections, first.filter { it.responseKey == "child" }.single().subselections)
-        assertNotEquals(first.constructionSelections().usedVariables(), second.constructionSelections().usedVariables())
-        assertTrue(first.constructionSelections().usedVariables().all { it.isInstantiated })
+        assertNotEquals(first.usedVariables(), second.usedVariables())
+        assertTrue(first.usedVariables().all { it.isInstantiated })
         val type = schema.loweredSchema.requireQueryTypeDef()
-        val firstLayout = first.collect(type)
-        val secondLayout = second.collect(type)
-        assertSame(firstLayout, first.collect(type))
-        assertSame(secondLayout, second.collect(type))
+        val firstLayout = first.collectProjection(type)
+        val secondLayout = second.collectProjection(type)
+        assertSame(firstLayout, first.collectProjection(type))
+        assertSame(secondLayout, second.collectProjection(type))
         assertNotEquals(firstLayout["echo"].key.arguments, secondLayout["echo"].key.arguments)
-        val construction = source.constructionSelections()
+        val construction = source
         val firstConstruction = construction.instantiateVariables(occurrence())
         val secondConstruction = construction.instantiateVariables(occurrence())
         assertSame(
@@ -57,12 +58,12 @@ class MaterializeSelectionInstantiationTest {
 
     @Test
     fun `nested guard variables are instantiated even when arguments are constant`() {
-        val source = schema.fragmentFrom("fragment Input on Query { child { flag @include(if: ${'$'}included) } }", variableTarget = target).materializeSelections
+        val source = schema.fragmentFrom("fragment Input on Query { child { flag @include(if: ${'$'}included) } }", variableTarget = target).subselections
         val first = source.instantiateVariables(occurrence())
         val second = source.instantiateVariables(occurrence())
-        assertTrue(first.constructionSelections().usedVariables().all { it.isInstantiated })
-        assertNotEquals(first.constructionSelections().usedVariables(), second.constructionSelections().usedVariables())
-        val construction = source.constructionSelections()
+        assertTrue(first.usedVariables().all { it.isInstantiated })
+        assertNotEquals(first.usedVariables(), second.usedVariables())
+        val construction = source
         val firstConstruction = construction.instantiateVariables(occurrence())
         val secondConstruction = construction.instantiateVariables(occurrence())
         assertTrue(firstConstruction.usedVariables().all { it.isInstantiated })

@@ -8,7 +8,6 @@ import viaduct.engine.runtime2.model.EngineErrorData
 import viaduct.engine.runtime2.model.EngineObjectOrErrorData
 import viaduct.engine.runtime2.model.EngineResult
 import viaduct.engine.runtime2.model.ErrorEngineResult
-import viaduct.engine.runtime2.model.MaterializeSelectionForest
 import viaduct.engine.runtime2.model.NodeReferenceIdentity
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.ObjectSelection
@@ -21,7 +20,6 @@ import viaduct.engine.runtime2.model.SelectionForest
 import viaduct.engine.runtime2.model.VariableBinding
 import viaduct.engine.runtime2.model.engineObjectDataOf
 import viaduct.engine.runtime2.model.guardedBy
-import viaduct.engine.runtime2.model.materializeSelectionForestOf
 import viaduct.engine.runtime2.model.merge
 import viaduct.engine.runtime2.model.nodeReferenceIdentityOrNull
 import viaduct.engine.runtime2.model.registry.ProviderFragment
@@ -310,7 +308,7 @@ internal class FieldResolutionLogic(
 
     private suspend fun materializeQueryFragment(
         fieldResolverOccurrence: FieldResolverOccurrence,
-        materializationSelections: MaterializeSelectionForest,
+        materializationSelections: SelectionForest,
     ): EngineObjectData.Sync {
         val publication = fieldResolverTask.publication
         val queryFragment = fieldResolverOccurrence.fragments.queryFragment
@@ -426,7 +424,7 @@ internal class FieldResolutionLogic(
                 occurrencePath = fieldResolverOccurrence.invocationPath,
                 field = fieldResolverOccurrence.selection.key.field,
                 input = input,
-                inputSelections = materializeSelectionForestOf(),
+                inputSelections = selectionForestOf(),
                 queryValue = queryValue,
                 queryInputSelections =
                     fieldResolverOccurrence.dependencies

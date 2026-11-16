@@ -1,0 +1,16 @@
+{
+  "runtime2": {
+    "tests": 4460,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 144,
+    "classes": 287
+  },
+  "runtime": {
+    "tests": 8,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "classes": 1
+  }
+}

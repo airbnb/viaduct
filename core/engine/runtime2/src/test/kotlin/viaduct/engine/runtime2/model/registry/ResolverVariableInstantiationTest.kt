@@ -7,9 +7,10 @@ import kotlin.test.assertTrue
 import viaduct.engine.runtime2.bootstrap.fromObjectField
 import viaduct.engine.runtime2.model.Arguments
 import viaduct.engine.runtime2.model.InclusionCondition
-import viaduct.engine.runtime2.model.MaterializeSelection
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.ResolverOccurrenceId
+import viaduct.engine.runtime2.model.Selection
+import viaduct.engine.runtime2.model.collectProjection
 import viaduct.engine.runtime2.model.emptyFragmentOf
 import viaduct.engine.runtime2.model.fieldExpressions
 import viaduct.engine.runtime2.model.instantiatedVariables
@@ -77,7 +78,7 @@ class ResolverVariableInstantiationTest {
             )
             val box = demand.byKey().values.single { it.key.field.name == "box" }
             assertEquals(2, box.subselections.size)
-            assertEquals(setOf("literal", "first", "duplicate", "other", "box"), materialization.collect(demand.type).responseKeys())
+            assertEquals(setOf("literal", "first", "duplicate", "other", "box"), materialization.collectProjection(demand.type).responseKeys())
             assertEquals(6, materialization.size)
         }
     }
@@ -92,7 +93,7 @@ class ResolverVariableInstantiationTest {
             schemas.fragmentFrom(
                 "fragment Input on $type { always: echo conditional: echo @include(if: ${'$'}flag) }",
                 variableField = field,
-            ).materializeSelections
+            ).subselections
         val resolver = FieldValueResolver.of(
             field,
             ResolverFragmentTemplates(input("Item"), input("Query"), mapOf(variable to VariableDefinition.FromArgument.of(field.requireArg("flag")))),
@@ -111,7 +112,7 @@ class ResolverVariableInstantiationTest {
             resolver.declaredDependencies.instantiateQueryMaterializationSelections(occurrence),
         ).forEach { materialization ->
             assertEquals(2, materialization.size)
-            val selections = mutableListOf<MaterializeSelection>()
+            val selections = mutableListOf<Selection>()
             materialization.forEach(selections::add)
             assertEquals(setOf(variable.instantiate(occurrence)), selections.single { it.responseKey == "conditional" }.inclusionCondition.usedVariables())
         }
@@ -264,7 +265,7 @@ class ResolverVariableInstantiationTest {
             setOf("source", "consume"),
             resolver
                 .declaredDependencies.instantiateObjectMaterializationSelections(resolverOccurrenceId)
-                .collect(testWorld.schema.requireQueryTypeDef())
+                .collectProjection(testWorld.schema.requireQueryTypeDef())
                 .responseKeys(),
         )
         val definition = objectFragment.pathVariableDefinitions.single()
@@ -337,7 +338,7 @@ class ResolverVariableInstantiationTest {
         val selection =
             resolver
                 .declaredDependencies.instantiateObjectMaterializationSelections(fragment.resolverOccurrenceId)
-                .collect(testWorld.schema.requireQueryTypeDef())["renamed"]
+                .collectProjection(testWorld.schema.requireQueryTypeDef())["renamed"]
         val variables = selection.key.arguments.instantiatedVariables()
 
         assertTrue(checkNotNull(selection.fieldDirectives).hasDirective("consumerPolicy"))

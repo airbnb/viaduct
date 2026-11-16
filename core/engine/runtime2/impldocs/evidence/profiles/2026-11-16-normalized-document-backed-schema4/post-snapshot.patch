@@ -1,0 +1,210 @@
+--- a/core/engine/runtime2/impldocs/integration/normalized-document.md
++++ b/core/engine/runtime2/impldocs/integration/normalized-document.md
+@@ -10,7 +10,7 @@
+ 
+ The adapter preserves aliases' construction-key equivalence, canonical schema lowering, concrete-type applicability, argument defaults, excluded-selection guards, and introspection erasure. Merge and guard operations retain deferred child contributions instead of collecting them merely to combine parent fields. Subsequent collection continues to use Runtime2's existing concrete-field specialization and key-merging rules. There is no new result-occurrence identity or resolver deduplication rule.
+ 
+-Mutation operations retain the existing response-ordered AST conversion. Resolver/checker materialization templates and nested execution keep their current representation. Successor-demand analysis still recursively computes producer requirements; this integration removes eager request-forest expansion and shares collected child forests, but does not eliminate every downstream traversal or rewrite that algorithm. GraphQL completion and incremental-label validation also retain their existing behavior.
++Mutation operations retain the existing response-ordered AST conversion. Requests with a custom GraphQL Java `ConditionalNodeDecision` also retain AST conversion so callback evaluation order, occurrence count, and mutable-context observations do not change. Resolver/checker materialization templates and nested execution keep their current representation. Successor-demand analysis still recursively computes producer requirements; this integration removes eager request-forest expansion and shares collected child forests, but does not eliminate every downstream traversal or rewrite that algorithm. GraphQL completion and incremental-label validation also retain their existing behavior.
+ 
+ ## Build And Verification
+ 
+@@ -23,6 +23,22 @@
+   --tests '*SelectionForestConcatenationTest' --no-configuration-cache
+ ```
+ 
+-Tests independently compare selections against the existing AST parser and execute through production Resolution. They cover shared descendant identity, deferred argument decoding, aliases and conditions, abstract-type intersections, Node lowering, defaults and nulls, concurrent readers, different variables using a cached ND, selected operation identity, subscriptions, mutation fallback, long fragment chains, and preparsed entries that discard ND. The default Runtime2 check verifies the unchanged default build and the shared model changes.
++Tests independently compare selections against the existing AST parser and execute through production Resolution. They cover shared descendant identity, deferred argument decoding, aliases and conditions, abstract-type intersections, Node lowering, defaults and nulls, concurrent readers, different variables using a cached ND, selected operation identity, subscriptions, mutation fallback, long fragment chains, preparsed entries that discard ND, custom inclusion callbacks, producer-demand equivalence, and exact resolver invocations including mutation order. The default Runtime2 check verifies the unchanged default build and the shared model changes.
+ 
+ The [benchmark guide](../testing/normalized-document-benchmark.md) distinguishes initial view creation from complete forest consumption. Full traversal benchmarks deliberately visit every logical occurrence, including repeated shared descendants, so deferred work is included in the timed region. They do not measure resolver execution or response completion.
++
++## Proposed Common Selection Graph
++
++There is no semantic requirement to store construction and materialization as independent trees. `MaterializeSelection` already carries the canonical key, possible types, inclusion condition, and children carried by `Selection`, plus its response key and field directives. `MaterializeSelectionForest.constructionSelections()` currently recursively copies this richer representation while discarding projection metadata. `Fragment.subselections`, resolver-template preparation, and nested selection execution use that conversion. Variable mapping and occurrence instantiation also have parallel recursive implementations for the two representations.
++
++A common immutable graph can retain source occurrences, scope references, projection metadata, and child references. A bound selection handle carries graph roots, the binding environment, and additional guards. It can expose both `collectConstruction(type)` and `collectMaterialization(type)`; separate typed views are an optional API safeguard, not separate storage. Construction collection groups canonical field invocations by arguments. Materialization collection groups source occurrences by response key, checks compatible invocation keys, and retains response order and directive metadata. Construction can retain excluded occurrences as guarded demand metadata; materialization removes false occurrences before response-key grouping. Each collected map can be cached for an appropriate type and binding environment without replacing the source graph.
++
++For `{ first: user(id: 1) { name } second: user(id: 1) { email } }`, construction combines one `user(id: 1)` demand with both child requirements, while projection retains `first { name }` and `second { email }`. This is an information-preservation requirement: a destructively merged construction map cannot serve as the authoritative projection graph because it has lost the association between each alias and its child selections. Retaining the original graph and deriving both collections avoids that loss and avoids copying an entire second tree.
++
++Client operations can use ND references directly. Resolver/checker fragment templates need an equivalent source graph with their symbolic variables; the current ND public roots are operations, while Viaduct also accepts standalone fragment documents and permits undeclared template variables under explicit resolver ownership. Reusing ND for those templates would benefit from a supported fragment-root normalization API. An implementation can initially retain native fragment nodes behind the same graph interface. Construction-demand closure additionally creates parent demands, checked and unchecked dependencies, and synthetic canonical fields absent from the client's ND. Those are generated nodes referencing existing subgraphs, not another copy of the client graph and not invented GraphQL source nodes.
++
++Graph roots also preserve ownership of a projection. Two resolver templates can independently select `user(id: 1)` and `user(id: 2)` with the same response key `user`. Their combined construction demand is valid, but it is not one valid response-key projection. A single backing graph can retain both templates while construction combines their roots and each materialization uses only its own roots. Similarly, a dependency added to compute a selected field must not automatically become an output field. A common graph does not make every constructed demand a valid materialization request.
++
++Binding, variable qualification, inclusion guards, and concatenation should compose handles or graph expressions instead of cloning every descendant. Source graphs remain immutable and shareable; resolver-occurrence identity and binding state remain on the handle. The two collection algorithms must preserve concrete-field defaults, mutually exclusive type branches, checker provenance, directive visibility, and response-key-qualified mutation identity. Eager `flatMap` helpers, concrete implementation casts in materialization, and recursive variable/parent metadata queries need adaptation before arbitrary consumers can preserve this sharing.
++
++The recommended migration is to retain the ND-backed construction path, introduce the common graph/handle behind both APIs, make `constructionSelections()` a constant-size view operation, and then migrate consumers to the two collection operations. Source graph storage can then be unified even if the semantic names remain in the API. The current implementation establishes only the ND-backed client construction path; materialization and generated-demand migration remain design work, and successor-demand computation still traverses descendants.
+--- a/core/engine/runtime2/src/main/normalized/viaduct/engine/runtime2/execution/NormalizedOperationSelectionProvider.kt
++++ b/core/engine/runtime2/src/main/normalized/viaduct/engine/runtime2/execution/NormalizedOperationSelectionProvider.kt
+@@ -2,6 +2,7 @@
+ 
+ import graphql.GraphQLContext
+ import graphql.execution.ExecutionContext
++import graphql.execution.conditional.ConditionalNodeDecision
+ import graphql.language.OperationDefinition
+ import graphql.normalized.NormalizedDocument
+ import graphql.schema.GraphQLSchema
+@@ -24,7 +25,12 @@
+         sourceSchema: GraphQLSchema,
+         context: ExecutionContext,
+     ): SelectionForest {
+-        if (context.operationDefinition.operation == OperationDefinition.Operation.MUTATION) {
++        // Custom decisions can observe mutable context or have effects. Preserve the existing
++        // eager evaluation order and occurrence count instead of memoizing their decisions.
++        if (
++            context.operationDefinition.operation == OperationDefinition.Operation.MUTATION ||
++            context.graphQLContext.get<ConditionalNodeDecision?>(ConditionalNodeDecision::class.java) != null
++        ) {
+             return Runtime2OperationSelectionProvider.AST.selections(world, sourceSchema, context)
+         }
+         val document = requireNotNull(context.normalizedDocument) {
+--- a/core/engine/runtime2/src/testNormalized/kotlin/viaduct/engine/runtime2/schema/NormalizedOperationSelectionsTest.kt
++++ b/core/engine/runtime2/src/testNormalized/kotlin/viaduct/engine/runtime2/schema/NormalizedOperationSelectionsTest.kt
+@@ -6,21 +6,26 @@
+ import graphql.execution.CoercedVariables
+ import graphql.execution.RawVariables
+ import graphql.execution.ValuesResolver
++import graphql.execution.ExecutionContext
++import graphql.execution.conditional.ConditionalNodeDecision
+ import graphql.execution.preparsed.PreparsedDocumentEntry
+ import graphql.language.FragmentDefinition
+ import graphql.language.OperationDefinition
+ import graphql.normalized.NormalizedDocument
+ import graphql.parser.Parser
+ import graphql.schema.idl.SchemaParser
++import graphql.schema.GraphQLSchema
+ import graphql.schema.idl.UnExecutableSchemaGenerator
+ import graphql.validation.QueryComplexityLimits
+ import graphql.validation.Validator
+ import java.util.Locale
++import java.util.Collections
+ import java.util.concurrent.Callable
+ import java.util.concurrent.CompletableFuture
+ import java.util.concurrent.ConcurrentHashMap
+ import java.util.concurrent.Executors
+ import java.util.concurrent.TimeUnit
++import java.util.concurrent.atomic.AtomicInteger
+ import viaduct.engine.runtime.validation.IncrementalDirectiveValidation
+ import kotlinx.coroutines.Dispatchers
+ import org.junit.jupiter.api.Assertions.assertEquals
+@@ -41,6 +46,10 @@
+ import viaduct.engine.runtime2.model.merge
+ import viaduct.engine.runtime2.model.requireQueryTypeDef
+ import viaduct.engine.runtime2.model.testing.TestWorld
++import viaduct.engine.runtime2.model.registry.Assumptions
++import viaduct.engine.runtime2.resolution.framework.ResolutionObserver
++import viaduct.engine.runtime2.resolution.framework.ResolverInvocationObservation
++import viaduct.engine.runtime2.resolution.successorDemand
+ 
+ class NormalizedOperationSelectionsTest {
+     @Test
+@@ -212,6 +221,14 @@
+         val providers = listOf(Runtime2OperationSelectionProvider.AST, NormalizedOperationSelectionProvider)
+         for (provider in providers) {
+             val cached = ConcurrentHashMap<String, PreparsedDocumentEntry>()
++            val invocations = Collections.synchronizedList(mutableListOf<ResolverInvocationObservation>())
++            val observer = object : ResolutionObserver {
++                override val onResolverInvocation: (ResolverInvocationObservation) -> Unit = { invocations.add(it) }
++            }
++            val configure: (GraphQLContext.Builder) -> Unit = {
++                provider.configureContext(it)
++                it.put(ResolutionObserver::class.java, observer)
++            }
+             val strategy = Runtime2ExecutionStrategy(world.assumptions, world.schemas.graphQLSchema, Dispatchers.Default, operationSelectionProvider = provider)
+             val graphql = GraphQL.newGraphQL(Runtime2WiringFactory(world.schema).wire(world.schemas.graphQLSchema))
+                 .queryExecutionStrategy(strategy)
+@@ -226,24 +243,56 @@
+             val query = "query(${'$'}value: Int!, ${'$'}show: Boolean!) { a: box { ...Fields } b: box { raw } plus(value: ${'$'}value) } fragment Fields on Box { computed @include(if: ${'$'}show) }"
+             val result = graphql.execute(
+                 ExecutionInput.newExecutionInput().query(query).variables(mapOf("value" to 9, "show" to true))
+-                    .graphQLContext(provider::configureContext).build(),
++                    .graphQLContext { configure(it) }.build(),
+             )
+             assertEquals(emptyList<Any>(), result.errors)
+             assertEquals(mapOf("a" to mapOf("computed" to 8), "b" to mapOf("raw" to 4), "plus" to 10), result.getData())
++            assertEquals(listOf("Box.computed", "Query.box", "Query.plus"), invocations.map { "${it.field.containingDef.name}.${it.field.name}" }.sorted())
++            invocations.clear()
+             val rebound = graphql.execute(
+                 ExecutionInput.newExecutionInput().query(query).variables(mapOf("value" to 10, "show" to false))
+-                    .graphQLContext(provider::configureContext).build(),
++                    .graphQLContext { configure(it) }.build(),
+             )
+             assertEquals(emptyList<Any>(), rebound.errors)
+             assertEquals(mapOf("a" to emptyMap<String, Any>(), "b" to mapOf("raw" to 4), "plus" to 11), rebound.getData())
+             assertEquals(1, cached.size)
++            assertEquals(listOf("Query.box", "Query.plus"), invocations.map { "${it.field.containingDef.name}.${it.field.name}" }.sorted())
++            invocations.clear()
+             val mutation = graphql.execute(
+                 ExecutionInput.newExecutionInput().query("mutation { a: plus(value: 1) b: plus(value: 2) }")
+-                    .graphQLContext(provider::configureContext).build(),
++                    .graphQLContext { configure(it) }.build(),
+             )
+             assertEquals(emptyList<Any>(), mutation.errors)
+             assertEquals(linkedMapOf("a" to 2, "b" to 3), mutation.getData())
+-        }
++            assertEquals(listOf(1, 2), invocations.map { it.arguments.fieldExpressions()["value"] })
++        }
++    }
++
++    @Test
++    fun `producer demand from a shared forest matches demand from expanded selections`() {
++        val world = TestWorld.fromDSL(
++            """
++            extend type Query { box: Box @resolver(script: "{'raw': 4}") }
++            type Box {
++              raw: Int
++              next: Box
++              computed: Int @resolver(of: "raw", script: "objectValue.raw * 2")
++            }
++            """.trimIndent(),
++        )
++        val ast = Parser.parse("{ a: box { ...Fields } b: box { ...Fields } } fragment Fields on Box { computed next { raw } }")
++        val operation = ast.getDefinitionsOfType(OperationDefinition::class.java).single()
++        val context = GraphQLContext.newContext().of(NormalizedDocument.ENABLED, true).build()
++        val validated = Validator().validateDocumentWithResult(world.schemas.graphQLSchema, ast, { true }, Locale.ENGLISH, QueryComplexityLimits.NONE, context)
++        assertEquals(emptyList<Any>(), validated.errors())
++        val variables = CoercedVariables.emptyVariables()
++        val baseline = GJSelectionParser(world.schemas.graphQLSchema, world.schema, emptyMap()).selectionsFrom(
++            operation, variables, context, Locale.ENGLISH, ast.getDefinitionsOfType(FragmentDefinition::class.java).associateBy { it.name },
++        )
++        val source = NormalizedSelectionSource(requireNotNull(validated.normalizedDocument()), world.schemas.graphQLSchema, world.schema, variables, context, Locale.ENGLISH)
++        val shared = source.selections(operation)
++        assertEquivalent(baseline.successorDemand(world.assumptions, null), shared.successorDemand(world.assumptions, null))
++        assertEquals(5, source.decodedFieldCount)
+     }
+ 
+     @Test
+@@ -269,6 +318,34 @@
+         assertTrue(generateSequence(error as Throwable?) { it.cause }.any { it.message.orEmpty().contains("retain it in the preparsed cache") })
+     }
+ 
++    @Test
++    fun `custom inclusion decisions retain eager occurrence evaluation`() {
++        val world = TestWorld.fromSDL("type Query { value: Int }")
++        val calls = AtomicInteger()
++        val duringPreparation = AtomicInteger()
++        val provider = object : Runtime2OperationSelectionProvider {
++            override fun selections(world: Assumptions, sourceSchema: GraphQLSchema, context: ExecutionContext): SelectionForest {
++                val before = calls.get()
++                return NormalizedOperationSelectionProvider.selections(world, sourceSchema, context).also {
++                    duringPreparation.set(calls.get() - before)
++                }
++            }
++        }
++        val strategy = Runtime2ExecutionStrategy(world.assumptions, world.schemas.graphQLSchema, Dispatchers.Default, operationSelectionProvider = provider)
++        val graphql = GraphQL.newGraphQL(Runtime2WiringFactory(world.schema).wire(world.schemas.graphQLSchema))
++            .queryExecutionStrategy(strategy)
++            .instrumentation(RequestLifetimeInstrumentation())
++            .build()
++        val result = graphql.execute(
++            ExecutionInput.newExecutionInput().query("{ value }").graphQLContext {
++                NormalizedOperationSelectionProvider.configureContext(it)
++                it.put(ConditionalNodeDecision::class.java, ConditionalNodeDecision { calls.incrementAndGet(); true })
++            }.build(),
++        )
++        assertEquals(emptyList<Any>(), result.errors)
++        assertEquals(1, duringPreparation.get())
++    }
++
+     private class Fixture(sdl: String) {
+         val sourceSchema = UnExecutableSchemaGenerator.makeUnExecutableSchema(SchemaParser().parse(sdl))
+         val schemas = ViaductAndGJSchema.fromGraphQLSchema(sourceSchema)

@@ -11,7 +11,6 @@ import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.ResolverTarget
 import viaduct.engine.runtime2.model.SelectionForest
 import viaduct.engine.runtime2.model.emptyFragmentOf
-import viaduct.engine.runtime2.model.materializeSelectionForestOf
 import viaduct.engine.runtime2.model.merge
 import viaduct.engine.runtime2.model.registry.FieldCheckerResolver
 import viaduct.engine.runtime2.model.registry.ResolverFragmentTemplates
@@ -19,6 +18,7 @@ import viaduct.engine.runtime2.model.registry.fieldResolverOf
 import viaduct.engine.runtime2.model.requireObjectField
 import viaduct.engine.runtime2.model.requireQueryTypeDef
 import viaduct.engine.runtime2.model.requireType
+import viaduct.engine.runtime2.model.selectionForestOf
 import viaduct.engine.runtime2.model.testing.TestWorld
 import viaduct.engine.runtime2.model.testing.emptyFragmentOf
 import viaduct.engine.runtime2.model.testing.fragmentFrom
@@ -214,8 +214,8 @@ interface SelectiveFieldCheckerExactnessContract {
                                                 objectFragmentTemplate =
                                                     schema
                                                         .fragmentFrom("fragment Input on Item { raw }")
-                                                        .materializeSelections,
-                                                queryFragmentTemplate = materializeSelectionForestOf(),
+                                                        .subselections,
+                                                queryFragmentTemplate = selectionForestOf(),
                                             ),
                                     )
                                 } else {
@@ -275,11 +275,11 @@ interface SelectiveFieldCheckerExactnessContract {
                                 mapOf(
                                     "query" to
                                         ResolverFragmentTemplates(
-                                            objectFragmentTemplate = materializeSelectionForestOf(),
+                                            objectFragmentTemplate = selectionForestOf(),
                                             queryFragmentTemplate =
                                                 schema
                                                     .fragmentFrom("fragment Input on Query { wrapper }")
-                                                    .materializeSelections,
+                                                    .subselections,
                                         ),
                                 ),
                         ) { _, _, _ -> CheckerResult.Success },

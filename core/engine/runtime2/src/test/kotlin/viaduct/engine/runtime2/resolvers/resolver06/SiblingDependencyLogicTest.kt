@@ -25,7 +25,6 @@ import viaduct.engine.runtime2.model.testing.emptyFragmentOf
 import viaduct.engine.runtime2.model.testing.fragmentFrom
 import viaduct.engine.runtime2.model.testing.objectOf
 import viaduct.engine.runtime2.model.testing.testRoot
-import viaduct.engine.runtime2.model.toCanonicalMaterializeSelectionForest
 import viaduct.engine.runtime2.resolution.framework.OEROccurrence
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
 import viaduct.graphql.schema.ViaductSchema
@@ -276,9 +275,9 @@ class SiblingDependencyLogicTest {
                 fragmentTemplates =
                     ResolverFragmentTemplates(
                         objectFragmentTemplate =
-                            targetResolver.declaredDependencies.objectFragment.toCanonicalMaterializeSelectionForest(),
+                            targetResolver.declaredDependencies.objectFragment,
                         queryFragmentTemplate =
-                            templateResolver.declaredDependencies.queryFragment.toCanonicalMaterializeSelectionForest(),
+                            templateResolver.declaredDependencies.queryFragment,
                     ),
                 queryType = schema.requireQueryTypeDef(),
                 function = { _, _, _, _, _ -> 2 },

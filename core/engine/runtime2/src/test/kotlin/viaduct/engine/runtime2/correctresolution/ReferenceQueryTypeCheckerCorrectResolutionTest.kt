@@ -11,7 +11,6 @@ import viaduct.engine.runtime2.model.Promise
 import viaduct.engine.runtime2.model.ResolverOccurrenceId
 import viaduct.engine.runtime2.model.RootFieldReferenceData
 import viaduct.engine.runtime2.model.emptyFragmentOf
-import viaduct.engine.runtime2.model.materializeSelectionForestOf
 import viaduct.engine.runtime2.model.merge
 import viaduct.engine.runtime2.model.registry.ResolverFragmentTemplates
 import viaduct.engine.runtime2.model.registry.TypeCheckerResolver
@@ -129,8 +128,8 @@ class ReferenceQueryTypeCheckerCorrectResolutionTest {
                         query,
                         mapOf(
                             "input" to ResolverFragmentTemplates(
-                                schema.fragmentFrom("fragment Input on Query { policy }").materializeSelections,
-                                materializeSelectionForestOf(),
+                                schema.fragmentFrom("fragment Input on Query { policy }").subselections,
+                                selectionForestOf(),
                             ),
                         ),
                     ) { _, _ -> CheckerResult.Success },

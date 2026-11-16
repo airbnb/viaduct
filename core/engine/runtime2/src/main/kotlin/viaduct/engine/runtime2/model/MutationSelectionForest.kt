@@ -96,7 +96,7 @@ private class MutationSelectionForestImpl(
 /** One response-key-preserving invocation on a mutation namespace object. */
 sealed interface MutationSelection : ObjectSelection {
     override val key: ObjectEngineResult.GroundKey
-    val responseKey: String
+    override val responseKey: String
 
     companion object {
         fun of(

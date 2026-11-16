@@ -230,7 +230,7 @@ class TaskObservationTest : ResolutionDispatcherResource {
                 val schema = schemas.loweredSchema
                 mapOf(
                     schema.requireObjectField("Query", "outer") to fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _, context ->
-                        context.resolveSelectionSet(schemas.fragmentFrom("fragment Inner on Query { inner }").materializeSelections).get("inner")
+                        context.resolveSelectionSet(schemas.fragmentFrom("fragment Inner on Query { inner }").subselections).get("inner")
                     },
                     schema.requireObjectField("Query", "inner") to fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ -> 9 },
                 )

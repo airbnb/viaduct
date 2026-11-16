@@ -21,8 +21,6 @@ import viaduct.engine.runtime2.model.EngineInputData
 import viaduct.engine.runtime2.model.EngineObjectDataEntry
 import viaduct.engine.runtime2.model.EngineOutputData
 import viaduct.engine.runtime2.model.Fragment
-import viaduct.engine.runtime2.model.MaterializeSelection
-import viaduct.engine.runtime2.model.MaterializeSelectionForest
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.ResolverOutputData
 import viaduct.engine.runtime2.model.ResolverTarget
@@ -54,7 +52,7 @@ import viaduct.engine.runtime2.model.testing.generatedNodeResolverOf
 import viaduct.engine.runtime2.model.testing.objectOf
 import viaduct.engine.runtime2.model.testing.withErrorArguments
 import viaduct.engine.runtime2.model.testing.withGeneratedOutputPolicy
-import viaduct.engine.runtime2.model.toMaterializeSelectionForest
+import viaduct.engine.runtime2.model.toSelectionForest
 import viaduct.engine.runtime2.model.usedVariables
 import viaduct.engine.runtime2.resolution.framework.ResolverInvocationObservation
 import viaduct.engine.runtime2.schema.SourceSchemaAdapter
@@ -760,7 +758,7 @@ class ArbitraryRegistry internal constructor(
             val queryPlan = if (reusesResolverTemplate) queryFragments.getValue(coordinate) else FragmentPlan(queryType.name, emptyList())
             val objectTemplate = objectPlan.materialize(schema, field, target)
             val queryTemplate = queryPlan.materialize(schema, field, target)
-            check(objectTemplate.materializeSelections.selectsNoParentField() && queryTemplate.materializeSelections.selectsNoParentField()) {
+            check(objectTemplate.subselections.selectsNoParentField() && queryTemplate.subselections.selectsNoParentField()) {
                 "Generated field checker $coordinate selects a @parent field"
             }
             // Materialization can turn a tuple containing an error into Arguments.Error, erasing
@@ -777,7 +775,7 @@ class ArbitraryRegistry internal constructor(
                         var selections = (if (provider.providerFragment == ProviderFragment.OBJECT) objectFragments else queryFragments)
                             .getValue(coordinate)
                             .materialize(schema, field, target)
-                            .materializeSelections
+                            .subselections
                         val path = provider.responsePath().map { responseKey ->
                             val selected = selections.filter { it.responseKey == responseKey }
                             val keys = mutableListOf<ObjectEngineResult.Key>()
@@ -792,8 +790,8 @@ class ArbitraryRegistry internal constructor(
             }
             val templates =
                 ResolverFragmentTemplates(
-                    objectFragmentTemplate = objectTemplate.materializeSelections,
-                    queryFragmentTemplate = queryTemplate.materializeSelections,
+                    objectFragmentTemplate = objectTemplate.subselections,
+                    queryFragmentTemplate = queryTemplate.subselections,
                     variables = variables,
                     variablesProvider = if (providerPlans.isEmpty()) {
                         null
@@ -806,11 +804,11 @@ class ArbitraryRegistry internal constructor(
             val emptyObject =
                 FragmentPlan(coordinate.typeName, emptyList())
                     .materialize(schema, field, target)
-                    .materializeSelections
+                    .subselections
             val emptyQuery =
                 FragmentPlan(queryType.name, emptyList())
                     .materialize(schema, field, target)
-                    .materializeSelections
+                    .subselections
             val fragmentTemplates =
                 linkedMapOf(
                     "left" to templates,
@@ -826,7 +824,7 @@ class ArbitraryRegistry internal constructor(
                             "rawObject",
                             ResolverFragmentTemplates(
                                 objectFragmentTemplate =
-                                    checkerOnlyPlan.materialize(schema, field, target).materializeSelections,
+                                    checkerOnlyPlan.materialize(schema, field, target).subselections,
                                 queryFragmentTemplate = emptyQuery,
                             ),
                         )
@@ -837,7 +835,7 @@ class ArbitraryRegistry internal constructor(
                             ResolverFragmentTemplates(
                                 objectFragmentTemplate = emptyObject,
                                 queryFragmentTemplate =
-                                    checkerOnlyPlan.materialize(schema, field, target).materializeSelections,
+                                    checkerOnlyPlan.materialize(schema, field, target).subselections,
                             ),
                         )
                     }
@@ -3128,7 +3126,7 @@ private fun ArbitrarySchema.selectsAnyOf(
             selectsAnyOf(selection.subselections, field.type.namedType, targets)
     }
 
-internal fun MaterializeSelectionForest.selectsNoParentField(): Boolean = all { selection -> !selection.key.field.isParentField() && selection.subselections.selectsNoParentField() }
+internal fun SelectionForest.selectsNoParentField(): Boolean = all { selection -> !selection.key.field.isParentField() && selection.subselections.selectsNoParentField() }
 
 private fun ArbitrarySchema.maximumParentSelectionDepth(
     selection: FragmentSelectionPlan,
@@ -3166,8 +3164,8 @@ data class FragmentPlan(
             val parsed = schema.fragmentFrom(source(), variableTarget = variableTarget)
             Fragment.of(
                 nominalType = parsed.nominalType,
-                materializeSelections =
-                    selections.materialize(schema.loweredSchema, parsed.materializeSelections),
+                subselections =
+                    selections.materialize(schema.loweredSchema, parsed.subselections),
             )
         }
 
@@ -3253,8 +3251,8 @@ data class FragmentSelectionPlan(
 
 private fun List<FragmentSelectionPlan>.materialize(
     schema: ViaductSchema,
-    parsedSelections: MaterializeSelectionForest,
-): MaterializeSelectionForest {
+    parsedSelections: SelectionForest,
+): SelectionForest {
     val parsed =
         buildList {
             parsedSelections.forEach(::add)
@@ -3269,7 +3267,7 @@ private fun List<FragmentSelectionPlan>.materialize(
                     .filterValues { argument -> argument is ErrorInputPlan }
                     .keys,
             ).let { materializedSelection ->
-                MaterializeSelection.of(
+                Selection.of(
                     responseKey = materializedSelection.responseKey,
                     key = materializedSelection.key,
                     possibleTypes = selection.possibleTypes,
@@ -3278,7 +3276,7 @@ private fun List<FragmentSelectionPlan>.materialize(
                         plan.subselections.materialize(schema, selection.subselections),
                 )
             }
-        }.toMaterializeSelectionForest()
+        }.toSelectionForest()
 }
 
 sealed interface InputValuePlan {

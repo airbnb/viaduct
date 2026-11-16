@@ -1,8 +1,8 @@
 package viaduct.engine.runtime.graphql_java
 
 import graphql.execution.values.InputInterceptor
-import graphql.introspection.GoodFaithIntrospection
 import graphql.introspection.Introspection
+import graphql.normalized.NormalizedDocument
 import graphql.parser.ParserOptions
 import graphql.validation.QueryComplexityLimits
 import io.mockk.mockk
@@ -16,7 +16,7 @@ class GraphQLJavaConfigTest {
         assertEquals(
             mapOf<Any, Any?>(
                 QueryComplexityLimits.KEY to QueryComplexityLimits.NONE,
-                GoodFaithIntrospection.GOOD_FAITH_INTROSPECTION_DISABLED to true,
+                NormalizedDocument.ENABLED to true,
             ),
             GraphQLJavaConfig.none.asMap()
         )
@@ -32,7 +32,7 @@ class GraphQLJavaConfigTest {
                     InputInterceptor::class.java to inputInterceptor,
                     Introspection.INTROSPECTION_DISABLED to true,
                     QueryComplexityLimits.KEY to QueryComplexityLimits.NONE,
-                    GoodFaithIntrospection.GOOD_FAITH_INTROSPECTION_DISABLED to true,
+                    NormalizedDocument.ENABLED to true,
                 ),
                 ctx.asMap()
             )

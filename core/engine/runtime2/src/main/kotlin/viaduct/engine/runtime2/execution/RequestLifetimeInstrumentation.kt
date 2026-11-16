@@ -21,6 +21,7 @@ class RequestLifetimeInstrumentation : SimplePerformantInstrumentation() {
         parameters: InstrumentationExecutionParameters,
         state: InstrumentationState?,
     ): ExecutionInput {
+        executionInput.graphQLContext.put(graphql.normalized.NormalizedDocument.ENABLED, true)
         executionInput.setIsEngine2()
         return executionInput
     }

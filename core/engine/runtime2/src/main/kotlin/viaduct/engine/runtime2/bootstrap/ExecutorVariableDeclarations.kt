@@ -14,7 +14,7 @@ import viaduct.engine.runtime2.model.registry.VariablesProviderFunction
 import viaduct.engine.runtime2.model.registry.fromArgument
 import viaduct.engine.runtime2.model.usedVariables
 import viaduct.engine.runtime2.resolution.currentVariablesProviderResolutionContext
-import viaduct.engine.runtime2.schema.ParsedSpecFragment
+import viaduct.engine.runtime2.schema.ParsedSelectionFragment
 import viaduct.engine.runtime2.schema.ViaductAndGJSchema
 import viaduct.graphql.schema.ViaductSchema
 
@@ -28,8 +28,8 @@ internal class ExecutorVariableDeclarations(
 internal fun FieldResolverExecutor.compileVariableDeclarations(
     schema: ViaductAndGJSchema,
     field: ViaductSchema.ObjectField,
-    objectFragment: ParsedSpecFragment?,
-    queryFragment: ParsedSpecFragment?,
+    objectFragment: ParsedSelectionFragment?,
+    queryFragment: ParsedSelectionFragment?,
     context: EngineExecutionContext?,
     contextForInvocation: ((ResolutionExecutionContext) -> EngineExecutionContext)? = null,
 ): ExecutorVariableDeclarations {

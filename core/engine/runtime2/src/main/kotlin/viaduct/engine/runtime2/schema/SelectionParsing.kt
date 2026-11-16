@@ -1,41 +1,19 @@
 package viaduct.engine.runtime2.schema
 
 import graphql.GraphQLContext
-import graphql.execution.CoercedVariables
 import graphql.execution.RawVariables
 import graphql.execution.ValuesResolver
 import graphql.language.Document
-import graphql.language.FragmentDefinition
 import graphql.language.OperationDefinition
 import graphql.parser.Parser
-import graphql.schema.GraphQLSchema
 import graphql.validation.Validator
 import java.util.Locale
 import viaduct.engine.runtime2.model.EngineInputData
-import viaduct.engine.runtime2.model.MaterializeSelectionForest
 import viaduct.engine.runtime2.model.ResolverTarget
 import viaduct.engine.runtime2.model.SelectionForest
-import viaduct.engine.runtime2.model.registry.Assumptions
 import viaduct.graphql.schema.ViaductSchema
 
 fun ViaductAndGJSchema.selectionsFrom(fragment: String): Pair<ViaductSchema.CompositeTypeDef, SelectionForest> = selectionParser().selectionsFrom(fragment)
-
-/**
- * Decodes one post-validation query or mutation operation with already-coerced operation variables.
- *
- * Delivery-only `@defer` directives are transparent to runtime2 so deferred selections remain part of
- * full-operation demand. Named fragment spreads are inlined while decoding.
- */
-fun Assumptions.selectionsFrom(
-    sourceSchema: GraphQLSchema,
-    operation: OperationDefinition,
-    variables: CoercedVariables,
-    graphQLContext: GraphQLContext = GraphQLContext.getDefault(),
-    locale: Locale = Locale.getDefault(),
-    fragmentsByName: Map<String, FragmentDefinition> = emptyMap(),
-): SelectionForest =
-    GJSelectionParser(sourceSchema, schema, emptyMap())
-        .selectionsFrom(operation, variables, graphQLContext, locale, fragmentsByName)
 
 /** Parses and decodes one validated query or mutation operation with raw request variables. */
 fun ViaductAndGJSchema.operationSelectionsFrom(
@@ -46,7 +24,9 @@ fun ViaductAndGJSchema.operationSelectionsFrom(
     locale: Locale = Locale.getDefault(),
 ): SelectionForest {
     val document = Parser.parse(documentSource)
-    val errors = Validator().validateDocument(graphQLSchema, document, locale)
+    graphQLContext.put(graphql.normalized.NormalizedDocument.ENABLED, true)
+    val validation = Validator().validateDocumentWithResult(graphQLSchema, document, { true }, locale, null, graphQLContext)
+    val errors = validation.errors()
     require(errors.isEmpty()) {
         errors.joinToString(
             prefix = "Invalid GraphQL document: ",
@@ -54,10 +34,6 @@ fun ViaductAndGJSchema.operationSelectionsFrom(
         ) { it.message }
     }
     val operations = document.getDefinitionsOfType(OperationDefinition::class.java)
-    val fragmentsByName =
-        document
-            .getDefinitionsOfType(FragmentDefinition::class.java)
-            .associateBy { fragment -> fragment.name }
     val operation =
         if (operationName == null) {
             require(operations.size == 1) {
@@ -78,13 +54,14 @@ fun ViaductAndGJSchema.operationSelectionsFrom(
             graphQLContext,
             locale,
         )
-    return selectionParser().selectionsFrom(
-        operation,
+    return NormalizedSelectionSource(
+        requireNotNull(validation.normalizedDocument()),
+        graphQLSchema,
+        loweredSchema,
         coercedVariables,
         graphQLContext,
-        locale,
-        fragmentsByName,
-    )
+        locale
+    ).selections(operation)
 }
 
 /** Unbound fragment variables require an explicit owner; bindings contain only ordinary input data. */
@@ -94,8 +71,8 @@ fun ViaductAndGJSchema.materializeSelectionsFrom(
     variableField: ViaductSchema.ObjectField? = null,
     variableTarget: ResolverTarget? = null,
     preserveSourceResponseKeys: Boolean = false,
-): Pair<ViaductSchema.CompositeTypeDef, MaterializeSelectionForest> =
-    GJSelectionParser(
+): Pair<ViaductSchema.CompositeTypeDef, SelectionForest> =
+    NormalizedFragmentParser(
         sourceSchema = graphQLSchema,
         schema = loweredSchema,
         variableValues = bindings,
@@ -105,22 +82,22 @@ fun ViaductAndGJSchema.materializeSelectionsFrom(
         preserveSourceResponseKeys = preserveSourceResponseKeys,
     ).materializeSelectionsFrom(source)
 
-internal fun ViaductAndGJSchema.specFragmentFromDocument(
+internal fun ViaductAndGJSchema.fragmentFromDocument(
     document: Document,
     bindings: Map<String, EngineInputData?> = emptyMap(),
     variableField: ViaductSchema.ObjectField? = null,
     variableTarget: ResolverTarget? = null,
-): ParsedSpecFragment =
-    GJSelectionParser(
+): ParsedSelectionFragment =
+    NormalizedFragmentParser(
         sourceSchema = graphQLSchema,
         schema = loweredSchema,
         variableValues = bindings,
         variableTarget = variableTarget ?: variableField?.let(ResolverTarget::FieldValueResolverTarget),
         preserveSourceResponseKeys = true,
-    ).specSelectionsFrom(document)
+    ).parseFragment(document)
 
-private fun ViaductAndGJSchema.selectionParser(): GJSelectionParser =
-    GJSelectionParser(
+private fun ViaductAndGJSchema.selectionParser(): NormalizedFragmentParser =
+    NormalizedFragmentParser(
         sourceSchema = graphQLSchema,
         schema = loweredSchema,
         variableValues = emptyMap(),

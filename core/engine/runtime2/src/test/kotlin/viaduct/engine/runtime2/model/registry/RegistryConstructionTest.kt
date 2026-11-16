@@ -23,15 +23,14 @@ import viaduct.engine.runtime2.bootstrap.resolverRegistryOf
 import viaduct.engine.runtime2.model.Arguments
 import viaduct.engine.runtime2.model.Fragment
 import viaduct.engine.runtime2.model.InclusionCondition
-import viaduct.engine.runtime2.model.MaterializeSelection
-import viaduct.engine.runtime2.model.MaterializeSelectionForest
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.ResolverTarget
 import viaduct.engine.runtime2.model.RootFieldReferenceData
+import viaduct.engine.runtime2.model.Selection
+import viaduct.engine.runtime2.model.SelectionForest
 import viaduct.engine.runtime2.model.additionalContextForResolver
 import viaduct.engine.runtime2.model.emptyFragmentOf
 import viaduct.engine.runtime2.model.engineObjectDataOf
-import viaduct.engine.runtime2.model.materializeSelectionForestOf
 import viaduct.engine.runtime2.model.merge
 import viaduct.engine.runtime2.model.nodeReferenceIdentityOrNull
 import viaduct.engine.runtime2.model.nodeRootFieldReferenceOf
@@ -39,6 +38,7 @@ import viaduct.engine.runtime2.model.requireObjectField
 import viaduct.engine.runtime2.model.requireQueryTypeDef
 import viaduct.engine.runtime2.model.requireType
 import viaduct.engine.runtime2.model.schemaType
+import viaduct.engine.runtime2.model.selectionForestOf
 import viaduct.engine.runtime2.model.testing.emptyFragmentOf
 import viaduct.engine.runtime2.model.testing.mayDemandFrom
 import viaduct.engine.runtime2.model.testing.referenceConstructionDemand
@@ -106,7 +106,7 @@ class RegistryConstructionTest {
         val query = schema.requireQueryTypeDef()
         val owner = schema.requireObjectField("Query", "result")
         val variable = Arguments.Variable.of(owner, "seed")
-        val symbolic = fragment(schemas, "fragment Input on Query { echo(value: ${'$'}seed) }", owner).materializeSelections
+        val symbolic = fragment(schemas, "fragment Input on Query { echo(value: ${'$'}seed) }", owner).subselections
         val empty = schema.emptyFragmentOf("Query")
         for (root in ProviderFragment.entries) {
             for (nested in listOf(false, true)) {
@@ -145,8 +145,8 @@ class RegistryConstructionTest {
                 val invalid = erroneousSelections(schema, nested)
                 val failure = assertFailsWith<IllegalArgumentException> {
                     ResolverFragmentTemplates(
-                        objectFragmentTemplate = if (root == ProviderFragment.OBJECT) invalid else materializeSelectionForestOf(),
-                        queryFragmentTemplate = if (root == ProviderFragment.QUERY) invalid else materializeSelectionForestOf(),
+                        objectFragmentTemplate = if (root == ProviderFragment.OBJECT) invalid else selectionForestOf(),
+                        queryFragmentTemplate = if (root == ProviderFragment.QUERY) invalid else selectionForestOf(),
                     )
                 }
 
@@ -651,14 +651,14 @@ class RegistryConstructionTest {
         val empty = schema.emptyFragmentOf("Query")
         for (root in ProviderFragment.entries) {
             for (guard in listOf("", " @skip(if: true)")) {
-                val inputs = fragment(schemas, "fragment Input on Query { dependency$guard }", checked).materializeSelections
+                val inputs = fragment(schemas, "fragment Input on Query { dependency$guard }", checked).subselections
                 val checker = FieldCheckerResolver.of(
                     checked,
                     schema.requireQueryTypeDef(),
                     fragmentTemplates = mapOf(
                         "input" to ResolverFragmentTemplates(
-                            objectFragmentTemplate = if (root == ProviderFragment.OBJECT) inputs else materializeSelectionForestOf(),
-                            queryFragmentTemplate = if (root == ProviderFragment.QUERY) inputs else materializeSelectionForestOf(),
+                            objectFragmentTemplate = if (root == ProviderFragment.OBJECT) inputs else selectionForestOf(),
+                            queryFragmentTemplate = if (root == ProviderFragment.QUERY) inputs else selectionForestOf(),
                         ),
                     ),
                 ) { _, _, _ -> CheckerResult.Success }
@@ -694,8 +694,8 @@ class RegistryConstructionTest {
             schema.requireQueryTypeDef(),
             fragmentTemplates = mapOf(
                 "input" to ResolverFragmentTemplates(
-                    objectFragmentTemplate = materializeSelectionForestOf(),
-                    queryFragmentTemplate = fragment(schemas, "fragment Input on Query { dependency }", dependency).materializeSelections,
+                    objectFragmentTemplate = selectionForestOf(),
+                    queryFragmentTemplate = fragment(schemas, "fragment Input on Query { dependency }", dependency).subselections,
                 ),
             ),
         ) { _, _ -> CheckerResult.Success }
@@ -730,8 +730,8 @@ class RegistryConstructionTest {
                     schema.requireQueryTypeDef(),
                     fragmentTemplates = mapOf(
                         "input" to ResolverFragmentTemplates(
-                            objectFragmentTemplate = fragment(schemas, "fragment Input on Query { first second }", field).materializeSelections,
-                            queryFragmentTemplate = materializeSelectionForestOf(),
+                            objectFragmentTemplate = fragment(schemas, "fragment Input on Query { first second }", field).subselections,
+                            queryFragmentTemplate = selectionForestOf(),
                         ),
                     ),
                 ) { _, _, _ -> CheckerResult.Success }
@@ -752,8 +752,8 @@ class RegistryConstructionTest {
             schema.requireQueryTypeDef(),
             fragmentTemplates = mapOf(
                 "input" to ResolverFragmentTemplates(
-                    objectFragmentTemplate = fragment(schemas, "fragment Input on Item { next { value } }", node).materializeSelections,
-                    queryFragmentTemplate = materializeSelectionForestOf(),
+                    objectFragmentTemplate = fragment(schemas, "fragment Input on Item { next { value } }", node).subselections,
+                    queryFragmentTemplate = selectionForestOf(),
                 ),
             ),
         ) { _, _ -> CheckerResult.Success }
@@ -770,22 +770,22 @@ class RegistryConstructionTest {
     private fun erroneousSelections(
         schema: ViaductSchema,
         nested: Boolean,
-    ): MaterializeSelectionForest {
+    ): SelectionForest {
         val field = schema.requireObjectField(if (nested) "Box" else "Query", "dependency")
         val error =
-            materializeSelectionForestOf(
-                MaterializeSelection.of(
+            selectionForestOf(
+                Selection.of(
                     responseKey = "dependency",
                     key = ObjectEngineResult.GroundKey.of(field, Arguments.Error),
                     possibleTypes = setOf(field.containingDef),
-                    subselections = materializeSelectionForestOf(),
+                    subselections = selectionForestOf(),
                     inclusionCondition = if (nested) InclusionCondition.Never else InclusionCondition.Always,
                 ),
             )
         if (!nested) return error
         val box = schema.requireObjectField("Query", "box")
-        return materializeSelectionForestOf(
-            MaterializeSelection.of(
+        return selectionForestOf(
+            Selection.of(
                 responseKey = "box",
                 key = ObjectEngineResult.GroundKey.of(box, emptyMap()),
                 possibleTypes = setOf(box.containingDef),

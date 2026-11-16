@@ -1,0 +1,12 @@
+Started: 2026-11-15T23:57:22Z
+openjdk version "25.0.5.0.3" 2026-10-24
+OpenJDK Runtime Environment (build 25.0.5.0.3+1-1-26.04.1-Ubuntu)
+OpenJDK 64-Bit Server VM (build 25.0.5.0.3+1-1-26.04.1-Ubuntu, mixed mode, sharing)
+8bbd67ce5270995b2c1ced3536950bbde7a0435415911cafbeacbb3077d017a6  /opt/graphql-schema-perf/viaduct-nd-unified-20261116-0046/unified.jar
+Linux Ubuntu-resolute-latest-amd64-base.zst 7.0.0-22-generic #22-Ubuntu SMP PREEMPT_DYNAMIC Mon May 25 15:54:34 UTC 2026 x86_64 GNU/Linux
+GraphQL Java PR 4562 head: 69c7bfbef920e5b95b7c295b60ef0652523eef3d
+Suite: NormalizedDocumentBackedForestBenchmark
+Cases: 1 methods x 2 forks
+Per fork: 2 warmup x 30s + 3 measurement x 60s = 240s
+Scheduled JMH iteration time: 480s (8m)
+Wall-clock deadline for JMH, including fork setup: 15m plus 30s termination grace

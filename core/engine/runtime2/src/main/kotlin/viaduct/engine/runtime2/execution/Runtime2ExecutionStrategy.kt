@@ -31,7 +31,6 @@ import viaduct.engine.runtime2.resolution.framework.CycleCheckState
 import viaduct.engine.runtime2.resolution.framework.ResolutionObserver
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
 import viaduct.engine.runtime2.resolution.startResolution
-import viaduct.engine.runtime2.schema.selectionsFrom
 
 /**
  * GraphQL operation execution boundary for the runtime2 GraphQL-Java harness.
@@ -49,6 +48,7 @@ class Runtime2ExecutionStrategy(
     private val engineExecutionContextFactory: (ExecutionContext) -> EngineExecutionContext? = { null },
     dataFetcherExceptionHandler: DataFetcherExceptionHandler =
         SimpleDataFetcherExceptionHandler(),
+    private val operationSelectionProvider: Runtime2OperationSelectionProvider = NormalizedOperationSelectionProvider,
 ) : AsyncExecutionStrategy(dataFetcherExceptionHandler) {
     private val resolverExceptionHandler = dataFetcherExceptionHandler
 
@@ -56,16 +56,7 @@ class Runtime2ExecutionStrategy(
         executionContext: ExecutionContext,
         parameters: ExecutionStrategyParameters,
     ): CompletableFuture<ExecutionResult> {
-        // Query Planniing: Convert operation to be executed into a [SelectionForest]
-        val selections =
-            world.selectionsFrom(
-                sourceSchema = sourceSchema,
-                operation = executionContext.operationDefinition,
-                variables = executionContext.coercedVariables,
-                graphQLContext = executionContext.graphQLContext,
-                locale = executionContext.locale,
-                fragmentsByName = executionContext.fragmentsByName,
-            )
+        val selections = operationSelectionProvider.selections(world, sourceSchema, executionContext)
 
         val requestJob = Job()
         executionContext.graphQLContext

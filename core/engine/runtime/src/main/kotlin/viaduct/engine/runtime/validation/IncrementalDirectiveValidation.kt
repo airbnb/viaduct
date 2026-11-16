@@ -38,7 +38,9 @@ class IncrementalDirectiveValidation(
             if (document == null) {
                 entry
             } else {
-                PreparsedDocumentEntry(document, entry.errors + validateLabels(document))
+                val labelErrors = validateLabels(document)
+                // Preserve validation artifacts carried by successful preparsed entries.
+                if (labelErrors.isEmpty()) entry else PreparsedDocumentEntry(document, entry.errors + labelErrors)
             }
         }
 }

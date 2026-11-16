@@ -9,10 +9,10 @@ import viaduct.engine.api.EngineObjectData
 import viaduct.engine.runtime2.model.Arguments
 import viaduct.engine.runtime2.model.EngineResultCell
 import viaduct.engine.runtime2.model.InclusionCondition
-import viaduct.engine.runtime2.model.MaterializeSelectionForest
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.ObjectSelection
 import viaduct.engine.runtime2.model.ResolverTarget
+import viaduct.engine.runtime2.model.SelectionForest
 import viaduct.engine.runtime2.model.VariableBinding
 import viaduct.engine.runtime2.model.registry.CheckerInput
 import viaduct.engine.runtime2.model.registry.ResolutionExecutionContext
@@ -267,9 +267,9 @@ internal class FieldCheckerTask(
         }
     }
 
-    override suspend fun resolveSelectionSet(selections: MaterializeSelectionForest): EngineObjectData.Sync {
+    override suspend fun resolveSelectionSet(selections: SelectionForest): EngineObjectData.Sync {
         val childOperation = operation.forChildScope(scope)
-        val result = childOperation.startResolve(Demand.unchecked(selections.constructionSelections()), creator = this)
+        val result = childOperation.startResolve(Demand.unchecked(selections), creator = this)
         return result.materializeResult(childOperation, selections, reader, childOperation.cycleChecker, checked = false)
     }
 }

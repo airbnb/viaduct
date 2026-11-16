@@ -1,0 +1,1 @@
+After the run exited with code 0, a separate SSH check verified every original CPU governor and service state, an available benchmark lock, and no remaining Java processes. The original and restored host-state files are byte-identical.

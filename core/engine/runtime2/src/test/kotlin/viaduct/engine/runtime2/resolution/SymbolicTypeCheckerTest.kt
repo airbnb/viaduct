@@ -54,8 +54,8 @@ open class SymbolicTypeCheckerTest : ResolutionDispatcherResource {
                         val input = schema.fragmentFrom(
                             "fragment Input on Query { source { token } echo(value: ${'$'}v) }",
                             variableTarget = ResolverTarget.TypeCheckerTarget(field),
-                        ).materializeSelections
-                        val empty = viaduct.engine.runtime2.model.materializeSelectionForestOf()
+                        ).subselections
+                        val empty = viaduct.engine.runtime2.model.selectionForestOf()
                         val pair = ResolverFragmentTemplates(
                             if (providerRoot == ProviderFragment.OBJECT) input else empty,
                             if (providerRoot == ProviderFragment.QUERY) input else empty,
@@ -100,8 +100,8 @@ open class SymbolicTypeCheckerTest : ResolutionDispatcherResource {
                     val objectSource = "fragment Input on Item { excluded: token @include(if: ${'$'}enabled) included: token }"
                     val querySource = "fragment Input on Query { excluded: echo(value: ${'$'}excluded) included: echo(value: ${'$'}included) }"
                     val pair = ResolverFragmentTemplates(
-                        schema.fragmentFrom(objectSource, variableTarget = ResolverTarget.TypeCheckerTarget(field)).materializeSelections,
-                        schema.fragmentFrom(querySource, variableTarget = ResolverTarget.TypeCheckerTarget(field)).materializeSelections,
+                        schema.fragmentFrom(objectSource, variableTarget = ResolverTarget.TypeCheckerTarget(field)).subselections,
+                        schema.fragmentFrom(querySource, variableTarget = ResolverTarget.TypeCheckerTarget(field)).subselections,
                         mapOf(
                             Arguments.Variable.of(ResolverTarget.TypeCheckerTarget(field), "enabled") to VariableDefinition.FromProvider,
                             Arguments.Variable.of(
@@ -124,8 +124,8 @@ open class SymbolicTypeCheckerTest : ResolutionDispatcherResource {
                         variablesProvider = { mapOf("enabled" to enabled) },
                     )
                     val physical = ResolverFragmentTemplates(
-                        schema.fragmentFrom("fragment Physical on Item { token }").materializeSelections,
-                        viaduct.engine.runtime2.model.materializeSelectionForestOf(),
+                        schema.fragmentFrom("fragment Physical on Item { token }").subselections,
+                        viaduct.engine.runtime2.model.selectionForestOf(),
                     )
                     mapOf(
                         field to TypeCheckerResolver.of(field, schema.loweredSchema.requireQueryTypeDef(), mapOf("local" to pair, "physical" to physical)) { inputs, _ ->
@@ -167,8 +167,8 @@ open class SymbolicTypeCheckerTest : ResolutionDispatcherResource {
 
                 fun pair(value: Int) =
                     ResolverFragmentTemplates(
-                        objectFragmentTemplate = schema.fragmentFrom(objectSource, variableTarget = ResolverTarget.TypeCheckerTarget(field)).materializeSelections,
-                        queryFragmentTemplate = schema.fragmentFrom(querySource, variableTarget = ResolverTarget.TypeCheckerTarget(field)).materializeSelections,
+                        objectFragmentTemplate = schema.fragmentFrom(objectSource, variableTarget = ResolverTarget.TypeCheckerTarget(field)).subselections,
+                        queryFragmentTemplate = schema.fragmentFrom(querySource, variableTarget = ResolverTarget.TypeCheckerTarget(field)).subselections,
                         variables = mapOf(
                             Arguments.Variable.of(
                                 ResolverTarget.TypeCheckerTarget(field),
@@ -246,8 +246,8 @@ open class SymbolicTypeCheckerTest : ResolutionDispatcherResource {
                             schema.loweredSchema.requireQueryTypeDef(),
                             mapOf(
                                 "input" to ResolverFragmentTemplates(
-                                    schema.fragmentFrom("fragment Input on Query { item { id } }").materializeSelections,
-                                    viaduct.engine.runtime2.model.materializeSelectionForestOf(),
+                                    schema.fragmentFrom("fragment Input on Query { item { id } }").subselections,
+                                    viaduct.engine.runtime2.model.selectionForestOf(),
                                 ),
                             )
                         ) { _, inputs, _ ->
@@ -265,8 +265,8 @@ open class SymbolicTypeCheckerTest : ResolutionDispatcherResource {
                             schema.loweredSchema.requireQueryTypeDef(),
                             mapOf(
                                 "input" to ResolverFragmentTemplates(
-                                    viaduct.engine.runtime2.model.materializeSelectionForestOf(),
-                                    schema.fragmentFrom("fragment Input on Query { echo(value: ${'$'}v) }", variableTarget = target).materializeSelections,
+                                    viaduct.engine.runtime2.model.selectionForestOf(),
+                                    schema.fragmentFrom("fragment Input on Query { echo(value: ${'$'}v) }", variableTarget = target).subselections,
                                     mapOf(Arguments.Variable.of(target, "v") to VariableDefinition.FromProvider),
                                     variablesProvider = {
                                         providers.incrementAndGet()
@@ -337,8 +337,8 @@ open class SymbolicTypeCheckerTest : ResolutionDispatcherResource {
                         schema.loweredSchema.requireQueryTypeDef(),
                         mapOf(
                             "input" to ResolverFragmentTemplates(
-                                schema.fragmentFrom("fragment Input on Item { probe }").materializeSelections,
-                                viaduct.engine.runtime2.model.materializeSelectionForestOf(),
+                                schema.fragmentFrom("fragment Input on Item { probe }").subselections,
+                                viaduct.engine.runtime2.model.selectionForestOf(),
                             ),
                         )
                     ) { inputs, _ ->
@@ -375,8 +375,8 @@ open class SymbolicTypeCheckerTest : ResolutionDispatcherResource {
                         schema.loweredSchema.requireQueryTypeDef(),
                         mapOf(
                             "input" to ResolverFragmentTemplates(
-                                schema.fragmentFrom("fragment Input on Query { wrapper { child { computed } } }").materializeSelections,
-                                viaduct.engine.runtime2.model.materializeSelectionForestOf(),
+                                schema.fragmentFrom("fragment Input on Query { wrapper { child { computed } } }").subselections,
+                                viaduct.engine.runtime2.model.selectionForestOf(),
                             ),
                         )
                     ) { _, _, _ -> CheckerResult.Success }
@@ -390,8 +390,8 @@ open class SymbolicTypeCheckerTest : ResolutionDispatcherResource {
                         schema.loweredSchema.requireQueryTypeDef(),
                         mapOf(
                             "input" to ResolverFragmentTemplates(
-                                schema.fragmentFrom("fragment Input on Wrapper { secret }").materializeSelections,
-                                viaduct.engine.runtime2.model.materializeSelectionForestOf(),
+                                schema.fragmentFrom("fragment Input on Wrapper { secret }").subselections,
+                                viaduct.engine.runtime2.model.selectionForestOf(),
                             ),
                         )
                     ) { inputs, _ ->
@@ -424,8 +424,8 @@ open class SymbolicTypeCheckerTest : ResolutionDispatcherResource {
                         type,
                         mapOf(
                             "input" to ResolverFragmentTemplates(
-                                schema.fragmentFrom("fragment Input on Query { source echo(value: ${'$'}v) }", variableTarget = target).materializeSelections,
-                                viaduct.engine.runtime2.model.materializeSelectionForestOf(),
+                                schema.fragmentFrom("fragment Input on Query { source echo(value: ${'$'}v) }", variableTarget = target).subselections,
+                                viaduct.engine.runtime2.model.selectionForestOf(),
                                 mapOf(
                                     Arguments.Variable.of(target, "v") to VariableDefinition.FromField.of(
                                         ProviderFragment.OBJECT,
@@ -482,8 +482,8 @@ open class SymbolicTypeCheckerTest : ResolutionDispatcherResource {
                         type,
                         mapOf(
                             "input" to ResolverFragmentTemplates(
-                                schema.fragmentFrom("fragment Input on Query { policy }").materializeSelections,
-                                viaduct.engine.runtime2.model.materializeSelectionForestOf(),
+                                schema.fragmentFrom("fragment Input on Query { policy }").subselections,
+                                viaduct.engine.runtime2.model.selectionForestOf(),
                             ),
                         )
                     ) { inputs, _ ->

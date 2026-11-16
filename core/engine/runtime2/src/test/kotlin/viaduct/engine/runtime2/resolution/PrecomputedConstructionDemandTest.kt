@@ -10,13 +10,13 @@ import viaduct.engine.runtime2.contract.selectionValues
 import viaduct.engine.runtime2.model.Arguments
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.emptyFragmentOf
-import viaduct.engine.runtime2.model.materializeSelectionForestOf
 import viaduct.engine.runtime2.model.registry.FieldCheckerResolver
 import viaduct.engine.runtime2.model.registry.ResolverFragmentTemplates
 import viaduct.engine.runtime2.model.registry.fieldResolverOf
 import viaduct.engine.runtime2.model.registry.fromArgument
 import viaduct.engine.runtime2.model.requireObjectField
 import viaduct.engine.runtime2.model.requireQueryTypeDef
+import viaduct.engine.runtime2.model.selectionForestOf
 import viaduct.engine.runtime2.model.testing.TestWorld
 import viaduct.engine.runtime2.model.testing.fragmentFrom
 import viaduct.engine.runtime2.model.testing.objectOf
@@ -252,8 +252,8 @@ class PrecomputedConstructionDemandTest : ResolutionDispatcherResource {
                             schemas.loweredSchema.requireQueryTypeDef(),
                             mapOf(
                                 "input" to ResolverFragmentTemplates(
-                                    schemas.fragmentFrom(if (name == "result") "fragment F on Item { raw }" else "fragment F on Item { unused }").materializeSelections,
-                                    materializeSelectionForestOf()
+                                    schemas.fragmentFrom(if (name == "result") "fragment F on Item { raw }" else "fragment F on Item { unused }").subselections,
+                                    selectionForestOf()
                                 )
                             ),
                         ) { _, _, _ ->

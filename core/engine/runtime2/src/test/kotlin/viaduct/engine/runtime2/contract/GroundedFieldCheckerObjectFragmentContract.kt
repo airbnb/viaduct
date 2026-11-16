@@ -17,7 +17,6 @@ import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.ResolverTarget
 import viaduct.engine.runtime2.model.arg
 import viaduct.engine.runtime2.model.emptyFragmentOf
-import viaduct.engine.runtime2.model.materializeSelectionForestOf
 import viaduct.engine.runtime2.model.registry.CheckerInput
 import viaduct.engine.runtime2.model.registry.FieldCheckerResolver
 import viaduct.engine.runtime2.model.registry.ResolverFragmentTemplates
@@ -26,6 +25,7 @@ import viaduct.engine.runtime2.model.registry.fieldResolverOf
 import viaduct.engine.runtime2.model.requireObjectField
 import viaduct.engine.runtime2.model.requireQueryTypeDef
 import viaduct.engine.runtime2.model.requireType
+import viaduct.engine.runtime2.model.selectionForestOf
 import viaduct.engine.runtime2.model.testing.TestWorld
 import viaduct.engine.runtime2.model.testing.emptyFragmentOf
 import viaduct.engine.runtime2.model.testing.fragmentFrom
@@ -69,8 +69,8 @@ interface GroundedFieldCheckerObjectFragmentContract {
                                                     schema
                                                         .fragmentFrom(
                                                             "fragment Input on Query { dependency }",
-                                                        ).materializeSelections,
-                                                queryFragmentTemplate = materializeSelectionForestOf(),
+                                                        ).subselections,
+                                                queryFragmentTemplate = selectionForestOf(),
                                             ),
                                     ),
                             ) { _, inputs, _ ->
@@ -121,8 +121,8 @@ interface GroundedFieldCheckerObjectFragmentContract {
                                             .fragmentFrom(
                                                 "fragment Input on Item { active(seed: ${'$'}seed) }",
                                                 variableTarget = ResolverTarget.FieldCheckerTarget(checked),
-                                            ).materializeSelections,
-                                    queryFragmentTemplate = materializeSelectionForestOf(),
+                                            ).subselections,
+                                    queryFragmentTemplate = selectionForestOf(),
                                     variables =
                                         mapOf<Arguments.Variable, VariableDefinition>(
                                             seed to
@@ -136,21 +136,21 @@ interface GroundedFieldCheckerObjectFragmentContract {
                                     objectFragmentTemplate =
                                         schema
                                             .fragmentFrom("fragment Input on Item { renamed: passive }")
-                                            .materializeSelections,
-                                    queryFragmentTemplate = materializeSelectionForestOf(),
+                                            .subselections,
+                                    queryFragmentTemplate = selectionForestOf(),
                                 ),
                             "nested" to
                                 ResolverFragmentTemplates(
                                     objectFragmentTemplate =
                                         schema
                                             .fragmentFrom("fragment Input on Item { child { nested } }")
-                                            .materializeSelections,
-                                    queryFragmentTemplate = materializeSelectionForestOf(),
+                                            .subselections,
+                                    queryFragmentTemplate = selectionForestOf(),
                                 ),
                             "empty" to
                                 ResolverFragmentTemplates(
-                                    objectFragmentTemplate = materializeSelectionForestOf(),
-                                    queryFragmentTemplate = materializeSelectionForestOf(),
+                                    objectFragmentTemplate = selectionForestOf(),
+                                    queryFragmentTemplate = selectionForestOf(),
                                 ),
                         )
                     mapOf(

@@ -295,7 +295,7 @@ private class NodeResolverLowering(
         queryNode: ViaductSchema.ObjectField,
         rawQueryNode: FieldResolverDefinition,
     ): FieldResolverDefinition {
-        require(rawQueryNode.objectFragment.materializeSelections.isEmpty()) {
+        require(rawQueryNode.objectFragment.subselections.isEmpty()) {
             "Built-in Query/node cannot declare an object fragment"
         }
         return rawQueryNode.withNodeDispatch(
@@ -460,8 +460,8 @@ private class ResolverRegistryImpl(
         }
         val mutationNamespaces = schema.mutationNamespaceTypes()
         fieldResolverDefinitions.forEach { (field, resolver) ->
-            resolver.objectFragment.materializeSelections.requireNoErroneousArguments()
-            resolver.queryFragment?.materializeSelections?.requireNoErroneousArguments()
+            resolver.objectFragment.subselections.requireNoErroneousArguments()
+            resolver.queryFragment?.subselections?.requireNoErroneousArguments()
             if (field.containingDef in mutationNamespaces) {
                 require(resolver.objectFragment.subselections.isEmpty() && resolver.queryFragment?.subselections?.isEmpty() != false) {
                     "Mutation resolver ${field.containingDef.name}/${field.name} cannot declare object or Query fragments; use ctx.query()"
@@ -599,7 +599,7 @@ private class ResolverRegistryImpl(
                                     ProviderFragment.OBJECT -> resolver.objectFragment
                                     ProviderFragment.QUERY -> requireNotNull(resolver.queryFragment)
                                 }
-                                val conditions = definition.inclusionConditions(providerFragment.materializeSelections)
+                                val conditions = definition.inclusionConditions(providerFragment.subselections)
                                 val providerType =
                                     when (definition.providerFragment) {
                                         ProviderFragment.OBJECT -> variable.fieldValueResolverField.containingDef

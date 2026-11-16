@@ -72,12 +72,12 @@ interface FieldCheckerCorrectResolutionContract : ResolverContract {
                                                     schema
                                                         .fragmentFrom(
                                                             "fragment Input on Query { objectSource: source }",
-                                                        ).materializeSelections,
+                                                        ).subselections,
                                                 queryFragmentTemplate =
                                                     schema
                                                         .fragmentFrom(
                                                             "fragment Input on Query { querySource: source }",
-                                                        ).materializeSelections,
+                                                        ).subselections,
                                             ),
                                     ),
                             ) { _, inputs, _ ->
@@ -167,8 +167,8 @@ interface FieldCheckerCorrectResolutionContract : ResolverContract {
                                                         .fragmentFrom(
                                                             "fragment Input on Item { dependency(value: ${'$'}value) }",
                                                             variableTarget = ResolverTarget.FieldCheckerTarget(checked),
-                                                        ).materializeSelections,
-                                                queryFragmentTemplate = schema.loweredSchema.emptyFragmentOf("Query").materializeSelections,
+                                                        ).subselections,
+                                                queryFragmentTemplate = schema.loweredSchema.emptyFragmentOf("Query").subselections,
                                                 variables =
                                                     mapOf(
                                                         value to
@@ -268,12 +268,12 @@ interface FieldCheckerCorrectResolutionContract : ResolverContract {
                                         "input" to
                                             ResolverFragmentTemplates(
                                                 objectFragmentTemplate =
-                                                    schema.loweredSchema.emptyFragmentOf("Root").materializeSelections,
+                                                    schema.loweredSchema.emptyFragmentOf("Root").subselections,
                                                 queryFragmentTemplate =
                                                     schema
                                                         .fragmentFrom(
                                                             "fragment Input on Query { marker }",
-                                                        ).materializeSelections,
+                                                        ).subselections,
                                             ),
                                     ),
                             ) { _, inputs, _ ->

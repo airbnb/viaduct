@@ -1,19 +1,19 @@
 package viaduct.engine.runtime2.bootstrap
 
+import graphql.normalized.NormalizedField
+import graphql.normalized.NormalizedSelectionScope
 import graphql.parser.Parser
 import viaduct.engine.runtime2.model.EngineInputData
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.isParentField
 import viaduct.engine.runtime2.model.registry.FromField
 import viaduct.engine.runtime2.model.registry.ProviderFragment
-import viaduct.engine.runtime2.model.requireField
 import viaduct.engine.runtime2.model.requireQueryTypeDef
-import viaduct.engine.runtime2.model.spec.SpecSelection
-import viaduct.engine.runtime2.schema.ParsedSpecFragment
+import viaduct.engine.runtime2.schema.ParsedSelectionFragment
 import viaduct.engine.runtime2.schema.SourceSchemaAdapter
 import viaduct.engine.runtime2.schema.ViaductAndGJSchema
+import viaduct.engine.runtime2.schema.fragmentFromDocument
 import viaduct.engine.runtime2.schema.sourceCompositeType
-import viaduct.engine.runtime2.schema.specFragmentFromDocument
 import viaduct.graphql.schema.ViaductSchema
 import viaduct.graphql.utils.GraphQLTypeRelation
 
@@ -28,7 +28,7 @@ internal fun compileFromField(
     compileFromField(
         schema = schema,
         parsed =
-            schema.specFragmentFromDocument(
+            schema.fragmentFromDocument(
                 document = Parser.parse(fragmentSource),
                 bindings = bindings,
                 variableField = variableField,
@@ -39,7 +39,7 @@ internal fun compileFromField(
 
 internal fun compileFromField(
     schema: ViaductAndGJSchema,
-    parsed: ParsedSpecFragment,
+    parsed: ParsedSelectionFragment,
     responsePath: List<String>,
     providerFragment: ProviderFragment,
 ): FromField {
@@ -62,7 +62,8 @@ internal fun compileFromField(
     val path =
         schema.compilePath(
             typeInScope = parsed.nominalType,
-            selections = parsed.selections,
+            parsed = parsed,
+            selections = listOf(parsed.rootId),
             responsePath = responsePath,
         )
     return FromField.ofCompiled(
@@ -116,13 +117,14 @@ private data class CompiledPath(
 private data class MatchingField(
     val keys: List<ObjectEngineResult.Key>,
     val typeExpr: ViaductSchema.TypeExpr<ViaductSchema.OutputTypeDef>,
-    val subselections: List<SpecSelection>,
+    val subselections: List<Int>,
     val lossyCondition: Pair<ViaductSchema.CompositeTypeDef, ViaductSchema.CompositeTypeDef>?,
 )
 
 private fun ViaductAndGJSchema.compilePath(
     typeInScope: ViaductSchema.CompositeTypeDef,
-    selections: List<SpecSelection>,
+    parsed: ParsedSelectionFragment,
+    selections: List<Int>,
     responsePath: List<String>,
     index: Int = 0,
     keys: List<ObjectEngineResult.Key> = emptyList(),
@@ -131,6 +133,7 @@ private fun ViaductAndGJSchema.compilePath(
     val responseKey = responsePath[index]
     val matches =
         matchingFields(
+            parsed = parsed,
             selections = selections,
             typeInScope = typeInScope,
             responseKey = responseKey,
@@ -179,6 +182,7 @@ private fun ViaductAndGJSchema.compilePath(
     }
     return compilePath(
         typeInScope = typeExpr.baseTypeDef as ViaductSchema.CompositeTypeDef,
+        parsed = parsed,
         selections = matches.flatMap(MatchingField::subselections),
         responsePath = responsePath,
         index = index + 1,
@@ -190,31 +194,33 @@ private fun ViaductAndGJSchema.compilePath(
 }
 
 private fun ViaductAndGJSchema.matchingFields(
-    selections: List<SpecSelection>,
+    parsed: ParsedSelectionFragment,
+    selections: List<Int>,
     typeInScope: ViaductSchema.CompositeTypeDef,
     responseKey: String,
     lossyCondition: Pair<ViaductSchema.CompositeTypeDef, ViaductSchema.CompositeTypeDef>? = null,
 ): List<MatchingField> =
-    selections.flatMap { selection ->
+    selections.flatMap { id -> if (id < 0) emptyList() else parsed.document.selectionSets[id].selections }.flatMap { selection ->
         when (selection) {
-            is SpecSelection.Field -> {
-                if ((selection.alias ?: selection.fieldName) != responseKey) {
+            is NormalizedField -> {
+                if (selection.source.resultKey != responseKey) {
                     emptyList()
                 } else {
-                    val field = loweredSchema.requireField(typeInScope.name, selection.fieldName)
+                    val key = parsed.source.key(selection)
+                    val field = key.field
                     listOf(
                         MatchingField(
-                            keys = listOf(ObjectEngineResult.Key.of(field, selection.arguments)),
+                            keys = listOf(key),
                             typeExpr = SourceSchemaAdapter(loweredSchema).typeExpr(field),
-                            subselections = selection.subselections.orEmpty(),
+                            subselections = listOf(selection.selectionSetId),
                             lossyCondition = lossyCondition,
                         ),
                     )
                 }
             }
 
-            is SpecSelection.InlineFragment -> {
-                val condition = selection.typeCondition
+            is NormalizedSelectionScope -> {
+                val condition = selection.typeCondition?.let { loweredSchema.types[it] as ViaductSchema.CompositeTypeDef }
                 val relation =
                     condition?.let {
                         typeRelations.relationUnwrapped(
@@ -233,11 +239,13 @@ private fun ViaductAndGJSchema.matchingFields(
                                     )
                             }?.let { typeInScope to it }
                 matchingFields(
-                    selections = selection.selections,
+                    parsed = parsed,
+                    selections = listOf(selection.selectionSetId),
                     typeInScope = condition ?: typeInScope,
                     responseKey = responseKey,
                     lossyCondition = nextLossyCondition,
                 )
             }
+            else -> error("Unexpected normalized selection")
         }
     }
