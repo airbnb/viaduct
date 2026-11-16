@@ -60,10 +60,10 @@ class FragmentSelectionParsingTest {
     @Test
     fun `fragment documents require explicit owners for unbound variables in named spreads`() {
         val document = Parser.parse("fragment Main on Query { ...Input } fragment Input on Query { echo(value: \$value) }")
-        assertThrows<IllegalArgumentException> { schemas.specFragmentFromDocument(document) }
-        val owned = schemas.specFragmentFromDocument(document, variableField = owner).fragment
+        assertThrows<IllegalArgumentException> { schemas.fragmentFromDocument(document) }
+        val owned = schemas.fragmentFromDocument(document, variableField = owner).fragment
         assertEquals(setOf(Arguments.Variable.of(owner, "value")), owned.subselections.usedVariables())
-        val bound = schemas.specFragmentFromDocument(document, bindings = mapOf("value" to "bound")).fragment
+        val bound = schemas.fragmentFromDocument(document, bindings = mapOf("value" to "bound")).fragment
         assertEquals(mapOf("value" to "bound"), bound.subselections.single().key.arguments.fieldExpressions())
     }
 
@@ -72,7 +72,7 @@ class FragmentSelectionParsingTest {
         val document = Parser.parse("fragment Main on Query { ...Input } fragment Input on Query { echo(value: \$value) }")
         val target = ResolverTarget.FieldCheckerTarget(owner)
 
-        val fragment = schemas.specFragmentFromDocument(document, variableTarget = target).fragment
+        val fragment = schemas.fragmentFromDocument(document, variableTarget = target).fragment
 
         assertSame(target, fragment.subselections.usedVariables().single().target)
     }
@@ -83,13 +83,13 @@ class FragmentSelectionParsingTest {
             "fragment Main on Query { ...Input } fragment Input on Query { __typename kind: __typename }",
         )
 
-        val fragment = schemas.specFragmentFromDocument(document).fragment
+        val fragment = schemas.fragmentFromDocument(document).fragment
 
-        assertEquals(2, fragment.materializeSelections.size)
+        assertEquals(2, fragment.subselections.size)
         assertEquals(
             setOf("__typename", "kind"),
             buildSet {
-                fragment.materializeSelections.forEach { selection ->
+                fragment.subselections.forEach { selection ->
                     add(selection.responseKey)
                     assertEquals("V_A_typename", selection.key.field.name)
                 }
@@ -127,7 +127,7 @@ class FragmentSelectionParsingTest {
         )
         for (directive in listOf("@unknown", "@metadata", "@metadata(id: 1)", "@metadata(id: \"valid\", unknown: true)")) {
             val failure = assertThrows<IllegalArgumentException> {
-                metadataSchemas.specFragmentFromDocument(Parser.parse("fragment Main on Query $directive { echo }"))
+                metadataSchemas.fragmentFromDocument(Parser.parse("fragment Main on Query $directive { echo }"))
             }
             assertTrue(failure.message.orEmpty().contains("Invalid GraphQL fragment"))
         }
@@ -140,7 +140,7 @@ class FragmentSelectionParsingTest {
                 "fragment Main on Query $directive { echo }",
                 "fragment Main on Query { ...Input } fragment Input on Query $directive { echo }",
             )) {
-                val failure = assertThrows<IllegalArgumentException> { schemas.specFragmentFromDocument(Parser.parse(source)) }
+                val failure = assertThrows<IllegalArgumentException> { schemas.fragmentFromDocument(Parser.parse(source)) }
                 assertTrue(failure.message.orEmpty().startsWith("Invalid GraphQL fragment"))
             }
         }
@@ -154,7 +154,7 @@ class FragmentSelectionParsingTest {
             "fragment Main on Query { ...Child } fragment Child on Query { ...Main }",
             "query { echo }",
         )) {
-            assertThrows<IllegalArgumentException> { schemas.specFragmentFromDocument(Parser.parse(source)) }
+            assertThrows<IllegalArgumentException> { schemas.fragmentFromDocument(Parser.parse(source)) }
         }
     }
 
@@ -261,7 +261,7 @@ class FragmentSelectionParsingTest {
 
     @Test
     fun `parsing a literal fragment does not establish an implicit owner for later fragments`() {
-        val parser = GJSelectionParser(schemas.graphQLSchema, schemas.loweredSchema, emptyMap())
+        val parser = AstSelectionParser(schemas.graphQLSchema, schemas.loweredSchema, emptyMap())
         parser.materializeSelectionsFrom("fragment Literal on Query { echo }")
         assertThrows<IllegalArgumentException> {
             parser.materializeSelectionsFrom("fragment Symbolic on Query { echo(value: \$value) }")

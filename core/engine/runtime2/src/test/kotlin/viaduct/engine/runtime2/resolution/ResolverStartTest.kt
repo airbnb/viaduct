@@ -215,7 +215,7 @@ class ResolverStartTest : ResolutionDispatcherResource {
                 val nested = schema.fragmentFrom("fragment Nested on Query { inner }")
                 mapOf(
                     schema.loweredSchema.requireObjectField("Query", "outer") to fieldResolverOf(empty) { _, _, executionContext ->
-                        executionContext.resolveSelectionSet(nested.materializeSelections).get("inner")
+                        executionContext.resolveSelectionSet(nested.subselections).get("inner")
                     },
                     schema.loweredSchema.requireObjectField("Query", "inner") to fieldResolverOf(
                         empty,
@@ -264,7 +264,7 @@ class ResolverStartTest : ResolutionDispatcherResource {
                                             .operation
                                             .cycleChecker
                                     executionContext
-                                        .resolveSelectionSet(nested.materializeSelections)
+                                        .resolveSelectionSet(nested.subselections)
                                         .get("inner")
                                 },
                             inner to
@@ -328,7 +328,7 @@ class ResolverStartTest : ResolutionDispatcherResource {
                                         7
                                     } else {
                                         executionContext
-                                            .resolveSelectionSet(nested.materializeSelections)
+                                            .resolveSelectionSet(nested.subselections)
                                             .get("recursive")
                                     }
                                 },
@@ -440,7 +440,7 @@ class ResolverStartTest : ResolutionDispatcherResource {
                                     )
                                     outerJob.complete(currentCoroutineContext().job)
                                     executionContext
-                                        .resolveSelectionSet(nestedFragment.materializeSelections)
+                                        .resolveSelectionSet(nestedFragment.subselections)
                                         .get("slow")
                                 },
                             slow to

@@ -9,12 +9,12 @@ import viaduct.engine.runtime2.contract.CoroutineResolverTestSubject
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.SelectionForest
 import viaduct.engine.runtime2.model.emptyFragmentOf
-import viaduct.engine.runtime2.model.materializeSelectionForestOf
 import viaduct.engine.runtime2.model.registry.FieldCheckerResolver
 import viaduct.engine.runtime2.model.registry.ResolverFragmentTemplates
 import viaduct.engine.runtime2.model.registry.fieldResolverOf
 import viaduct.engine.runtime2.model.requireObjectField
 import viaduct.engine.runtime2.model.requireQueryTypeDef
+import viaduct.engine.runtime2.model.selectionForestOf
 import viaduct.engine.runtime2.model.testing.TestWorld
 import viaduct.engine.runtime2.model.testing.emptyFragmentOf
 import viaduct.engine.runtime2.model.testing.fragmentFrom
@@ -86,16 +86,16 @@ class QueryFragmentExpansionTest : CoroutineResolverTestSubject() {
                         val field = schema.loweredSchema.requireObjectField("Query", "field$index")
                         val querySelections =
                             if (index == depth) {
-                                materializeSelectionForestOf()
+                                selectionForestOf()
                             } else {
                                 schema
                                     .fragmentFrom(
                                         "fragment Input on Query { field${index + 1} }",
-                                    ).materializeSelections
+                                    ).subselections
                             }
                         val templates =
                             ResolverFragmentTemplates(
-                                objectFragmentTemplate = materializeSelectionForestOf(),
+                                objectFragmentTemplate = selectionForestOf(),
                                 queryFragmentTemplate = querySelections,
                             )
                         field to

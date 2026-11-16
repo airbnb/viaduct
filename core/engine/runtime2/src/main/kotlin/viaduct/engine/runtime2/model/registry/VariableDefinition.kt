@@ -3,8 +3,8 @@ package viaduct.engine.runtime2.model.registry
 import viaduct.engine.runtime2.model.Arguments
 import viaduct.engine.runtime2.model.EngineInputData
 import viaduct.engine.runtime2.model.InclusionCondition
-import viaduct.engine.runtime2.model.MaterializeSelectionForest
 import viaduct.engine.runtime2.model.ObjectEngineResult
+import viaduct.engine.runtime2.model.SelectionForest
 import viaduct.engine.runtime2.model.guardedBy
 import viaduct.engine.runtime2.model.inputType
 import viaduct.graphql.schema.ViaductSchema
@@ -80,7 +80,7 @@ sealed interface VariableDefinition {
          * Each occurrence's guard is carried into its own descendants before alternatives are
          * disjoined; unrelated aliases and other fragments cannot make this path included.
          */
-        fun inclusionConditions(fragment: MaterializeSelectionForest): List<InclusionCondition> {
+        fun inclusionConditions(fragment: SelectionForest): List<InclusionCondition> {
             var selections = fragment
             return path.mapIndexed { index, key ->
                 val matches = selections.filter { it.responseKey == responsePath[index] }

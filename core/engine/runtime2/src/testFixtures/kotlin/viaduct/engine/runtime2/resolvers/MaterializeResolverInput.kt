@@ -1,8 +1,8 @@
 package viaduct.engine.runtime2.resolvers
 
 import viaduct.engine.api.EngineObjectData
-import viaduct.engine.runtime2.model.MaterializeSelectionForest
 import viaduct.engine.runtime2.model.ObjectEngineResult
+import viaduct.engine.runtime2.model.SelectionForest
 import viaduct.engine.runtime2.resolution.framework.CycleCheckState
 import viaduct.engine.runtime2.resolution.framework.CycleTask
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
@@ -24,6 +24,6 @@ import viaduct.engine.runtime2.resolution.framework.materializeResult
 suspend fun ObjectEngineResult.materializeResolverInput(
     operation: SharedOperationContext<*>,
     cycleChecker: CycleCheckState,
-    selections: MaterializeSelectionForest,
+    selections: SelectionForest,
     reader: CycleTask,
 ): EngineObjectData.Sync = materializeResult(operation, selections, reader, cycleChecker)

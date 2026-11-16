@@ -19,7 +19,7 @@ import viaduct.engine.runtime.execution.FieldExecutionHelpers.collectFields
  * - [GJIntrospection.enabledJvmWide] can be used to configure introspection across the whole JVM,
  *   rather than per-request. This functionality is not supported by this component.
  *
- * - graphql-java's [graphql.introspection.GoodFaithIntrospection] check is explicitly disabled
+ * - graphql-java's [graphql.validation.QueryComplexityLimits] check is explicitly disabled
  *   in Viaduct's engine configuration.
  */
 object Introspection {

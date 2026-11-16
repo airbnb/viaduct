@@ -46,11 +46,11 @@ class ApolloSchemaGeneratorTest {
         val schema = assembled(generated)
 
         assertEquals(listOf("Product", "User"), (schema.getType("_Entity") as GraphQLUnionType).types.map { it.name })
-        val entities = schema.queryType.getFieldDefinition("_entities")
+        val entities = requireNotNull(schema.queryType.getFieldDefinition("_entities"))
         assertEquals("[_Entity]!", simplePrint(entities.type))
-        assertEquals("[_Any!]!", simplePrint(entities.getArgument("representations").type))
-        assertEquals("_Service!", simplePrint(schema.queryType.getFieldDefinition("_service").type))
-        assertEquals("String!", simplePrint(requireNotNull(schema.getObjectType("_Service")).getFieldDefinition("sdl").type))
+        assertEquals("[_Any!]!", simplePrint(requireNotNull(entities.getArgument("representations")).type))
+        assertEquals("_Service!", simplePrint(requireNotNull(schema.queryType.getFieldDefinition("_service")).type))
+        assertEquals("String!", simplePrint(requireNotNull(requireNotNull(schema.getObjectType("_Service")).getFieldDefinition("sdl")).type))
     }
 
     @Test

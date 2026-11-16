@@ -19,7 +19,6 @@ import viaduct.engine.runtime2.model.ResolverOccurrenceId
 import viaduct.engine.runtime2.model.RootFieldReferenceData
 import viaduct.engine.runtime2.model.emptyFragmentOf
 import viaduct.engine.runtime2.model.engineObjectDataOf
-import viaduct.engine.runtime2.model.materializeSelectionForestOf
 import viaduct.engine.runtime2.model.merge
 import viaduct.engine.runtime2.model.outputValue
 import viaduct.engine.runtime2.model.registry.ResolutionExecutionContext
@@ -119,7 +118,7 @@ class IndependentRoleAdversarialReviewTest {
                         occurrencePath = path,
                         field = field,
                         input = input,
-                        inputSelections = materializeSelectionForestOf(),
+                        inputSelections = selectionForestOf(),
                         queryValue = queryValue,
                         queryInputSelections =
                             resolver.declaredDependencies.instantiateQueryMaterializationSelections(owner),

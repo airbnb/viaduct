@@ -131,7 +131,7 @@ internal class SchemaGenerator(val cfg: Config, val rs: RandomSource) {
             .additionalTypes(types.unions.values.toSet())
             .additionalTypes(types.scalars.values.toSet())
             .additionalTypes(types.enums.values.toSet())
-            .additionalDirectives(types.directives.values.toSet())
+            .additionalDirectives(types.directives.values)
             .codeRegistry(codeRegistry(types))
             .build()
             .let(::finalize)

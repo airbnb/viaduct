@@ -155,8 +155,8 @@ class GeneratedTypeCheckerCoverageTest {
                         schema.loweredSchema.requireQueryTypeDef(),
                         mapOf(
                             "input" to ResolverFragmentTemplates(
-                                schema.fragmentFrom("fragment Input on Item { active }").materializeSelections,
-                                schema.fragmentFrom("fragment Input on Query { probe }").materializeSelections,
+                                schema.fragmentFrom("fragment Input on Item { active }").subselections,
+                                schema.fragmentFrom("fragment Input on Query { probe }").subselections,
                             ),
                         )
                     ) { _, _ -> CheckerResult.Success },

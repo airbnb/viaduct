@@ -1,0 +1,1069 @@
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::objectFieldOffset has been called by org.openjdk.jmh.util.Utils (file:/opt/graphql-schema-perf/viaduct-selection-forest-20261115-a2483562b/engine-runtime2-4.0.0-SNAPSHOT-jmh.jar)
+WARNING: Please consider reporting this to the maintainers of class org.openjdk.jmh.util.Utils
+WARNING: sun.misc.Unsafe::objectFieldOffset will be removed in a future release
+# JMH version: 1.36
+# VM version: JDK 25.0.5.0.3, OpenJDK 64-Bit Server VM, 25.0.5.0.3+1-1-26.04.1-Ubuntu
+# VM invoker: /usr/lib/jvm/java-25-openjdk-amd64/bin/java
+# VM options: -Xms2g -Xmx8g -XX:+UseG1GC
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 2 iterations, 30 s each
+# Measurement: 3 iterations, 60 s each
+# Timeout: 10 min per iteration
+# Threads: 1 thread, will synchronize iterations
+# Benchmark mode: Average time, time/op
+# Benchmark: viaduct.engine.runtime2.schema.SelectionForestCreationBenchmark.createConstructionForest
+# Parameters: (fixture = schema2-small)
+
+# Run progress: 0.00% complete, ETA 01:36:00
+# Fork: 1 of 2
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::objectFieldOffset has been called by org.openjdk.jmh.util.Utils (file:/opt/graphql-schema-perf/viaduct-selection-forest-20261115-a2483562b/engine-runtime2-4.0.0-SNAPSHOT-jmh.jar)
+WARNING: Please consider reporting this to the maintainers of class org.openjdk.jmh.util.Utils
+WARNING: sun.misc.Unsafe::objectFieldOffset will be removed in a future release
+# Warmup Iteration   1: 0.409 us/op
+# Warmup Iteration   2: 0.407 us/op
+Iteration   1: 0.407 us/op
+                 ·gc.alloc.rate:      3520.350 MB/sec
+                 ·gc.alloc.rate.norm: 1504.000 B/op
+                 ·gc.count:           172.000 counts
+                 ·gc.time:            110.000 ms
+
+Iteration   2: 0.406 us/op
+                 ·gc.alloc.rate:      3533.188 MB/sec
+                 ·gc.alloc.rate.norm: 1504.000 B/op
+                 ·gc.count:           174.000 counts
+                 ·gc.time:            108.000 ms
+
+Iteration   3: 0.406 us/op
+                 ·gc.alloc.rate:      3528.628 MB/sec
+                 ·gc.alloc.rate.norm: 1504.000 B/op
+                 ·gc.count:           172.000 counts
+                 ·gc.time:            110.000 ms
+
+
+# Run progress: 4.17% complete, ETA 01:32:32
+# Fork: 2 of 2
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::objectFieldOffset has been called by org.openjdk.jmh.util.Utils (file:/opt/graphql-schema-perf/viaduct-selection-forest-20261115-a2483562b/engine-runtime2-4.0.0-SNAPSHOT-jmh.jar)
+WARNING: Please consider reporting this to the maintainers of class org.openjdk.jmh.util.Utils
+WARNING: sun.misc.Unsafe::objectFieldOffset will be removed in a future release
+# Warmup Iteration   1: 0.403 us/op
+# Warmup Iteration   2: 0.396 us/op
+Iteration   1: 0.397 us/op
+                 ·gc.alloc.rate:      3608.908 MB/sec
+                 ·gc.alloc.rate.norm: 1504.000 B/op
+                 ·gc.count:           177.000 counts
+                 ·gc.time:            113.000 ms
+
+Iteration   2: 0.396 us/op
+                 ·gc.alloc.rate:      3622.286 MB/sec
+                 ·gc.alloc.rate.norm: 1504.000 B/op
+                 ·gc.count:           178.000 counts
+                 ·gc.time:            115.000 ms
+
+Iteration   3: 0.395 us/op
+                 ·gc.alloc.rate:      3626.994 MB/sec
+                 ·gc.alloc.rate.norm: 1504.000 B/op
+                 ·gc.count:           178.000 counts
+                 ·gc.time:            115.000 ms
+
+
+
+Result "viaduct.engine.runtime2.schema.SelectionForestCreationBenchmark.createConstructionForest":
+  0.401 ±(99.9%) 0.016 us/op [Average]
+  (min, avg, max) = (0.395, 0.401, 0.407), stdev = 0.006
+  CI (99.9%): [0.385, 0.417] (assumes normal distribution)
+
+Secondary result "viaduct.engine.runtime2.schema.SelectionForestCreationBenchmark.createConstructionForest:·gc.alloc.rate":
+  3573.392 ±(99.9%) 142.760 MB/sec [Average]
+  (min, avg, max) = (3520.350, 3573.392, 3626.994), stdev = 50.910
+  CI (99.9%): [3430.632, 3716.152] (assumes normal distribution)
+
+Secondary result "viaduct.engine.runtime2.schema.SelectionForestCreationBenchmark.createConstructionForest:·gc.alloc.rate.norm":
+  1504.000 ±(99.9%) 0.001 B/op [Average]
+  (min, avg, max) = (1504.000, 1504.000, 1504.000), stdev = 0.001
+  CI (99.9%): [1504.000, 1504.000] (assumes normal distribution)
+
+Secondary result "viaduct.engine.runtime2.schema.SelectionForestCreationBenchmark.createConstructionForest:·gc.count":
+  1051.000 ±(99.9%) 0.001 counts [Sum]
+  (min, avg, max) = (172.000, 175.167, 178.000), stdev = 2.858
+  CI (99.9%): [1051.000, 1051.000] (assumes normal distribution)
+
+Secondary result "viaduct.engine.runtime2.schema.SelectionForestCreationBenchmark.createConstructionForest:·gc.time":
+  671.000 ±(99.9%) 0.001 ms [Sum]
+  (min, avg, max) = (108.000, 111.833, 115.000), stdev = 2.927
+  CI (99.9%): [671.000, 671.000] (assumes normal distribution)
+
+
+# JMH version: 1.36
+# VM version: JDK 25.0.5.0.3, OpenJDK 64-Bit Server VM, 25.0.5.0.3+1-1-26.04.1-Ubuntu
+# VM invoker: /usr/lib/jvm/java-25-openjdk-amd64/bin/java
+# VM options: -Xms2g -Xmx8g -XX:+UseG1GC
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 2 iterations, 30 s each
+# Measurement: 3 iterations, 60 s each
+# Timeout: 10 min per iteration
+# Threads: 1 thread, will synchronize iterations
+# Benchmark mode: Average time, time/op
+# Benchmark: viaduct.engine.runtime2.schema.SelectionForestCreationBenchmark.createConstructionForest
+# Parameters: (fixture = schema4-small)
+
+# Run progress: 8.33% complete, ETA 01:28:30
+# Fork: 1 of 2
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::objectFieldOffset has been called by org.openjdk.jmh.util.Utils (file:/opt/graphql-schema-perf/viaduct-selection-forest-20261115-a2483562b/engine-runtime2-4.0.0-SNAPSHOT-jmh.jar)
+WARNING: Please consider reporting this to the maintainers of class org.openjdk.jmh.util.Utils
+WARNING: sun.misc.Unsafe::objectFieldOffset will be removed in a future release
+# Warmup Iteration   1: <failure>
+
+java.lang.IllegalStateException: Invalid schema4-small fixture: Validation error (FieldUndefined@[field29531/field30371/field17373]) : Field 'field17373' in type 'Object6306' is undefined
+	at viaduct.engine.runtime2.schema.SelectionForestCreationBenchmark.setup(SelectionForestCreationBenchmark.kt:80)
+	at viaduct.engine.runtime2.schema.jmh_generated.SelectionForestCreationBenchmark_createConstructionForest_jmhTest._jmh_tryInit_f_selectionforestcreationbenchmark0_0(SelectionForestCreationBenchmark_createConstructionForest_jmhTest.java:338)
+	at viaduct.engine.runtime2.schema.jmh_generated.SelectionForestCreationBenchmark_createConstructionForest_jmhTest.createConstructionForest_AverageTime(SelectionForestCreationBenchmark_createConstructionForest_jmhTest.java:138)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+	at org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call(BenchmarkHandler.java:475)
+	at org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call(BenchmarkHandler.java:458)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:328)
+	at java.base/java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:545)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:328)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1090)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:614)
+	at java.base/java.lang.Thread.run(Thread.java:1474)
+
+
+
+# Run progress: 12.50% complete, ETA 00:56:56
+# Fork: 2 of 2
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::objectFieldOffset has been called by org.openjdk.jmh.util.Utils (file:/opt/graphql-schema-perf/viaduct-selection-forest-20261115-a2483562b/engine-runtime2-4.0.0-SNAPSHOT-jmh.jar)
+WARNING: Please consider reporting this to the maintainers of class org.openjdk.jmh.util.Utils
+WARNING: sun.misc.Unsafe::objectFieldOffset will be removed in a future release
+# Warmup Iteration   1: <failure>
+
+java.lang.IllegalStateException: Invalid schema4-small fixture: Validation error (FieldUndefined@[field29531/field30371/field17373]) : Field 'field17373' in type 'Object6306' is undefined
+	at viaduct.engine.runtime2.schema.SelectionForestCreationBenchmark.setup(SelectionForestCreationBenchmark.kt:80)
+	at viaduct.engine.runtime2.schema.jmh_generated.SelectionForestCreationBenchmark_createConstructionForest_jmhTest._jmh_tryInit_f_selectionforestcreationbenchmark0_0(SelectionForestCreationBenchmark_createConstructionForest_jmhTest.java:338)
+	at viaduct.engine.runtime2.schema.jmh_generated.SelectionForestCreationBenchmark_createConstructionForest_jmhTest.createConstructionForest_AverageTime(SelectionForestCreationBenchmark_createConstructionForest_jmhTest.java:138)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+	at org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call(BenchmarkHandler.java:475)
+	at org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call(BenchmarkHandler.java:458)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:328)
+	at java.base/java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:545)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:328)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1090)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:614)
+	at java.base/java.lang.Thread.run(Thread.java:1474)
+
+
+
+
+# JMH version: 1.36
+# VM version: JDK 25.0.5.0.3, OpenJDK 64-Bit Server VM, 25.0.5.0.3+1-1-26.04.1-Ubuntu
+# VM invoker: /usr/lib/jvm/java-25-openjdk-amd64/bin/java
+# VM options: -Xms2g -Xmx8g -XX:+UseG1GC
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 2 iterations, 30 s each
+# Measurement: 3 iterations, 60 s each
+# Timeout: 10 min per iteration
+# Threads: 1 thread, will synchronize iterations
+# Benchmark mode: Average time, time/op
+# Benchmark: viaduct.engine.runtime2.schema.SelectionForestCreationBenchmark.createConstructionForest
+# Parameters: (fixture = schema4-full)
+
+# Run progress: 16.67% complete, ETA 00:41:05
+# Fork: 1 of 2
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::objectFieldOffset has been called by org.openjdk.jmh.util.Utils (file:/opt/graphql-schema-perf/viaduct-selection-forest-20261115-a2483562b/engine-runtime2-4.0.0-SNAPSHOT-jmh.jar)
+WARNING: Please consider reporting this to the maintainers of class org.openjdk.jmh.util.Utils
+WARNING: sun.misc.Unsafe::objectFieldOffset will be removed in a future release
+# Warmup Iteration   1: 17894.866 us/op
+# Warmup Iteration   2: 17045.134 us/op
+Iteration   1: 17083.177 us/op
+                 ·gc.alloc.rate:      1155.936 MB/sec
+                 ·gc.alloc.rate.norm: 20706344.364 B/op
+                 ·gc.count:           52.000 counts
+                 ·gc.time:            64.000 ms
+
+Iteration   2: 17090.654 us/op
+                 ·gc.alloc.rate:      1155.430 MB/sec
+                 ·gc.alloc.rate.norm: 20706344.116 B/op
+                 ·gc.count:           53.000 counts
+                 ·gc.time:            63.000 ms
+
+Iteration   3: 17051.493 us/op
+                 ·gc.alloc.rate:      1158.084 MB/sec
+                 ·gc.alloc.rate.norm: 20706344.116 B/op
+                 ·gc.count:           52.000 counts
+                 ·gc.time:            62.000 ms
+
+
+# Run progress: 20.83% complete, ETA 00:47:21
+# Fork: 2 of 2
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::objectFieldOffset has been called by org.openjdk.jmh.util.Utils (file:/opt/graphql-schema-perf/viaduct-selection-forest-20261115-a2483562b/engine-runtime2-4.0.0-SNAPSHOT-jmh.jar)
+WARNING: Please consider reporting this to the maintainers of class org.openjdk.jmh.util.Utils
+WARNING: sun.misc.Unsafe::objectFieldOffset will be removed in a future release
+# Warmup Iteration   1: 18044.116 us/op
+# Warmup Iteration   2: 16677.033 us/op
+Iteration   1: 16731.678 us/op
+                 ·gc.alloc.rate:      1180.219 MB/sec
+                 ·gc.alloc.rate.norm: 20706344.357 B/op
+                 ·gc.count:           31.000 counts
+                 ·gc.time:            54.000 ms
+
+Iteration   2: 16714.696 us/op
+                 ·gc.alloc.rate:      1181.420 MB/sec
+                 ·gc.alloc.rate.norm: 20706344.114 B/op
+                 ·gc.count:           32.000 counts
+                 ·gc.time:            62.000 ms
+
+Iteration   3: 16717.098 us/op
+                 ·gc.alloc.rate:      1181.249 MB/sec
+                 ·gc.alloc.rate.norm: 20706344.114 B/op
+                 ·gc.count:           31.000 counts
+                 ·gc.time:            62.000 ms
+
+
+
+Result "viaduct.engine.runtime2.schema.SelectionForestCreationBenchmark.createConstructionForest":
+  16898.133 ±(99.9%) 545.131 us/op [Average]
+  (min, avg, max) = (16714.696, 16898.133, 17090.654), stdev = 194.399
+  CI (99.9%): [16353.002, 17443.264] (assumes normal distribution)
+
+Secondary result "viaduct.engine.runtime2.schema.SelectionForestCreationBenchmark.createConstructionForest:·gc.alloc.rate":
+  1168.723 ±(99.9%) 37.698 MB/sec [Average]
+  (min, avg, max) = (1155.430, 1168.723, 1181.420), stdev = 13.444
+  CI (99.9%): [1131.025, 1206.421] (assumes normal distribution)
+
+Secondary result "viaduct.engine.runtime2.schema.SelectionForestCreationBenchmark.createConstructionForest:·gc.alloc.rate.norm":
+  20706344.197 ±(99.9%) 0.356 B/op [Average]
+  (min, avg, max) = (20706344.114, 20706344.197, 20706344.364), stdev = 0.127
+  CI (99.9%): [20706343.841, 20706344.553] (assumes normal distribution)
+
+Secondary result "viaduct.engine.runtime2.schema.SelectionForestCreationBenchmark.createConstructionForest:·gc.count":
+  251.000 ±(99.9%) 0.001 counts [Sum]
+  (min, avg, max) = (31.000, 41.833, 53.000), stdev = 11.514
+  CI (99.9%): [251.000, 251.000] (assumes normal distribution)
+
+Secondary result "viaduct.engine.runtime2.schema.SelectionForestCreationBenchmark.createConstructionForest:·gc.time":
+  367.000 ±(99.9%) 0.001 ms [Sum]
+  (min, avg, max) = (54.000, 61.167, 64.000), stdev = 3.601
+  CI (99.9%): [367.000, 367.000] (assumes normal distribution)
+
+
+# JMH version: 1.36
+# VM version: JDK 25.0.5.0.3, OpenJDK 64-Bit Server VM, 25.0.5.0.3+1-1-26.04.1-Ubuntu
+# VM invoker: /usr/lib/jvm/java-25-openjdk-amd64/bin/java
+# VM options: -Xms2g -Xmx8g -XX:+UseG1GC
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 2 iterations, 30 s each
+# Measurement: 3 iterations, 60 s each
+# Timeout: 10 min per iteration
+# Threads: 1 thread, will synchronize iterations
+# Benchmark mode: Average time, time/op
+# Benchmark: viaduct.engine.runtime2.schema.SelectionForestCreationBenchmark.createMaterializeForest
+# Parameters: (fixture = schema2-small)
+
+# Run progress: 25.00% complete, ETA 00:50:04
+# Fork: 1 of 2
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::objectFieldOffset has been called by org.openjdk.jmh.util.Utils (file:/opt/graphql-schema-perf/viaduct-selection-forest-20261115-a2483562b/engine-runtime2-4.0.0-SNAPSHOT-jmh.jar)
+WARNING: Please consider reporting this to the maintainers of class org.openjdk.jmh.util.Utils
+WARNING: sun.misc.Unsafe::objectFieldOffset will be removed in a future release
+# Warmup Iteration   1: 6.879 us/op
+# Warmup Iteration   2: 6.757 us/op
+Iteration   1: 6.722 us/op
+                 ·gc.alloc.rate:      747.990 MB/sec
+                 ·gc.alloc.rate.norm: 5272.000 B/op
+                 ·gc.count:           36.000 counts
+                 ·gc.time:            25.000 ms
+
+Iteration   2: 6.755 us/op
+                 ·gc.alloc.rate:      744.353 MB/sec
+                 ·gc.alloc.rate.norm: 5272.000 B/op
+                 ·gc.count:           37.000 counts
+                 ·gc.time:            24.000 ms
+
+Iteration   3: 6.772 us/op
+                 ·gc.alloc.rate:      742.428 MB/sec
+                 ·gc.alloc.rate.norm: 5272.000 B/op
+                 ·gc.count:           36.000 counts
+                 ·gc.time:            24.000 ms
+
+
+# Run progress: 29.17% complete, ETA 00:50:18
+# Fork: 2 of 2
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::objectFieldOffset has been called by org.openjdk.jmh.util.Utils (file:/opt/graphql-schema-perf/viaduct-selection-forest-20261115-a2483562b/engine-runtime2-4.0.0-SNAPSHOT-jmh.jar)
+WARNING: Please consider reporting this to the maintainers of class org.openjdk.jmh.util.Utils
+WARNING: sun.misc.Unsafe::objectFieldOffset will be removed in a future release
+# Warmup Iteration   1: 6.903 us/op
+# Warmup Iteration   2: 6.777 us/op
+Iteration   1: 6.799 us/op
+                 ·gc.alloc.rate:      739.466 MB/sec
+                 ·gc.alloc.rate.norm: 5272.000 B/op
+                 ·gc.count:           37.000 counts
+                 ·gc.time:            25.000 ms
+
+Iteration   2: 6.762 us/op
+                 ·gc.alloc.rate:      743.564 MB/sec
+                 ·gc.alloc.rate.norm: 5272.000 B/op
+                 ·gc.count:           36.000 counts
+                 ·gc.time:            24.000 ms
+
+Iteration   3: 6.816 us/op
+                 ·gc.alloc.rate:      737.692 MB/sec
+                 ·gc.alloc.rate.norm: 5272.000 B/op
+                 ·gc.count:           36.000 counts
+                 ·gc.time:            25.000 ms
+
+
+
+Result "viaduct.engine.runtime2.schema.SelectionForestCreationBenchmark.createMaterializeForest":
+  6.771 ±(99.9%) 0.094 us/op [Average]
+  (min, avg, max) = (6.722, 6.771, 6.816), stdev = 0.033
+  CI (99.9%): [6.677, 6.864] (assumes normal distribution)
+
+Secondary result "viaduct.engine.runtime2.schema.SelectionForestCreationBenchmark.createMaterializeForest:·gc.alloc.rate":
+  742.582 ±(99.9%) 10.264 MB/sec [Average]
+  (min, avg, max) = (737.692, 742.582, 747.990), stdev = 3.660
+  CI (99.9%): [732.318, 752.846] (assumes normal distribution)
+
+Secondary result "viaduct.engine.runtime2.schema.SelectionForestCreationBenchmark.createMaterializeForest:·gc.alloc.rate.norm":
+  5272.000 ±(99.9%) 0.001 B/op [Average]
+  (min, avg, max) = (5272.000, 5272.000, 5272.000), stdev = 0.001
+  CI (99.9%): [5272.000, 5272.000] (assumes normal distribution)
+
+Secondary result "viaduct.engine.runtime2.schema.SelectionForestCreationBenchmark.createMaterializeForest:·gc.count":
+  218.000 ±(99.9%) 0.001 counts [Sum]
+  (min, avg, max) = (36.000, 36.333, 37.000), stdev = 0.516
+  CI (99.9%): [218.000, 218.000] (assumes normal distribution)
+
+Secondary result "viaduct.engine.runtime2.schema.SelectionForestCreationBenchmark.createMaterializeForest:·gc.time":
+  147.000 ±(99.9%) 0.001 ms [Sum]
+  (min, avg, max) = (24.000, 24.500, 25.000), stdev = 0.548
+  CI (99.9%): [147.000, 147.000] (assumes normal distribution)
+
+
+# JMH version: 1.36
+# VM version: JDK 25.0.5.0.3, OpenJDK 64-Bit Server VM, 25.0.5.0.3+1-1-26.04.1-Ubuntu
+# VM invoker: /usr/lib/jvm/java-25-openjdk-amd64/bin/java
+# VM options: -Xms2g -Xmx8g -XX:+UseG1GC
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 2 iterations, 30 s each
+# Measurement: 3 iterations, 60 s each
+# Timeout: 10 min per iteration
+# Threads: 1 thread, will synchronize iterations
+# Benchmark mode: Average time, time/op
+# Benchmark: viaduct.engine.runtime2.schema.SelectionForestCreationBenchmark.createMaterializeForest
+# Parameters: (fixture = schema4-small)
+
+# Run progress: 33.33% complete, ETA 00:49:28
+# Fork: 1 of 2
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::objectFieldOffset has been called by org.openjdk.jmh.util.Utils (file:/opt/graphql-schema-perf/viaduct-selection-forest-20261115-a2483562b/engine-runtime2-4.0.0-SNAPSHOT-jmh.jar)
+WARNING: Please consider reporting this to the maintainers of class org.openjdk.jmh.util.Utils
+WARNING: sun.misc.Unsafe::objectFieldOffset will be removed in a future release
+# Warmup Iteration   1: <failure>
+
+java.lang.IllegalStateException: Invalid schema4-small fixture: Validation error (FieldUndefined@[field29531/field30371/field17373]) : Field 'field17373' in type 'Object6306' is undefined
+	at viaduct.engine.runtime2.schema.SelectionForestCreationBenchmark.setup(SelectionForestCreationBenchmark.kt:80)
+	at viaduct.engine.runtime2.schema.jmh_generated.SelectionForestCreationBenchmark_createMaterializeForest_jmhTest._jmh_tryInit_f_selectionforestcreationbenchmark0_0(SelectionForestCreationBenchmark_createMaterializeForest_jmhTest.java:338)
+	at viaduct.engine.runtime2.schema.jmh_generated.SelectionForestCreationBenchmark_createMaterializeForest_jmhTest.createMaterializeForest_AverageTime(SelectionForestCreationBenchmark_createMaterializeForest_jmhTest.java:138)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+	at org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call(BenchmarkHandler.java:475)
+	at org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call(BenchmarkHandler.java:458)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:328)
+	at java.base/java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:545)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:328)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1090)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:614)
+	at java.base/java.lang.Thread.run(Thread.java:1474)
+
+
+
+# Run progress: 37.50% complete, ETA 00:41:22
+# Fork: 2 of 2
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::objectFieldOffset has been called by org.openjdk.jmh.util.Utils (file:/opt/graphql-schema-perf/viaduct-selection-forest-20261115-a2483562b/engine-runtime2-4.0.0-SNAPSHOT-jmh.jar)
+WARNING: Please consider reporting this to the maintainers of class org.openjdk.jmh.util.Utils
+WARNING: sun.misc.Unsafe::objectFieldOffset will be removed in a future release
+# Warmup Iteration   1: <failure>
+
+java.lang.IllegalStateException: Invalid schema4-small fixture: Validation error (FieldUndefined@[field29531/field30371/field17373]) : Field 'field17373' in type 'Object6306' is undefined
+	at viaduct.engine.runtime2.schema.SelectionForestCreationBenchmark.setup(SelectionForestCreationBenchmark.kt:80)
+	at viaduct.engine.runtime2.schema.jmh_generated.SelectionForestCreationBenchmark_createMaterializeForest_jmhTest._jmh_tryInit_f_selectionforestcreationbenchmark0_0(SelectionForestCreationBenchmark_createMaterializeForest_jmhTest.java:338)
+	at viaduct.engine.runtime2.schema.jmh_generated.SelectionForestCreationBenchmark_createMaterializeForest_jmhTest.createMaterializeForest_AverageTime(SelectionForestCreationBenchmark_createMaterializeForest_jmhTest.java:138)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+	at org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call(BenchmarkHandler.java:475)
+	at org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call(BenchmarkHandler.java:458)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:328)
+	at java.base/java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:545)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:328)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1090)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:614)
+	at java.base/java.lang.Thread.run(Thread.java:1474)
+
+
+
+
+# JMH version: 1.36
+# VM version: JDK 25.0.5.0.3, OpenJDK 64-Bit Server VM, 25.0.5.0.3+1-1-26.04.1-Ubuntu
+# VM invoker: /usr/lib/jvm/java-25-openjdk-amd64/bin/java
+# VM options: -Xms2g -Xmx8g -XX:+UseG1GC
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 2 iterations, 30 s each
+# Measurement: 3 iterations, 60 s each
+# Timeout: 10 min per iteration
+# Threads: 1 thread, will synchronize iterations
+# Benchmark mode: Average time, time/op
+# Benchmark: viaduct.engine.runtime2.schema.SelectionForestCreationBenchmark.createMaterializeForest
+# Parameters: (fixture = schema4-full)
+
+# Run progress: 41.67% complete, ETA 00:34:52
+# Fork: 1 of 2
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::objectFieldOffset has been called by org.openjdk.jmh.util.Utils (file:/opt/graphql-schema-perf/viaduct-selection-forest-20261115-a2483562b/engine-runtime2-4.0.0-SNAPSHOT-jmh.jar)
+WARNING: Please consider reporting this to the maintainers of class org.openjdk.jmh.util.Utils
+WARNING: sun.misc.Unsafe::objectFieldOffset will be removed in a future release
+# Warmup Iteration   1: 34710.525 us/op
+# Warmup Iteration   2: 33871.155 us/op
+Iteration   1: 33978.618 us/op
+                 ·gc.alloc.rate:      2818.201 MB/sec
+                 ·gc.alloc.rate.norm: 100410368.231 B/op
+                 ·gc.count:           93.000 counts
+                 ·gc.time:            262.000 ms
+
+Iteration   2: 33954.299 us/op
+                 ·gc.alloc.rate:      2820.220 MB/sec
+                 ·gc.alloc.rate.norm: 100410368.231 B/op
+                 ·gc.count:           93.000 counts
+                 ·gc.time:            260.000 ms
+
+Iteration   3: 34104.042 us/op
+                 ·gc.alloc.rate:      2807.835 MB/sec
+                 ·gc.alloc.rate.norm: 100410368.727 B/op
+                 ·gc.count:           93.000 counts
+                 ·gc.time:            265.000 ms
+
+
+# Run progress: 45.83% complete, ETA 00:34:27
+# Fork: 2 of 2
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::objectFieldOffset has been called by org.openjdk.jmh.util.Utils (file:/opt/graphql-schema-perf/viaduct-selection-forest-20261115-a2483562b/engine-runtime2-4.0.0-SNAPSHOT-jmh.jar)
+WARNING: Please consider reporting this to the maintainers of class org.openjdk.jmh.util.Utils
+WARNING: sun.misc.Unsafe::objectFieldOffset will be removed in a future release
+# Warmup Iteration   1: 34132.781 us/op
+# Warmup Iteration   2: 33715.629 us/op
+Iteration   1: 33713.183 us/op
+                 ·gc.alloc.rate:      2800.542 MB/sec
+                 ·gc.alloc.rate.norm: 99001728.229 B/op
+                 ·gc.count:           127.000 counts
+                 ·gc.time:            579.000 ms
+
+Iteration   2: 33675.983 us/op
+                 ·gc.alloc.rate:      2803.636 MB/sec
+                 ·gc.alloc.rate.norm: 99001728.229 B/op
+                 ·gc.count:           128.000 counts
+                 ·gc.time:            575.000 ms
+
+Iteration   3: 33904.857 us/op
+                 ·gc.alloc.rate:      2784.709 MB/sec
+                 ·gc.alloc.rate.norm: 99001728.723 B/op
+                 ·gc.count:           126.000 counts
+                 ·gc.time:            572.000 ms
+
+
+
+Result "viaduct.engine.runtime2.schema.SelectionForestCreationBenchmark.createMaterializeForest":
+  33888.497 ±(99.9%) 460.905 us/op [Average]
+  (min, avg, max) = (33675.983, 33888.497, 34104.042), stdev = 164.363
+  CI (99.9%): [33427.592, 34349.402] (assumes normal distribution)
+
+Secondary result "viaduct.engine.runtime2.schema.SelectionForestCreationBenchmark.createMaterializeForest:·gc.alloc.rate":
+  2805.857 ±(99.9%) 36.411 MB/sec [Average]
+  (min, avg, max) = (2784.709, 2805.857, 2820.220), stdev = 12.985
+  CI (99.9%): [2769.446, 2842.268] (assumes normal distribution)
+
+Secondary result "viaduct.engine.runtime2.schema.SelectionForestCreationBenchmark.createMaterializeForest:·gc.alloc.rate.norm":
+  99706048.395 ±(99.9%) 2163553.178 B/op [Average]
+  (min, avg, max) = (99001728.229, 99706048.395, 100410368.727), stdev = 771543.905
+  CI (99.9%): [97542495.217, 101869601.573] (assumes normal distribution)
+
+Secondary result "viaduct.engine.runtime2.schema.SelectionForestCreationBenchmark.createMaterializeForest:·gc.count":
+  660.000 ±(99.9%) 0.001 counts [Sum]
+  (min, avg, max) = (93.000, 110.000, 128.000), stdev = 18.633
+  CI (99.9%): [660.000, 660.000] (assumes normal distribution)
+
+Secondary result "viaduct.engine.runtime2.schema.SelectionForestCreationBenchmark.createMaterializeForest:·gc.time":
+  2513.000 ±(99.9%) 0.001 ms [Sum]
+  (min, avg, max) = (260.000, 418.833, 579.000), stdev = 171.459
+  CI (99.9%): [2513.000, 2513.000] (assumes normal distribution)
+
+
+# JMH version: 1.36
+# VM version: JDK 25.0.5.0.3, OpenJDK 64-Bit Server VM, 25.0.5.0.3+1-1-26.04.1-Ubuntu
+# VM invoker: /usr/lib/jvm/java-25-openjdk-amd64/bin/java
+# VM options: -Xms2g -Xmx8g -XX:+UseG1GC
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 2 iterations, 30 s each
+# Measurement: 3 iterations, 60 s each
+# Timeout: 10 min per iteration
+# Threads: 1 thread, will synchronize iterations
+# Benchmark mode: Average time, time/op
+# Benchmark: viaduct.engine.runtime2.schema.SelectionForestCreationBenchmark.createSelectionForest
+# Parameters: (fixture = schema2-small)
+
+# Run progress: 50.00% complete, ETA 00:33:24
+# Fork: 1 of 2
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::objectFieldOffset has been called by org.openjdk.jmh.util.Utils (file:/opt/graphql-schema-perf/viaduct-selection-forest-20261115-a2483562b/engine-runtime2-4.0.0-SNAPSHOT-jmh.jar)
+WARNING: Please consider reporting this to the maintainers of class org.openjdk.jmh.util.Utils
+WARNING: sun.misc.Unsafe::objectFieldOffset will be removed in a future release
+# Warmup Iteration   1: 12.875 us/op
+# Warmup Iteration   2: 12.578 us/op
+Iteration   1: 12.495 us/op
+                 ·gc.alloc.rate:      1050.871 MB/sec
+                 ·gc.alloc.rate.norm: 13768.000 B/op
+                 ·gc.count:           51.000 counts
+                 ·gc.time:            35.000 ms
+
+Iteration   2: 12.499 us/op
+                 ·gc.alloc.rate:      1050.523 MB/sec
+                 ·gc.alloc.rate.norm: 13768.000 B/op
+                 ·gc.count:           52.000 counts
+                 ·gc.time:            36.000 ms
+
+Iteration   3: 12.499 us/op
+                 ·gc.alloc.rate:      1050.504 MB/sec
+                 ·gc.alloc.rate.norm: 13768.000 B/op
+                 ·gc.count:           52.000 counts
+                 ·gc.time:            37.000 ms
+
+
+# Run progress: 54.17% complete, ETA 00:31:40
+# Fork: 2 of 2
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::objectFieldOffset has been called by org.openjdk.jmh.util.Utils (file:/opt/graphql-schema-perf/viaduct-selection-forest-20261115-a2483562b/engine-runtime2-4.0.0-SNAPSHOT-jmh.jar)
+WARNING: Please consider reporting this to the maintainers of class org.openjdk.jmh.util.Utils
+WARNING: sun.misc.Unsafe::objectFieldOffset will be removed in a future release
+# Warmup Iteration   1: 12.642 us/op
+# Warmup Iteration   2: 12.326 us/op
+Iteration   1: 12.340 us/op
+                 ·gc.alloc.rate:      1062.219 MB/sec
+                 ·gc.alloc.rate.norm: 13744.000 B/op
+                 ·gc.count:           52.000 counts
+                 ·gc.time:            35.000 ms
+
+Iteration   2: 12.378 us/op
+                 ·gc.alloc.rate:      1058.886 MB/sec
+                 ·gc.alloc.rate.norm: 13744.000 B/op
+                 ·gc.count:           52.000 counts
+                 ·gc.time:            36.000 ms
+
+Iteration   3: 12.454 us/op
+                 ·gc.alloc.rate:      1052.493 MB/sec
+                 ·gc.alloc.rate.norm: 13744.000 B/op
+                 ·gc.count:           51.000 counts
+                 ·gc.time:            35.000 ms
+
+
+
+Result "viaduct.engine.runtime2.schema.SelectionForestCreationBenchmark.createSelectionForest":
+  12.444 ±(99.9%) 0.194 us/op [Average]
+  (min, avg, max) = (12.340, 12.444, 12.499), stdev = 0.069
+  CI (99.9%): [12.250, 12.638] (assumes normal distribution)
+
+Secondary result "viaduct.engine.runtime2.schema.SelectionForestCreationBenchmark.createSelectionForest:·gc.alloc.rate":
+  1054.250 ±(99.9%) 14.156 MB/sec [Average]
+  (min, avg, max) = (1050.504, 1054.250, 1062.219), stdev = 5.048
+  CI (99.9%): [1040.093, 1068.406] (assumes normal distribution)
+
+Secondary result "viaduct.engine.runtime2.schema.SelectionForestCreationBenchmark.createSelectionForest:·gc.alloc.rate.norm":
+  13756.000 ±(99.9%) 36.862 B/op [Average]
+  (min, avg, max) = (13744.000, 13756.000, 13768.000), stdev = 13.145
+  CI (99.9%): [13719.138, 13792.862] (assumes normal distribution)
+
+Secondary result "viaduct.engine.runtime2.schema.SelectionForestCreationBenchmark.createSelectionForest:·gc.count":
+  310.000 ±(99.9%) 0.001 counts [Sum]
+  (min, avg, max) = (51.000, 51.667, 52.000), stdev = 0.516
+  CI (99.9%): [310.000, 310.000] (assumes normal distribution)
+
+Secondary result "viaduct.engine.runtime2.schema.SelectionForestCreationBenchmark.createSelectionForest:·gc.time":
+  214.000 ±(99.9%) 0.001 ms [Sum]
+  (min, avg, max) = (35.000, 35.667, 37.000), stdev = 0.816
+  CI (99.9%): [214.000, 214.000] (assumes normal distribution)
+
+
+# JMH version: 1.36
+# VM version: JDK 25.0.5.0.3, OpenJDK 64-Bit Server VM, 25.0.5.0.3+1-1-26.04.1-Ubuntu
+# VM invoker: /usr/lib/jvm/java-25-openjdk-amd64/bin/java
+# VM options: -Xms2g -Xmx8g -XX:+UseG1GC
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 2 iterations, 30 s each
+# Measurement: 3 iterations, 60 s each
+# Timeout: 10 min per iteration
+# Threads: 1 thread, will synchronize iterations
+# Benchmark mode: Average time, time/op
+# Benchmark: viaduct.engine.runtime2.schema.SelectionForestCreationBenchmark.createSelectionForest
+# Parameters: (fixture = schema4-small)
+
+# Run progress: 58.33% complete, ETA 00:29:36
+# Fork: 1 of 2
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::objectFieldOffset has been called by org.openjdk.jmh.util.Utils (file:/opt/graphql-schema-perf/viaduct-selection-forest-20261115-a2483562b/engine-runtime2-4.0.0-SNAPSHOT-jmh.jar)
+WARNING: Please consider reporting this to the maintainers of class org.openjdk.jmh.util.Utils
+WARNING: sun.misc.Unsafe::objectFieldOffset will be removed in a future release
+# Warmup Iteration   1: <failure>
+
+java.lang.IllegalStateException: Invalid schema4-small fixture: Validation error (FieldUndefined@[field29531/field30371/field17373]) : Field 'field17373' in type 'Object6306' is undefined
+	at viaduct.engine.runtime2.schema.SelectionForestCreationBenchmark.setup(SelectionForestCreationBenchmark.kt:80)
+	at viaduct.engine.runtime2.schema.jmh_generated.SelectionForestCreationBenchmark_createSelectionForest_jmhTest._jmh_tryInit_f_selectionforestcreationbenchmark0_0(SelectionForestCreationBenchmark_createSelectionForest_jmhTest.java:338)
+	at viaduct.engine.runtime2.schema.jmh_generated.SelectionForestCreationBenchmark_createSelectionForest_jmhTest.createSelectionForest_AverageTime(SelectionForestCreationBenchmark_createSelectionForest_jmhTest.java:138)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+	at org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call(BenchmarkHandler.java:475)
+	at org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call(BenchmarkHandler.java:458)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:328)
+	at java.base/java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:545)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:328)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1090)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:614)
+	at java.base/java.lang.Thread.run(Thread.java:1474)
+
+
+
+# Run progress: 62.50% complete, ETA 00:24:55
+# Fork: 2 of 2
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::objectFieldOffset has been called by org.openjdk.jmh.util.Utils (file:/opt/graphql-schema-perf/viaduct-selection-forest-20261115-a2483562b/engine-runtime2-4.0.0-SNAPSHOT-jmh.jar)
+WARNING: Please consider reporting this to the maintainers of class org.openjdk.jmh.util.Utils
+WARNING: sun.misc.Unsafe::objectFieldOffset will be removed in a future release
+# Warmup Iteration   1: <failure>
+
+java.lang.IllegalStateException: Invalid schema4-small fixture: Validation error (FieldUndefined@[field29531/field30371/field17373]) : Field 'field17373' in type 'Object6306' is undefined
+	at viaduct.engine.runtime2.schema.SelectionForestCreationBenchmark.setup(SelectionForestCreationBenchmark.kt:80)
+	at viaduct.engine.runtime2.schema.jmh_generated.SelectionForestCreationBenchmark_createSelectionForest_jmhTest._jmh_tryInit_f_selectionforestcreationbenchmark0_0(SelectionForestCreationBenchmark_createSelectionForest_jmhTest.java:338)
+	at viaduct.engine.runtime2.schema.jmh_generated.SelectionForestCreationBenchmark_createSelectionForest_jmhTest.createSelectionForest_AverageTime(SelectionForestCreationBenchmark_createSelectionForest_jmhTest.java:138)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+	at org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call(BenchmarkHandler.java:475)
+	at org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call(BenchmarkHandler.java:458)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:328)
+	at java.base/java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:545)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:328)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1090)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:614)
+	at java.base/java.lang.Thread.run(Thread.java:1474)
+
+
+
+
+# JMH version: 1.36
+# VM version: JDK 25.0.5.0.3, OpenJDK 64-Bit Server VM, 25.0.5.0.3+1-1-26.04.1-Ubuntu
+# VM invoker: /usr/lib/jvm/java-25-openjdk-amd64/bin/java
+# VM options: -Xms2g -Xmx8g -XX:+UseG1GC
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 2 iterations, 30 s each
+# Measurement: 3 iterations, 60 s each
+# Timeout: 10 min per iteration
+# Threads: 1 thread, will synchronize iterations
+# Benchmark mode: Average time, time/op
+# Benchmark: viaduct.engine.runtime2.schema.SelectionForestCreationBenchmark.createSelectionForest
+# Parameters: (fixture = schema4-full)
+
+# Run progress: 66.67% complete, ETA 00:20:48
+# Fork: 1 of 2
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::objectFieldOffset has been called by org.openjdk.jmh.util.Utils (file:/opt/graphql-schema-perf/viaduct-selection-forest-20261115-a2483562b/engine-runtime2-4.0.0-SNAPSHOT-jmh.jar)
+WARNING: Please consider reporting this to the maintainers of class org.openjdk.jmh.util.Utils
+WARNING: sun.misc.Unsafe::objectFieldOffset will be removed in a future release
+# Warmup Iteration   1: 151136.067 us/op
+# Warmup Iteration   2: 150289.698 us/op
+Iteration   1: 150232.101 us/op
+                 ·gc.alloc.rate:      1456.381 MB/sec
+                 ·gc.alloc.rate.norm: 229423977.020 B/op
+                 ·gc.count:           54.000 counts
+                 ·gc.time:            377.000 ms
+
+Iteration   2: 150350.669 us/op
+                 ·gc.alloc.rate:      1455.232 MB/sec
+                 ·gc.alloc.rate.norm: 229423977.020 B/op
+                 ·gc.count:           55.000 counts
+                 ·gc.time:            378.000 ms
+
+Iteration   3: 150745.647 us/op
+                 ·gc.alloc.rate:      1451.419 MB/sec
+                 ·gc.alloc.rate.norm: 229423977.023 B/op
+                 ·gc.count:           54.000 counts
+                 ·gc.time:            375.000 ms
+
+
+# Run progress: 70.83% complete, ETA 00:18:53
+# Fork: 2 of 2
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::objectFieldOffset has been called by org.openjdk.jmh.util.Utils (file:/opt/graphql-schema-perf/viaduct-selection-forest-20261115-a2483562b/engine-runtime2-4.0.0-SNAPSHOT-jmh.jar)
+WARNING: Please consider reporting this to the maintainers of class org.openjdk.jmh.util.Utils
+WARNING: sun.misc.Unsafe::objectFieldOffset will be removed in a future release
+# Warmup Iteration   1: 151332.785 us/op
+# Warmup Iteration   2: 150493.281 us/op
+Iteration   1: 149783.755 us/op
+                 ·gc.alloc.rate:      1460.741 MB/sec
+                 ·gc.alloc.rate.norm: 229423977.017 B/op
+                 ·gc.count:           40.000 counts
+                 ·gc.time:            386.000 ms
+
+Iteration   2: 150280.748 us/op
+                 ·gc.alloc.rate:      1455.908 MB/sec
+                 ·gc.alloc.rate.norm: 229423977.020 B/op
+                 ·gc.count:           39.000 counts
+                 ·gc.time:            407.000 ms
+
+Iteration   3: 150009.294 us/op
+                 ·gc.alloc.rate:      1458.544 MB/sec
+                 ·gc.alloc.rate.norm: 229423977.020 B/op
+                 ·gc.count:           40.000 counts
+                 ·gc.time:            408.000 ms
+
+
+
+Result "viaduct.engine.runtime2.schema.SelectionForestCreationBenchmark.createSelectionForest":
+  150233.702 ±(99.9%) 913.663 us/op [Average]
+  (min, avg, max) = (149783.755, 150233.702, 150745.647), stdev = 325.821
+  CI (99.9%): [149320.039, 151147.365] (assumes normal distribution)
+
+Secondary result "viaduct.engine.runtime2.schema.SelectionForestCreationBenchmark.createSelectionForest:·gc.alloc.rate":
+  1456.371 ±(99.9%) 8.854 MB/sec [Average]
+  (min, avg, max) = (1451.419, 1456.371, 1460.741), stdev = 3.157
+  CI (99.9%): [1447.517, 1465.225] (assumes normal distribution)
+
+Secondary result "viaduct.engine.runtime2.schema.SelectionForestCreationBenchmark.createSelectionForest:·gc.alloc.rate.norm":
+  229423977.020 ±(99.9%) 0.005 B/op [Average]
+  (min, avg, max) = (229423977.017, 229423977.020, 229423977.023), stdev = 0.002
+  CI (99.9%): [229423977.015, 229423977.025] (assumes normal distribution)
+
+Secondary result "viaduct.engine.runtime2.schema.SelectionForestCreationBenchmark.createSelectionForest:·gc.count":
+  282.000 ±(99.9%) 0.001 counts [Sum]
+  (min, avg, max) = (39.000, 47.000, 55.000), stdev = 8.050
+  CI (99.9%): [282.000, 282.000] (assumes normal distribution)
+
+Secondary result "viaduct.engine.runtime2.schema.SelectionForestCreationBenchmark.createSelectionForest:·gc.time":
+  2331.000 ±(99.9%) 0.001 ms [Sum]
+  (min, avg, max) = (375.000, 388.500, 408.000), stdev = 15.189
+  CI (99.9%): [2331.000, 2331.000] (assumes normal distribution)
+
+
+# JMH version: 1.36
+# VM version: JDK 25.0.5.0.3, OpenJDK 64-Bit Server VM, 25.0.5.0.3+1-1-26.04.1-Ubuntu
+# VM invoker: /usr/lib/jvm/java-25-openjdk-amd64/bin/java
+# VM options: -Xms2g -Xmx8g -XX:+UseG1GC
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 2 iterations, 30 s each
+# Measurement: 3 iterations, 60 s each
+# Timeout: 10 min per iteration
+# Threads: 1 thread, will synchronize iterations
+# Benchmark mode: Average time, time/op
+# Benchmark: viaduct.engine.runtime2.schema.SelectionForestCreationBenchmark.decodeOperation
+# Parameters: (fixture = schema2-small)
+
+# Run progress: 75.00% complete, ETA 00:16:42
+# Fork: 1 of 2
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::objectFieldOffset has been called by org.openjdk.jmh.util.Utils (file:/opt/graphql-schema-perf/viaduct-selection-forest-20261115-a2483562b/engine-runtime2-4.0.0-SNAPSHOT-jmh.jar)
+WARNING: Please consider reporting this to the maintainers of class org.openjdk.jmh.util.Utils
+WARNING: sun.misc.Unsafe::objectFieldOffset will be removed in a future release
+# Warmup Iteration   1: 5.153 us/op
+# Warmup Iteration   2: 5.124 us/op
+Iteration   1: 5.072 us/op
+                 ·gc.alloc.rate:      1219.847 MB/sec
+                 ·gc.alloc.rate.norm: 6488.000 B/op
+                 ·gc.count:           60.000 counts
+                 ·gc.time:            44.000 ms
+
+Iteration   2: 5.079 us/op
+                 ·gc.alloc.rate:      1218.136 MB/sec
+                 ·gc.alloc.rate.norm: 6488.000 B/op
+                 ·gc.count:           60.000 counts
+                 ·gc.time:            43.000 ms
+
+Iteration   3: 5.074 us/op
+                 ·gc.alloc.rate:      1219.398 MB/sec
+                 ·gc.alloc.rate.norm: 6488.000 B/op
+                 ·gc.count:           60.000 counts
+                 ·gc.time:            43.000 ms
+
+
+# Run progress: 79.17% complete, ETA 00:14:15
+# Fork: 2 of 2
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::objectFieldOffset has been called by org.openjdk.jmh.util.Utils (file:/opt/graphql-schema-perf/viaduct-selection-forest-20261115-a2483562b/engine-runtime2-4.0.0-SNAPSHOT-jmh.jar)
+WARNING: Please consider reporting this to the maintainers of class org.openjdk.jmh.util.Utils
+WARNING: sun.misc.Unsafe::objectFieldOffset will be removed in a future release
+# Warmup Iteration   1: 5.134 us/op
+# Warmup Iteration   2: 5.062 us/op
+Iteration   1: 5.044 us/op
+                 ·gc.alloc.rate:      1226.747 MB/sec
+                 ·gc.alloc.rate.norm: 6488.000 B/op
+                 ·gc.count:           60.000 counts
+                 ·gc.time:            41.000 ms
+
+Iteration   2: 5.031 us/op
+                 ·gc.alloc.rate:      1229.973 MB/sec
+                 ·gc.alloc.rate.norm: 6488.000 B/op
+                 ·gc.count:           60.000 counts
+                 ·gc.time:            40.000 ms
+
+Iteration   3: 5.027 us/op
+                 ·gc.alloc.rate:      1230.909 MB/sec
+                 ·gc.alloc.rate.norm: 6488.000 B/op
+                 ·gc.count:           61.000 counts
+                 ·gc.time:            42.000 ms
+
+
+
+Result "viaduct.engine.runtime2.schema.SelectionForestCreationBenchmark.decodeOperation":
+  5.054 ±(99.9%) 0.066 us/op [Average]
+  (min, avg, max) = (5.027, 5.054, 5.079), stdev = 0.024
+  CI (99.9%): [4.988, 5.121] (assumes normal distribution)
+
+Secondary result "viaduct.engine.runtime2.schema.SelectionForestCreationBenchmark.decodeOperation:·gc.alloc.rate":
+  1224.168 ±(99.9%) 16.040 MB/sec [Average]
+  (min, avg, max) = (1218.136, 1224.168, 1230.909), stdev = 5.720
+  CI (99.9%): [1208.128, 1240.208] (assumes normal distribution)
+
+Secondary result "viaduct.engine.runtime2.schema.SelectionForestCreationBenchmark.decodeOperation:·gc.alloc.rate.norm":
+  6488.000 ±(99.9%) 0.001 B/op [Average]
+  (min, avg, max) = (6488.000, 6488.000, 6488.000), stdev = 0.001
+  CI (99.9%): [6488.000, 6488.000] (assumes normal distribution)
+
+Secondary result "viaduct.engine.runtime2.schema.SelectionForestCreationBenchmark.decodeOperation:·gc.count":
+  361.000 ±(99.9%) 0.001 counts [Sum]
+  (min, avg, max) = (60.000, 60.167, 61.000), stdev = 0.408
+  CI (99.9%): [361.000, 361.000] (assumes normal distribution)
+
+Secondary result "viaduct.engine.runtime2.schema.SelectionForestCreationBenchmark.decodeOperation:·gc.time":
+  253.000 ±(99.9%) 0.001 ms [Sum]
+  (min, avg, max) = (40.000, 42.167, 44.000), stdev = 1.472
+  CI (99.9%): [253.000, 253.000] (assumes normal distribution)
+
+
+# JMH version: 1.36
+# VM version: JDK 25.0.5.0.3, OpenJDK 64-Bit Server VM, 25.0.5.0.3+1-1-26.04.1-Ubuntu
+# VM invoker: /usr/lib/jvm/java-25-openjdk-amd64/bin/java
+# VM options: -Xms2g -Xmx8g -XX:+UseG1GC
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 2 iterations, 30 s each
+# Measurement: 3 iterations, 60 s each
+# Timeout: 10 min per iteration
+# Threads: 1 thread, will synchronize iterations
+# Benchmark mode: Average time, time/op
+# Benchmark: viaduct.engine.runtime2.schema.SelectionForestCreationBenchmark.decodeOperation
+# Parameters: (fixture = schema4-small)
+
+# Run progress: 83.33% complete, ETA 00:11:38
+# Fork: 1 of 2
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::objectFieldOffset has been called by org.openjdk.jmh.util.Utils (file:/opt/graphql-schema-perf/viaduct-selection-forest-20261115-a2483562b/engine-runtime2-4.0.0-SNAPSHOT-jmh.jar)
+WARNING: Please consider reporting this to the maintainers of class org.openjdk.jmh.util.Utils
+WARNING: sun.misc.Unsafe::objectFieldOffset will be removed in a future release
+# Warmup Iteration   1: <failure>
+
+java.lang.IllegalStateException: Invalid schema4-small fixture: Validation error (FieldUndefined@[field29531/field30371/field17373]) : Field 'field17373' in type 'Object6306' is undefined
+	at viaduct.engine.runtime2.schema.SelectionForestCreationBenchmark.setup(SelectionForestCreationBenchmark.kt:80)
+	at viaduct.engine.runtime2.schema.jmh_generated.SelectionForestCreationBenchmark_decodeOperation_jmhTest._jmh_tryInit_f_selectionforestcreationbenchmark0_0(SelectionForestCreationBenchmark_decodeOperation_jmhTest.java:338)
+	at viaduct.engine.runtime2.schema.jmh_generated.SelectionForestCreationBenchmark_decodeOperation_jmhTest.decodeOperation_AverageTime(SelectionForestCreationBenchmark_decodeOperation_jmhTest.java:138)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+	at org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call(BenchmarkHandler.java:475)
+	at org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call(BenchmarkHandler.java:458)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:328)
+	at java.base/java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:545)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:328)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1090)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:614)
+	at java.base/java.lang.Thread.run(Thread.java:1474)
+
+
+
+# Run progress: 87.50% complete, ETA 00:08:19
+# Fork: 2 of 2
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::objectFieldOffset has been called by org.openjdk.jmh.util.Utils (file:/opt/graphql-schema-perf/viaduct-selection-forest-20261115-a2483562b/engine-runtime2-4.0.0-SNAPSHOT-jmh.jar)
+WARNING: Please consider reporting this to the maintainers of class org.openjdk.jmh.util.Utils
+WARNING: sun.misc.Unsafe::objectFieldOffset will be removed in a future release
+# Warmup Iteration   1: <failure>
+
+java.lang.IllegalStateException: Invalid schema4-small fixture: Validation error (FieldUndefined@[field29531/field30371/field17373]) : Field 'field17373' in type 'Object6306' is undefined
+	at viaduct.engine.runtime2.schema.SelectionForestCreationBenchmark.setup(SelectionForestCreationBenchmark.kt:80)
+	at viaduct.engine.runtime2.schema.jmh_generated.SelectionForestCreationBenchmark_decodeOperation_jmhTest._jmh_tryInit_f_selectionforestcreationbenchmark0_0(SelectionForestCreationBenchmark_decodeOperation_jmhTest.java:338)
+	at viaduct.engine.runtime2.schema.jmh_generated.SelectionForestCreationBenchmark_decodeOperation_jmhTest.decodeOperation_AverageTime(SelectionForestCreationBenchmark_decodeOperation_jmhTest.java:138)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+	at org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call(BenchmarkHandler.java:475)
+	at org.openjdk.jmh.runner.BenchmarkHandler$BenchmarkTask.call(BenchmarkHandler.java:458)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:328)
+	at java.base/java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:545)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:328)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1090)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:614)
+	at java.base/java.lang.Thread.run(Thread.java:1474)
+
+
+
+
+# JMH version: 1.36
+# VM version: JDK 25.0.5.0.3, OpenJDK 64-Bit Server VM, 25.0.5.0.3+1-1-26.04.1-Ubuntu
+# VM invoker: /usr/lib/jvm/java-25-openjdk-amd64/bin/java
+# VM options: -Xms2g -Xmx8g -XX:+UseG1GC
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 2 iterations, 30 s each
+# Measurement: 3 iterations, 60 s each
+# Timeout: 10 min per iteration
+# Threads: 1 thread, will synchronize iterations
+# Benchmark mode: Average time, time/op
+# Benchmark: viaduct.engine.runtime2.schema.SelectionForestCreationBenchmark.decodeOperation
+# Parameters: (fixture = schema4-full)
+
+# Run progress: 91.67% complete, ETA 00:05:18
+# Fork: 1 of 2
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::objectFieldOffset has been called by org.openjdk.jmh.util.Utils (file:/opt/graphql-schema-perf/viaduct-selection-forest-20261115-a2483562b/engine-runtime2-4.0.0-SNAPSHOT-jmh.jar)
+WARNING: Please consider reporting this to the maintainers of class org.openjdk.jmh.util.Utils
+WARNING: sun.misc.Unsafe::objectFieldOffset will be removed in a future release
+# Warmup Iteration   1: 78506.100 us/op
+# Warmup Iteration   2: 77755.995 us/op
+Iteration   1: 77708.533 us/op
+                 ·gc.alloc.rate:      1329.193 MB/sec
+                 ·gc.alloc.rate.norm: 108307264.569 B/op
+                 ·gc.count:           55.000 counts
+                 ·gc.time:            154.000 ms
+
+Iteration   2: 78174.515 us/op
+                 ·gc.alloc.rate:      1321.270 MB/sec
+                 ·gc.alloc.rate.norm: 108307264.531 B/op
+                 ·gc.count:           55.000 counts
+                 ·gc.time:            149.000 ms
+
+Iteration   3: 77886.000 us/op
+                 ·gc.alloc.rate:      1326.164 MB/sec
+                 ·gc.alloc.rate.norm: 108307264.529 B/op
+                 ·gc.count:           55.000 counts
+                 ·gc.time:            150.000 ms
+
+
+# Run progress: 95.83% complete, ETA 00:02:43
+# Fork: 2 of 2
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::objectFieldOffset has been called by org.openjdk.jmh.util.Utils (file:/opt/graphql-schema-perf/viaduct-selection-forest-20261115-a2483562b/engine-runtime2-4.0.0-SNAPSHOT-jmh.jar)
+WARNING: Please consider reporting this to the maintainers of class org.openjdk.jmh.util.Utils
+WARNING: sun.misc.Unsafe::objectFieldOffset will be removed in a future release
+# Warmup Iteration   1: 77188.110 us/op
+# Warmup Iteration   2: 75899.425 us/op
+Iteration   1: 75964.214 us/op
+                 ·gc.alloc.rate:      1359.715 MB/sec
+                 ·gc.alloc.rate.norm: 108307264.516 B/op
+                 ·gc.count:           51.000 counts
+                 ·gc.time:            161.000 ms
+
+Iteration   2: 76762.861 us/op
+                 ·gc.alloc.rate:      1345.568 MB/sec
+                 ·gc.alloc.rate.norm: 108307264.522 B/op
+                 ·gc.count:           50.000 counts
+                 ·gc.time:            154.000 ms
+
+Iteration   3: 76632.375 us/op
+                 ·gc.alloc.rate:      1347.859 MB/sec
+                 ·gc.alloc.rate.norm: 108307264.520 B/op
+                 ·gc.count:           51.000 counts
+                 ·gc.time:            159.000 ms
+
+
+
+Result "viaduct.engine.runtime2.schema.SelectionForestCreationBenchmark.decodeOperation":
+  77188.083 ±(99.9%) 2418.270 us/op [Average]
+  (min, avg, max) = (75964.214, 77188.083, 78174.515), stdev = 862.378
+  CI (99.9%): [74769.813, 79606.353] (assumes normal distribution)
+
+Secondary result "viaduct.engine.runtime2.schema.SelectionForestCreationBenchmark.decodeOperation:·gc.alloc.rate":
+  1338.295 ±(99.9%) 42.026 MB/sec [Average]
+  (min, avg, max) = (1321.270, 1338.295, 1359.715), stdev = 14.987
+  CI (99.9%): [1296.269, 1380.321] (assumes normal distribution)
+
+Secondary result "viaduct.engine.runtime2.schema.SelectionForestCreationBenchmark.decodeOperation:·gc.alloc.rate.norm":
+  108307264.531 ±(99.9%) 0.054 B/op [Average]
+  (min, avg, max) = (108307264.516, 108307264.531, 108307264.569), stdev = 0.019
+  CI (99.9%): [108307264.477, 108307264.586] (assumes normal distribution)
+
+Secondary result "viaduct.engine.runtime2.schema.SelectionForestCreationBenchmark.decodeOperation:·gc.count":
+  317.000 ±(99.9%) 0.001 counts [Sum]
+  (min, avg, max) = (50.000, 52.833, 55.000), stdev = 2.401
+  CI (99.9%): [317.000, 317.000] (assumes normal distribution)
+
+Secondary result "viaduct.engine.runtime2.schema.SelectionForestCreationBenchmark.decodeOperation:·gc.time":
+  927.000 ±(99.9%) 0.001 ms [Sum]
+  (min, avg, max) = (149.000, 154.500, 161.000), stdev = 4.764
+  CI (99.9%): [927.000, 927.000] (assumes normal distribution)
+
+
+# Run complete. Total time: 01:06:50
+
+REMEMBER: The numbers below are just data. To gain reusable insights, you need to follow up on
+why the numbers are the way they are. Use profilers (see -prof, -lprof), design factorial
+experiments, perform baseline and negative tests that provide experimental control, make sure
+the benchmarking environment is safe on JVM/OS/HW level, ask for reviews from the domain experts.
+Do not assume the numbers tell you what you want them to tell.
+
+NOTE: Current JVM experimentally supports Compiler Blackholes, and they are in use. Please exercise
+extra caution when trusting the results, look into the generated code to check the benchmark still
+works, and factor in a small probability of new VM bugs. Additionally, while comparisons between
+different JVMs are already problematic, the performance difference caused by different Blackhole
+modes can be very significant. Please make sure you use the consistent Blackhole mode for comparisons.
+
+Benchmark                                                                          (fixture)  Mode  Cnt          Score         Error   Units
+SelectionForestCreationBenchmark.createConstructionForest                      schema2-small  avgt    6          0.401 ±       0.016   us/op
+SelectionForestCreationBenchmark.createConstructionForest:·gc.alloc.rate       schema2-small  avgt    6       3573.392 ±     142.760  MB/sec
+SelectionForestCreationBenchmark.createConstructionForest:·gc.alloc.rate.norm  schema2-small  avgt    6       1504.000 ±       0.001    B/op
+SelectionForestCreationBenchmark.createConstructionForest:·gc.count            schema2-small  avgt    6       1051.000                counts
+SelectionForestCreationBenchmark.createConstructionForest:·gc.time             schema2-small  avgt    6        671.000                    ms
+SelectionForestCreationBenchmark.createConstructionForest                       schema4-full  avgt    6      16898.133 ±     545.131   us/op
+SelectionForestCreationBenchmark.createConstructionForest:·gc.alloc.rate        schema4-full  avgt    6       1168.723 ±      37.698  MB/sec
+SelectionForestCreationBenchmark.createConstructionForest:·gc.alloc.rate.norm   schema4-full  avgt    6   20706344.197 ±       0.356    B/op
+SelectionForestCreationBenchmark.createConstructionForest:·gc.count             schema4-full  avgt    6        251.000                counts
+SelectionForestCreationBenchmark.createConstructionForest:·gc.time              schema4-full  avgt    6        367.000                    ms
+SelectionForestCreationBenchmark.createMaterializeForest                       schema2-small  avgt    6          6.771 ±       0.094   us/op
+SelectionForestCreationBenchmark.createMaterializeForest:·gc.alloc.rate        schema2-small  avgt    6        742.582 ±      10.264  MB/sec
+SelectionForestCreationBenchmark.createMaterializeForest:·gc.alloc.rate.norm   schema2-small  avgt    6       5272.000 ±       0.001    B/op
+SelectionForestCreationBenchmark.createMaterializeForest:·gc.count             schema2-small  avgt    6        218.000                counts
+SelectionForestCreationBenchmark.createMaterializeForest:·gc.time              schema2-small  avgt    6        147.000                    ms
+SelectionForestCreationBenchmark.createMaterializeForest                        schema4-full  avgt    6      33888.497 ±     460.905   us/op
+SelectionForestCreationBenchmark.createMaterializeForest:·gc.alloc.rate         schema4-full  avgt    6       2805.857 ±      36.411  MB/sec
+SelectionForestCreationBenchmark.createMaterializeForest:·gc.alloc.rate.norm    schema4-full  avgt    6   99706048.395 ± 2163553.178    B/op
+SelectionForestCreationBenchmark.createMaterializeForest:·gc.count              schema4-full  avgt    6        660.000                counts
+SelectionForestCreationBenchmark.createMaterializeForest:·gc.time               schema4-full  avgt    6       2513.000                    ms
+SelectionForestCreationBenchmark.createSelectionForest                         schema2-small  avgt    6         12.444 ±       0.194   us/op
+SelectionForestCreationBenchmark.createSelectionForest:·gc.alloc.rate          schema2-small  avgt    6       1054.250 ±      14.156  MB/sec
+SelectionForestCreationBenchmark.createSelectionForest:·gc.alloc.rate.norm     schema2-small  avgt    6      13756.000 ±      36.862    B/op
+SelectionForestCreationBenchmark.createSelectionForest:·gc.count               schema2-small  avgt    6        310.000                counts
+SelectionForestCreationBenchmark.createSelectionForest:·gc.time                schema2-small  avgt    6        214.000                    ms
+SelectionForestCreationBenchmark.createSelectionForest                          schema4-full  avgt    6     150233.702 ±     913.663   us/op
+SelectionForestCreationBenchmark.createSelectionForest:·gc.alloc.rate           schema4-full  avgt    6       1456.371 ±       8.854  MB/sec
+SelectionForestCreationBenchmark.createSelectionForest:·gc.alloc.rate.norm      schema4-full  avgt    6  229423977.020 ±       0.005    B/op
+SelectionForestCreationBenchmark.createSelectionForest:·gc.count                schema4-full  avgt    6        282.000                counts
+SelectionForestCreationBenchmark.createSelectionForest:·gc.time                 schema4-full  avgt    6       2331.000                    ms
+SelectionForestCreationBenchmark.decodeOperation                               schema2-small  avgt    6          5.054 ±       0.066   us/op
+SelectionForestCreationBenchmark.decodeOperation:·gc.alloc.rate                schema2-small  avgt    6       1224.168 ±      16.040  MB/sec
+SelectionForestCreationBenchmark.decodeOperation:·gc.alloc.rate.norm           schema2-small  avgt    6       6488.000 ±       0.001    B/op
+SelectionForestCreationBenchmark.decodeOperation:·gc.count                     schema2-small  avgt    6        361.000                counts
+SelectionForestCreationBenchmark.decodeOperation:·gc.time                      schema2-small  avgt    6        253.000                    ms
+SelectionForestCreationBenchmark.decodeOperation                                schema4-full  avgt    6      77188.083 ±    2418.270   us/op
+SelectionForestCreationBenchmark.decodeOperation:·gc.alloc.rate                 schema4-full  avgt    6       1338.295 ±      42.026  MB/sec
+SelectionForestCreationBenchmark.decodeOperation:·gc.alloc.rate.norm            schema4-full  avgt    6  108307264.531 ±       0.054    B/op
+SelectionForestCreationBenchmark.decodeOperation:·gc.count                      schema4-full  avgt    6        317.000                counts
+SelectionForestCreationBenchmark.decodeOperation:·gc.time                       schema4-full  avgt    6        927.000                    ms
+
+Benchmark result is saved to /opt/graphql-schema-perf/viaduct-selection-forest-20261115-a2483562b/results/results.json

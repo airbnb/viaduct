@@ -11,11 +11,12 @@ import viaduct.engine.runtime2.model.EngineResultCell
 import viaduct.engine.runtime2.model.EngineResultIsPending
 import viaduct.engine.runtime2.model.ErrorEngineResult
 import viaduct.engine.runtime2.model.ListEngineResult
-import viaduct.engine.runtime2.model.MaterializeSelectionForest
 import viaduct.engine.runtime2.model.MutationObjectEngineResult
 import viaduct.engine.runtime2.model.ObjectEngineResult
-import viaduct.engine.runtime2.model.ObjectMaterializeSelection
 import viaduct.engine.runtime2.model.PathComponent
+import viaduct.engine.runtime2.model.ProjectedSelection
+import viaduct.engine.runtime2.model.SelectionForest
+import viaduct.engine.runtime2.model.collectProjection
 import viaduct.engine.runtime2.model.materializeCheckedValue
 import viaduct.engine.runtime2.model.materializedEngineObjectDataOf
 import viaduct.engine.runtime2.model.outputType
@@ -51,7 +52,7 @@ import viaduct.graphql.schema.ViaductSchema
  */
 internal suspend fun ObjectEngineResult.materializeResult(
     operation: SharedOperationContext<*>,
-    selections: MaterializeSelectionForest,
+    selections: SelectionForest,
     reader: CycleTask,
     cycleChecker: CycleCheckState = CycleCheckState.createNOP(),
     checked: Boolean = true,
@@ -65,7 +66,7 @@ private class MaterializationLogic(
 ) {
     suspend fun materialize(
         result: ObjectEngineResult,
-        selections: MaterializeSelectionForest,
+        selections: SelectionForest,
         reader: CycleTask,
     ): EngineObjectData.Sync =
         result.materializeSelectedObjectValue(
@@ -76,12 +77,12 @@ private class MaterializationLogic(
 
     // Materializes a selection forest rooted at one exact OER path.
     private suspend fun ObjectEngineResult.materializeSelectedObjectValue(
-        selections: MaterializeSelectionForest,
+        selections: SelectionForest,
         reader: CycleTask,
         resultPath: List<PathComponent>,
     ): EngineObjectData.Sync {
         if (selections.isEmpty()) return operation.world.resolverRegistry.emptyResolverInput(type)
-        val collected = selections.fetchIncluded(operation).collect(type)
+        val collected = selections.fetchIncluded(operation).collectProjection(type)
         if (collected.isEmpty()) return operation.world.resolverRegistry.emptyResolverInput(type)
         val selectedValues = ArrayList<EngineObjectDataEntry>(collected.size)
         collected.byResponseKey().forEach { (responseKey, selection) ->
@@ -119,7 +120,7 @@ private class MaterializationLogic(
         )
     }
 
-    private suspend fun ObjectMaterializeSelection.materializedSymbolicKey(): ObjectEngineResult.ObjectKey {
+    private suspend fun ProjectedSelection.materializedSymbolicKey(): ObjectEngineResult.ObjectKey {
         if (key !is ObjectEngineResult.GroundKey) key.fetchGroundedArguments(operation)
         return key
     }
@@ -127,7 +128,7 @@ private class MaterializationLogic(
     // Recursively materializes one selected result while retaining its exact stored path.
     private suspend fun EngineResult?.materializeEngineResultValue(
         expectedType: ViaductSchema.TypeExpr<ViaductSchema.OutputTypeDef>,
-        selections: MaterializeSelectionForest,
+        selections: SelectionForest,
         reader: CycleTask,
         resultPath: List<PathComponent>,
         fieldDirectives: FieldDirectives?,
@@ -155,7 +156,7 @@ private class MaterializationLogic(
 
     // Materializes each list element at a path containing its concrete list index.
     private suspend fun ListEngineResult.materializeValues(
-        selections: MaterializeSelectionForest,
+        selections: SelectionForest,
         reader: CycleTask,
         resultPath: List<PathComponent>,
         fieldDirectives: FieldDirectives?,

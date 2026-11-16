@@ -1,0 +1,411 @@
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::objectFieldOffset has been called by org.openjdk.jmh.util.Utils (file:/opt/graphql-schema-perf/viaduct-nd-backed-20261116/benchmark.jar)
+WARNING: Please consider reporting this to the maintainers of class org.openjdk.jmh.util.Utils
+WARNING: sun.misc.Unsafe::objectFieldOffset will be removed in a future release
+# JMH version: 1.36
+# VM version: JDK 25.0.5.0.3, OpenJDK 64-Bit Server VM, 25.0.5.0.3+1-1-26.04.1-Ubuntu
+# VM invoker: /usr/lib/jvm/java-25-openjdk-amd64/bin/java
+# VM options: -Xms2g -Xmx8g -XX:+UseG1GC
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 2 iterations, 30 s each
+# Measurement: 3 iterations, 60 s each
+# Timeout: 10 min per iteration
+# Threads: 1 thread, will synchronize iterations
+# Benchmark mode: Average time, time/op
+# Benchmark: viaduct.engine.runtime2.schema.NormalizedDocumentBackedForestBenchmark.consumeAst
+
+# Run progress: 0.00% complete, ETA 00:32:00
+# Fork: 1 of 2
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::objectFieldOffset has been called by org.openjdk.jmh.util.Utils (file:/opt/graphql-schema-perf/viaduct-nd-backed-20261116/benchmark.jar)
+WARNING: Please consider reporting this to the maintainers of class org.openjdk.jmh.util.Utils
+WARNING: sun.misc.Unsafe::objectFieldOffset will be removed in a future release
+# Warmup Iteration   1: 152.018 ms/op
+# Warmup Iteration   2: 150.635 ms/op
+Iteration   1: 150.813 ms/op
+                 ·gc.alloc.rate:      1491.154 MB/sec
+                 ·gc.alloc.rate.norm: 235810505.025 B/op
+                 ·gc.count:           73.000 counts
+                 ·gc.time:            426.000 ms
+
+Iteration   2: 150.385 ms/op
+                 ·gc.alloc.rate:      1495.397 MB/sec
+                 ·gc.alloc.rate.norm: 235810505.023 B/op
+                 ·gc.count:           73.000 counts
+                 ·gc.time:            414.000 ms
+
+Iteration   3: 150.869 ms/op
+                 ·gc.alloc.rate:      1490.599 MB/sec
+                 ·gc.alloc.rate.norm: 235810505.025 B/op
+                 ·gc.count:           72.000 counts
+                 ·gc.time:            406.000 ms
+
+
+# Run progress: 12.50% complete, ETA 00:29:45
+# Fork: 2 of 2
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::objectFieldOffset has been called by org.openjdk.jmh.util.Utils (file:/opt/graphql-schema-perf/viaduct-nd-backed-20261116/benchmark.jar)
+WARNING: Please consider reporting this to the maintainers of class org.openjdk.jmh.util.Utils
+WARNING: sun.misc.Unsafe::objectFieldOffset will be removed in a future release
+# Warmup Iteration   1: 159.057 ms/op
+# Warmup Iteration   2: 157.380 ms/op
+Iteration   1: 156.939 ms/op
+                 ·gc.alloc.rate:      1445.206 MB/sec
+                 ·gc.alloc.rate.norm: 237826673.065 B/op
+                 ·gc.count:           61.000 counts
+                 ·gc.time:            539.000 ms
+
+Iteration   2: 156.258 ms/op
+                 ·gc.alloc.rate:      1451.503 MB/sec
+                 ·gc.alloc.rate.norm: 237826673.060 B/op
+                 ·gc.count:           61.000 counts
+                 ·gc.time:            571.000 ms
+
+Iteration   3: 156.581 ms/op
+                 ·gc.alloc.rate:      1448.506 MB/sec
+                 ·gc.alloc.rate.norm: 237826673.063 B/op
+                 ·gc.count:           60.000 counts
+                 ·gc.time:            521.000 ms
+
+
+
+Result "viaduct.engine.runtime2.schema.NormalizedDocumentBackedForestBenchmark.consumeAst":
+  153.641 ±(99.9%) 9.099 ms/op [Average]
+  (min, avg, max) = (150.385, 153.641, 156.939), stdev = 3.245
+  CI (99.9%): [144.542, 162.740] (assumes normal distribution)
+
+Secondary result "viaduct.engine.runtime2.schema.NormalizedDocumentBackedForestBenchmark.consumeAst:·gc.alloc.rate":
+  1470.394 ±(99.9%) 67.937 MB/sec [Average]
+  (min, avg, max) = (1445.206, 1470.394, 1495.397), stdev = 24.227
+  CI (99.9%): [1402.457, 1538.331] (assumes normal distribution)
+
+Secondary result "viaduct.engine.runtime2.schema.NormalizedDocumentBackedForestBenchmark.consumeAst:·gc.alloc.rate.norm":
+  236818589.043 ±(99.9%) 3096665.406 B/op [Average]
+  (min, avg, max) = (235810505.023, 236818589.043, 237826673.065), stdev = 1104300.714
+  CI (99.9%): [233721923.637, 239915254.449] (assumes normal distribution)
+
+Secondary result "viaduct.engine.runtime2.schema.NormalizedDocumentBackedForestBenchmark.consumeAst:·gc.count":
+  400.000 ±(99.9%) 0.001 counts [Sum]
+  (min, avg, max) = (60.000, 66.667, 73.000), stdev = 6.593
+  CI (99.9%): [400.000, 400.000] (assumes normal distribution)
+
+Secondary result "viaduct.engine.runtime2.schema.NormalizedDocumentBackedForestBenchmark.consumeAst:·gc.time":
+  2877.000 ±(99.9%) 0.001 ms [Sum]
+  (min, avg, max) = (406.000, 479.500, 571.000), stdev = 72.373
+  CI (99.9%): [2877.000, 2877.000] (assumes normal distribution)
+
+
+# JMH version: 1.36
+# VM version: JDK 25.0.5.0.3, OpenJDK 64-Bit Server VM, 25.0.5.0.3+1-1-26.04.1-Ubuntu
+# VM invoker: /usr/lib/jvm/java-25-openjdk-amd64/bin/java
+# VM options: -Xms2g -Xmx8g -XX:+UseG1GC
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 2 iterations, 30 s each
+# Measurement: 3 iterations, 60 s each
+# Timeout: 10 min per iteration
+# Threads: 1 thread, will synchronize iterations
+# Benchmark mode: Average time, time/op
+# Benchmark: viaduct.engine.runtime2.schema.NormalizedDocumentBackedForestBenchmark.consumeNormalizedEager
+
+# Run progress: 25.00% complete, ETA 00:25:29
+# Fork: 1 of 2
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::objectFieldOffset has been called by org.openjdk.jmh.util.Utils (file:/opt/graphql-schema-perf/viaduct-nd-backed-20261116/benchmark.jar)
+WARNING: Please consider reporting this to the maintainers of class org.openjdk.jmh.util.Utils
+WARNING: sun.misc.Unsafe::objectFieldOffset will be removed in a future release
+# Warmup Iteration   1: 32.398 ms/op
+# Warmup Iteration   2: 32.099 ms/op
+Iteration   1: 31.966 ms/op
+                 ·gc.alloc.rate:      1533.297 MB/sec
+                 ·gc.alloc.rate.norm: 51395104.217 B/op
+                 ·gc.count:           58.000 counts
+                 ·gc.time:            92.000 ms
+
+Iteration   2: 31.979 ms/op
+                 ·gc.alloc.rate:      1532.674 MB/sec
+                 ·gc.alloc.rate.norm: 51395104.294 B/op
+                 ·gc.count:           59.000 counts
+                 ·gc.time:            92.000 ms
+
+Iteration   3: 31.984 ms/op
+                 ·gc.alloc.rate:      1532.469 MB/sec
+                 ·gc.alloc.rate.norm: 51395104.217 B/op
+                 ·gc.count:           59.000 counts
+                 ·gc.time:            92.000 ms
+
+
+# Run progress: 37.50% complete, ETA 00:21:14
+# Fork: 2 of 2
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::objectFieldOffset has been called by org.openjdk.jmh.util.Utils (file:/opt/graphql-schema-perf/viaduct-nd-backed-20261116/benchmark.jar)
+WARNING: Please consider reporting this to the maintainers of class org.openjdk.jmh.util.Utils
+WARNING: sun.misc.Unsafe::objectFieldOffset will be removed in a future release
+# Warmup Iteration   1: 32.582 ms/op
+# Warmup Iteration   2: 32.366 ms/op
+Iteration   1: 32.229 ms/op
+                 ·gc.alloc.rate:      1520.814 MB/sec
+                 ·gc.alloc.rate.norm: 51395104.219 B/op
+                 ·gc.count:           76.000 counts
+                 ·gc.time:            192.000 ms
+
+Iteration   2: 32.200 ms/op
+                 ·gc.alloc.rate:      1522.161 MB/sec
+                 ·gc.alloc.rate.norm: 51395104.296 B/op
+                 ·gc.count:           75.000 counts
+                 ·gc.time:            183.000 ms
+
+Iteration   3: 32.237 ms/op
+                 ·gc.alloc.rate:      1520.441 MB/sec
+                 ·gc.alloc.rate.norm: 51395104.219 B/op
+                 ·gc.count:           75.000 counts
+                 ·gc.time:            183.000 ms
+
+
+
+Result "viaduct.engine.runtime2.schema.NormalizedDocumentBackedForestBenchmark.consumeNormalizedEager":
+  32.099 ±(99.9%) 0.378 ms/op [Average]
+  (min, avg, max) = (31.966, 32.099, 32.237), stdev = 0.135
+  CI (99.9%): [31.721, 32.478] (assumes normal distribution)
+
+Secondary result "viaduct.engine.runtime2.schema.NormalizedDocumentBackedForestBenchmark.consumeNormalizedEager:·gc.alloc.rate":
+  1526.976 ±(99.9%) 18.019 MB/sec [Average]
+  (min, avg, max) = (1520.441, 1526.976, 1533.297), stdev = 6.426
+  CI (99.9%): [1508.957, 1544.995] (assumes normal distribution)
+
+Secondary result "viaduct.engine.runtime2.schema.NormalizedDocumentBackedForestBenchmark.consumeNormalizedEager:·gc.alloc.rate.norm":
+  51395104.244 ±(99.9%) 0.111 B/op [Average]
+  (min, avg, max) = (51395104.217, 51395104.244, 51395104.296), stdev = 0.040
+  CI (99.9%): [51395104.133, 51395104.355] (assumes normal distribution)
+
+Secondary result "viaduct.engine.runtime2.schema.NormalizedDocumentBackedForestBenchmark.consumeNormalizedEager:·gc.count":
+  402.000 ±(99.9%) 0.001 counts [Sum]
+  (min, avg, max) = (58.000, 67.000, 76.000), stdev = 9.143
+  CI (99.9%): [402.000, 402.000] (assumes normal distribution)
+
+Secondary result "viaduct.engine.runtime2.schema.NormalizedDocumentBackedForestBenchmark.consumeNormalizedEager:·gc.time":
+  834.000 ±(99.9%) 0.001 ms [Sum]
+  (min, avg, max) = (92.000, 139.000, 192.000), stdev = 51.591
+  CI (99.9%): [834.000, 834.000] (assumes normal distribution)
+
+
+# JMH version: 1.36
+# VM version: JDK 25.0.5.0.3, OpenJDK 64-Bit Server VM, 25.0.5.0.3+1-1-26.04.1-Ubuntu
+# VM invoker: /usr/lib/jvm/java-25-openjdk-amd64/bin/java
+# VM options: -Xms2g -Xmx8g -XX:+UseG1GC
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 2 iterations, 30 s each
+# Measurement: 3 iterations, 60 s each
+# Timeout: 10 min per iteration
+# Threads: 1 thread, will synchronize iterations
+# Benchmark mode: Average time, time/op
+# Benchmark: viaduct.engine.runtime2.schema.NormalizedDocumentBackedForestBenchmark.consumeNormalizedShared
+
+# Run progress: 50.00% complete, ETA 00:16:59
+# Fork: 1 of 2
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::objectFieldOffset has been called by org.openjdk.jmh.util.Utils (file:/opt/graphql-schema-perf/viaduct-nd-backed-20261116/benchmark.jar)
+WARNING: Please consider reporting this to the maintainers of class org.openjdk.jmh.util.Utils
+WARNING: sun.misc.Unsafe::objectFieldOffset will be removed in a future release
+# Warmup Iteration   1: 4.713 ms/op
+# Warmup Iteration   2: 4.649 ms/op
+Iteration   1: 4.635 ms/op
+                 ·gc.alloc.rate:      777.999 MB/sec
+                 ·gc.alloc.rate.norm: 3781304.034 B/op
+                 ·gc.count:           28.000 counts
+                 ·gc.time:            24.000 ms
+
+Iteration   2: 4.638 ms/op
+                 ·gc.alloc.rate:      777.445 MB/sec
+                 ·gc.alloc.rate.norm: 3781304.034 B/op
+                 ·gc.count:           29.000 counts
+                 ·gc.time:            26.000 ms
+
+Iteration   3: 4.687 ms/op
+                 ·gc.alloc.rate:      769.419 MB/sec
+                 ·gc.alloc.rate.norm: 3781304.032 B/op
+                 ·gc.count:           28.000 counts
+                 ·gc.time:            24.000 ms
+
+
+# Run progress: 62.50% complete, ETA 00:12:44
+# Fork: 2 of 2
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::objectFieldOffset has been called by org.openjdk.jmh.util.Utils (file:/opt/graphql-schema-perf/viaduct-nd-backed-20261116/benchmark.jar)
+WARNING: Please consider reporting this to the maintainers of class org.openjdk.jmh.util.Utils
+WARNING: sun.misc.Unsafe::objectFieldOffset will be removed in a future release
+# Warmup Iteration   1: 4.588 ms/op
+# Warmup Iteration   2: 4.542 ms/op
+Iteration   1: 4.597 ms/op
+                 ·gc.alloc.rate:      784.523 MB/sec
+                 ·gc.alloc.rate.norm: 3781656.031 B/op
+                 ·gc.count:           29.000 counts
+                 ·gc.time:            27.000 ms
+
+Iteration   2: 4.592 ms/op
+                 ·gc.alloc.rate:      785.335 MB/sec
+                 ·gc.alloc.rate.norm: 3781656.031 B/op
+                 ·gc.count:           30.000 counts
+                 ·gc.time:            26.000 ms
+
+Iteration   3: 4.549 ms/op
+                 ·gc.alloc.rate:      792.736 MB/sec
+                 ·gc.alloc.rate.norm: 3781656.031 B/op
+                 ·gc.count:           30.000 counts
+                 ·gc.time:            28.000 ms
+
+
+
+Result "viaduct.engine.runtime2.schema.NormalizedDocumentBackedForestBenchmark.consumeNormalizedShared":
+  4.616 ±(99.9%) 0.133 ms/op [Average]
+  (min, avg, max) = (4.549, 4.616, 4.687), stdev = 0.047
+  CI (99.9%): [4.484, 4.749] (assumes normal distribution)
+
+Secondary result "viaduct.engine.runtime2.schema.NormalizedDocumentBackedForestBenchmark.consumeNormalizedShared:·gc.alloc.rate":
+  781.243 ±(99.9%) 22.585 MB/sec [Average]
+  (min, avg, max) = (769.419, 781.243, 792.736), stdev = 8.054
+  CI (99.9%): [758.657, 803.828] (assumes normal distribution)
+
+Secondary result "viaduct.engine.runtime2.schema.NormalizedDocumentBackedForestBenchmark.consumeNormalizedShared:·gc.alloc.rate.norm":
+  3781480.032 ±(99.9%) 540.639 B/op [Average]
+  (min, avg, max) = (3781304.032, 3781480.032, 3781656.031), stdev = 192.797
+  CI (99.9%): [3780939.393, 3782020.671] (assumes normal distribution)
+
+Secondary result "viaduct.engine.runtime2.schema.NormalizedDocumentBackedForestBenchmark.consumeNormalizedShared:·gc.count":
+  174.000 ±(99.9%) 0.001 counts [Sum]
+  (min, avg, max) = (28.000, 29.000, 30.000), stdev = 0.894
+  CI (99.9%): [174.000, 174.000] (assumes normal distribution)
+
+Secondary result "viaduct.engine.runtime2.schema.NormalizedDocumentBackedForestBenchmark.consumeNormalizedShared:·gc.time":
+  155.000 ±(99.9%) 0.001 ms [Sum]
+  (min, avg, max) = (24.000, 25.833, 28.000), stdev = 1.602
+  CI (99.9%): [155.000, 155.000] (assumes normal distribution)
+
+
+# JMH version: 1.36
+# VM version: JDK 25.0.5.0.3, OpenJDK 64-Bit Server VM, 25.0.5.0.3+1-1-26.04.1-Ubuntu
+# VM invoker: /usr/lib/jvm/java-25-openjdk-amd64/bin/java
+# VM options: -Xms2g -Xmx8g -XX:+UseG1GC
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 2 iterations, 30 s each
+# Measurement: 3 iterations, 60 s each
+# Timeout: 10 min per iteration
+# Threads: 1 thread, will synchronize iterations
+# Benchmark mode: Average time, time/op
+# Benchmark: viaduct.engine.runtime2.schema.NormalizedDocumentBackedForestBenchmark.startNormalized
+
+# Run progress: 75.00% complete, ETA 00:08:29
+# Fork: 1 of 2
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::objectFieldOffset has been called by org.openjdk.jmh.util.Utils (file:/opt/graphql-schema-perf/viaduct-nd-backed-20261116/benchmark.jar)
+WARNING: Please consider reporting this to the maintainers of class org.openjdk.jmh.util.Utils
+WARNING: sun.misc.Unsafe::objectFieldOffset will be removed in a future release
+# Warmup Iteration   1: ≈ 10⁻⁴ ms/op
+# Warmup Iteration   2: ≈ 10⁻⁴ ms/op
+Iteration   1: ≈ 10⁻⁴ ms/op
+                 ·gc.alloc.rate:      5937.256 MB/sec
+                 ·gc.alloc.rate.norm: 480.000 B/op
+                 ·gc.count:           272.000 counts
+                 ·gc.time:            189.000 ms
+
+Iteration   2: ≈ 10⁻⁴ ms/op
+                 ·gc.alloc.rate:      5921.746 MB/sec
+                 ·gc.alloc.rate.norm: 480.000 B/op
+                 ·gc.count:           271.000 counts
+                 ·gc.time:            186.000 ms
+
+Iteration   3: ≈ 10⁻⁴ ms/op
+                 ·gc.alloc.rate:      5919.922 MB/sec
+                 ·gc.alloc.rate.norm: 480.000 B/op
+                 ·gc.count:           270.000 counts
+                 ·gc.time:            183.000 ms
+
+
+# Run progress: 87.50% complete, ETA 00:04:14
+# Fork: 2 of 2
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::objectFieldOffset has been called by org.openjdk.jmh.util.Utils (file:/opt/graphql-schema-perf/viaduct-nd-backed-20261116/benchmark.jar)
+WARNING: Please consider reporting this to the maintainers of class org.openjdk.jmh.util.Utils
+WARNING: sun.misc.Unsafe::objectFieldOffset will be removed in a future release
+# Warmup Iteration   1: ≈ 10⁻⁴ ms/op
+# Warmup Iteration   2: ≈ 10⁻⁴ ms/op
+Iteration   1: ≈ 10⁻⁴ ms/op
+                 ·gc.alloc.rate:      5867.986 MB/sec
+                 ·gc.alloc.rate.norm: 480.000 B/op
+                 ·gc.count:           195.000 counts
+                 ·gc.time:            141.000 ms
+
+Iteration   2: ≈ 10⁻⁴ ms/op
+                 ·gc.alloc.rate:      5877.093 MB/sec
+                 ·gc.alloc.rate.norm: 480.000 B/op
+                 ·gc.count:           196.000 counts
+                 ·gc.time:            145.000 ms
+
+Iteration   3: ≈ 10⁻⁴ ms/op
+                 ·gc.alloc.rate:      5880.483 MB/sec
+                 ·gc.alloc.rate.norm: 480.000 B/op
+                 ·gc.count:           197.000 counts
+                 ·gc.time:            146.000 ms
+
+
+
+Result "viaduct.engine.runtime2.schema.NormalizedDocumentBackedForestBenchmark.startNormalized":
+  ≈ 10⁻⁴ ms/op
+
+Secondary result "viaduct.engine.runtime2.schema.NormalizedDocumentBackedForestBenchmark.startNormalized:·gc.alloc.rate":
+  5900.748 ±(99.9%) 81.127 MB/sec [Average]
+  (min, avg, max) = (5867.986, 5900.748, 5937.256), stdev = 28.931
+  CI (99.9%): [5819.620, 5981.875] (assumes normal distribution)
+
+Secondary result "viaduct.engine.runtime2.schema.NormalizedDocumentBackedForestBenchmark.startNormalized:·gc.alloc.rate.norm":
+  480.000 ±(99.9%) 0.001 B/op [Average]
+  (min, avg, max) = (480.000, 480.000, 480.000), stdev = 0.001
+  CI (99.9%): [480.000, 480.000] (assumes normal distribution)
+
+Secondary result "viaduct.engine.runtime2.schema.NormalizedDocumentBackedForestBenchmark.startNormalized:·gc.count":
+  1401.000 ±(99.9%) 0.001 counts [Sum]
+  (min, avg, max) = (195.000, 233.500, 272.000), stdev = 41.089
+  CI (99.9%): [1401.000, 1401.000] (assumes normal distribution)
+
+Secondary result "viaduct.engine.runtime2.schema.NormalizedDocumentBackedForestBenchmark.startNormalized:·gc.time":
+  990.000 ±(99.9%) 0.001 ms [Sum]
+  (min, avg, max) = (141.000, 165.000, 189.000), stdev = 23.143
+  CI (99.9%): [990.000, 990.000] (assumes normal distribution)
+
+
+# Run complete. Total time: 00:33:57
+
+REMEMBER: The numbers below are just data. To gain reusable insights, you need to follow up on
+why the numbers are the way they are. Use profilers (see -prof, -lprof), design factorial
+experiments, perform baseline and negative tests that provide experimental control, make sure
+the benchmarking environment is safe on JVM/OS/HW level, ask for reviews from the domain experts.
+Do not assume the numbers tell you what you want them to tell.
+
+NOTE: Current JVM experimentally supports Compiler Blackholes, and they are in use. Please exercise
+extra caution when trusting the results, look into the generated code to check the benchmark still
+works, and factor in a small probability of new VM bugs. Additionally, while comparisons between
+different JVMs are already problematic, the performance difference caused by different Blackhole
+modes can be very significant. Please make sure you use the consistent Blackhole mode for comparisons.
+
+Benchmark                                                                            Mode  Cnt          Score         Error   Units
+NormalizedDocumentBackedForestBenchmark.consumeAst                                   avgt    6        153.641 ±       9.099   ms/op
+NormalizedDocumentBackedForestBenchmark.consumeAst:·gc.alloc.rate                    avgt    6       1470.394 ±      67.937  MB/sec
+NormalizedDocumentBackedForestBenchmark.consumeAst:·gc.alloc.rate.norm               avgt    6  236818589.043 ± 3096665.406    B/op
+NormalizedDocumentBackedForestBenchmark.consumeAst:·gc.count                         avgt    6        400.000                counts
+NormalizedDocumentBackedForestBenchmark.consumeAst:·gc.time                          avgt    6       2877.000                    ms
+NormalizedDocumentBackedForestBenchmark.consumeNormalizedEager                       avgt    6         32.099 ±       0.378   ms/op
+NormalizedDocumentBackedForestBenchmark.consumeNormalizedEager:·gc.alloc.rate        avgt    6       1526.976 ±      18.019  MB/sec
+NormalizedDocumentBackedForestBenchmark.consumeNormalizedEager:·gc.alloc.rate.norm   avgt    6   51395104.244 ±       0.111    B/op
+NormalizedDocumentBackedForestBenchmark.consumeNormalizedEager:·gc.count             avgt    6        402.000                counts
+NormalizedDocumentBackedForestBenchmark.consumeNormalizedEager:·gc.time              avgt    6        834.000                    ms
+NormalizedDocumentBackedForestBenchmark.consumeNormalizedShared                      avgt    6          4.616 ±       0.133   ms/op
+NormalizedDocumentBackedForestBenchmark.consumeNormalizedShared:·gc.alloc.rate       avgt    6        781.243 ±      22.585  MB/sec
+NormalizedDocumentBackedForestBenchmark.consumeNormalizedShared:·gc.alloc.rate.norm  avgt    6    3781480.032 ±     540.639    B/op
+NormalizedDocumentBackedForestBenchmark.consumeNormalizedShared:·gc.count            avgt    6        174.000                counts
+NormalizedDocumentBackedForestBenchmark.consumeNormalizedShared:·gc.time             avgt    6        155.000                    ms
+NormalizedDocumentBackedForestBenchmark.startNormalized                              avgt    6         ≈ 10⁻⁴                 ms/op
+NormalizedDocumentBackedForestBenchmark.startNormalized:·gc.alloc.rate               avgt    6       5900.748 ±      81.127  MB/sec
+NormalizedDocumentBackedForestBenchmark.startNormalized:·gc.alloc.rate.norm          avgt    6        480.000 ±       0.001    B/op
+NormalizedDocumentBackedForestBenchmark.startNormalized:·gc.count                    avgt    6       1401.000                counts
+NormalizedDocumentBackedForestBenchmark.startNormalized:·gc.time                     avgt    6        990.000                    ms
+
+Benchmark result is saved to /opt/graphql-schema-perf/viaduct-nd-backed-20261116/results/results.json

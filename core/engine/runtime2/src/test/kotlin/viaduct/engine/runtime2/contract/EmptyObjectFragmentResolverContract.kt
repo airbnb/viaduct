@@ -13,7 +13,6 @@ import viaduct.engine.runtime2.correctresolution.conformsToResolvers
 import viaduct.engine.runtime2.correctresolution.isClosedUnderResolverDemand
 import viaduct.engine.runtime2.model.ListEngineResult
 import viaduct.engine.runtime2.model.ObjectEngineResult
-import viaduct.engine.runtime2.model.materializeSelectionForestOf
 import viaduct.engine.runtime2.model.registry.Assumptions
 import viaduct.engine.runtime2.model.registry.FieldValueResolver
 import viaduct.engine.runtime2.model.registry.ResolverFragmentTemplates
@@ -21,6 +20,7 @@ import viaduct.engine.runtime2.model.registry.ResolverRegistry
 import viaduct.engine.runtime2.model.requireObjectField
 import viaduct.engine.runtime2.model.requireQueryTypeDef
 import viaduct.engine.runtime2.model.requireType
+import viaduct.engine.runtime2.model.selectionForestOf
 import viaduct.engine.runtime2.model.testing.TestWorld
 import viaduct.engine.runtime2.resolution.framework.ResolverInvocationObservation
 import viaduct.engine.runtime2.schema.operationSelectionsFrom
@@ -45,7 +45,7 @@ interface EmptyObjectFragmentResolverContract :
         val raw = FieldValueResolver.ofSelective(
             field = users,
             queryType = schema.requireQueryTypeDef(),
-            fragmentTemplates = ResolverFragmentTemplates(materializeSelectionForestOf(), materializeSelectionForestOf()),
+            fragmentTemplates = ResolverFragmentTemplates(selectionForestOf(), selectionForestOf()),
         ) { _, _, _, _, _, _ -> listOf(source, null, delegated) }
         val base = fixture.resolverRegistry
         val registry = object : ResolverRegistry by base {

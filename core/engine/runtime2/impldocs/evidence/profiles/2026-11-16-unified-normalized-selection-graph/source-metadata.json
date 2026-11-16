@@ -1,0 +1,8 @@
+{
+  "viaduct_base": "a2483562b1ef964d9f5d2ad6206a771b78594dbf",
+  "graphql_java_pr_head": "69c7bfbef920e5b95b7c295b60ef0652523eef3d",
+  "baseline_jar_sha256": "ccc916d8a308f416396788e6f1d0b36107bbfd5fa1d52c81b7ddd717b360b92b",
+  "candidate_jar_sha256": "8bbd67ce5270995b2c1ced3536950bbde7a0435415911cafbeacbb3077d017a6",
+  "source_snapshot_sha256": "b14aaae0713c67cf1cf8bd810de64c8acaeec84fc8c466eda2f03f128a26a53e",
+  "snapshot_format": "Apply working-tree.patch to viaduct_base, then overlay the other archive members. Snapshot includes tracked edits and new runtime2 source/scripts. Later changes outside the timed implementation are documented separately."
+}

@@ -7,7 +7,7 @@ val jmh = sourceSets["jmh"]
 
 val checkPackageLayers = tasks.register("checkPackageLayers") {
     group = "verification"
-    val sources = fileTree("src/main/kotlin") { include("**/*.kt") }
+    val sources = fileTree("src/main") { include("**/*.kt") }
     inputs.files(sources)
     doLast {
         val rootPackage = "viaduct.engine.runtime2"

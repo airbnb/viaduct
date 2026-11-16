@@ -1621,7 +1621,7 @@ class RootFieldReferenceResolutionTest : ResolutionDispatcherResource {
                         target to
                             fieldResolverOf(empty) { _, _, executionContext ->
                                 tasks["target"] = assertIs<FieldResolverTask>(executionContext)
-                                executionContext.resolveSelectionSet(nestedFragment.materializeSelections).get("dependency")
+                                executionContext.resolveSelectionSet(nestedFragment.subselections).get("dependency")
                             },
                         schema.requireObjectField("Query", "dependency") to
                             fieldResolverOf(empty) { _, _, ctx ->

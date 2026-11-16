@@ -70,7 +70,7 @@ internal class SchemaScopeTransformer(
                                         directive.name != AIRBNB_BYPASS_POLICY_CHECK_DIRECTIVE
                                 )
                         }
-                        .toSet() +
+                        .toList() +
                         skipAndInclude
                 )
             }

@@ -12,12 +12,12 @@ import viaduct.engine.runtime2.model.Arguments
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.ResolverTarget
 import viaduct.engine.runtime2.model.arg
-import viaduct.engine.runtime2.model.materializeSelectionForestOf
 import viaduct.engine.runtime2.model.registry.FieldCheckerResolver
 import viaduct.engine.runtime2.model.registry.ResolverFragmentTemplates
 import viaduct.engine.runtime2.model.registry.VariableDefinition
 import viaduct.engine.runtime2.model.requireObjectField
 import viaduct.engine.runtime2.model.requireQueryTypeDef
+import viaduct.engine.runtime2.model.selectionForestOf
 import viaduct.engine.runtime2.model.testing.TestWorld
 import viaduct.engine.runtime2.model.testing.fragmentFrom
 import viaduct.engine.runtime2.resolution.framework.OEROccurrence
@@ -42,7 +42,7 @@ open class FieldCheckerClosureTest : ResolutionDispatcherResource {
                     val checked = schema.loweredSchema.requireObjectField("Query", "checked")
                     val raw = schema.loweredSchema.requireObjectField("Query", "raw")
                     val protected = schema.loweredSchema.requireObjectField("Query", "protected")
-                    val fragment = schema.fragmentFrom("fragment Input on Query { raw }").materializeSelections
+                    val fragment = schema.fragmentFrom("fragment Input on Query { raw }").subselections
                     mapOf(
                         checked to FieldCheckerResolver.of(
                             checked,
@@ -125,8 +125,8 @@ open class FieldCheckerClosureTest : ResolutionDispatcherResource {
                 fieldCheckers = { schema ->
                     val checked = schema.loweredSchema.requireObjectField("Query", "checked")
                     val pair = ResolverFragmentTemplates(
-                        schema.fragmentFrom("fragment Input on Query { bridge(seed: ${'$'}seed) }", variableTarget = ResolverTarget.FieldCheckerTarget(checked)).materializeSelections,
-                        materializeSelectionForestOf(),
+                        schema.fragmentFrom("fragment Input on Query { bridge(seed: ${'$'}seed) }", variableTarget = ResolverTarget.FieldCheckerTarget(checked)).subselections,
+                        selectionForestOf(),
                         mapOf(Arguments.Variable.of(ResolverTarget.FieldCheckerTarget(checked), "seed") to VariableDefinition.FromArgument.of(checkNotNull(checked.arg("seed")))),
                     )
                     mapOf(checked to FieldCheckerResolver.of(checked, schema.loweredSchema.requireQueryTypeDef(), mapOf("input" to pair)) { _, _, _ -> CheckerResult.Success })

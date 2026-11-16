@@ -18,12 +18,12 @@ import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.ResolverOccurrenceId
 import viaduct.engine.runtime2.model.emptyFragmentOf
 import viaduct.engine.runtime2.model.engineObjectDataOf
-import viaduct.engine.runtime2.model.materializeSelectionForestOf
 import viaduct.engine.runtime2.model.merge
 import viaduct.engine.runtime2.model.registry.Assumptions
 import viaduct.engine.runtime2.model.registry.fieldResolverOf
 import viaduct.engine.runtime2.model.requireObjectField
 import viaduct.engine.runtime2.model.requireQueryTypeDef
+import viaduct.engine.runtime2.model.selectionForestOf
 import viaduct.engine.runtime2.model.testing.TestWorld
 import viaduct.engine.runtime2.model.testing.emptyFragmentOf
 import viaduct.engine.runtime2.model.testing.engineResultOf
@@ -211,7 +211,7 @@ class ScopeTokenIdentityAdversarialReviewTest {
                         occurrencePath = listOf(key),
                         field = key.field,
                         input = input,
-                        inputSelections = materializeSelectionForestOf(),
+                        inputSelections = selectionForestOf(),
                         queryValue = queryValue,
                         queryInputSelections = queryInputSelections,
                         arguments = arguments,

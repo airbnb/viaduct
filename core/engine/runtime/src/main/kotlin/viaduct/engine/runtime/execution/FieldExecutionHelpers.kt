@@ -8,7 +8,6 @@ import graphql.execution.DataFetcherResult
 import graphql.execution.ExecutionContext
 import graphql.execution.ExecutionStepInfo
 import graphql.execution.ExecutionStepInfoFactory
-import graphql.execution.ExecutionStrategyParameters
 import graphql.execution.MergedField
 import graphql.execution.NormalizedVariables
 import graphql.execution.RawVariables
@@ -18,7 +17,6 @@ import graphql.execution.directives.QueryDirectivesImpl
 import graphql.execution.instrumentation.parameters.InstrumentationFieldFetchParameters
 import graphql.language.SelectionSet as GJSelectionSet
 import graphql.language.VariableDefinition
-import graphql.normalized.ExecutableNormalizedField
 import graphql.schema.DataFetcher
 import graphql.schema.DataFetchingEnvironment
 import graphql.schema.DataFetchingEnvironmentImpl
@@ -376,15 +374,15 @@ object FieldExecutionHelpers {
         val fieldDef = parameters.executionStepInfo.fieldDefinition
         val execStepInfoSupplier = { parameters.executionStepInfo }
         val argumentValuesSupplier = { parameters.executionStepInfo.arguments }
-        val normalizedFieldSupplier = getNormalizedField(parameters.executionContext, parameters.gjParameters, execStepInfoSupplier)
         val normalizedVariableValuesSupplier = {
             // ViaductExecutionStrategy does not use NormalizedVariables, though the GJ interface requires them.
             NormalizedVariables.emptyVariables()
         }
         val fieldCollector = DataFetchingFieldSelectionSetImpl.newCollector(
-            parameters.graphQLSchema,
+            parameters.executionContext,
+            mergedField,
             fieldDef.type,
-            normalizedFieldSupplier,
+            parameters.gjParameters.path.level,
         )
         val queryDirectives = QueryDirectivesImpl(
             mergedField,
@@ -529,21 +527,6 @@ object FieldExecutionHelpers {
                 executionContext.locale,
             )
         }
-
-    private fun getNormalizedField(
-        executionContext: ExecutionContext,
-        parameters: ExecutionStrategyParameters,
-        executionStepInfo: Supplier<ExecutionStepInfo>
-    ): Supplier<ExecutableNormalizedField> {
-        val normalizedQuery = executionContext.normalizedQueryTree
-        return FpKit.intraThreadMemoize {
-            normalizedQuery.get().getNormalizedField(
-                parameters.field,
-                executionStepInfo.get().objectType,
-                executionStepInfo.get().path
-            )
-        }
-    }
 
     /**
      * Run [CollectFields] or [CollectSubfields] for the current object scope.

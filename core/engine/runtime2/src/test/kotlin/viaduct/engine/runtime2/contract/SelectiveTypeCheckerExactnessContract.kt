@@ -30,7 +30,6 @@ import viaduct.engine.runtime2.model.ResolverTarget
 import viaduct.engine.runtime2.model.RootFieldReferenceData
 import viaduct.engine.runtime2.model.SelectionForest
 import viaduct.engine.runtime2.model.emptyFragmentOf
-import viaduct.engine.runtime2.model.materializeSelectionForestOf
 import viaduct.engine.runtime2.model.merge
 import viaduct.engine.runtime2.model.outputValue
 import viaduct.engine.runtime2.model.registry.Assumptions
@@ -41,6 +40,7 @@ import viaduct.engine.runtime2.model.registry.fieldResolverOf
 import viaduct.engine.runtime2.model.requireObjectField
 import viaduct.engine.runtime2.model.requireQueryTypeDef
 import viaduct.engine.runtime2.model.requireType
+import viaduct.engine.runtime2.model.selectionForestOf
 import viaduct.engine.runtime2.model.testing.TestWorld
 import viaduct.engine.runtime2.model.testing.emptyFragmentOf
 import viaduct.engine.runtime2.model.testing.fragmentFrom
@@ -105,12 +105,12 @@ interface SelectiveTypeCheckerExactnessContract {
                                                     schema
                                                         .fragmentFrom(
                                                             "fragment ObjectInput on Item { objectPolicy }",
-                                                        ).materializeSelections,
+                                                        ).subselections,
                                                 queryFragmentTemplate =
                                                     schema
                                                         .fragmentFrom(
                                                             "fragment QueryInput on Query { queryPolicy }",
-                                                        ).materializeSelections,
+                                                        ).subselections,
                                             ),
                                     ),
                             ) { inputs, _ ->
@@ -581,8 +581,8 @@ private fun ViaductAndGJSchema.t4Pair(
     query: String = ""
 ): ResolverFragmentTemplates =
     ResolverFragmentTemplates(
-        if (objectInput.isEmpty()) materializeSelectionForestOf() else fragmentFrom("fragment Input on $type { $objectInput }").materializeSelections,
-        if (query.isEmpty()) materializeSelectionForestOf() else fragmentFrom("fragment Input on Query { $query }").materializeSelections,
+        if (objectInput.isEmpty()) selectionForestOf() else fragmentFrom("fragment Input on $type { $objectInput }").subselections,
+        if (query.isEmpty()) selectionForestOf() else fragmentFrom("fragment Input on Query { $query }").subselections,
     )
 
 private fun SelectionForest.t4Paths(prefix: String = ""): Set<String> =

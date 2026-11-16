@@ -505,27 +505,7 @@ private class GraphQLJavaSchemaBuilder(
      * Converts a ViaductSchema.Directive.Location to graphql-java Introspection.DirectiveLocation.
      */
     private fun convertDirectiveLocation(location: ViaductSchema.Directive.Location): Introspection.DirectiveLocation {
-        return when (location) {
-            ViaductSchema.Directive.Location.QUERY -> Introspection.DirectiveLocation.QUERY
-            ViaductSchema.Directive.Location.MUTATION -> Introspection.DirectiveLocation.MUTATION
-            ViaductSchema.Directive.Location.SUBSCRIPTION -> Introspection.DirectiveLocation.SUBSCRIPTION
-            ViaductSchema.Directive.Location.FIELD -> Introspection.DirectiveLocation.FIELD
-            ViaductSchema.Directive.Location.FRAGMENT_DEFINITION -> Introspection.DirectiveLocation.FRAGMENT_DEFINITION
-            ViaductSchema.Directive.Location.FRAGMENT_SPREAD -> Introspection.DirectiveLocation.FRAGMENT_SPREAD
-            ViaductSchema.Directive.Location.INLINE_FRAGMENT -> Introspection.DirectiveLocation.INLINE_FRAGMENT
-            ViaductSchema.Directive.Location.VARIABLE_DEFINITION -> Introspection.DirectiveLocation.VARIABLE_DEFINITION
-            ViaductSchema.Directive.Location.SCHEMA -> Introspection.DirectiveLocation.SCHEMA
-            ViaductSchema.Directive.Location.SCALAR -> Introspection.DirectiveLocation.SCALAR
-            ViaductSchema.Directive.Location.OBJECT -> Introspection.DirectiveLocation.OBJECT
-            ViaductSchema.Directive.Location.FIELD_DEFINITION -> Introspection.DirectiveLocation.FIELD_DEFINITION
-            ViaductSchema.Directive.Location.ARGUMENT_DEFINITION -> Introspection.DirectiveLocation.ARGUMENT_DEFINITION
-            ViaductSchema.Directive.Location.INTERFACE -> Introspection.DirectiveLocation.INTERFACE
-            ViaductSchema.Directive.Location.UNION -> Introspection.DirectiveLocation.UNION
-            ViaductSchema.Directive.Location.ENUM -> Introspection.DirectiveLocation.ENUM
-            ViaductSchema.Directive.Location.ENUM_VALUE -> Introspection.DirectiveLocation.ENUM_VALUE
-            ViaductSchema.Directive.Location.INPUT_OBJECT -> Introspection.DirectiveLocation.INPUT_OBJECT
-            ViaductSchema.Directive.Location.INPUT_FIELD_DEFINITION -> Introspection.DirectiveLocation.INPUT_FIELD_DEFINITION
-        }
+        return Introspection.DirectiveLocation.valueOf(location.name)
     }
 
     /**

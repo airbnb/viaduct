@@ -31,18 +31,16 @@ import viaduct.engine.runtime2.execution.toEngineSelectionSet
 import viaduct.engine.runtime2.model.Arguments
 import viaduct.engine.runtime2.model.EngineErrorData
 import viaduct.engine.runtime2.model.InclusionCondition
-import viaduct.engine.runtime2.model.MaterializeSelection
-import viaduct.engine.runtime2.model.MaterializeSelectionForest
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.ResolverOutputData
 import viaduct.engine.runtime2.model.ResolverTarget
 import viaduct.engine.runtime2.model.RootFieldReferenceData
+import viaduct.engine.runtime2.model.Selection
 import viaduct.engine.runtime2.model.SelectionForest
 import viaduct.engine.runtime2.model.emptyFragmentOf
 import viaduct.engine.runtime2.model.engineObjectDataOf
 import viaduct.engine.runtime2.model.guardedBy
 import viaduct.engine.runtime2.model.inputType
-import viaduct.engine.runtime2.model.materializeSelectionForestOf
 import viaduct.engine.runtime2.model.registry.CheckerInput
 import viaduct.engine.runtime2.model.registry.FieldCheckerResolver
 import viaduct.engine.runtime2.model.registry.FieldResolverDefinition
@@ -60,7 +58,6 @@ import viaduct.engine.runtime2.model.registry.normalizeRoot
 import viaduct.engine.runtime2.model.registry.selectionAwareFieldResolverOf
 import viaduct.engine.runtime2.model.registry.selectiveFieldResolverOf
 import viaduct.engine.runtime2.model.registry.selectiveNodeResolverOf
-import viaduct.engine.runtime2.model.registry.usedVariables
 import viaduct.engine.runtime2.model.requireArg
 import viaduct.engine.runtime2.model.requireField
 import viaduct.engine.runtime2.model.requireQueryTypeDef
@@ -70,10 +67,10 @@ import viaduct.engine.runtime2.model.schemaType
 import viaduct.engine.runtime2.model.selectionForestOf
 import viaduct.engine.runtime2.model.usedVariables
 import viaduct.engine.runtime2.resolution.currentVariablesProviderResolutionContext
-import viaduct.engine.runtime2.schema.ParsedSpecFragment
+import viaduct.engine.runtime2.schema.ParsedSelectionFragment
 import viaduct.engine.runtime2.schema.SourceSchemaAdapter
 import viaduct.engine.runtime2.schema.ViaductAndGJSchema
-import viaduct.engine.runtime2.schema.specFragmentFromDocument
+import viaduct.engine.runtime2.schema.fragmentFromDocument
 import viaduct.errors.resultOfTenantCallSuspend
 import viaduct.graphql.schema.ViaductSchema
 
@@ -525,8 +522,8 @@ private fun compileCheckerInput(
     if (required == null) {
         return CompiledCheckerInput(
             ResolverFragmentTemplates(
-                objectFragmentTemplate = materializeSelectionForestOf(),
-                queryFragmentTemplate = materializeSelectionForestOf(),
+                objectFragmentTemplate = selectionForestOf(),
+                queryFragmentTemplate = selectionForestOf(),
             ),
             CheckerInputRoot.OBJECT,
         )
@@ -557,8 +554,8 @@ private class CheckerInputCompiler(
     private val variableDefinitions: ResolverVariableDefinitions,
     private val contextForInvocation: (ResolutionExecutionContext) -> EngineExecutionContext,
 ) {
-    private var objectSelections: MaterializeSelectionForest = materializeSelectionForestOf()
-    private var querySelections: MaterializeSelectionForest = materializeSelectionForestOf()
+    private var objectSelections: SelectionForest = selectionForestOf()
+    private var querySelections: SelectionForest = selectionForestOf()
     private val variables = linkedMapOf<Arguments.Variable, VariableDefinition>()
     private val conditionProviders = linkedMapOf<String, Pair<InclusionCondition, QueryPlanExecutionCondition>>()
     private val variableConditions = linkedMapOf<String, InclusionCondition>()
@@ -583,7 +580,7 @@ private class CheckerInputCompiler(
         enclosingCondition: InclusionCondition = InclusionCondition.Always,
     ) {
         val fragment =
-            schemas.specFragmentFromDocument(
+            schemas.fragmentFromDocument(
                 document = required.selections.toDocument(),
                 variableTarget = target,
             ).fragment
@@ -778,13 +775,13 @@ private class CheckerInputCompiler(
     }
 }
 
-private fun MaterializeSelectionForest.withoutStaticallyExcludedSelections(): MaterializeSelectionForest =
+private fun SelectionForest.withoutStaticallyExcludedSelections(): SelectionForest =
     flatMap { selection ->
         if (selection.inclusionCondition === InclusionCondition.Never) {
-            materializeSelectionForestOf()
+            selectionForestOf()
         } else {
-            materializeSelectionForestOf(
-                MaterializeSelection.of(
+            selectionForestOf(
+                Selection.of(
                     responseKey = selection.responseKey,
                     key = selection.key,
                     possibleTypes = selection.possibleTypes,
@@ -810,14 +807,14 @@ private fun ResolverTarget.checkerObjectType(): ViaductSchema.Object =
         is ResolverTarget.FieldValueResolverTarget -> error("A value resolver cannot own checker inputs")
     }
 
-private fun MaterializeSelectionForest.keysAtResponsePath(
+private fun SelectionForest.keysAtResponsePath(
     responsePath: List<String>,
     variableName: String,
 ): List<ObjectEngineResult.Key> {
     require(responsePath.isNotEmpty()) { "Field path for variable $variableName is empty" }
     var current = this
     return responsePath.map { responseKey ->
-        val matches = mutableListOf<viaduct.engine.runtime2.model.MaterializeSelection>()
+        val matches = mutableListOf<viaduct.engine.runtime2.model.Selection>()
         current.forEach { selection ->
             if (selection.responseKey == responseKey) matches += selection
         }
@@ -828,7 +825,7 @@ private fun MaterializeSelectionForest.keysAtResponsePath(
         require(matches.all { it.key == key }) {
             "Field path for variable $variableName has incompatible selections named $responseKey"
         }
-        current = matches.fold(materializeSelectionForestOf()) { selections, match ->
+        current = matches.fold(selectionForestOf()) { selections, match ->
             selections + match.subselections
         }
         key
@@ -937,8 +934,8 @@ private fun namespaceFieldResolvers(
 private fun RequiredSelectionSet.parseFragment(
     schema: ViaductAndGJSchema,
     field: ViaductSchema.ObjectField,
-): ParsedSpecFragment =
-    schema.specFragmentFromDocument(
+): ParsedSelectionFragment =
+    schema.fragmentFromDocument(
         document = selections.toDocument(),
         variableField = field,
     )

@@ -1,11 +1,11 @@
 package viaduct.engine.runtime2.resolution.framework
 
 import viaduct.engine.runtime2.model.InclusionCondition
-import viaduct.engine.runtime2.model.MaterializeSelection
-import viaduct.engine.runtime2.model.MaterializeSelectionForest
+import viaduct.engine.runtime2.model.Selection
+import viaduct.engine.runtime2.model.SelectionForest
 import viaduct.engine.runtime2.model.VariableBinding
 import viaduct.engine.runtime2.model.isUnconditional
-import viaduct.engine.runtime2.model.toMaterializeSelectionForest
+import viaduct.engine.runtime2.model.toSelectionForest
 
 /** Awaits the operation-local variable bindings needed to decide this condition. */
 internal suspend fun InclusionCondition.fetchIncluded(operation: SharedOperationContext<*>): Boolean =
@@ -24,15 +24,15 @@ internal suspend fun InclusionCondition.fetchIncluded(operation: SharedOperation
     }
 
 /** Preserves unconditional forests and accumulates conditional occurrences without prefix copies. */
-internal suspend fun MaterializeSelectionForest.fetchIncluded(operation: SharedOperationContext<*>): MaterializeSelectionForest {
+internal suspend fun SelectionForest.fetchIncluded(operation: SharedOperationContext<*>): SelectionForest {
     if (isUnconditional()) return this
-    val selections = ArrayList<MaterializeSelection>(size)
+    val selections = ArrayList<Selection>(size)
     forEach(selections::add)
-    val included = ArrayList<MaterializeSelection>(size)
+    val included = ArrayList<Selection>(size)
     for (selection in selections) {
         if (selection.inclusionCondition.fetchIncluded(operation)) included.add(selection)
     }
-    return included.toMaterializeSelectionForest()
+    return included.toSelectionForest()
 }
 
 /** Evaluates this condition from bindings that must already be complete. */

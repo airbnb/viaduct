@@ -18,7 +18,6 @@ import viaduct.engine.runtime2.model.EngineErrorData
 import viaduct.engine.runtime2.model.ErrorEngineResult
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.emptyFragmentOf
-import viaduct.engine.runtime2.model.materializeSelectionForestOf
 import viaduct.engine.runtime2.model.merge
 import viaduct.engine.runtime2.model.outputValue
 import viaduct.engine.runtime2.model.registry.FieldCheckerResolver
@@ -28,6 +27,7 @@ import viaduct.engine.runtime2.model.registry.fieldResolverOf
 import viaduct.engine.runtime2.model.requireObjectField
 import viaduct.engine.runtime2.model.requireQueryTypeDef
 import viaduct.engine.runtime2.model.requireType
+import viaduct.engine.runtime2.model.selectionForestOf
 import viaduct.engine.runtime2.model.testing.TestWorld
 import viaduct.engine.runtime2.model.testing.emptyFragmentOf
 import viaduct.engine.runtime2.model.testing.fragmentFrom
@@ -68,8 +68,8 @@ interface GroundedTypeCheckerFragmentContract {
                         schemas.loweredSchema.requireQueryTypeDef(),
                         mapOf(
                             "input" to ResolverFragmentTemplates(
-                                schemas.fragmentFrom("fragment Input on Item { required }").materializeSelections,
-                                schemas.fragmentFrom("fragment Input on Query { marker }").materializeSelections,
+                                schemas.fragmentFrom("fragment Input on Item { required }").subselections,
+                                schemas.fragmentFrom("fragment Input on Query { marker }").subselections,
                             )
                         ),
                         isApplicable = { _, path ->
@@ -129,7 +129,7 @@ interface GroundedTypeCheckerFragmentContract {
                         val rawRoot =
                             schema
                                 .fragmentFrom("fragment RawRoot on Query { rawRoot { ${if (checkedParentRead) "active" else "id"} } }")
-                                .materializeSelections
+                                .subselections
                         mapOf(
                             checked to
                                 FieldCheckerResolver.of(
@@ -140,7 +140,7 @@ interface GroundedTypeCheckerFragmentContract {
                                             "rawRoot" to
                                                 ResolverFragmentTemplates(
                                                     objectFragmentTemplate = rawRoot,
-                                                    queryFragmentTemplate = materializeSelectionForestOf(),
+                                                    queryFragmentTemplate = selectionForestOf(),
                                                 ),
                                         ),
                                 ) { _, _, _ -> CheckerResult.Success },
@@ -359,12 +359,12 @@ interface GroundedTypeCheckerFragmentContract {
                         ResolverFragmentTemplates(
                             objectFragmentTemplate =
                                 objectFragment
-                                    ?.let { schema.fragmentFrom(it).materializeSelections }
-                                    ?: materializeSelectionForestOf(),
+                                    ?.let { schema.fragmentFrom(it).subselections }
+                                    ?: selectionForestOf(),
                             queryFragmentTemplate =
                                 queryFragment
-                                    ?.let { schema.fragmentFrom(it).materializeSelections }
-                                    ?: materializeSelectionForestOf(),
+                                    ?.let { schema.fragmentFrom(it).subselections }
+                                    ?: selectionForestOf(),
                         )
                     mapOf(
                         item to
@@ -486,12 +486,12 @@ interface GroundedTypeCheckerFragmentContract {
                                     mapOf(
                                         "input" to
                                             ResolverFragmentTemplates(
-                                                objectFragmentTemplate = materializeSelectionForestOf(),
+                                                objectFragmentTemplate = selectionForestOf(),
                                                 queryFragmentTemplate =
                                                     schema
                                                         .fragmentFrom(
                                                             "fragment Input on Query { queryDependency }",
-                                                        ).materializeSelections,
+                                                        ).subselections,
                                             ),
                                     ),
                             ) { _, _ ->

@@ -28,7 +28,6 @@ import viaduct.engine.runtime2.model.Arguments
 import viaduct.engine.runtime2.model.EngineInputData
 import viaduct.engine.runtime2.model.Fragment
 import viaduct.engine.runtime2.model.InclusionCondition
-import viaduct.engine.runtime2.model.MaterializeSelectionForest
 import viaduct.engine.runtime2.model.ResolverTarget
 import viaduct.engine.runtime2.model.SelectionForest
 import viaduct.engine.runtime2.model.requireQueryTypeDef
@@ -46,7 +45,7 @@ import viaduct.graphql.utils.SelectionsParserUtils
  * Decoded selections are mapped directly to canonical definitions in [schema]. Node-valued source
  * fields retain their source coordinates.
  */
-internal class GJSelectionParser(
+class AstSelectionParser(
     private val sourceSchema: GraphQLSchema,
     private val schema: ViaductSchema,
     private val variableValues: Map<String, EngineInputData?>,
@@ -68,24 +67,7 @@ internal class GJSelectionParser(
     ): SelectionForest {
         val mutation = operation.operation == OperationDefinition.Operation.MUTATION
         val subscription = operation.operation == OperationDefinition.Operation.SUBSCRIPTION
-        val sourceRoot = when {
-            mutation -> requireNotNull(sourceSchema.mutationType)
-            subscription -> requireNotNull(sourceSchema.subscriptionType)
-            else -> sourceSchema.queryType
-        }
-        val selections =
-            decodeSelectionSet(
-                selectionSet = operation.selectionSet,
-                typeInScope = sourceRoot,
-                argumentDecoder =
-                    CoercedArgumentDecoder(
-                        variables = variables,
-                        graphQLContext = graphQLContext,
-                        locale = locale,
-                    ),
-                mode = TranslationMode.EXTERNAL_OPERATION,
-                fragmentsByName = fragmentsByName,
-            )
+        val selections = decodeOperationSelections(operation, variables, graphQLContext, locale, fragmentsByName)
         return if (mutation) {
             val type = requireNotNull(schema.mutationTypeDef)
             flattenForMaterialization(schema, type, selections).mutationSelections(schema, type)
@@ -95,12 +77,41 @@ internal class GJSelectionParser(
         }
     }
 
-    fun materializeSelectionsFrom(fragment: String): Pair<ViaductSchema.CompositeTypeDef, MaterializeSelectionForest> {
-        val parsed = specSelectionsFrom(fragment)
-        return parsed.nominalType to parsed.fragment.materializeSelections
+    /** Decodes a validated operation into source selections before lowering its scope and keys. */
+    fun decodeOperationSelections(
+        operation: OperationDefinition,
+        variables: CoercedVariables,
+        graphQLContext: GraphQLContext,
+        locale: Locale,
+        fragmentsByName: Map<String, FragmentDefinition> = emptyMap(),
+    ): List<SpecSelection> {
+        val mutation = operation.operation == OperationDefinition.Operation.MUTATION
+        val subscription = operation.operation == OperationDefinition.Operation.SUBSCRIPTION
+        val sourceRoot = when {
+            mutation -> requireNotNull(sourceSchema.mutationType)
+            subscription -> requireNotNull(sourceSchema.subscriptionType)
+            else -> sourceSchema.queryType
+        }
+        return decodeSelectionSet(
+            selectionSet = operation.selectionSet,
+            typeInScope = sourceRoot,
+            argumentDecoder =
+                CoercedArgumentDecoder(
+                    variables = variables,
+                    graphQLContext = graphQLContext,
+                    locale = locale,
+                ),
+            mode = TranslationMode.EXTERNAL_OPERATION,
+            fragmentsByName = fragmentsByName,
+        )
     }
 
-    fun specSelectionsFrom(fragment: String): ParsedSpecFragment {
+    fun materializeSelectionsFrom(fragment: String): Pair<ViaductSchema.CompositeTypeDef, SelectionForest> {
+        val parsed = specSelectionsFrom(fragment)
+        return parsed.nominalType to parsed.fragment.subselections
+    }
+
+    fun specSelectionsFrom(fragment: String): AstParsedSelectionFragment {
         val document = Parser.parse(fragment)
         require(document.definitions.singleOrNull() is FragmentDefinition) {
             "Expected exactly one named fragment definition"
@@ -108,7 +119,7 @@ internal class GJSelectionParser(
         return specSelectionsFrom(document)
     }
 
-    fun specSelectionsFrom(document: Document): ParsedSpecFragment {
+    fun specSelectionsFrom(document: Document): AstParsedSelectionFragment {
         val fragments = document.getDefinitionsOfType(FragmentDefinition::class.java)
         require(fragments.size == document.definitions.size) {
             "A resolver selection document may contain only fragment definitions"
@@ -132,7 +143,7 @@ internal class GJSelectionParser(
                 mode = TranslationMode.INTERNAL_FRAGMENT,
                 fragmentsByName = fragmentsByName,
             )
-        return ParsedSpecFragment(typeCondition, specSelections, schema)
+        return AstParsedSelectionFragment(typeCondition, specSelections, schema)
     }
 
     private fun validateFragment(document: Document) {
@@ -236,7 +247,7 @@ internal class GJSelectionParser(
             arguments = arguments,
             subselections = subselections,
             inclusionCondition = argumentDecoder.decodeCondition(field),
-            fieldDirectives = ParsedFieldDirectives(field.directives.map { it.name }.filterNot(EXECUTION_DIRECTIVES::contains)),
+            fieldDirectives = AstParsedFieldDirectives(field.directives.map { it.name }.filterNot(EXECUTION_DIRECTIVES::contains)),
         )
     }
 
@@ -450,7 +461,7 @@ internal class GJSelectionParser(
     }
 }
 
-internal data class ParsedSpecFragment(
+data class AstParsedSelectionFragment(
     val nominalType: ViaductSchema.CompositeTypeDef,
     val selections: List<SpecSelection>,
     private val schema: ViaductSchema,
@@ -461,7 +472,7 @@ internal data class ParsedSpecFragment(
 }
 
 /** Generic no-argument field directives retained by the parser. */
-private class ParsedFieldDirectives(
+internal class AstParsedFieldDirectives(
     directiveNames: List<String>,
 ) : FieldDirectives {
     private val names = directiveNames.toSet()
@@ -471,3 +482,12 @@ private class ParsedFieldDirectives(
         args: ((Map<String, Any?>) -> Boolean)?,
     ): Boolean = name in names && (args == null || args(emptyMap()))
 }
+
+fun viaduct.engine.runtime2.model.registry.Assumptions.selectionsFrom(
+    sourceSchema: GraphQLSchema,
+    operation: OperationDefinition,
+    variables: CoercedVariables,
+    graphQLContext: GraphQLContext = GraphQLContext.getDefault(),
+    locale: Locale = Locale.getDefault(),
+    fragmentsByName: Map<String, FragmentDefinition> = emptyMap(),
+): SelectionForest = AstSelectionParser(sourceSchema, schema, emptyMap()).selectionsFrom(operation, variables, graphQLContext, locale, fragmentsByName)

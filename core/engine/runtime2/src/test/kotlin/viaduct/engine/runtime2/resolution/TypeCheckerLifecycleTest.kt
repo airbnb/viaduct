@@ -63,7 +63,7 @@ open class TypeCheckerLifecycleTest : ResolutionDispatcherResource {
                 mapOf(
                     type to TypeCheckerResolver.of(type, type) { _, ctx ->
                         checkerTasks += assertIs<TypeCheckerTask>(ctx)
-                        assertEquals(7, ctx.resolveSelectionSet(schemas.fragmentFrom("fragment Child on Query { dependency }").materializeSelections).get("dependency"))
+                        assertEquals(7, ctx.resolveSelectionSet(schemas.fragmentFrom("fragment Child on Query { dependency }").subselections).get("dependency"))
                         CheckerResult.Success
                     }
                 )
@@ -110,8 +110,8 @@ open class TypeCheckerLifecycleTest : ResolutionDispatcherResource {
                         schemas.loweredSchema.requireQueryTypeDef(),
                         mapOf(
                             "input" to ResolverFragmentTemplates(
-                                schemas.fragmentFrom("fragment Input on Item { required }").materializeSelections,
-                                viaduct.engine.runtime2.model.materializeSelectionForestOf(),
+                                schemas.fragmentFrom("fragment Input on Item { required }").subselections,
+                                viaduct.engine.runtime2.model.selectionForestOf(),
                             ),
                         ),
                         isApplicable = { _, path ->
@@ -223,8 +223,8 @@ open class TypeCheckerLifecycleTest : ResolutionDispatcherResource {
                                 objectFragmentTemplate = schema.fragmentFrom(
                                     "fragment Input on Query { dependency(value: ${'$'}v) }",
                                     variableTarget = ResolverTarget.TypeCheckerTarget(field)
-                                ).materializeSelections,
-                                queryFragmentTemplate = viaduct.engine.runtime2.model.materializeSelectionForestOf(),
+                                ).subselections,
+                                queryFragmentTemplate = viaduct.engine.runtime2.model.selectionForestOf(),
                                 variables = mapOf(Arguments.Variable.of(ResolverTarget.TypeCheckerTarget(field), "v") to VariableDefinition.FromProvider),
                                 variablesProvider = provider,
                             )

@@ -30,7 +30,7 @@ import viaduct.engine.runtime2.model.registry.VariableDefinition
 import viaduct.engine.runtime2.model.registry.fieldResolverOf
 import viaduct.engine.runtime2.model.requireObjectField
 import viaduct.engine.runtime2.model.testing.TestWorld
-import viaduct.engine.runtime2.schema.specFragmentFromDocument
+import viaduct.engine.runtime2.schema.fragmentFromDocument
 
 class ExecutorVariableDeclarationsTest {
     @Test
@@ -54,8 +54,8 @@ class ExecutorVariableDeclarationsTest {
             """.trimIndent(),
             fieldResolvers = { schema ->
                 val field = schema.loweredSchema.requireObjectField("Query", "result")
-                val objectFragment = schema.specFragmentFromDocument(Parser.parse("fragment _ on Query { $objectSource }"), variableField = field)
-                val queryFragment = schema.specFragmentFromDocument(Parser.parse("fragment _ on Query { $querySource }"), variableField = field)
+                val objectFragment = schema.fragmentFromDocument(Parser.parse("fragment _ on Query { $objectSource }"), variableField = field)
+                val queryFragment = schema.fragmentFromDocument(Parser.parse("fragment _ on Query { $querySource }"), variableField = field)
                 compiled = executor.compileVariableDeclarations(
                     schema,
                     field,
@@ -191,7 +191,7 @@ class ExecutorVariableDeclarationsTest {
         runBlocking {
             val schema = TestWorld.fromSDL("type Query { result: Int use(x: Int!): Int! }").schemas
             val field = schema.loweredSchema.requireObjectField("Query", "result")
-            val fragment = schema.specFragmentFromDocument(Parser.parse("fragment _ on Query { use(x: \$value) }"), variableField = field)
+            val fragment = schema.fragmentFromDocument(Parser.parse("fragment _ on Query { use(x: \$value) }"), variableField = field)
             for (output in listOf(emptyMap(), mapOf("value" to 1, "extra" to 2))) {
                 val executor = object : MockFieldUnbatchedResolverExecutor(resolverId = "Query.result") {
                     override val variablesFromFunctionProvider = object : VariableFromFunctionDefinitions {
@@ -222,7 +222,7 @@ class ExecutorVariableDeclarationsTest {
         val field = schema.loweredSchema.requireObjectField("Query", "result")
         for (arguments in listOf(emptyMap(), mapOf("arg" to "x"))) {
             val selections = if (arguments.isEmpty()) "use(x: \$value)" else "a: use(x: \$arg) use(x: \$value)"
-            val objectFragment = schema.specFragmentFromDocument(Parser.parse("fragment _ on Query { $selections }"), variableField = field)
+            val objectFragment = schema.fragmentFromDocument(Parser.parse("fragment _ on Query { $selections }"), variableField = field)
             val executor = MockFieldUnbatchedResolverExecutor(
                 resolverId = "Query.result",
                 objectSelectionSet = rss(selections, "arg", "value"),

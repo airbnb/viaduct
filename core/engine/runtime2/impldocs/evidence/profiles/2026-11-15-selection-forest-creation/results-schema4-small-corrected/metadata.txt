@@ -1,0 +1,10 @@
+Started: 2026-11-15T11:06:27Z
+openjdk version "25.0.5.0.3" 2026-10-24
+OpenJDK Runtime Environment (build 25.0.5.0.3+1-1-26.04.1-Ubuntu)
+OpenJDK 64-Bit Server VM (build 25.0.5.0.3+1-1-26.04.1-Ubuntu, mixed mode, sharing)
+dfa196fb11b4e2d978aa3c4dee266e1d9c65a1800274b879ccfeb9ca9f6933dd  /opt/graphql-schema-perf/viaduct-selection-forest-20261115-a2483562b/engine-runtime2-jmh-corrected.jar
+Linux Ubuntu-resolute-latest-amd64-base.zst 7.0.0-22-generic #22-Ubuntu SMP PREEMPT_DYNAMIC Mon May 25 15:54:34 UTC 2026 x86_64 GNU/Linux
+Cases: 4 methods x 1 fixtures x 2 forks
+Per fork: 2 warmup x 30s + 3 measurement x 60s = 240s
+Scheduled JMH iteration time: 32m
+Wall-clock deadline for JMH, including fork setup: 50m plus 30s termination grace

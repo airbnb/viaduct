@@ -9,7 +9,6 @@ import viaduct.engine.runtime2.model.EngineErrorData
 import viaduct.engine.runtime2.model.ResolverTarget
 import viaduct.engine.runtime2.model.RootFieldReferenceData
 import viaduct.engine.runtime2.model.emptyFragmentOf
-import viaduct.engine.runtime2.model.materializeSelectionForestOf
 import viaduct.engine.runtime2.model.registry.FieldCheckerResolver
 import viaduct.engine.runtime2.model.registry.FieldResolverDefinition
 import viaduct.engine.runtime2.model.registry.ProviderFragment
@@ -21,6 +20,7 @@ import viaduct.engine.runtime2.model.registry.fromArgument
 import viaduct.engine.runtime2.model.requireObjectField
 import viaduct.engine.runtime2.model.requireQueryTypeDef
 import viaduct.engine.runtime2.model.requireType
+import viaduct.engine.runtime2.model.selectionForestOf
 import viaduct.engine.runtime2.model.testing.fragmentFrom
 import viaduct.engine.runtime2.model.testing.generatedFieldResolverOf
 import viaduct.engine.runtime2.model.testing.objectOf
@@ -275,13 +275,13 @@ object ResolverBenchmarkFeaturePartition {
         val objectFragment = schemas.fragmentFrom(
             "fragment Input on $type { seed passive { seed } other(value: ${'$'}objectValue) @include(if: ${'$'}enabled) }",
             variableTarget = target
-        ).materializeSelections
+        ).subselections
         val argumentField = (target as? ResolverTarget.FieldCheckerTarget)?.field?.takeIf { it.name == "computed" }
         val argumentSelection = if (argumentField != null) "argumentEcho: coverageEcho(value: ${'$'}argumentValue)" else ""
         val queryFragment = schemas.fragmentFrom(
             "fragment Input on Query { $argumentSelection coverageProvider coverageEcho(value: ${'$'}objectValue) coverageList(values: ${'$'}queryValue) coverageNumber @include(if: ${'$'}enabled) }",
             variableTarget = target
-        ).materializeSelections
+        ).subselections
         val providedVariables = mapOf("enabled" to true)
         val pair = ResolverFragmentTemplates(
             objectFragmentTemplate = objectFragment,
@@ -324,7 +324,7 @@ object ResolverBenchmarkFeaturePartition {
             ),
             variablesProvider = { providedVariables },
         )
-        return mapOf("policy" to pair, "empty" to ResolverFragmentTemplates(materializeSelectionForestOf(), materializeSelectionForestOf())) +
+        return mapOf("policy" to pair, "empty" to ResolverFragmentTemplates(selectionForestOf(), selectionForestOf())) +
             if (argumentField == null) emptyMap() else mapOf("duplicate" to pair)
     }
 
@@ -343,8 +343,8 @@ object ResolverBenchmarkFeaturePartition {
                         schemas.fragmentFrom(
                             "fragment Input on CoverageLeaf { second }",
                             variableTarget = ResolverTarget.FieldCheckerTarget(leaf)
-                        ).materializeSelections,
-                        materializeSelectionForestOf(),
+                        ).subselections,
+                        selectionForestOf(),
                     ),
                 )
             ) { _, _, _ -> CheckerResult.Success },

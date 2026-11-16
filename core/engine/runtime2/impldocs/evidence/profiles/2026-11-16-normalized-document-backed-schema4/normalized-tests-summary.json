@@ -1,0 +1,26 @@
+{
+  "viaduct.engine.runtime2.model.DeferredSelectionForestTest": {
+    "tests": 1,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "viaduct.engine.runtime2.schema.NormalizedOperationSelectionsTest": {
+    "tests": 12,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "viaduct.engine.runtime2.model.SelectionForestConcatenationTest": {
+    "tests": 8,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "viaduct.engine.runtime2.model.SelectionMergeTest": {
+    "tests": 36,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  }
+}

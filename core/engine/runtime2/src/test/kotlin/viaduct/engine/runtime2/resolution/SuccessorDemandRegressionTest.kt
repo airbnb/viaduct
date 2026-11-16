@@ -33,8 +33,8 @@ class SuccessorDemandRegressionTest : ResolutionDispatcherResource {
                     (0 until depth).associate { index ->
                         val field = schema.loweredSchema.requireObjectField("Query", "field$index")
                         val pair = ResolverFragmentTemplates(
-                            schema.fragmentFrom("fragment Input on Query { ${inputs(index)} }").materializeSelections,
-                            viaduct.engine.runtime2.model.materializeSelectionForestOf(),
+                            schema.fragmentFrom("fragment Input on Query { ${inputs(index)} }").subselections,
+                            viaduct.engine.runtime2.model.selectionForestOf(),
                         )
                         field to FieldCheckerResolver.of(field, schema.loweredSchema.requireQueryTypeDef(), mapOf("first" to pair, "second" to pair)) { _, _, _ -> CheckerResult.Success }
                     }

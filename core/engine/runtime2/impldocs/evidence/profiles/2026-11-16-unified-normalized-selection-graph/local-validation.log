@@ -1,0 +1,1144 @@
+GraphQL Java PR jar SHA-256: b5c586084b49da2e87bc3fcb6e6518309a1b8d0457a917ffc2c9ce105c4d0cc9
+> Task :build-logic:buildSrc:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :build-logic:buildSrc:generateExternalPluginSpecBuilders UP-TO-DATE
+> Task :build-logic:buildSrc:extractPrecompiledScriptPluginPlugins UP-TO-DATE
+> Task :build-logic:buildSrc:compilePluginsBlocks UP-TO-DATE
+> Task :build-logic:buildSrc:generatePrecompiledScriptPluginAccessors UP-TO-DATE
+> Task :build-logic:buildSrc:generateScriptPluginAdapters UP-TO-DATE
+> Task :build-logic:buildSrc:compileKotlin UP-TO-DATE
+> Task :build-logic:buildSrc:compileJava NO-SOURCE
+> Task :build-logic:buildSrc:compileGroovy NO-SOURCE
+> Task :build-logic:buildSrc:pluginDescriptors UP-TO-DATE
+> Task :build-logic:buildSrc:processResources UP-TO-DATE
+> Task :build-logic:buildSrc:classes UP-TO-DATE
+> Task :build-logic:buildSrc:jar UP-TO-DATE
+
+> Configure project :build-logic
+WARNING: Unsupported Kotlin plugin version.
+The `embedded-kotlin` and `kotlin-dsl` plugins rely on features of Kotlin `2.2.0` that might work differently than in the requested version `2.3.21`.
+
+> Configure project :build-logic:build-test-support
+WARNING: Unsupported Kotlin plugin version.
+The `embedded-kotlin` and `kotlin-dsl` plugins rely on features of Kotlin `2.2.0` that might work differently than in the requested version `2.3.21`.
+
+> Task :build-logic:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :build-logic:generateExternalPluginSpecBuilders UP-TO-DATE
+> Task :build-logic:extractPrecompiledScriptPluginPlugins UP-TO-DATE
+> Task :build-logic:compilePluginsBlocks UP-TO-DATE
+> Task :build-logic:generatePrecompiledScriptPluginAccessors UP-TO-DATE
+> Task :build-logic:generateScriptPluginAdapters UP-TO-DATE
+> Task :build-logic:compileKotlin UP-TO-DATE
+> Task :build-logic:compileJava NO-SOURCE
+> Task :build-logic:pluginDescriptors UP-TO-DATE
+> Task :build-logic:processResources UP-TO-DATE
+> Task :build-logic:classes UP-TO-DATE
+> Task :build-logic:jar UP-TO-DATE
+
+> Configure project :gradle-plugins:apollo
+WARNING: Unsupported Kotlin plugin version.
+The `embedded-kotlin` and `kotlin-dsl` plugins rely on features of Kotlin `2.2.0` that might work differently than in the requested version `2.3.21`.
+
+> Configure project :gradle-plugins:application
+WARNING: Unsupported Kotlin plugin version.
+The `embedded-kotlin` and `kotlin-dsl` plugins rely on features of Kotlin `2.2.0` that might work differently than in the requested version `2.3.21`.
+
+> Configure project :gradle-plugins:conventions
+WARNING: Unsupported Kotlin plugin version.
+The `embedded-kotlin` and `kotlin-dsl` plugins rely on features of Kotlin `2.2.0` that might work differently than in the requested version `2.3.21`.
+
+> Configure project :gradle-plugins:federation
+WARNING: Unsupported Kotlin plugin version.
+The `embedded-kotlin` and `kotlin-dsl` plugins rely on features of Kotlin `2.2.0` that might work differently than in the requested version `2.3.21`.
+
+> Configure project :gradle-plugins:metamodule
+WARNING: Unsupported Kotlin plugin version.
+The `embedded-kotlin` and `kotlin-dsl` plugins rely on features of Kotlin `2.2.0` that might work differently than in the requested version `2.3.21`.
+
+> Configure project :gradle-plugins:module
+WARNING: Unsupported Kotlin plugin version.
+The `embedded-kotlin` and `kotlin-dsl` plugins rely on features of Kotlin `2.2.0` that might work differently than in the requested version `2.3.21`.
+
+> Configure project :gradle-plugins:module-java
+WARNING: Unsupported Kotlin plugin version.
+The `embedded-kotlin` and `kotlin-dsl` plugins rely on features of Kotlin `2.2.0` that might work differently than in the requested version `2.3.21`.
+
+> Configure project :gradle-plugins:settings
+WARNING: Unsupported Kotlin plugin version.
+The `embedded-kotlin` and `kotlin-dsl` plugins rely on features of Kotlin `2.2.0` that might work differently than in the requested version `2.3.21`.
+
+> Task :build-logic:build-common:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :build-logic:build-common:compileKotlin UP-TO-DATE
+> Task :build-logic:build-common:compileJava NO-SOURCE
+> Task :build-logic:build-common:processResources UP-TO-DATE
+> Task :build-logic:build-common:classes UP-TO-DATE
+> Task :build-logic:build-common:jar UP-TO-DATE
+> Task :build-logic:build-test-support:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :build-logic:build-test-support:generateExternalPluginSpecBuilders UP-TO-DATE
+> Task :build-logic:build-test-support:extractPrecompiledScriptPluginPlugins UP-TO-DATE
+> Task :build-logic:build-test-support:compilePluginsBlocks UP-TO-DATE
+> Task :build-logic:build-test-support:generatePrecompiledScriptPluginAccessors UP-TO-DATE
+> Task :build-logic:build-test-support:generateScriptPluginAdapters UP-TO-DATE
+> Task :build-logic:build-test-support:compileKotlin UP-TO-DATE
+> Task :build-logic:build-test-support:compileJava NO-SOURCE
+> Task :build-logic:build-test-support:pluginDescriptors UP-TO-DATE
+> Task :build-logic:build-test-support:processResources UP-TO-DATE
+> Task :build-logic:build-test-support:classes UP-TO-DATE
+> Task :build-logic:build-test-support:jar UP-TO-DATE
+> Task :core:shared:apiannotations:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :gradle-plugins:common:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :gradle-plugins:common:processResources NO-SOURCE
+> Task :gradle-plugins:conventions:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :gradle-plugins:settings:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :gradle-plugins:settings:pluginDescriptors UP-TO-DATE
+> Task :gradle-plugins:settings:processResources UP-TO-DATE
+> Task :gradle-plugins:federation:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :gradle-plugins:federation:pluginDescriptors UP-TO-DATE
+> Task :core:shared:apiannotations:compileKotlin UP-TO-DATE
+> Task :gradle-plugins:federation:processResources UP-TO-DATE
+> Task :gradle-plugins:apollo:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :core:shared:apiannotations:compileJava NO-SOURCE
+> Task :gradle-plugins:apollo:pluginDescriptors UP-TO-DATE
+> Task :core:shared:apiannotations:processResources NO-SOURCE
+> Task :gradle-plugins:apollo:processResources UP-TO-DATE
+> Task :core:shared:apiannotations:classes UP-TO-DATE
+> Task :gradle-plugins:conventions:pluginDescriptors UP-TO-DATE
+> Task :gradle-plugins:conventions:processResources UP-TO-DATE
+> Task :core:shared:apiannotations:jar UP-TO-DATE
+> Task :core:shared:bootstrap:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :core:shared:bootstrap:compileKotlin UP-TO-DATE
+> Task :core:shared:bootstrap:compileJava NO-SOURCE
+> Task :core:shared:bootstrap:processResources NO-SOURCE
+> Task :core:shared:bootstrap:classes UP-TO-DATE
+> Task :core:shared:bootstrap:jar UP-TO-DATE
+> Task :core:shared:graphql:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :core:shared:utils:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :core:shared:utils:compileKotlin UP-TO-DATE
+> Task :core:shared:utils:compileJava NO-SOURCE
+> Task :core:shared:utils:processResources NO-SOURCE
+> Task :core:shared:utils:classes UP-TO-DATE
+> Task :core:shared:utils:jar UP-TO-DATE
+> Task :core:shared:graphql:compileKotlin UP-TO-DATE
+> Task :core:shared:graphql:compileJava NO-SOURCE
+> Task :core:shared:graphql:processResources NO-SOURCE
+> Task :core:shared:graphql:classes UP-TO-DATE
+> Task :core:shared:graphql:jar UP-TO-DATE
+> Task :core:shared:invariants:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :core:shared:invariants:compileKotlin UP-TO-DATE
+> Task :core:shared:invariants:compileJava NO-SOURCE
+> Task :core:shared:invariants:processResources NO-SOURCE
+> Task :core:shared:invariants:classes UP-TO-DATE
+> Task :core:shared:invariants:jar UP-TO-DATE
+> Task :core:shared:viaductschema:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :core:shared:viaductschema:compileKotlin UP-TO-DATE
+> Task :core:shared:viaductschema:compileJava NO-SOURCE
+> Task :core:shared:viaductschema:processResources NO-SOURCE
+> Task :core:shared:viaductschema:classes UP-TO-DATE
+> Task :core:shared:viaductschema:jar UP-TO-DATE
+> Task :core:shared:scoping:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :core:shared:scoping:compileKotlin UP-TO-DATE
+> Task :core:shared:scoping:compileJava NO-SOURCE
+> Task :core:shared:scoping:processResources NO-SOURCE
+> Task :core:shared:scoping:classes UP-TO-DATE
+> Task :core:shared:scoping:jar UP-TO-DATE
+> Task :gradle-plugins:common:compileKotlin UP-TO-DATE
+> Task :gradle-plugins:common:compileJava NO-SOURCE
+> Task :gradle-plugins:common:classes UP-TO-DATE
+> Task :gradle-plugins:common:jar UP-TO-DATE
+> Task :gradle-plugins:conventions:compileKotlin UP-TO-DATE
+> Task :gradle-plugins:conventions:compileJava NO-SOURCE
+> Task :gradle-plugins:settings:compileKotlin UP-TO-DATE
+> Task :gradle-plugins:settings:compileJava NO-SOURCE
+> Task :gradle-plugins:settings:classes UP-TO-DATE
+> Task :gradle-plugins:settings:jar UP-TO-DATE
+> Task :gradle-plugins:federation:compileKotlin UP-TO-DATE
+> Task :gradle-plugins:federation:compileJava NO-SOURCE
+> Task :gradle-plugins:federation:classes UP-TO-DATE
+> Task :gradle-plugins:federation:jar UP-TO-DATE
+> Task :gradle-plugins:apollo:compileKotlin UP-TO-DATE
+> Task :gradle-plugins:apollo:compileJava NO-SOURCE
+> Task :gradle-plugins:apollo:classes UP-TO-DATE
+> Task :gradle-plugins:apollo:jar UP-TO-DATE
+> Task :gradle-plugins:conventions:classes UP-TO-DATE
+> Task :gradle-plugins:conventions:jar UP-TO-DATE
+
+> Configure project :gradle-plugins:gradletestapps:buildSrc
+WARNING: Unsupported Kotlin plugin version.
+The `embedded-kotlin` and `kotlin-dsl` plugins rely on features of Kotlin `2.2.0` that might work differently than in the requested version `2.3.21`.
+
+> Task :gradle-plugins:gradletestapps:buildSrc:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :gradle-plugins:gradletestapps:buildSrc:compileKotlin UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:buildSrc:compileJava NO-SOURCE
+> Task :gradle-plugins:gradletestapps:buildSrc:compileGroovy NO-SOURCE
+> Task :gradle-plugins:gradletestapps:buildSrc:pluginDescriptors UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:buildSrc:processResources UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:buildSrc:classes UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:buildSrc:jar UP-TO-DATE
+> Task :gradle-plugins:metamodule:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :gradle-plugins:metamodule:compileKotlin UP-TO-DATE
+> Task :gradle-plugins:metamodule:compileJava NO-SOURCE
+> Task :gradle-plugins:module-java:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :gradle-plugins:module-java:compileKotlin UP-TO-DATE
+> Task :gradle-plugins:module-java:compileJava NO-SOURCE
+> Task :gradle-plugins:module-java:pluginDescriptors UP-TO-DATE
+> Task :gradle-plugins:module-java:processResources UP-TO-DATE
+> Task :gradle-plugins:module-java:classes UP-TO-DATE
+> Task :gradle-plugins:module-java:jar UP-TO-DATE
+> Task :gradle-plugins:metamodule:pluginDescriptors UP-TO-DATE
+> Task :gradle-plugins:metamodule:processResources UP-TO-DATE
+> Task :gradle-plugins:metamodule:classes UP-TO-DATE
+> Task :gradle-plugins:metamodule:jar UP-TO-DATE
+> Task :gradle-plugins:application:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :gradle-plugins:application:compileKotlin UP-TO-DATE
+> Task :gradle-plugins:application:compileJava NO-SOURCE
+> Task :gradle-plugins:application:pluginDescriptors UP-TO-DATE
+> Task :gradle-plugins:application:processResources UP-TO-DATE
+> Task :gradle-plugins:application:classes UP-TO-DATE
+> Task :gradle-plugins:application:jar UP-TO-DATE
+> Task :gradle-plugins:module:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :gradle-plugins:module:compileKotlin UP-TO-DATE
+> Task :gradle-plugins:module:compileJava NO-SOURCE
+> Task :gradle-plugins:module:pluginDescriptors UP-TO-DATE
+> Task :gradle-plugins:module:processResources UP-TO-DATE
+> Task :gradle-plugins:module:classes UP-TO-DATE
+> Task :gradle-plugins:module:jar UP-TO-DATE
+> Task :build-logic:build-ktlint:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :core:engine:api:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :gradle-plugins:gradletestapps:apollo-schema:prepareViaductPluginSchema UP-TO-DATE
+> Task :core:service:api:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :publications:api:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :gradle-plugins:gradletestapps:apollo-schema:catalog:assembleViaductSchemaContributions NO-SOURCE
+> Task :publications:api:processResources NO-SOURCE
+> Task :publications:api:processTestResources NO-SOURCE
+> Task :build-logic:build-ktlint:compileKotlin UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:apollo-schema:catalog:prepareViaductSchemaPartition UP-TO-DATE
+> Task :checkSharedFileSync
+> Task :publications:buildtime:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :gradle-plugins:gradletestapps:apollo-schema:users:assembleViaductSchemaContributions NO-SOURCE
+> Task :publications:buildtime:processResources NO-SOURCE
+> Task :build-logic:build-ktlint:compileJava NO-SOURCE
+> Task :build-logic:build-ktlint:processResources UP-TO-DATE
+> Task :build-logic:build-ktlint:classes UP-TO-DATE
+> Task :publications:buildtime:processTestResources NO-SOURCE
+> Task :gradle-plugins:gradletestapps:apollo-schema:users:prepareViaductSchemaPartition UP-TO-DATE
+> Task :publications:javaapi-api:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :build-logic:build-ktlint:jar UP-TO-DATE
+> Task :publications:javaapi-api:processResources NO-SOURCE
+> Task :publications:javaapi-api:processTestResources NO-SOURCE
+> Task :gradle-plugins:gradletestapps:apollo-schema:assembleViaductCentralSchema UP-TO-DATE
+> Task :publications:javaapi-buildtime:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :gradle-plugins:gradletestapps:apollo-schema:generateApolloSchema UP-TO-DATE
+> Task :publications:javaapi-buildtime:processResources NO-SOURCE
+> Task :core:service:api:compileKotlin UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:apollo-schema:prepareViaductPluginFinalSchema UP-TO-DATE
+> Task :publications:javaapi-buildtime:processTestResources NO-SOURCE
+> Task :core:service:api:compileJava NO-SOURCE
+> Task :publications:javaapi-runtime:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :core:shared:errors:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :publications:javaapi-runtime:processResources NO-SOURCE
+> Task :publications:javaapi-runtime:processTestResources NO-SOURCE
+> Task :publications:runtime:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :gradle-plugins:gradletestapps:apollo-schema:assembleViaductFinalSchema UP-TO-DATE
+> Task :publications:runtime:processResources UP-TO-DATE
+> Task :publications:runtime:processTestResources NO-SOURCE
+> Task :publications:test-fixtures:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :publications:test-fixtures:processResources NO-SOURCE
+> Task :gradle-plugins:gradletestapps:apollo-schema:generateViaductSchemaResourceIndex UP-TO-DATE
+> Task :publications:test-fixtures:processTestResources NO-SOURCE
+> Task :gradle-plugins:gradletestapps:apollo-schema:generateViaductSchemaScopingManifest UP-TO-DATE
+> Task :gradle-plugins:apollo:pluginUnderTestMetadata
+> Task :gradle-plugins:apollo:processTestResources NO-SOURCE
+> Task :gradle-plugins:gradletestapps:apollo-schema:generateViaductSchemaResources UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:apollo-schema:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :gradle-plugins:gradletestapps:apollo-schema:processTestResources NO-SOURCE
+> Task :gradle-plugins:gradletestapps:apollo-schema:catalog:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :core:shared:errors:compileKotlin UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:apollo-schema:users:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :core:shared:errors:compileJava NO-SOURCE
+> Task :gradle-plugins:gradletestapps:java-one-project:assembleViaductSchemaContributions UP-TO-DATE
+> Task :core:shared:errors:processResources NO-SOURCE
+> Task :gradle-plugins:gradletestapps:java-one-project:prepareViaductPluginSchema NO-SOURCE
+> Task :core:shared:errors:classes UP-TO-DATE
+> Task :core:shared:errors:jar UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:java-one-project:prepareViaductSchemaPartition UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:java-one-project:assembleViaductCentralSchema UP-TO-DATE
+> Task :gradle-plugins:application:compileTestKotlin UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:java-one-project:prepareViaductPluginFinalSchema NO-SOURCE
+> Task :gradle-plugins:application:compileTestJava NO-SOURCE
+> Task :gradle-plugins:gradletestapps:java-one-project:assembleViaductFinalSchema UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:java-one-project:generateViaductSchemaResourceIndex UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:java-one-project:generateViaductSchemaScopingManifest UP-TO-DATE
+> Task :gradle-plugins:application:pluginUnderTestMetadata
+> Task :gradle-plugins:application:processTestResources NO-SOURCE
+> Task :gradle-plugins:application:testClasses UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:java-one-project:generateViaductSchemaResources UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:java-one-project:processTestResources NO-SOURCE
+> Task :gradle-plugins:gradletestapps:multi-project:generateFixturePluginSchema UP-TO-DATE
+> Task :core:engine:api:compileKotlin UP-TO-DATE
+> Task :gradle-plugins:application:test UP-TO-DATE
+> Task :core:engine:api:compileJava NO-SOURCE
+> Task :core:engine:api:processResources NO-SOURCE
+> Task :core:engine:api:classes UP-TO-DATE
+> Task :core:engine:api:jar UP-TO-DATE
+> Task :core:engine:runtime:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :core:shared:dataloader:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :gradle-plugins:common:compileTestKotlin UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:multi-project:prepareViaductPluginSchema
+> Task :gradle-plugins:gradletestapps:validation-rule-support:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :core:shared:dataloader:compileKotlin UP-TO-DATE
+> Task :gradle-plugins:common:compileTestJava NO-SOURCE
+> Task :gradle-plugins:common:processTestResources NO-SOURCE
+> Task :gradle-plugins:common:testClasses UP-TO-DATE
+> Task :core:shared:dataloader:compileJava NO-SOURCE
+> Task :core:shared:dataloader:processResources NO-SOURCE
+> Task :core:shared:dataloader:classes UP-TO-DATE
+> Task :core:shared:dataloader:jar UP-TO-DATE
+> Task :gradle-plugins:common:test UP-TO-DATE
+> Task :core:shared:deferred:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :gradle-plugins:gradletestapps:validation-rule-support:compileKotlin UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:validation-rule-support:compileJava NO-SOURCE
+> Task :gradle-plugins:gradletestapps:validation-rule-support:processResources NO-SOURCE
+> Task :gradle-plugins:gradletestapps:validation-rule-support:classes UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:validation-rule-support:jar UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:validation-rules:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :core:shared:deferred:compileKotlin UP-TO-DATE
+> Task :core:shared:deferred:compileJava NO-SOURCE
+> Task :core:shared:deferred:processResources NO-SOURCE
+> Task :core:shared:deferred:classes UP-TO-DATE
+> Task :gradle-plugins:conventions:compileTestKotlin UP-TO-DATE
+> Task :gradle-plugins:conventions:compileTestJava NO-SOURCE
+> Task :core:shared:deferred:jar UP-TO-DATE
+> Task :core:shared:mapping:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :gradle-plugins:gradletestapps:validation-rules:compileKotlin UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:validation-rules:compileJava NO-SOURCE
+> Task :gradle-plugins:conventions:pluginUnderTestMetadata
+> Task :gradle-plugins:gradletestapps:validation-rules:processResources UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:validation-rules:classes UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:validation-rules:jar UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:multi-project:alpha:assembleViaductSchemaContributions NO-SOURCE
+> Task :gradle-plugins:gradletestapps:multi-project:alpha:prepareViaductSchemaPartition UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:multi-project:beta:assembleViaductSchemaContributions NO-SOURCE
+> Task :gradle-plugins:conventions:processTestResources UP-TO-DATE
+> Task :core:shared:mapping:compileKotlin UP-TO-DATE
+> Task :core:shared:mapping:compileJava NO-SOURCE
+> Task :gradle-plugins:gradletestapps:multi-project:beta:prepareViaductSchemaPartition UP-TO-DATE
+> Task :gradle-plugins:conventions:testClasses UP-TO-DATE
+> Task :core:shared:mapping:processResources NO-SOURCE
+> Task :core:shared:mapping:classes UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:multi-project:generateViaductSchemaScopingManifest UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:multi-project:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :gradle-plugins:gradletestapps:multi-project:processTestResources NO-SOURCE
+> Task :gradle-plugins:gradletestapps:multi-project:alpha:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :core:shared:mapping:jar UP-TO-DATE
+> Task :core:tenant:api:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :core:tenant:shared:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :gradle-plugins:gradletestapps:one-project:assembleViaductSchemaContributions NO-SOURCE
+> Task :gradle-plugins:gradletestapps:one-project:prepareViaductPluginSchema NO-SOURCE
+> Task :gradle-plugins:gradletestapps:one-project:prepareViaductSchemaPartition UP-TO-DATE
+> Task :gradle-plugins:conventions:test UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:one-project:assembleViaductCentralSchema UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:one-project:prepareViaductPluginFinalSchema NO-SOURCE
+> Task :gradle-plugins:gradletestapps:one-project:assembleViaductFinalSchema UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:one-project:generateViaductSchemaResourceIndex UP-TO-DATE
+> Task :core:tenant:shared:compileKotlin UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:one-project:generateViaductSchemaScopingManifest UP-TO-DATE
+> Task :core:tenant:shared:compileJava NO-SOURCE
+> Task :gradle-plugins:federation:compileTestKotlin UP-TO-DATE
+> Task :core:tenant:shared:processResources NO-SOURCE
+> Task :core:tenant:shared:classes UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:one-project:generateViaductSchemaResources UP-TO-DATE
+> Task :gradle-plugins:federation:compileTestJava NO-SOURCE
+> Task :gradle-plugins:gradletestapps:one-project:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :core:tenant:shared:jar UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:two-project:prepareViaductPluginSchema NO-SOURCE
+> Task :gradle-plugins:gradletestapps:two-project:resolvers:prepareTestSchemaContribution UP-TO-DATE
+> Task :core:tenant:api:kspKotlin SKIPPED
+> Task :gradle-plugins:federation:pluginUnderTestMetadata
+> Task :gradle-plugins:gradletestapps:two-project:resolvers:assembleViaductSchemaContributions UP-TO-DATE
+> Task :gradle-plugins:federation:processTestResources NO-SOURCE
+> Task :gradle-plugins:federation:testClasses UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:two-project:resolvers:prepareViaductSchemaPartition UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:two-project:assembleViaductCentralSchema UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:two-project:prepareViaductPluginFinalSchema NO-SOURCE
+> Task :gradle-plugins:gradletestapps:two-project:assembleViaductFinalSchema UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:two-project:generateViaductSchemaResourceIndex UP-TO-DATE
+> Task :gradle-plugins:federation:test UP-TO-DATE
+> Task :gradle-plugins:federation-validation:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :gradle-plugins:gradletestapps:two-project:generateViaductSchemaScopingManifest UP-TO-DATE
+> Task :gradle-plugins:federation-validation:processResources UP-TO-DATE
+> Task :gradle-plugins:federation-validation:processTestResources NO-SOURCE
+> Task :gradle-plugins:gradletestapps:two-project:generateViaductSchemaResources UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:two-project:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :gradle-plugins:gradletestapps:two-project:processTestResources NO-SOURCE
+> Task :core:tenant:api:compileKotlin UP-TO-DATE
+> Task :core:tenant:api:compileJava NO-SOURCE
+> Task :gradle-plugins:metamodule:compileTestKotlin UP-TO-DATE
+> Task :gradle-plugins:metamodule:compileTestJava NO-SOURCE
+> Task :gradle-plugins:metamodule:pluginUnderTestMetadata
+> Task :gradle-plugins:metamodule:processTestResources NO-SOURCE
+> Task :gradle-plugins:metamodule:testClasses UP-TO-DATE
+> Task :gradle-plugins:metamodule:test UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:two-project:validateViaductSchemaExtensions
+> Task :gradle-plugins:gradletestapps:two-project:resolvers:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :gradle-plugins:gradletestapps:validation-rule-support:compileTestKotlin NO-SOURCE
+> Task :gradle-plugins:module:compileTestKotlin UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:validation-rule-support:compileTestJava NO-SOURCE
+> Task :gradle-plugins:gradletestapps:validation-rule-support:processTestResources NO-SOURCE
+> Task :gradle-plugins:gradletestapps:validation-rule-support:testClasses UP-TO-DATE
+> Task :gradle-plugins:module:compileTestJava NO-SOURCE
+> Task :gradle-plugins:gradletestapps:validation-rule-support:test NO-SOURCE
+> Task :gradle-plugins:gradletestapps:validation-rules:compileTestKotlin NO-SOURCE
+> Task :gradle-plugins:gradletestapps:validation-rules:compileTestJava NO-SOURCE
+> Task :gradle-plugins:module:pluginUnderTestMetadata
+> Task :gradle-plugins:gradletestapps:validation-rules:processTestResources NO-SOURCE
+> Task :gradle-plugins:module:processTestResources NO-SOURCE
+> Task :gradle-plugins:module:testClasses UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:validation-rules:testClasses UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:validation-rules:test NO-SOURCE
+> Task :gradle-plugins:gradletestapps:multi-project:beta:processTestResources NO-SOURCE
+> Task :gradle-plugins:module-java:pluginUnderTestMetadata
+> Task :gradle-plugins:module-java:processTestResources NO-SOURCE
+> Task :gradle-plugins:settings:compileTestKotlin UP-TO-DATE
+> Task :gradle-plugins:settings:compileTestJava NO-SOURCE
+> Task :core:engine:runtime:processResources NO-SOURCE
+> Task :gradle-plugins:settings:pluginUnderTestMetadata
+> Task :gradle-plugins:settings:processTestResources NO-SOURCE
+> Task :gradle-plugins:settings:testClasses UP-TO-DATE
+> Task :core:engine:runtime2:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :publications:api:compileKotlin NO-SOURCE
+> Task :core:service:api:processResources NO-SOURCE
+> Task :publications:api:compileJava NO-SOURCE
+> Task :publications:api:classes UP-TO-DATE
+> Task :core:service:api:classes UP-TO-DATE
+> Task :publications:api:jar SKIPPED
+> Task :core:service:api:jar UP-TO-DATE
+> Task :gradle-plugins:settings:test UP-TO-DATE
+> Task :publications:api:shadowJar UP-TO-DATE
+> Task :publications:api:compileTestKotlin NO-SOURCE
+> Task :publications:api:compileTestJava NO-SOURCE
+> Task :publications:api:testClasses UP-TO-DATE
+> Task :gradle-plugins:apollo:loadKtlintReporters UP-TO-DATE
+> Task :core:service:api:compileTestFixturesKotlin UP-TO-DATE
+> Task :core:service:api:compileTestFixturesJava NO-SOURCE
+> Task :core:engine:wiring:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :core:engine:wiring:processResources NO-SOURCE
+> Task :core:service:runtime:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :core:service:runtime:processResources NO-SOURCE
+> Task :core:shared:arbitrary:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :core:service:wiring:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :core:tenant:runtime:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :core:tenant:runtime:extractDefaultSchema UP-TO-DATE
+> Task :core:tenant:wiring:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :core:tenant:wiring:processResources NO-SOURCE
+> Task :core:service:wiring:processResources UP-TO-DATE
+> Task :core:shared:arbitrary:processResources NO-SOURCE
+> Task :core:shared:dataloader:compileTestFixturesKotlin UP-TO-DATE
+> Task :core:shared:dataloader:compileTestFixturesJava NO-SOURCE
+> Task :core:shared:graphql:compileTestFixturesKotlin UP-TO-DATE
+> Task :core:shared:graphql:compileTestFixturesJava NO-SOURCE
+> Task :core:engine:api:processTestFixturesResources NO-SOURCE
+> Task :core:engine:api:processTestResources NO-SOURCE
+> Task :core:engine:runtime:processTestFixturesResources NO-SOURCE
+> Task :core:engine:runtime2:processResources NO-SOURCE
+> Task :core:service:api:processTestFixturesResources NO-SOURCE
+> Task :core:service:api:testFixturesClasses UP-TO-DATE
+> Task :core:service:api:testFixturesJar UP-TO-DATE
+> Task :core:shared:arbitrary:processTestFixturesResources NO-SOURCE
+> Task :core:shared:dataloader:processTestFixturesResources NO-SOURCE
+> Task :core:shared:dataloader:testFixturesClasses UP-TO-DATE
+> Task :core:shared:dataloader:testFixturesJar UP-TO-DATE
+> Task :core:shared:graphql:processTestFixturesResources NO-SOURCE
+> Task :core:shared:graphql:testFixturesClasses UP-TO-DATE
+> Task :core:shared:graphql:testFixturesJar UP-TO-DATE
+> Task :core:tenant:api:extractDefaultSchema UP-TO-DATE
+> Task :core:tenant:api:processResources NO-SOURCE
+> Task :core:tenant:api:classes UP-TO-DATE
+> Task :core:tenant:api:jar UP-TO-DATE
+> Task :publications:api:test NO-SOURCE
+> Task :core:engine:runtime:processTestResources UP-TO-DATE
+> Task :core:engine:runtime2:checkDocumentationLabels
+> Task :core:engine:runtime2:processTestFixturesResources UP-TO-DATE
+> Task :core:engine:runtime2:processTestResources UP-TO-DATE
+> Task :core:engine:wiring:processTestResources UP-TO-DATE
+> Task :core:javaapi:api:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :core:javaapi:api:compileKotlin NO-SOURCE
+> Task :core:javaapi:api:compileJava UP-TO-DATE
+> Task :core:javaapi:api:processResources NO-SOURCE
+> Task :core:javaapi:api:classes UP-TO-DATE
+> Task :publications:javaapi-api:compileKotlin NO-SOURCE
+> Task :publications:javaapi-api:compileJava NO-SOURCE
+> Task :core:javaapi:api:jar UP-TO-DATE
+> Task :publications:javaapi-api:classes UP-TO-DATE
+> Task :publications:javaapi-api:jar SKIPPED
+> Task :core:javaapi:runtime:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :publications:javaapi-api:shadowJar UP-TO-DATE
+> Task :publications:javaapi-api:compileTestKotlin NO-SOURCE
+> Task :publications:javaapi-api:compileTestJava NO-SOURCE
+> Task :publications:javaapi-api:testClasses UP-TO-DATE
+> Task :publications:javaapi-api:test NO-SOURCE
+> Task :core:javaapi:runtime:compileKotlin UP-TO-DATE
+> Task :core:javaapi:runtime:compileJava UP-TO-DATE
+> Task :core:javaapi:runtime:extractDefaultSchema UP-TO-DATE
+> Task :core:javaapi:runtime:processResources NO-SOURCE
+> Task :core:javaapi:runtime:classes UP-TO-DATE
+> Task :core:javaapi:runtime:jar UP-TO-DATE
+> Task :core:javaapi:api:processTestFixturesResources NO-SOURCE
+> Task :publications:javaapi-runtime:compileKotlin NO-SOURCE
+> Task :core:javaapi:api:processTestResources NO-SOURCE
+> Task :publications:javaapi-runtime:compileJava NO-SOURCE
+> Task :core:javaapi:codegen:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :publications:javaapi-runtime:classes UP-TO-DATE
+> Task :core:shared:codegen:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :publications:javaapi-runtime:jar SKIPPED
+> Task :publications:javaapi-runtime:shadowJar UP-TO-DATE
+> Task :publications:javaapi-runtime:compileTestKotlin NO-SOURCE
+> Task :publications:javaapi-runtime:compileTestJava NO-SOURCE
+> Task :publications:javaapi-runtime:testClasses UP-TO-DATE
+> Task :core:shared:codegen:compileKotlin UP-TO-DATE
+> Task :publications:javaapi-runtime:test NO-SOURCE
+> Task :core:shared:codegen:compileJava NO-SOURCE
+> Task :core:shared:codegen:processResources NO-SOURCE
+> Task :core:shared:codegen:classes UP-TO-DATE
+> Task :core:shared:codegen:jar UP-TO-DATE
+> Task :core:tenant:codegen:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :core:tenant:codegen:compileKotlin UP-TO-DATE
+> Task :core:tenant:codegen:compileJava NO-SOURCE
+> Task :core:tenant:codegen:extractDefaultSchema UP-TO-DATE
+> Task :core:tenant:codegen:processResources UP-TO-DATE
+> Task :core:tenant:codegen:classes UP-TO-DATE
+> Task :core:tenant:codegen:jar UP-TO-DATE
+> Task :publications:buildtime:compileKotlin NO-SOURCE
+> Task :publications:buildtime:compileJava NO-SOURCE
+> Task :publications:buildtime:classes UP-TO-DATE
+> Task :publications:buildtime:jar SKIPPED
+> Task :publications:buildtime:shadowJar UP-TO-DATE
+> Task :publications:buildtime:compileTestKotlin NO-SOURCE
+> Task :publications:buildtime:compileTestJava NO-SOURCE
+> Task :publications:buildtime:testClasses UP-TO-DATE
+> Task :publications:buildtime:test NO-SOURCE
+> Task :core:javaapi:codegen:compileKotlin UP-TO-DATE
+> Task :gradle-plugins:module:syncTestFixtureRepo UP-TO-DATE
+> Task :core:javaapi:codegen:compileJava UP-TO-DATE
+> Task :core:javaapi:codegen:processResources NO-SOURCE
+> Task :core:javaapi:codegen:classes UP-TO-DATE
+> Task :gradle-plugins:module:test UP-TO-DATE
+> Task :core:javaapi:codegen:jar UP-TO-DATE
+> Task :core:javaapi:codegen:compileTestKotlin UP-TO-DATE
+> Task :core:javaapi:codegen:compileTestJava UP-TO-DATE
+> Task :core:javaapi:codegen:generateGoldenIndex UP-TO-DATE
+> Task :core:javaapi:codegen:processTestResources UP-TO-DATE
+> Task :core:javaapi:codegen:testClasses UP-TO-DATE
+> Task :core:javaapi:codegen:test UP-TO-DATE
+> Task :core:javaapi:registry-apt:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :core:javaapi:registry-apt:compileKotlin UP-TO-DATE
+> Task :core:javaapi:registry-apt:compileJava NO-SOURCE
+> Task :core:javaapi:registry-apt:processResources UP-TO-DATE
+> Task :core:javaapi:registry-apt:classes UP-TO-DATE
+> Task :core:javaapi:registry-apt:jar UP-TO-DATE
+> Task :publications:javaapi-buildtime:compileKotlin NO-SOURCE
+> Task :publications:javaapi-buildtime:compileJava NO-SOURCE
+> Task :publications:javaapi-buildtime:classes UP-TO-DATE
+> Task :publications:javaapi-buildtime:jar SKIPPED
+> Task :publications:javaapi-buildtime:shadowJar UP-TO-DATE
+> Task :publications:javaapi-buildtime:compileTestKotlin NO-SOURCE
+> Task :publications:javaapi-buildtime:compileTestJava NO-SOURCE
+> Task :publications:javaapi-buildtime:testClasses UP-TO-DATE
+> Task :publications:javaapi-buildtime:test NO-SOURCE
+> Task :core:javaapi:registry-apt:compileTestKotlin UP-TO-DATE
+> Task :core:javaapi:registry-apt:compileTestJava NO-SOURCE
+> Task :core:javaapi:registry-apt:processTestResources NO-SOURCE
+> Task :core:javaapi:registry-apt:testClasses UP-TO-DATE
+> Task :core:javaapi:registry-apt:test UP-TO-DATE
+> Task :core:javaapi:runtime:processTestFixturesResources NO-SOURCE
+> Task :core:tenant:tutorials:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :core:tenant:tutorials:kspKotlin SKIPPED
+> Task :core:tenant:tutorials:compileKotlin NO-SOURCE
+> Task :core:tenant:tutorials:compileJava NO-SOURCE
+> Task :core:tenant:tutorials:extractDefaultSchema UP-TO-DATE
+> Task :core:tenant:tutorials:processResources NO-SOURCE
+> Task :core:tenant:tutorials:classes UP-TO-DATE
+> Task :core:tenant:tutorials:jar UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:apollo-schema:generateViaductGRTClassFiles UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:apollo-schema:generateViaductGRTs UP-TO-DATE
+> Task :core:service:api:compileTestKotlin UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:apollo-schema:compileKotlin NO-SOURCE
+> Task :gradle-plugins:gradletestapps:apollo-schema:compileJava NO-SOURCE
+> Task :core:service:api:compileTestJava NO-SOURCE
+> Task :core:service:api:processTestResources NO-SOURCE
+> Task :core:service:api:testClasses UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:apollo-schema:catalog:generateViaductResolverBases UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:apollo-schema:catalog:kspKotlin NO-SOURCE
+> Task :gradle-plugins:gradletestapps:apollo-schema:catalog:extractKspRegistryDescriptors NO-SOURCE
+> Task :gradle-plugins:gradletestapps:apollo-schema:catalog:assembleViaductModuleConfigFile UP-TO-DATE
+> Task :gradle-plugins:module-java:compileTestKotlin UP-TO-DATE
+> Task :gradle-plugins:module-java:compileTestJava NO-SOURCE
+> Task :gradle-plugins:module-java:testClasses UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:apollo-schema:users:generateViaductResolverBases UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:apollo-schema:users:kspKotlin NO-SOURCE
+> Task :gradle-plugins:gradletestapps:apollo-schema:users:extractKspRegistryDescriptors NO-SOURCE
+> Task :gradle-plugins:gradletestapps:apollo-schema:users:assembleViaductModuleConfigFile UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:apollo-schema:generateViaductExecutionRegistryResourceIndex UP-TO-DATE
+> Task :gradle-plugins:module-java:test UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:apollo-schema:processResources UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:apollo-schema:classes UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:apollo-schema:jar UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:apollo-schema:catalog:compileKotlin NO-SOURCE
+> Task :gradle-plugins:gradletestapps:apollo-schema:catalog:compileJava NO-SOURCE
+> Task :gradle-plugins:gradletestapps:apollo-schema:catalog:processResources NO-SOURCE
+> Task :core:service:api:test UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:apollo-schema:catalog:classes UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:apollo-schema:catalog:jar UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:apollo-schema:users:compileKotlin NO-SOURCE
+> Task :gradle-plugins:gradletestapps:apollo-schema:users:compileJava NO-SOURCE
+> Task :gradle-plugins:gradletestapps:apollo-schema:users:processResources NO-SOURCE
+> Task :gradle-plugins:gradletestapps:apollo-schema:users:classes UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:apollo-schema:users:jar UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:java-one-project:generateViaductJavaGRTSources UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:java-one-project:compileViaductJavaGRTJava UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:java-one-project:generateViaductJavaGRTs UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:java-one-project:generateViaductResolverBases UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:one-project:generateViaductGRTClassFiles UP-TO-DATE
+> Task :core:service:runtime:processTestResources UP-TO-DATE
+> Task :core:service:wiring:processTestResources UP-TO-DATE
+> Task :core:shared:arbitrary:processTestResources NO-SOURCE
+> Task :gradle-plugins:gradletestapps:one-project:generateViaductGRTs UP-TO-DATE
+> Task :core:shared:arbitrary-cli:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :core:shared:arbitrary-cli:processResources NO-SOURCE
+> Task :gradle-plugins:gradletestapps:one-project:generateViaductResolverBases UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:two-project:generateViaductGRTClassFiles UP-TO-DATE
+> Task :core:shared:arbitrary-cli:processTestResources NO-SOURCE
+> Task :gradle-plugins:gradletestapps:two-project:generateViaductGRTs UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:two-project:resolvers:generateViaductResolverBases UP-TO-DATE
+> Task :core:shared:bootstrap:compileTestKotlin UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:two-project:resolvers:kspKotlin UP-TO-DATE
+> Task :core:shared:bootstrap:compileTestJava NO-SOURCE
+> Task :core:shared:bootstrap:processTestResources NO-SOURCE
+> Task :core:shared:bootstrap:testClasses UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:two-project:resolvers:extractKspRegistryDescriptors UP-TO-DATE
+> Task :core:shared:bootstrap:test UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:two-project:resolvers:assembleViaductModuleConfigFile UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:two-project:generateViaductExecutionRegistryResourceIndex UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:two-project:processResources UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:two-project:copyResolverBases UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:two-project:resolvers:compileKotlin UP-TO-DATE
+> Task :core:shared:codegen:compileTestKotlin UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:two-project:resolvers:compileJava NO-SOURCE
+> Task :gradle-plugins:gradletestapps:two-project:resolvers:processResources UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:two-project:resolvers:classes UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:two-project:resolvers:jar UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:apollo-schema:catalog:kspTestKotlin NO-SOURCE
+> Task :core:shared:codegen:compileTestJava UP-TO-DATE
+> Task :core:shared:codegen:processTestResources NO-SOURCE
+> Task :gradle-plugins:gradletestapps:apollo-schema:catalog:compileTestKotlin NO-SOURCE
+> Task :core:shared:codegen:testClasses UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:apollo-schema:catalog:compileTestJava NO-SOURCE
+> Task :gradle-plugins:gradletestapps:apollo-schema:catalog:processTestResources NO-SOURCE
+> Task :gradle-plugins:gradletestapps:apollo-schema:catalog:testClasses UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:apollo-schema:catalog:test NO-SOURCE
+> Task :gradle-plugins:gradletestapps:apollo-schema:users:kspTestKotlin NO-SOURCE
+> Task :core:shared:codegen:test UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:apollo-schema:users:compileTestKotlin NO-SOURCE
+> Task :gradle-plugins:gradletestapps:apollo-schema:users:compileTestJava NO-SOURCE
+> Task :gradle-plugins:gradletestapps:apollo-schema:users:processTestResources NO-SOURCE
+> Task :gradle-plugins:gradletestapps:apollo-schema:users:testClasses UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:apollo-schema:users:test NO-SOURCE
+> Task :core:shared:dataloader:compileTestKotlin UP-TO-DATE
+> Task :core:shared:dataloader:compileTestJava NO-SOURCE
+> Task :core:shared:dataloader:processTestResources NO-SOURCE
+> Task :core:shared:dataloader:testClasses UP-TO-DATE
+> Task :core:shared:dataloader:test UP-TO-DATE
+> Task :core:shared:deferred:compileTestKotlin UP-TO-DATE
+> Task :core:shared:deferred:compileTestJava NO-SOURCE
+> Task :core:shared:deferred:processTestResources NO-SOURCE
+> Task :core:shared:deferred:testClasses UP-TO-DATE
+> Task :core:shared:deferred:test UP-TO-DATE
+> Task :core:shared:graphql:compileTestKotlin UP-TO-DATE
+> Task :core:shared:graphql:compileTestJava NO-SOURCE
+> Task :core:shared:graphql:processTestResources
+> Task :core:shared:graphql:testClasses
+> Task :core:engine:runtime:compileKotlin
+> Task :gradle-plugins:apollo:compileTestKotlin
+> Task :gradle-plugins:apollo:compileTestJava NO-SOURCE
+> Task :gradle-plugins:apollo:testClasses UP-TO-DATE
+> Task :gradle-plugins:apollo:runKtlintCheckOverKotlinScripts
+> Task :gradle-plugins:apollo:runKtlintCheckOverMainSourceSet
+> Task :gradle-plugins:apollo:runKtlintCheckOverTestSourceSet
+OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+> Task :core:shared:graphql:test
+> Task :core:engine:runtime:compileJava NO-SOURCE
+> Task :core:engine:runtime:classes UP-TO-DATE
+> Task :core:engine:runtime:jar
+> Task :core:tenant:runtime:kspKotlin SKIPPED
+> Task :core:tenant:runtime:compileKotlin UP-TO-DATE
+> Task :core:tenant:runtime:compileJava NO-SOURCE
+> Task :core:tenant:runtime:processResources NO-SOURCE
+> Task :core:tenant:runtime:classes UP-TO-DATE
+> Task :core:tenant:runtime:jar UP-TO-DATE
+> Task :core:tenant:wiring:compileKotlin NO-SOURCE
+> Task :core:tenant:wiring:compileJava NO-SOURCE
+> Task :core:tenant:wiring:classes UP-TO-DATE
+> Task :core:tenant:wiring:jar UP-TO-DATE
+> Task :core:shared:invariants:compileTestKotlin UP-TO-DATE
+> Task :core:shared:invariants:compileTestJava NO-SOURCE
+> Task :core:shared:invariants:processTestResources NO-SOURCE
+> Task :core:shared:invariants:testClasses UP-TO-DATE
+> Task :core:shared:invariants:test UP-TO-DATE
+> Task :core:shared:mapping:processTestFixturesResources NO-SOURCE
+> Task :core:shared:mapping:processTestResources NO-SOURCE
+> Task :core:shared:scoping:compileTestKotlin UP-TO-DATE
+> Task :core:shared:scoping:compileTestJava NO-SOURCE
+> Task :core:shared:scoping:processTestResources NO-SOURCE
+> Task :core:shared:scoping:testClasses UP-TO-DATE
+> Task :core:shared:scoping:test UP-TO-DATE
+> Task :core:shared:utils:compileTestKotlin UP-TO-DATE
+> Task :core:shared:utils:compileTestJava NO-SOURCE
+> Task :core:shared:utils:processTestResources NO-SOURCE
+> Task :core:shared:utils:testClasses UP-TO-DATE
+> Task :core:shared:utils:test UP-TO-DATE
+> Task :core:shared:viaductschema:compileTestFixturesKotlin UP-TO-DATE
+> Task :core:shared:viaductschema:compileTestFixturesJava NO-SOURCE
+> Task :core:shared:viaductschema:processTestFixturesResources UP-TO-DATE
+> Task :core:shared:viaductschema:testFixturesClasses UP-TO-DATE
+> Task :core:shared:viaductschema:testFixturesJar UP-TO-DATE
+> Task :core:shared:viaductschema:processTestResources UP-TO-DATE
+> Task :core:tenant:codegen:generateGoldenIndex UP-TO-DATE
+> Task :core:tenant:ksp:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :core:tenant:validation:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :core:tenant:validation:compileKotlin UP-TO-DATE
+> Task :core:tenant:validation:compileJava NO-SOURCE
+> Task :core:tenant:validation:processResources NO-SOURCE
+> Task :core:tenant:validation:classes UP-TO-DATE
+> Task :core:tenant:validation:jar UP-TO-DATE
+> Task :core:tenant:ksp:compileKotlin UP-TO-DATE
+> Task :core:tenant:ksp:compileJava NO-SOURCE
+> Task :core:tenant:ksp:processResources UP-TO-DATE
+> Task :core:tenant:ksp:classes UP-TO-DATE
+> Task :core:tenant:ksp:jar UP-TO-DATE
+> Task :core:tenant:ksp:compileTestKotlin UP-TO-DATE
+> Task :core:tenant:ksp:compileTestJava NO-SOURCE
+> Task :core:tenant:ksp:processTestResources NO-SOURCE
+> Task :core:tenant:ksp:testClasses UP-TO-DATE
+> Task :core:tenant:ksp:test UP-TO-DATE
+> Task :core:tenant:shared:processTestResources NO-SOURCE
+> Task :core:tenant:validation:compileTestKotlin NO-SOURCE
+> Task :core:tenant:validation:compileTestJava NO-SOURCE
+> Task :core:tenant:validation:processTestResources NO-SOURCE
+> Task :core:tenant:validation:testClasses UP-TO-DATE
+> Task :core:tenant:validation:test NO-SOURCE
+> Task :core:tenant:wiring:processTestFixturesResources NO-SOURCE
+> Task :core:tenant:wiring:processTestResources NO-SOURCE
+> Task :core:x:federation:validation:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :core:x:federation:validation:compileKotlin UP-TO-DATE
+> Task :core:x:federation:validation:compileJava NO-SOURCE
+> Task :core:x:federation:validation:processResources NO-SOURCE
+> Task :core:x:federation:validation:classes UP-TO-DATE
+> Task :core:x:federation:validation:jar UP-TO-DATE
+> Task :core:x:federation:validation:compileTestKotlin UP-TO-DATE
+> Task :core:x:federation:validation:compileTestJava NO-SOURCE
+> Task :core:x:federation:validation:processTestResources NO-SOURCE
+> Task :core:x:federation:validation:testClasses UP-TO-DATE
+> Task :core:x:federation:validation:test UP-TO-DATE
+> Task :core:engine:runtime2:checkPackageLayers
+> Task :core:engine:runtime2:processJmhResources UP-TO-DATE
+> Task :core:engine:runtime2:compileKotlin
+
+> Task :core:engine:runtime2:detekt
+............................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................
+
+604 kotlin files were analyzed.
+
+> Task :core:engine:runtime2:compileJava NO-SOURCE
+> Task :core:engine:wiring:compileKotlin UP-TO-DATE
+> Task :core:engine:wiring:compileJava NO-SOURCE
+> Task :core:engine:wiring:classes UP-TO-DATE
+> Task :core:engine:wiring:jar UP-TO-DATE
+> Task :core:service:runtime:compileKotlin UP-TO-DATE
+> Task :core:service:runtime:compileJava NO-SOURCE
+> Task :core:service:runtime:classes UP-TO-DATE
+> Task :core:service:runtime:jar UP-TO-DATE
+> Task :core:service:wiring:compileKotlin UP-TO-DATE
+> Task :core:service:wiring:compileJava NO-SOURCE
+> Task :core:service:wiring:classes UP-TO-DATE
+> Task :core:service:wiring:jar UP-TO-DATE
+> Task :publications:runtime:compileKotlin NO-SOURCE
+> Task :core:shared:arbitrary:compileKotlin UP-TO-DATE
+> Task :core:shared:arbitrary:compileJava NO-SOURCE
+> Task :core:shared:arbitrary:classes UP-TO-DATE
+> Task :core:shared:arbitrary:jar UP-TO-DATE
+> Task :core:shared:arbitrary:compileTestFixturesKotlin UP-TO-DATE
+> Task :core:shared:arbitrary:compileTestFixturesJava NO-SOURCE
+> Task :core:engine:runtime:compileTestFixturesKotlin UP-TO-DATE
+> Task :core:engine:runtime:compileTestFixturesJava NO-SOURCE
+> Task :core:engine:api:compileTestFixturesKotlin UP-TO-DATE
+> Task :core:engine:api:compileTestFixturesJava NO-SOURCE
+> Task :core:engine:api:testFixturesClasses UP-TO-DATE
+> Task :core:engine:api:testFixturesJar UP-TO-DATE
+> Task :core:engine:api:compileTestKotlin UP-TO-DATE
+> Task :core:engine:api:compileTestJava NO-SOURCE
+> Task :core:engine:api:testClasses UP-TO-DATE
+> Task :core:engine:runtime:testFixturesClasses UP-TO-DATE
+> Task :core:engine:runtime:testFixturesJar UP-TO-DATE
+> Task :core:engine:runtime2:classes UP-TO-DATE
+> Task :publications:runtime:compileJava UP-TO-DATE
+> Task :publications:runtime:classes UP-TO-DATE
+> Task :publications:runtime:jar SKIPPED
+> Task :publications:runtime:compileTestKotlin NO-SOURCE
+> Task :publications:runtime:compileTestJava NO-SOURCE
+> Task :publications:runtime:testClasses UP-TO-DATE
+> Task :core:engine:runtime2:jar
+> Task :core:shared:arbitrary:testFixturesClasses UP-TO-DATE
+> Task :core:shared:arbitrary:testFixturesJar UP-TO-DATE
+OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+> Task :publications:runtime:shadowJar
+> Task :publications:runtime:test NO-SOURCE
+> Task :gradle-plugins:gradletestapps:apollo-schema:compileTestKotlin UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:apollo-schema:compileTestJava NO-SOURCE
+> Task :gradle-plugins:gradletestapps:apollo-schema:testClasses UP-TO-DATE
+> Task :core:engine:api:test
+> Task :core:engine:runtime2:compileTestFixturesKotlin UP-TO-DATE
+> Task :core:engine:runtime2:compileTestFixturesJava NO-SOURCE
+> Task :core:engine:runtime2:testFixturesClasses UP-TO-DATE
+> Task :core:engine:runtime2:compileTestKotlin UP-TO-DATE
+> Task :core:engine:runtime2:compileTestJava NO-SOURCE
+> Task :core:engine:runtime2:testClasses UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:apollo-schema:test
+> Task :core:engine:runtime:compileTestKotlin
+> Task :gradle-plugins:gradletestapps:java-one-project:compileJava UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:java-one-project:assembleViaductModuleConfigFile UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:java-one-project:generateViaductExecutionRegistryResourceIndex UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:java-one-project:processResources UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:java-one-project:classes UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:java-one-project:jar UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:java-one-project:compileTestJava UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:java-one-project:testClasses UP-TO-DATE
+> Task :gradle-plugins:apollo:test
+> Task :gradle-plugins:gradletestapps:java-one-project:test
+> Task :gradle-plugins:gradletestapps:two-project:compileKotlin UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:two-project:compileJava NO-SOURCE
+> Task :gradle-plugins:gradletestapps:two-project:classes UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:two-project:jar UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:two-project:compileTestKotlin UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:two-project:compileTestJava NO-SOURCE
+> Task :gradle-plugins:gradletestapps:two-project:testClasses UP-TO-DATE
+> Task :gradle-plugins:federation-validation:compileKotlin UP-TO-DATE
+> Task :gradle-plugins:federation-validation:compileJava NO-SOURCE
+> Task :gradle-plugins:federation-validation:classes UP-TO-DATE
+> Task :gradle-plugins:federation-validation:jar UP-TO-DATE
+> Task :gradle-plugins:federation-validation:compileTestKotlin UP-TO-DATE
+> Task :gradle-plugins:federation-validation:compileTestJava NO-SOURCE
+> Task :gradle-plugins:federation-validation:testClasses UP-TO-DATE
+> Task :gradle-plugins:federation-validation:test UP-TO-DATE
+> Task :gradle-plugins:orchestrationTestAll
+> Task :gradle-plugins:apollo:ktlintKotlinScriptCheck
+> Task :gradle-plugins:apollo:ktlintMainSourceSetCheck
+> Task :gradle-plugins:apollo:ktlintTestSourceSetCheck
+> Task :gradle-plugins:apollo:ktlintCheck
+> Task :gradle-plugins:gradletestapps:one-project:kspKotlin
+> Task :gradle-plugins:gradletestapps:two-project:test
+> Task :gradle-plugins:gradletestapps:multi-project:assembleViaductCentralSchema UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:multi-project:generateViaductGRTClassFiles UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:multi-project:generateViaductGRTs UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:multi-project:generateViaductJavaGRTSources UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:multi-project:compileViaductJavaGRTJava UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:multi-project:generateViaductJavaGRTs UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:multi-project:generateFinalFixtureSchema UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:multi-project:prepareViaductPluginFinalSchema UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:multi-project:assembleViaductFinalSchema UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:multi-project:generateViaductSchemaResourceIndex UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:multi-project:generateViaductSchemaResources UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:multi-project:compileKotlin UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:multi-project:compileJava NO-SOURCE
+> Task :gradle-plugins:gradletestapps:multi-project:alpha:generateViaductResolverBases UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:multi-project:alpha:kspKotlin UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:multi-project:alpha:extractKspRegistryDescriptors UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:multi-project:alpha:assembleViaductModuleConfigFile UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:multi-project:beta:generateViaductResolverBases UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:multi-project:beta:compileJava UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:multi-project:beta:assembleViaductModuleConfigFile UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:multi-project:generateViaductExecutionRegistryResourceIndex UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:multi-project:processResources UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:multi-project:classes UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:multi-project:jar UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:multi-project:compileTestKotlin UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:multi-project:compileTestJava NO-SOURCE
+> Task :gradle-plugins:gradletestapps:multi-project:copyAlphaResolverBases UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:multi-project:copyBetaResolverBases UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:multi-project:testClasses UP-TO-DATE
+
+> Task :gradle-plugins:gradletestapps:multi-project:verifyFoundationValidation
+[fixtures.SharedValidationRules:dev.example.fixture.shared] Validation rule runtime dependency loaded
+Viaduct schema validation failed with 1 error(s)
+  [KEY_INVALID_FIELDS] schema/module/alpha/source/invalid-foundation.graphqls:FixtureProduct: [provider=viaduct.gradle.federation.FoundationValidationRuleProvider, rule=viaduct.foundation.field-selections] Field 'FixtureProduct.missing' does not exist.
+[fixtures.SharedValidationRules:dev.example.fixture.shared] Validation rule runtime dependency loaded
+Viaduct schema validation failed with 1 error(s)
+  [PROVIDES_INVALID_FIELDS] schema/module/alpha/source/invalid-foundation.graphqls:Query.invalidFixtureProduct: [provider=viaduct.gradle.federation.FoundationValidationRuleProvider, rule=viaduct.foundation.field-selections] Field 'FixtureProduct.missing' does not exist.
+
+> Task :gradle-plugins:gradletestapps:multi-project:alpha:compileKotlin UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:multi-project:alpha:compileJava NO-SOURCE
+> Task :gradle-plugins:gradletestapps:multi-project:alpha:processResources UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:multi-project:alpha:classes UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:multi-project:alpha:jar UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:multi-project:beta:processResources UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:multi-project:beta:classes UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:multi-project:beta:jar UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:multi-project:test
+> Task :gradle-plugins:gradletestapps:one-project:compileKotlin UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:one-project:compileJava NO-SOURCE
+> Task :gradle-plugins:gradletestapps:one-project:extractKspRegistryDescriptors UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:one-project:assembleViaductModuleConfigFile UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:one-project:generateViaductExecutionRegistryResourceIndex UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:one-project:processResources UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:one-project:classes UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:one-project:jar UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:multi-project:alpha:kspTestKotlin NO-SOURCE
+> Task :gradle-plugins:gradletestapps:multi-project:alpha:compileTestKotlin NO-SOURCE
+> Task :gradle-plugins:gradletestapps:multi-project:alpha:compileTestJava NO-SOURCE
+> Task :gradle-plugins:gradletestapps:multi-project:alpha:processTestResources NO-SOURCE
+> Task :gradle-plugins:gradletestapps:multi-project:alpha:testClasses UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:multi-project:alpha:test NO-SOURCE
+> Task :gradle-plugins:gradletestapps:multi-project:beta:compileTestJava NO-SOURCE
+> Task :gradle-plugins:gradletestapps:multi-project:beta:testClasses UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:multi-project:beta:test NO-SOURCE
+> Task :gradle-plugins:gradletestapps:one-project:kspTestKotlin
+> Task :gradle-plugins:gradletestapps:one-project:compileTestKotlin UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:one-project:compileTestJava NO-SOURCE
+> Task :gradle-plugins:gradletestapps:one-project:processTestResources NO-SOURCE
+> Task :gradle-plugins:gradletestapps:one-project:testClasses UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:one-project:test
+> Task :core:engine:runtime2:test
+> Task :core:engine:runtime:compileTestJava NO-SOURCE
+> Task :core:engine:runtime:testClasses UP-TO-DATE
+OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+> Task :core:engine:runtime:test
+> Task :core:engine:wiring:compileTestKotlin UP-TO-DATE
+> Task :core:engine:wiring:compileTestJava NO-SOURCE
+> Task :core:engine:wiring:testClasses UP-TO-DATE
+OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+> Task :core:engine:wiring:test
+> Task :core:tenant:api:kspTestFixturesKotlin SKIPPED
+> Task :core:tenant:api:compileTestFixturesKotlin UP-TO-DATE
+> Task :core:tenant:api:compileTestFixturesJava NO-SOURCE
+> Task :core:tenant:runtime:kspTestFixturesKotlin SKIPPED
+> Task :publications:test-fixtures:compileKotlin NO-SOURCE
+> Task :publications:test-fixtures:compileJava NO-SOURCE
+> Task :publications:test-fixtures:classes UP-TO-DATE
+> Task :publications:test-fixtures:jar SKIPPED
+> Task :publications:test-fixtures:compileTestKotlin NO-SOURCE
+> Task :publications:test-fixtures:compileTestJava NO-SOURCE
+> Task :publications:test-fixtures:testClasses UP-TO-DATE
+> Task :core:tenant:runtime:compileTestFixturesKotlin UP-TO-DATE
+> Task :core:tenant:runtime:compileTestFixturesJava NO-SOURCE
+> Task :core:javaapi:api:compileTestFixturesKotlin UP-TO-DATE
+> Task :core:javaapi:api:compileTestFixturesJava UP-TO-DATE
+> Task :core:javaapi:api:testFixturesClasses UP-TO-DATE
+> Task :core:javaapi:api:testFixturesJar UP-TO-DATE
+> Task :core:javaapi:api:compileTestKotlin NO-SOURCE
+> Task :core:javaapi:api:compileTestJava UP-TO-DATE
+> Task :core:javaapi:api:testClasses UP-TO-DATE
+> Task :core:tenant:api:processTestFixturesResources NO-SOURCE
+> Task :core:tenant:api:testFixturesClasses UP-TO-DATE
+> Task :core:tenant:api:testFixturesJar UP-TO-DATE
+> Task :core:tenant:runtime:processTestFixturesResources NO-SOURCE
+> Task :core:tenant:runtime:testFixturesClasses UP-TO-DATE
+> Task :core:tenant:runtime:testFixturesJar UP-TO-DATE
+> Task :core:javaapi:api:test
+> Task :core:javaapi:runtime:compileTestFixturesKotlin NO-SOURCE
+> Task :core:javaapi:runtime:compileTestFixturesJava
+> Task :core:javaapi:runtime:testFixturesClasses
+> Task :core:javaapi:runtime:testFixturesJar UP-TO-DATE
+> Task :core:javaapi:runtime:extractContractSchemas UP-TO-DATE
+> Task :core:tenant:runtime:extractContractSchemas UP-TO-DATE
+> Task :core:tenant:tutorials:kspTestFixturesKotlin SKIPPED
+> Task :core:tenant:tutorials:compileTestFixturesKotlin UP-TO-DATE
+> Task :core:tenant:tutorials:compileTestFixturesJava NO-SOURCE
+> Task :core:tenant:tutorials:extractContractSchemas UP-TO-DATE
+> Task :core:javaapi:runtime:mergeJavaContractSchemas UP-TO-DATE
+> Task :core:javaapi:runtime:generateJavaContractTestSources UP-TO-DATE
+> Task :core:javaapi:runtime:compileTestKotlin UP-TO-DATE
+> Task :publications:test-fixtures:shadowJar
+> Task :publications:test-fixtures:test NO-SOURCE
+> Task :publications:orchestrationTestAll UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:two-project:resolvers:kspTestKotlin
+> Task :core:javaapi:runtime:compileTestJava
+> Task :core:javaapi:runtime:extractTestJavaRegistryDescriptors UP-TO-DATE
+> Task :core:javaapi:runtime:assembleJavaTestTenantModuleConfigFiles UP-TO-DATE
+> Task :core:javaapi:runtime:processTestResources UP-TO-DATE
+> Task :core:javaapi:runtime:testClasses
+> Task :core:tenant:tutorials:processTestFixturesResources NO-SOURCE
+> Task :core:tenant:tutorials:testFixturesClasses UP-TO-DATE
+> Task :core:tenant:tutorials:testFixturesJar UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:two-project:resolvers:compileTestKotlin UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:two-project:resolvers:compileTestJava NO-SOURCE
+> Task :gradle-plugins:gradletestapps:two-project:resolvers:processTestResources NO-SOURCE
+> Task :gradle-plugins:gradletestapps:two-project:resolvers:testClasses UP-TO-DATE
+> Task :gradle-plugins:gradletestapps:two-project:resolvers:test
+> Task :gradle-plugins:gradletestapps:orchestrationTestAll
+OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+> Task :core:javaapi:runtime:test
+> Task :core:service:runtime:compileTestKotlin UP-TO-DATE
+> Task :core:service:runtime:compileTestJava NO-SOURCE
+> Task :core:service:runtime:testClasses UP-TO-DATE
+OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+> Task :core:service:runtime:test
+> Task :core:service:wiring:compileTestKotlin UP-TO-DATE
+> Task :core:service:wiring:compileTestJava UP-TO-DATE
+> Task :core:service:wiring:testClasses UP-TO-DATE
+> Task :core:service:wiring:test
+> Task :core:shared:arbitrary:compileTestKotlin UP-TO-DATE
+> Task :core:shared:arbitrary:compileTestJava NO-SOURCE
+> Task :core:shared:arbitrary:testClasses UP-TO-DATE
+> Task :core:shared:arbitrary:test
+> Task :core:shared:arbitrary-cli:compileKotlin UP-TO-DATE
+> Task :core:shared:arbitrary-cli:compileJava NO-SOURCE
+> Task :core:shared:arbitrary-cli:classes UP-TO-DATE
+> Task :core:shared:arbitrary-cli:jar UP-TO-DATE
+> Task :core:shared:arbitrary-cli:compileTestKotlin UP-TO-DATE
+> Task :core:shared:arbitrary-cli:compileTestJava NO-SOURCE
+> Task :core:shared:arbitrary-cli:testClasses UP-TO-DATE
+> Task :core:shared:arbitrary-cli:test
+> Task :core:shared:mapping:compileTestFixturesKotlin UP-TO-DATE
+> Task :core:shared:mapping:compileTestFixturesJava NO-SOURCE
+> Task :core:shared:mapping:testFixturesClasses UP-TO-DATE
+> Task :core:shared:mapping:testFixturesJar UP-TO-DATE
+> Task :core:shared:mapping:compileTestKotlin UP-TO-DATE
+> Task :core:shared:mapping:compileTestJava NO-SOURCE
+> Task :core:shared:mapping:testClasses UP-TO-DATE
+> Task :core:shared:mapping:test
+> Task :core:shared:viaductschema:compileTestKotlin UP-TO-DATE
+> Task :core:shared:viaductschema:compileTestJava NO-SOURCE
+> Task :core:shared:viaductschema:testClasses UP-TO-DATE
+> Task :core:shared:viaductschema:test
+> Task :core:tenant:api:extractContractSchemas UP-TO-DATE
+> Task :core:tenant:api:generateContractTestSources UP-TO-DATE
+> Task :core:tenant:api:kspTestKotlin
+
+> Task :core:tenant:codegen:generateSchemaDiffSchemaArbitrarySchema
+[GenerateSchema] generating /Users/andi/dev/projects/viaduct/core/tenant/codegen/build/generated-resources/classdiff-schema-arbitrary-schema/graphql/schema.graphqls (seed=4516005452521147708)
+[GenerateSchema] wrote /Users/andi/dev/projects/viaduct/core/tenant/codegen/build/generated-resources/classdiff-schema-arbitrary-schema/graphql/schema.graphqls (seed=4516005452521147708)
+
+> Task :core:tenant:api:compileTestKotlin UP-TO-DATE
+> Task :core:tenant:api:compileTestJava NO-SOURCE
+> Task :core:tenant:api:extractTestKspRegistryDescriptors UP-TO-DATE
+> Task :core:tenant:api:assembleTestTenantModuleConfigFiles UP-TO-DATE
+> Task :core:tenant:api:processTestResources UP-TO-DATE
+> Task :core:tenant:api:testClasses UP-TO-DATE
+OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+> Task :core:tenant:api:test
+> Task :core:tenant:codegen:generateSchemaDiffSchemaSchemaObjects
+> Task :core:tenant:codegen:generateSchemaDiffSchemaKotlinGrts
+> Task :core:tenant:codegen:compileTestKotlin UP-TO-DATE
+> Task :core:tenant:codegen:compileTestJava NO-SOURCE
+> Task :core:tenant:codegen:processTestResources UP-TO-DATE
+> Task :core:tenant:codegen:testClasses
+OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+> Task :core:tenant:codegen:test
+> Task :core:tenant:runtime:generateContractTestSources UP-TO-DATE
+> Task :core:tenant:shared:compileTestKotlin UP-TO-DATE
+> Task :core:tenant:shared:compileTestJava NO-SOURCE
+> Task :core:tenant:shared:testClasses UP-TO-DATE
+> Task :core:tenant:shared:test
+> Task :core:tenant:tutorials:generateContractTestSources UP-TO-DATE
+> Task :core:tenant:wiring:compileTestFixturesKotlin NO-SOURCE
+> Task :core:tenant:wiring:compileTestFixturesJava NO-SOURCE
+> Task :core:tenant:wiring:testFixturesClasses UP-TO-DATE
+> Task :core:tenant:wiring:testFixturesJar UP-TO-DATE
+> Task :core:tenant:wiring:compileTestKotlin NO-SOURCE
+> Task :core:tenant:wiring:compileTestJava NO-SOURCE
+> Task :core:tenant:wiring:testClasses UP-TO-DATE
+> Task :core:tenant:wiring:test NO-SOURCE
+> Task :core:engine:runtime2:compileJmhKotlin UP-TO-DATE
+> Task :core:engine:runtime2:compileJmhJava NO-SOURCE
+> Task :core:engine:runtime2:jmhClasses UP-TO-DATE
+
+> Task :core:engine:runtime2:checkProductionBoundary
+Runtime2 production boundary verified; 1315 test fixture entries excluded.
+
+> Task :core:engine:runtime2:loadKtlintReporters UP-TO-DATE
+> Task :core:engine:runtime2:runKtlintCheckOverJmhSourceSet UP-TO-DATE
+> Task :core:engine:runtime2:ktlintJmhSourceSetCheck UP-TO-DATE
+> Task :core:engine:runtime2:runKtlintCheckOverKotlinScripts UP-TO-DATE
+> Task :core:engine:runtime2:ktlintKotlinScriptCheck UP-TO-DATE
+> Task :core:engine:runtime2:runKtlintCheckOverTestFixturesSourceSet UP-TO-DATE
+> Task :core:engine:runtime2:ktlintTestFixturesSourceSetCheck UP-TO-DATE
+> Task :core:engine:runtime2:runKtlintCheckOverTestSourceSet UP-TO-DATE
+> Task :core:engine:runtime2:ktlintTestSourceSetCheck UP-TO-DATE
+> Task :core:spotlessInternalRegisterDependencies UP-TO-DATE
+> Task :core:engine:runtime2:spotlessJava UP-TO-DATE
+> Task :core:engine:runtime2:spotlessJavaCheck UP-TO-DATE
+> Task :core:engine:runtime2:spotlessCheck UP-TO-DATE
+> Task :core:engine:runtime:loadKtlintReporters UP-TO-DATE
+> Task :core:shared:graphql:loadKtlintReporters UP-TO-DATE
+> Task :core:engine:runtime:runKtlintCheckOverKotlinScripts
+> Task :core:engine:runtime:ktlintKotlinScriptCheck
+> Task :core:shared:graphql:runKtlintCheckOverTestFixturesSourceSet
+> Task :core:shared:graphql:ktlintTestFixturesSourceSetCheck
+> Task :core:engine:runtime:runKtlintCheckOverJmhSourceSet
+> Task :core:engine:runtime:ktlintJmhSourceSetCheck
+> Task :core:shared:arbitrary:loadKtlintReporters UP-TO-DATE
+> Task :core:shared:arbitrary:runKtlintCheckOverKotlinScripts
+> Task :core:shared:arbitrary:ktlintKotlinScriptCheck
+> Task :core:tenant:tutorials:kspTestKotlin
+> Task :core:tenant:tutorials:compileTestKotlin UP-TO-DATE
+> Task :core:tenant:tutorials:compileTestJava NO-SOURCE
+> Task :core:tenant:tutorials:extractTestKspRegistryDescriptors UP-TO-DATE
+> Task :core:tenant:tutorials:assembleTestTenantModuleConfigFiles UP-TO-DATE
+> Task :core:tenant:tutorials:processTestResources UP-TO-DATE
+> Task :core:tenant:tutorials:testClasses UP-TO-DATE
+> Task :core:tenant:runtime:kspTestKotlin
+> Task :core:shared:graphql:runKtlintCheckOverKotlinScripts
+> Task :core:engine:runtime:runKtlintCheckOverTestFixturesSourceSet
+> Task :core:shared:graphql:runKtlintCheckOverTestSourceSet
+> Task :core:shared:arbitrary:runKtlintCheckOverMainSourceSet
+> Task :core:shared:graphql:runKtlintCheckOverMainSourceSet
+> Task :core:engine:runtime2:runKtlintCheckOverMainSourceSet
+> Task :core:engine:runtime:runKtlintCheckOverMainSourceSet
+> Task :core:tenant:tutorials:test
+> Task :core:tenant:runtime:compileTestKotlin UP-TO-DATE
+> Task :core:tenant:runtime:compileTestJava NO-SOURCE
+> Task :core:tenant:runtime:extractTestKspRegistryDescriptors UP-TO-DATE
+> Task :core:tenant:runtime:assembleTestTenantModuleConfigFiles UP-TO-DATE
+> Task :core:tenant:runtime:processTestResources UP-TO-DATE
+> Task :core:tenant:runtime:testClasses UP-TO-DATE
+OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+> Task :core:engine:runtime:runKtlintCheckOverTestSourceSet
+> Task :core:tenant:runtime:test
+> Task :core:orchestrationTestAll
+> Task :test
+> Task :core:engine:runtime2:ktlintMainSourceSetCheck
+> Task :core:shared:graphql:ktlintKotlinScriptCheck
+> Task :core:engine:runtime:ktlintTestSourceSetCheck
+> Task :core:engine:runtime2:check
+> Task :core:engine:runtime:ktlintMainSourceSetCheck
+> Task :core:engine:runtime:ktlintTestFixturesSourceSetCheck
+> Task :core:engine:runtime:ktlintCheck
+> Task :core:shared:graphql:ktlintMainSourceSetCheck
+> Task :core:shared:viaductschema:loadKtlintReporters UP-TO-DATE
+> Task :core:shared:graphql:ktlintTestSourceSetCheck
+> Task :core:shared:arbitrary:ktlintMainSourceSetCheck
+> Task :core:shared:graphql:ktlintCheck
+> Task :core:shared:viaductschema:runKtlintCheckOverMainSourceSet UP-TO-DATE
+> Task :core:shared:viaductschema:runKtlintCheckOverKotlinScripts
+> Task :core:shared:viaductschema:ktlintMainSourceSetCheck UP-TO-DATE
+> Task :core:shared:viaductschema:ktlintKotlinScriptCheck
+> Task :core:shared:viaductschema:runKtlintCheckOverJmhSourceSet
+> Task :core:shared:viaductschema:ktlintJmhSourceSetCheck
+> Task :core:shared:arbitrary:runKtlintCheckOverTestFixturesSourceSet
+> Task :core:shared:arbitrary:ktlintTestFixturesSourceSetCheck
+> Task :core:shared:viaductschema:runKtlintCheckOverTestFixturesSourceSet
+> Task :core:shared:viaductschema:ktlintTestFixturesSourceSetCheck
+> Task :core:shared:arbitrary:runKtlintCheckOverTestSourceSet
+> Task :core:shared:arbitrary:ktlintTestSourceSetCheck
+> Task :core:shared:arbitrary:ktlintCheck
+> Task :core:shared:viaductschema:runKtlintCheckOverTestSourceSet
+> Task :core:shared:viaductschema:ktlintTestSourceSetCheck
+> Task :core:shared:viaductschema:ktlintCheck
+
+[Incubating] Problems report is available at: file:///Users/andi/dev/projects/viaduct/build/reports/problems/problems-report.html
+
+Deprecated Gradle features were used in this build, making it incompatible with Gradle 10.
+
+You can use '--warning-mode all' to show the individual deprecation warnings and determine if they come from your own scripts or plugins.
+
+For more on this, please refer to https://docs.gradle.org/9.1.0/userguide/command_line_interface.html#sec:command_line_warnings in the Gradle documentation.
+
+BUILD SUCCESSFUL in 9m 38s
+521 actionable tasks: 103 executed, 418 up-to-date

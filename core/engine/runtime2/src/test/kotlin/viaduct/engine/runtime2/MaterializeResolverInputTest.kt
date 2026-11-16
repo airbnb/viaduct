@@ -16,9 +16,9 @@ import viaduct.engine.api.EngineObjectData
 import viaduct.engine.runtime2.model.EngineErrorData
 import viaduct.engine.runtime2.model.ErrorEngineResult
 import viaduct.engine.runtime2.model.ListEngineResult
-import viaduct.engine.runtime2.model.MaterializeSelectionForest
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.Promise
+import viaduct.engine.runtime2.model.SelectionForest
 import viaduct.engine.runtime2.model.outputType
 import viaduct.engine.runtime2.model.outputValue
 import viaduct.engine.runtime2.model.requireObjectField
@@ -40,7 +40,7 @@ class MaterializeResolverInputTest {
             val fixture = TestWorld.fromSDL("type Query { value: Int }")
             val type = fixture.schema.requireQueryTypeDef()
             val key = ObjectEngineResult.GroundKey.of(fixture.schema.requireObjectField("Query", "value"), emptyMap())
-            val selections = fixture.schemas.fragmentFrom("fragment Input on Query { alias: value }").materializeSelections
+            val selections = fixture.schemas.fragmentFrom("fragment Input on Query { alias: value }").subselections
             for (value in listOf(1, 2)) {
                 val result = ObjectEngineResult.of(type, values = mapOf(key to value))
                 val input = result.materializeResolutionInput(
@@ -88,7 +88,7 @@ private suspend fun assertSlotDrivenMaterialization(
     materialize: suspend (
         ObjectEngineResult,
         SharedOperationContext<*>,
-        MaterializeSelectionForest,
+        SelectionForest,
         CycleTask,
     ) -> EngineObjectData.Sync,
 ) {
@@ -138,7 +138,7 @@ private suspend fun assertSlotDrivenMaterialization(
     val selections =
         worldFixture.schemas
             .fragmentFrom("fragment ignored on Query { value { text } }")
-            .materializeSelections
+            .subselections
 
     val openResult =
         ObjectEngineResult.of(
@@ -236,7 +236,7 @@ private suspend fun assertSlotDrivenMaterialization(
     val listedSelections =
         worldFixture.schemas
             .fragmentFrom("fragment ignored on Query { values { text } }")
-            .materializeSelections
+            .subselections
     val listedInput =
         materialize(
             listedResult,
