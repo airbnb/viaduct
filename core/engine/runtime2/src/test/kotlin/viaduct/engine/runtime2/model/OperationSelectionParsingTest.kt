@@ -17,9 +17,9 @@ import viaduct.engine.runtime2.schema.GJSelectionParser
 import viaduct.engine.runtime2.schema.ViaductAndGJSchema
 import viaduct.engine.runtime2.schema.lowering.LOWERED_TYPENAME_FIELD
 import viaduct.engine.runtime2.schema.lowering.lowerSchema
+import viaduct.engine.runtime2.schema.materializeSelectionsFrom
 import viaduct.engine.runtime2.schema.operationSelectionsFrom
 import viaduct.engine.runtime2.schema.selectionsFrom
-import viaduct.engine.runtime2.schema.materializeSelectionsFrom
 import viaduct.graphql.schema.ViaductSchema
 
 class OperationSelectionParsingTest {

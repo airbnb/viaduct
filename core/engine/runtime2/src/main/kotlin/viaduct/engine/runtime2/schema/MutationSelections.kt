@@ -7,6 +7,7 @@ import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.SelectionForest
 import viaduct.engine.runtime2.model.collect
 import viaduct.engine.runtime2.model.isMutationNamespaceField
+import viaduct.engine.runtime2.model.requireResponseKey
 import viaduct.graphql.schema.ViaductSchema
 
 /** Collects grounded operation fields by response key before entering ordered resolution. */
@@ -15,6 +16,7 @@ internal fun SelectionForest.mutationSelections(
     type: ViaductSchema.Object,
 ): MutationSelectionForest {
     val included = filter { selection ->
+        selection.requireResponseKey()
         require(selection.inclusionCondition === InclusionCondition.Always || selection.inclusionCondition === InclusionCondition.Never) {
             "Mutation operation conditions must be grounded"
         }

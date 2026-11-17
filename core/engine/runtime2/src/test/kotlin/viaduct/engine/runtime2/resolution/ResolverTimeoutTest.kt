@@ -109,13 +109,12 @@ class ResolverTimeoutTest {
                 )
             },
         )
-        val first = world.schema.requireObjectField("Query", "first")
         val second = world.schema.requireObjectField("Query", "second")
         val selfDependent = FieldValueResolver.of(
             field = second,
             fragmentTemplates = ResolverFragmentTemplates(
-                objectFragmentTemplate = world.resolverRegistry.resolver(first).declaredDependencies.objectFragment,
-                queryFragmentTemplate = world.resolverRegistry.resolver(second).declaredDependencies.queryFragment,
+                objectFragmentTemplate = world.schemas.fragmentFrom("fragment Input on Query { second }").subselections,
+                queryFragmentTemplate = world.schema.emptyFragmentOf("Query").subselections,
             ),
             queryType = world.schema.requireQueryTypeDef(),
             function = { _, _, _, _, _ -> 2 },

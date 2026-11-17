@@ -37,6 +37,18 @@ java -cp core/engine/runtime2/build/libs/engine-runtime2-4.0.0-SNAPSHOT-jmh.jar 
 
 The annotations specify two forks, two 30-second warmups and three 60-second measurements per fork, with G1 and a 2–8 GiB heap. One variant schedules eight minutes; a baseline/candidate comparison schedules 16 minutes plus setup. Build both artifacts before starting measurements and run them serially on the same idle host. The [unification evidence](../evidence/profiles/2026-11-16-selection-forest-unification/README.md) records the baseline revision, measured artifacts, fixture origin, host-state restoration and exact reproduction script.
 
+## Uncached Selection Collection
+
+`SelectionForestCollectionBenchmark.mergeAndCollect` isolates first-use concrete-type construction merging and response-key collection on the schema-4 large query. Trial setup builds the source forest, enumerates its 43,240 nonempty selection sets, and verifies 187,215 logical selections. Each operation visits 163,374 selection-set/concrete-type pairs, producing 406,050 construction groups and 406,090 projection groups. Every pair gets a fresh wrapper so neither collector can reuse its cached result; `merge` and `collect` both receive that original source wrapper. Child source forests remain shared. The timed scope includes the fresh wrappers, construction nodes, collection maps and cache initialization, but excludes parsing, initial source-forest construction, binding, resolver execution and value materialization.
+
+```sh
+java -cp core/engine/runtime2/build/libs/engine-runtime2-4.0.0-SNAPSHOT-jmh.jar \
+  org.openjdk.jmh.Main '.*SelectionForestCollectionBenchmark.mergeAndCollect' \
+  -f 2 -t 1 -wi 2 -w 30s -i 3 -r 60s -prof gc -rf json -rff results.json
+```
+
+This uses the same eight-minute schedule per variant as the preparation benchmark. Results measure the combined uncached collectors; they cannot establish an end-to-end request improvement or the isolated cost of either collector.
+
 ## Choosing A Profiling Target
 
 Use the narrowest JFR target that still contains the behavior under investigation:

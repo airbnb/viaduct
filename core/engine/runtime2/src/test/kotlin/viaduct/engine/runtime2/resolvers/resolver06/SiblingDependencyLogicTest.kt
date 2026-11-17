@@ -8,6 +8,7 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import viaduct.engine.runtime2.model.Fragment
 import viaduct.engine.runtime2.model.ObjectEngineResult
+import viaduct.engine.runtime2.model.ResolverOccurrenceId
 import viaduct.engine.runtime2.model.Selection
 import viaduct.engine.runtime2.model.emptyFragmentOf
 import viaduct.engine.runtime2.model.registry.Assumptions
@@ -269,15 +270,17 @@ class SiblingDependencyLogicTest {
         val targetResolver = resolverRegistry.resolver(target)
         val templateResolver =
             resolverRegistry.resolver(schema.requireObjectField("Query", templateName))
+        // These variable-free source fragments retain the projection keys required by templates.
+        val occurrence = ResolverOccurrenceId.at(ObjectEngineResult.of(schema.requireQueryTypeDef()), emptyList())
         val replacement =
             FieldValueResolver.of(
                 field = target,
                 fragmentTemplates =
                     ResolverFragmentTemplates(
                         objectFragmentTemplate =
-                            targetResolver.declaredDependencies.objectFragment,
+                            targetResolver.declaredDependencies.instantiateObjectMaterializationSelections(occurrence),
                         queryFragmentTemplate =
-                            templateResolver.declaredDependencies.queryFragment,
+                            templateResolver.declaredDependencies.instantiateQueryMaterializationSelections(occurrence),
                     ),
                 queryType = schema.requireQueryTypeDef(),
                 function = { _, _, _, _, _ -> 2 },

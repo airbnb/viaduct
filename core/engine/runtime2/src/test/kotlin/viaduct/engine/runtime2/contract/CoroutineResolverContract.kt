@@ -247,13 +247,8 @@ interface CoroutineResolverContract {
             fragmentTemplates =
                 ResolverFragmentTemplates(
                     objectFragmentTemplate =
-                        testWorld.resolverRegistry
-                            .resolver(first)
-                            .declaredDependencies.objectFragment,
-                    queryFragmentTemplate =
-                        testWorld.resolverRegistry
-                            .resolver(second)
-                            .declaredDependencies.queryFragment,
+                        testWorld.schemas.fragmentFrom("fragment Input on Query { second }").subselections,
+                    queryFragmentTemplate = testWorld.schema.emptyFragmentOf("Query").subselections,
                 ),
             queryType = testWorld.schema.requireQueryTypeDef(),
             function = { _, _, _, _, _ -> 2 },

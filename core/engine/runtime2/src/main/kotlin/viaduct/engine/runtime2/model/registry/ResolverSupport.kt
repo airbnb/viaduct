@@ -15,6 +15,7 @@ import viaduct.engine.runtime2.model.mapSelectionVariables
 import viaduct.engine.runtime2.model.selectionForestOf
 import viaduct.engine.runtime2.model.toSelectionForest
 import viaduct.engine.runtime2.model.usedVariables
+import viaduct.engine.runtime2.model.withoutProjectionMetadata
 import viaduct.graphql.schema.ViaductSchema
 
 // Canonical registries require concrete field keys even when source selections use interfaces.
@@ -60,11 +61,11 @@ private fun SelectionForest.partitionVariableSelections(): Pair<List<Selection>,
     val dynamic = mutableListOf<Selection>()
     forEach { selection ->
         if (selection.key.arguments.usedVariables().isNotEmpty() || selection.inclusionCondition !== InclusionCondition.Always) {
-            dynamic += selection
+            dynamic += selection.withoutProjectionMetadata()
         } else {
             val (staticChildren, dynamicChildren) = selection.subselections.partitionVariableDemand()
             if (dynamicChildren.isEmpty()) {
-                static += selection
+                static += selection.withoutProjectionMetadata()
             } else {
                 static += Selection.of(selection.key, selection.possibleTypes, staticChildren)
                 dynamic += Selection.of(selection.key, selection.possibleTypes, dynamicChildren)

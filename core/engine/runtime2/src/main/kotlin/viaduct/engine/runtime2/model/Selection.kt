@@ -67,7 +67,8 @@ internal fun SelectionForest.forEachPossibleObjectField(action: (ViaductSchema.O
  * ### Invariant: object-selection-forest-normalization
  *
  * Every selection is an [ObjectSelection] whose key field belongs to [type], whose
- * `possibleTypes == setOf(type)`, and whose key occurs exactly once.
+ * `possibleTypes == setOf(type)`, and whose key occurs exactly once. These are construction
+ * results: their response keys and field directives are null and they cannot be projected.
  */
 sealed interface ObjectSelectionForest : SelectionForest {
     val type: ViaductSchema.Object
@@ -107,7 +108,7 @@ sealed interface ObjectSelectionForest : SelectionForest {
             type: ViaductSchema.Object,
             selections: Iterable<ObjectSelection>,
         ): ObjectSelectionForest {
-            val occurrences = selections.toList()
+            val occurrences = selections.map { it.withoutProjectionMetadata() }
             val byKey =
                 buildMap(occurrences.size) {
                     occurrences.forEach { selection ->
@@ -217,7 +218,7 @@ private fun SelectionForest.mergeSlowPath(type: ViaductSchema.Object): ObjectSel
                             selection is ObjectSelection &&
                             (selection.inclusionCondition === InclusionCondition.Always || selection.subselections.isEmpty())
                         ) {
-                            put(key, selection)
+                            put(key, selection.withoutProjectionMetadata())
                         } else {
                             put(key, ObjectSelectionBuilder(key, possibleTypes, selection, guardChildren = true))
                         }
@@ -286,7 +287,7 @@ private fun normalizedSingletonSelection(
         occurrence is ObjectSelection &&
         (occurrence.inclusionCondition === InclusionCondition.Always || occurrence.subselections.isEmpty())
     ) {
-        occurrence
+        occurrence.withoutProjectionMetadata()
     } else {
         ObjectSelectionImpl(
             key = key,
@@ -389,8 +390,9 @@ fun Selection.objectKey(type: ViaductSchema.Object): ObjectEngineResult.ObjectKe
 /**
  * A post-validation field-selection occurrence used for Viaduct field resolution.
  *
- * One occurrence retains its response key and field directives for projection. Construction
- * groups occurrences by canonical invocation; projection groups them by response key.
+ * A source occurrence retains its response key and field directives for projection. Construction
+ * results have a null response key and no field directives; they are not projectable. Construction
+ * groups occurrences by canonical invocation; projection groups source occurrences by response key.
  * [MutationSelectionForest] stipulates mutation execution order. Inline
  * fragments have already been flattened into the field coordinate in [key], the applicability
  * guard in [possibleTypes], and [inclusionCondition].
@@ -414,8 +416,8 @@ fun Selection.objectKey(type: ViaductSchema.Object): ObjectEngineResult.ObjectKe
  * requirement is established.
  */
 sealed interface Selection {
-    /** Source response key; synthetic construction nodes default to their canonical field name. */
-    val responseKey: String get() = key.field.name
+    /** Alias or field name on a source occurrence; null on a construction-only selection. */
+    val responseKey: String? get() = null
 
     /** Projection metadata retained on source occurrences. */
     val fieldDirectives: FieldDirectives? get() = null
@@ -504,10 +506,11 @@ sealed interface Selection {
             possibleTypes: Set<ViaductSchema.Object>,
             subselections: SelectionForest,
             inclusionCondition: InclusionCondition = InclusionCondition.Always,
-            responseKey: String = key.field.name,
+            responseKey: String? = null,
             fieldDirectives: FieldDirectives? = null,
         ): Selection {
-            require(responseKey.isNotEmpty()) { "A selection requires a non-empty response key" }
+            require(responseKey == null || responseKey.isNotEmpty()) { "A source selection requires a non-empty response key" }
+            require(responseKey != null || fieldDirectives == null) { "A construction-only selection cannot have field directives" }
             return when (key) {
                 is ObjectEngineResult.ObjectKey ->
                     ObjectSelectionImpl(
@@ -536,7 +539,7 @@ sealed interface Selection {
             possibleTypes: Set<ViaductSchema.Object>,
             subselections: SelectionForest,
             inclusionCondition: InclusionCondition = InclusionCondition.Always,
-            responseKey: String = key.field.name,
+            responseKey: String? = null,
             fieldDirectives: FieldDirectives? = null,
         ): ObjectSelection = ObjectSelection.of(key, possibleTypes, subselections, inclusionCondition, responseKey, fieldDirectives)
     }
@@ -553,10 +556,11 @@ sealed interface ObjectSelection : Selection {
             possibleTypes: Set<ViaductSchema.Object>,
             subselections: SelectionForest,
             inclusionCondition: InclusionCondition = InclusionCondition.Always,
-            responseKey: String = key.field.name,
+            responseKey: String? = null,
             fieldDirectives: FieldDirectives? = null,
         ): ObjectSelection {
-            require(responseKey.isNotEmpty()) { "A selection requires a non-empty response key" }
+            require(responseKey == null || responseKey.isNotEmpty()) { "A source selection requires a non-empty response key" }
+            require(responseKey != null || fieldDirectives == null) { "A construction-only selection cannot have field directives" }
             return ObjectSelectionImpl(key, possibleTypes, inclusionCondition, subselections, responseKey, fieldDirectives)
         }
     }
@@ -584,7 +588,7 @@ private class SelectionImpl(
     override val possibleTypes: Set<ViaductSchema.Object>,
     override val inclusionCondition: InclusionCondition,
     override val subselections: SelectionForest,
-    override val responseKey: String = key.field.name,
+    override val responseKey: String? = null,
     override val fieldDirectives: FieldDirectives? = null,
 ) : Selection
 
@@ -593,9 +597,14 @@ private class ObjectSelectionImpl(
     override val possibleTypes: Set<ViaductSchema.Object>,
     override val inclusionCondition: InclusionCondition,
     override val subselections: SelectionForest,
-    override val responseKey: String = key.field.name,
+    override val responseKey: String? = null,
     override val fieldDirectives: FieldDirectives? = null,
 ) : ObjectSelection
+
+/** Clears only this occurrence's projection metadata; its child forest remains shared. */
+internal fun Selection.withoutProjectionMetadata(): Selection = if (responseKey == null) this else Selection.of(key, possibleTypes, subselections, inclusionCondition)
+
+private fun ObjectSelection.withoutProjectionMetadata(): ObjectSelection = if (responseKey == null) this else ObjectSelectionImpl(key, possibleTypes, inclusionCondition, subselections)
 
 /** Conjunctively guards each occurrence while retaining a compact condition graph. */
 fun SelectionForest.guardedBy(condition: InclusionCondition): SelectionForest =

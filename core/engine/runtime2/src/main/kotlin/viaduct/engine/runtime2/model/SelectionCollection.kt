@@ -5,9 +5,16 @@ import viaduct.graphql.schema.ViaductSchema
 
 /** Collects compatible source occurrences by response key for one concrete parent type.
  * Runtime conditions must be filtered by the caller before collection. Construction uses [merge]
- * on the same source graph and groups by invocation instead of response key.
+ * on the same source graph and groups by invocation instead of response key. Construction-only
+ * selections are rejected, including occurrences that are inapplicable to [type].
  */
 fun SelectionForest.collect(type: ViaductSchema.Object): ObjectMaterializeSelectionForest = cachedProjection(type) { collectUncached(type) }
+
+/** Projection must never invent a response key for a construction-only selection. */
+internal fun Selection.requireResponseKey(): String =
+    requireNotNull(responseKey) {
+        "Cannot project a construction-only selection: ${key.field.containingDef.name}.${key.field.name}"
+    }
 
 /**
  * One response-key group collected for a concrete parent object type.
@@ -53,9 +60,10 @@ private fun SelectionForest.collectUncached(type: ViaductSchema.Object): ObjectM
             MutableList<Triple<ObjectEngineResult.ObjectKey, SelectionForest, FieldDirectives?>>,
         >()
     forEach { selection ->
+        val responseKey = selection.requireResponseKey()
         if (type in selection.possibleTypes) {
             membersByResponseKey
-                .getOrPut(selection.responseKey, ::mutableListOf)
+                .getOrPut(responseKey, ::mutableListOf)
                 .add(
                     Triple(
                         selection.key.objectKey(type),

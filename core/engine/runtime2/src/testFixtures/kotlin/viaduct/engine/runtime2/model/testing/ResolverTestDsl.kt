@@ -30,12 +30,12 @@ import viaduct.engine.runtime2.model.registry.fieldResolverOf
 import viaduct.engine.runtime2.model.registry.fromArgument
 import viaduct.engine.runtime2.model.registry.selectiveFieldResolverOf
 import viaduct.engine.runtime2.model.registry.selectiveNodeResolverOf
-import viaduct.engine.runtime2.model.usedVariables
 import viaduct.engine.runtime2.model.requireOutputType
 import viaduct.engine.runtime2.model.requireQueryTypeDef
 import viaduct.engine.runtime2.model.requireType
 import viaduct.engine.runtime2.model.selectionForestOf
 import viaduct.engine.runtime2.model.spec.flatten
+import viaduct.engine.runtime2.model.usedVariables
 import viaduct.engine.runtime2.schema.GJSelectionParser
 import viaduct.engine.runtime2.schema.ParsedSpecFragment
 import viaduct.engine.runtime2.schema.SourceSchemaAdapter

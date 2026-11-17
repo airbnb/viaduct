@@ -4,23 +4,31 @@ package viaduct.engine.runtime2
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertNull
 import kotlin.test.assertSame
+import kotlin.test.assertTrue
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import viaduct.engine.api.CheckerResult
 import viaduct.engine.api.CheckerResultContext
 import viaduct.engine.api.EngineObjectData
+import viaduct.engine.runtime2.model.Arguments
 import viaduct.engine.runtime2.model.EngineErrorData
 import viaduct.engine.runtime2.model.ErrorEngineResult
+import viaduct.engine.runtime2.model.InclusionCondition
 import viaduct.engine.runtime2.model.ListEngineResult
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.Promise
+import viaduct.engine.runtime2.model.ResolverOccurrenceId
 import viaduct.engine.runtime2.model.SelectionForest
+import viaduct.engine.runtime2.model.guardedBy
+import viaduct.engine.runtime2.model.merge
 import viaduct.engine.runtime2.model.outputType
 import viaduct.engine.runtime2.model.outputValue
+import viaduct.engine.runtime2.model.requireField
 import viaduct.engine.runtime2.model.requireObjectField
 import viaduct.engine.runtime2.model.requireQueryTypeDef
 import viaduct.engine.runtime2.model.requireType
@@ -34,6 +42,41 @@ import viaduct.engine.runtime2.resolution.materializeResolverInput as materializ
 import viaduct.engine.runtime2.resolvers.materializeResolverInput as materializeGroundedInput
 
 class MaterializeResolverInputTest {
+    @Test
+    fun `materializers reject construction selections before filtering or waiting for variables`(): Unit =
+        runBlocking {
+            val fixture = TestWorld.fromSDL("type Query { value: Int }")
+            val type = fixture.schema.requireQueryTypeDef()
+            val source = fixture.schemas.fragmentFrom("fragment Input on Query { alias: value }").subselections
+            val result = ObjectEngineResult.of(type, mutable = true)
+            val variable = Arguments.Variable.of(type.requireField("value"), "included")
+                .instantiate(ResolverOccurrenceId.at(result, emptyList()))
+            val operation = SharedOperationContext.create(fixture.assumptions)
+            for (condition in listOf(InclusionCondition.Always, InclusionCondition.Never, InclusionCondition.requires(mapOf(variable to true)))) {
+                val construction = source.merge(type).guardedBy(condition)
+                for (reference in listOf(false, true)) {
+                    val error = assertFailsWith<IllegalArgumentException> {
+                        withTimeout(1_000) {
+                            if (reference) {
+                                result.materializeGroundedInput(operation, CycleCheckState.createNOP(), construction, result.fieldResolverCycleTask(emptyList()))
+                            } else {
+                                result.materializeResolutionInput(
+                                    operation = operation,
+                                    cycleChecker = CycleCheckState.createNOP(),
+                                    selections = construction,
+                                    reader = result.fieldResolverCycleTask(emptyList()),
+                                    resultPath = emptyList(),
+                                    checked = false,
+                                )
+                            }
+                        }
+                    }
+                    assertTrue(error.message.orEmpty().contains("construction-only"))
+                    assertTrue(result.keys.isEmpty())
+                }
+            }
+        }
+
     @Test
     fun `sharing a layout never shares operation values`(): Unit =
         runBlocking {
