@@ -190,7 +190,7 @@ fun GeneratedResolutionObservation.typeCheckerCoverage(): Set<GeneratedTypeCheck
                         }
                     }
                     val id = ResolverOccurrenceId.at(root, selectedPath)
-                    observer.resolverInvocations(id).filter { !it.field.name.startsWith("__") && it.field.name != "V_A_typename" }.forEach { invocation ->
+                    observer.resolverInvocations(id).filter { !it.field.name.startsWith("__") && it.field.name != "_viaduct_internal__typename" }.forEach { invocation ->
                         add(signature)
                         if (checker.occurrencePath.any { it is ListEngineResult.Index }) add(GeneratedTypeCheckerSignature.LIST_OCCURRENCE_WITH_RESOLVER_INPUT)
                         if (checker.logicalQueryRoot !== result) add(GeneratedTypeCheckerSignature.ASSOCIATED_QUERY_WITH_RESOLVER_INPUT)

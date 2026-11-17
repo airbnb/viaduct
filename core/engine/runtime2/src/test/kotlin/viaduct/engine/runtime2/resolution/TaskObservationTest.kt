@@ -224,26 +224,28 @@ class TaskObservationTest : ResolutionDispatcherResource {
 
     @Test
     fun `nested executions retain the calling field as creator`() {
-        val world = TestWorld.fromSDL(
-            "type Query { outer: Int inner: Int }",
-            fieldResolvers = { schemas ->
-                val schema = schemas.loweredSchema
-                mapOf(
-                    schema.requireObjectField("Query", "outer") to fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _, context ->
-                        context.resolveSelectionSet(schemas.fragmentFrom("fragment Inner on Query { inner }").subselections).get("inner")
-                    },
-                    schema.requireObjectField("Query", "inner") to fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ -> 9 },
-                )
+        for ((call, type) in listOf("query" to "Query", "mutation" to "Mutation")) {
+            val world = TestWorld.fromDSL(
+                """
+                extend type Query { outer: Int @resolver(script: "$call('{ inner }').inner") }
+                ${if (type == "Query") "extend type Query" else "type Mutation"} { inner: Int @resolver(script: "9") }
+                """.trimIndent(),
+            )
+            val log = TaskLog()
+            val root = SharedOperationContext.create(world.assumptions, resolutionObserver = log)
+                .resolveWithTestDispatcher(world.schemas.operationSelectionsFrom("{ outer }"))
+            assertEquals(9, root.getCell(root.keys.single()).get())
+            val outer = log.prepared.filterIsInstance<FieldResolverTask>().single { it.occurrence.root === root }
+            val nested = log.prepared.single { it.creator === outer }
+            assertSame(outer, nested.creator)
+            val nestedRoot = if (type == "Query") {
+                assertIs<OrchestrationTask>(nested).objectOER.occurrence.target
+            } else {
+                assertIs<MutationOrchestrationTask<*>>(nested).occurrence.target
             }
-        )
-        val log = TaskLog()
-        val root = SharedOperationContext.create(world.assumptions, resolutionObserver = log)
-            .resolveWithTestDispatcher(world.schemas.operationSelectionsFrom("{ outer }"))
-        assertEquals(9, root.getCell(root.keys.single()).get())
-        val outer = log.prepared.filterIsInstance<FieldResolverTask>().single { it.occurrence.root === root }
-        val nested = log.prepared.filterIsInstance<OrchestrationTask>().single { it.occurrence.root !== root }
-        assertSame(outer, nested.creator)
-        log.assertComplete()
+            assertEquals(type, nestedRoot.type.name)
+            log.assertComplete()
+        }
     }
 
     @Test
@@ -450,7 +452,7 @@ private data class Execution(val task: ResolutionTask, val state: ResolutionTask
 private val ResolutionTask.occurrence: OEROccurrence
     get() = when (this) {
         is SharedOrchestrationTask<*> -> objectOER.occurrence
-        is MutationOrchestrationTask<*> -> namespace.occurrence
+        is MutationOrchestrationTask<*> -> this.occurrence
         is FieldResolverTask -> publication.oerOccurrence
         else -> error("Unexpected observed task: $this")
     }

@@ -27,6 +27,7 @@ dependencies {
     implementation(libs.kotlin.reflect)
     implementation(libs.kotlinx.coroutines.core)
     testFixturesApi(libs.junit)
+    testFixturesApi(libs.commons.jexl)
     testFixturesApi(libs.junit.params)
 
     /** Viaduct dependencies **/
@@ -42,6 +43,7 @@ dependencies {
     testFixturesApi(testFixtures(libs.viaduct.engine.runtime))
     testFixturesImplementation(libs.viaduct.engine.wiring)
     testFixturesImplementation(libs.javax.inject)
+    testFixturesImplementation(libs.kotest.assertions.core.jvm)
     testFixturesImplementation(libs.kotlinx.coroutines.core)
     testFixturesImplementation(libs.viaduct.service.api)
     testFixturesImplementation(testFixtures(libs.viaduct.service.api))
@@ -57,5 +59,6 @@ dependencies {
 
     /** Test dependencies - External **/
     testImplementation(libs.io.mockk.jvm)
+    testImplementation(kotlin("test-junit5"))
     testImplementation(libs.kotest.assertions.core.jvm)
 }

@@ -35,6 +35,8 @@ dependencies {
     implementation(libs.viaduct.tenant.api)
     implementation(testFixtures(libs.viaduct.service.api))
 
+    testImplementation(libs.io.mockk.jvm)
+    testImplementation(libs.viaduct.engine.runtime2)
     testImplementation(libs.kotest.assertions.shared)
     testImplementation(libs.kotest.assertions.core.jvm)
     testImplementation(libs.kotlinx.coroutines.test)

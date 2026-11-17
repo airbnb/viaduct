@@ -1,13 +1,21 @@
 package viaduct.arbitrary.graphql
 
 import graphql.Directives
+import graphql.language.AstTransformer
+import graphql.language.Document
 import graphql.language.FragmentDefinition
+import graphql.language.Node
+import graphql.language.NodeVisitorStub
 import graphql.language.TypeName
+import graphql.language.VariableReference
 import graphql.schema.GraphQLCompositeType
 import graphql.schema.GraphQLImplementingType
 import graphql.schema.GraphQLInterfaceType
 import graphql.schema.GraphQLObjectType
 import graphql.schema.GraphQLTypeUtil
+import graphql.util.TraversalControl
+import graphql.util.TraverserContext
+import graphql.util.TreeTransformerUtil
 import viaduct.arbitrary.common.sampleWeight
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.graphql.utils.ParsedSelections
@@ -19,7 +27,8 @@ internal interface RequiredSelectionSetGen {
         tfc: TypeOrFieldCoordinate,
         typeCondition: String,
         forChecker: Boolean,
-        depth: Int
+        depth: Int,
+        variableNamePrefix: String = "",
     ): RequiredSelectionSet?
 
     companion object {
@@ -32,16 +41,17 @@ private class RequiredSelectionSetGenImpl(private val env: ViaductGenEnv) : Requ
         tfc: TypeOrFieldCoordinate,
         typeCondition: String,
         forChecker: Boolean,
-        depth: Int
+        depth: Int,
+        variableNamePrefix: String,
     ): RequiredSelectionSet? {
         val cw = env.cfg[RequiredSelectionSetWeight]
         if (depth >= cw.max || !env.rs.sampleWeight(cw.weight)) return null
 
         val state = genDocumentState(tfc, typeCondition, forChecker) ?: return null
-        val selections = state.toParsedSelections(typeCondition)
+        val selections = state.toParsedSelections(typeCondition).withVariablePrefix(variableNamePrefix)
 
         val variablesResolvers = state.variables.variables.map { vdef ->
-            env.variablesResolverGen.gen(tfc, vdef, forChecker, depth + 1)
+            env.variablesResolverGen.gen(tfc, vdef.transform { it.name(variableNamePrefix + vdef.name) }, forChecker, depth + 1)
         }
 
         val rss = RequiredSelectionSet(
@@ -51,6 +61,20 @@ private class RequiredSelectionSetGenImpl(private val env: ViaductGenEnv) : Requ
         )
 
         return rss
+    }
+
+    private fun ParsedSelections.withVariablePrefix(prefix: String): ParsedSelections {
+        if (prefix.isEmpty()) return this
+        val document = AstTransformer().transform(
+            toDocument(),
+            object : NodeVisitorStub() {
+                override fun visitVariableReference(
+                    node: VariableReference,
+                    context: TraverserContext<Node<*>>,
+                ): TraversalControl = TreeTransformerUtil.changeNode(context, node.transform { it.name(prefix + node.name) })
+            },
+        )
+        return ParsedSelections.fromDocument(typeName, document as Document)
     }
 
     private val parentFieldCoordinates: Set<TypeOrFieldCoordinate> by lazy {

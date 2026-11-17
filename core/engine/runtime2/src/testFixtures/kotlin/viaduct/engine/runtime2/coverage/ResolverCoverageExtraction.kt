@@ -43,6 +43,7 @@ private class ResolverCoverageExtractor(
     private val bounds: ResolutionWitnessBounds,
 ) {
     private val operation = observation.operation
+    private val fragmentProfiles = mutableMapOf<ViaductSchema.ObjectField, ObjectFragmentProfile>()
 
     suspend fun extract(): ResolverCoverageRecords {
         val discoveredRoots = collectRoots()
@@ -213,7 +214,7 @@ private class ResolverCoverageExtractor(
                     val child = cell.value.get()
                     root.addSortSegment(stableCellKey(fieldPath, child.outputKind().name))
                     if (key.field in operation.world.resolverRegistry) {
-                        fields += CoverageField(root, key, fieldPath, child)
+                        fields += CoverageField(root, key, fieldPath, child, value)
                     }
                     if (key !is ObjectEngineResult.ParentKey) visit(root, child, fieldPath)
                 }
@@ -235,7 +236,7 @@ private class ResolverCoverageExtractor(
         return fields
     }
 
-    private fun occurrenceRow(
+    private suspend fun occurrenceRow(
         occurrence: CoverageField,
         supplied: Set<ResolverOccurrenceId>,
         paths: CoveragePathEncoder,
@@ -243,7 +244,8 @@ private class ResolverCoverageExtractor(
         val key = occurrence.key
         val occurrenceId = ResolverOccurrenceId.at(occurrence.root.result, occurrence.path)
         val arguments = key.groundedArguments(operation)
-        val sources = operation.world.resolverRegistry.resolver(key.field).declaredDependencies.variables.values
+        val resolver = operation.world.resolverRegistry.resolver(key.field).declaredDependencies
+        val sources = resolver.variables.values
         val ownerPath = occurrence.path.dropLast(1)
         val role = when {
             occurrenceId in observation.appliedResolverOccurrences.orEmpty() -> ResolutionRole.INVOKED
@@ -275,6 +277,7 @@ private class ResolverCoverageExtractor(
             argumentState = arguments.argumentState(),
             declaredOutputShape = key.field.declaredOutputShape(),
             outputKind = occurrence.value.outputKind(),
+            objectFragment = fragmentProfiles.getOrPut(key.field) { ObjectFragmentProfile.of(resolver.objectFragment, operation.world.resolverRegistry) }.shapeIn(occurrence.owner),
         )
     }
 
@@ -442,6 +445,7 @@ private data class CoverageField(
     val key: ObjectEngineResult.ObjectKey,
     val path: List<PathComponent>,
     val value: EngineResult?,
+    val owner: ObjectEngineResult,
 )
 
 private fun Arguments.argumentState(): ArgumentState =
@@ -458,6 +462,8 @@ private fun ViaductSchema.ObjectField.declaredOutputShape(): DeclaredOutputShape
         type.baseTypeDef is ViaductSchema.CompositeTypeDef -> DeclaredOutputShape.OBJECT
         else -> DeclaredOutputShape.SCALAR
     }
+
+internal fun EngineResult?.failedOutput(): Boolean = outputKind().let { it == OutputKind.NULL || it == OutputKind.ERROR }
 
 private fun EngineResult?.outputKind(): OutputKind =
     when (this) {

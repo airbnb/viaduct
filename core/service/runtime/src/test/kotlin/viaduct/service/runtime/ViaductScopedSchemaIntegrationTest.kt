@@ -16,7 +16,9 @@ import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.params.ParameterizedTest
-import org.junit.jupiter.params.provider.EnumSource
+import org.junit.jupiter.params.provider.Arguments
+import org.junit.jupiter.params.provider.MethodSource
+import org.junit.jupiter.params.provider.ValueSource
 import viaduct.engine.api.EngineSchema
 import viaduct.graphql.scopes.errors.SchemaScopeValidationError
 import viaduct.graphql.utils.DefaultSchemaFactory
@@ -37,6 +39,14 @@ import viaduct.service.api.spi.mocks.MockFlagManager
  */
 @ExperimentalCoroutinesApi
 class ViaductScopedSchemaIntegrationTest {
+    companion object {
+        @JvmStatic
+        fun schemaConfigurations(): List<Arguments> =
+            SchemaConfigMethod.entries.flatMap { method ->
+                listOf(false, true).map { Arguments.of(method, it) }
+            }
+    }
+
     private lateinit var subject: StandardViaduct
 
     private val flagManager = MockFlagManager.RuntimeFlagsEnabled
@@ -47,8 +57,9 @@ class ViaductScopedSchemaIntegrationTest {
         FROM_SCHEMA
     }
 
-    @Test
-    fun `Execute scoped query successfully`(): Unit =
+    @ParameterizedTest
+    @ValueSource(booleans = [false, true])
+    fun `Execute scoped query successfully`(engine2Enabled: Boolean): Unit =
         runBlocking {
             val sdl = """
                 extend type Query @scope(to: ["viaduct-public"]) {
@@ -63,8 +74,9 @@ class ViaductScopedSchemaIntegrationTest {
             )
 
             subject = StandardViaduct.Builder()
-                .withFlagManager(flagManager)
+                .withFlagManager(MockFlagManager.forEngine(engine2Enabled, flagManager))
                 .withSchemaConfiguration(config)
+                .withNullQueryResolvers(config)
                 .build()
 
             val query = """
@@ -86,8 +98,11 @@ class ViaductScopedSchemaIntegrationTest {
         }
 
     @ParameterizedTest
-    @EnumSource(SchemaConfigMethod::class)
-    fun `Execute scoped query with different configuration methods`(method: SchemaConfigMethod): Unit =
+    @MethodSource("schemaConfigurations")
+    fun `Execute scoped query with different configuration methods`(
+        method: SchemaConfigMethod,
+        engine2Enabled: Boolean
+    ): Unit =
         runBlocking {
             val sdl = """
                 extend type Query @scope(to: ["viaduct-public"]) {
@@ -122,8 +137,9 @@ class ViaductScopedSchemaIntegrationTest {
             }
 
             subject = StandardViaduct.Builder()
-                .withFlagManager(flagManager)
+                .withFlagManager(MockFlagManager.forEngine(engine2Enabled, flagManager))
                 .withSchemaConfiguration(config)
+                .withNullQueryResolvers(config)
                 .build()
 
             val query = """
@@ -144,8 +160,9 @@ class ViaductScopedSchemaIntegrationTest {
             assertEquals(expected.toSpecification(), asyncResult.toSpecification())
         }
 
-    @Test
-    fun `Execute scoped query with complex types`(): Unit =
+    @ParameterizedTest
+    @ValueSource(booleans = [false, true])
+    fun `Execute scoped query with complex types`(engine2Enabled: Boolean): Unit =
         runBlocking {
             val sdl = """
                 type Foo @scope(to: ["SCOPE1"]) {
@@ -186,8 +203,9 @@ class ViaductScopedSchemaIntegrationTest {
             )
 
             subject = StandardViaduct.Builder()
-                .withFlagManager(flagManager)
+                .withFlagManager(MockFlagManager.forEngine(engine2Enabled, flagManager))
                 .withSchemaConfiguration(config)
+                .withNullQueryResolvers(config)
                 .build()
 
             val query = """
@@ -228,8 +246,9 @@ class ViaductScopedSchemaIntegrationTest {
             assertEquals(expected.toSpecification(), asyncResult.toSpecification())
         }
 
-    @Test
-    fun `Scoped schema excludes fields from other scopes`(): Unit =
+    @ParameterizedTest
+    @ValueSource(booleans = [false, true])
+    fun `Scoped schema excludes fields from other scopes`(engine2Enabled: Boolean): Unit =
         runBlocking {
             val sdl = """
                 type TestScope1Object @scope(to: ["SCOPE1"]) {
@@ -253,7 +272,7 @@ class ViaductScopedSchemaIntegrationTest {
             val schemaId2 = SchemaId.Scoped("SCOPE2_ONLY", setOf("SCOPE2"))
 
             subject = StandardViaduct.Builder()
-                .withFlagManager(flagManager)
+                .withFlagManager(MockFlagManager.forEngine(engine2Enabled, flagManager))
                 .withSchemaConfiguration(
                     SchemaConfiguration.fromSdl(
                         sdl,
@@ -263,6 +282,7 @@ class ViaductScopedSchemaIntegrationTest {
                         )
                     )
                 )
+                .withNullQueryResolvers(SchemaConfiguration.fromSdl(sdl))
                 .build()
 
             val query1 = """
@@ -370,8 +390,9 @@ class ViaductScopedSchemaIntegrationTest {
         }
     }
 
-    @Test
-    fun `Register and query multiple independent scoped schemas`(): Unit =
+    @ParameterizedTest
+    @ValueSource(booleans = [false, true])
+    fun `Register and query multiple independent scoped schemas`(engine2Enabled: Boolean): Unit =
         runBlocking {
             val sdl = """
                 type TestScope1Object @scope(to: ["SCOPE1"]) {
@@ -395,7 +416,7 @@ class ViaductScopedSchemaIntegrationTest {
             val schemaId2 = SchemaId.Scoped("SCHEMA_ID_2", setOf("SCOPE2"))
 
             subject = StandardViaduct.Builder()
-                .withFlagManager(flagManager)
+                .withFlagManager(MockFlagManager.forEngine(engine2Enabled, flagManager))
                 .withSchemaConfiguration(
                     SchemaConfiguration.fromSdl(
                         sdl,
@@ -405,6 +426,7 @@ class ViaductScopedSchemaIntegrationTest {
                         )
                     )
                 )
+                .withNullQueryResolvers(SchemaConfiguration.fromSdl(sdl))
                 .build()
 
             val query1 = """

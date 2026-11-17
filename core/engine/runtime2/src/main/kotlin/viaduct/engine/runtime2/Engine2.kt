@@ -161,11 +161,13 @@ class Engine2(
     ): EngineExecutionContext = RequestEngineExecutionContext(requestContext)
 
     private fun invocationContext(invocation: ExecutionContext): DispatcherExecutionContext {
+        // GraphQL Java substitutes its GraphQLContext when no legacy context was supplied.
+        val legacyRequestContext = invocation.getContext<Any?>()?.takeUnless { it === invocation.graphQLContext }
         val request = invocation.graphQLContext.get<RequestContext?>(requestContextKey)?.engineExecutionContext
             ?: (invocation.getLocalContext<Any?>() as? CompositeLocalContext)
                 ?.get<RequestEngineExecutionContext>()
                 ?.takeIf { it.engine === this }
-            ?: RequestEngineExecutionContext(invocation.getContext<Any?>())
+            ?: RequestEngineExecutionContext(legacyRequestContext)
         return object : DispatcherExecutionContext by request, Engine2ExecutionContext {
             override val graphQLExecutionContext = invocation
         }

@@ -50,8 +50,8 @@ interface GroundedTypeCheckerFragmentContract {
         val fixture = TestWorld.fromDSL(
             """
             extend type Query {
-              synthetic: Item @resolver(script: "{'value': 1, 'children': [{'value': 2}]}")
-              ordinary: Item @resolver(script: "{'value': 3}")
+              synthetic: Item @resolver(isSelective: ${coroutineResolverSubject.selectiveResolvers}, script: "{'value': 1, 'children': [{'value': 2}]}")
+              ordinary: Item @resolver(isSelective: ${coroutineResolverSubject.selectiveResolvers}, script: "{'value': 3}")
               marker: Int @resolver(script: "7")
             }
             type Item {
@@ -111,7 +111,7 @@ interface GroundedTypeCheckerFragmentContract {
                         """
                     extend type Query {
                       checked: Int! @resolver(script: "1")
-                      rawRoot: Root! @resolver(script: "{'id': 7, 'child': {:}}")
+                      rawRoot: Root! @resolver(isSelective: ${coroutineResolverSubject.selectiveResolvers}, script: "{'id': 7, 'child': {:}}")
                     }
 
                     type Root {

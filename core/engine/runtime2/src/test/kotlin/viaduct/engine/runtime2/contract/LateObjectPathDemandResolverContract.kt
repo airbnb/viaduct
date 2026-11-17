@@ -48,7 +48,7 @@ interface LateObjectPathDemandResolverContract : ResolverContract {
                 schemaSDL =
                     """
                     extend type Query {
-                      foo: Foo! @resolver(script: "{'z': 2, 'w': 3}")
+                      foo: Foo! @resolver(isSelective: true, script: "{'z': 2, 'w': 3}")
                     }
 
                     type Foo {

@@ -18,11 +18,14 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertInstanceOf
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Assertions.fail
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.ValueSource
 import viaduct.apiannotations.VisibleForTest
 import viaduct.arbitrary.common.CompoundingWeight
 import viaduct.arbitrary.common.CompoundingWeight.Companion.Never
@@ -34,17 +37,24 @@ import viaduct.arbitrary.common.asLongRange
 import viaduct.arbitrary.common.asSequence
 import viaduct.arbitrary.common.mapNotNull
 import viaduct.arbitrary.common.withCheck
+import viaduct.engine.EngineImpl
+import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
+import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.ResolvedEngineObjectData
 import viaduct.engine.api.RootFieldReference
+import viaduct.engine.api.VariablesResolver as EngineVariablesResolver
+import viaduct.engine.api.select.SelectionsParser
+import viaduct.engine.runtime2.Engine2
 import viaduct.service.api.ExecutionInput
 import viaduct.service.api.ExecutionResult
+import viaduct.service.api.SchemaId
 import viaduct.service.api.Viaduct
 import viaduct.service.runtime.SchemaConfiguration
 import viaduct.service.runtime.StandardViaduct
 import viaduct.service.runtime.globalid.DefaultGlobalIDCodec
 
-class ViaductsTest : KotestPropertyBase(iterations = 100) {
+class ViaductsTest : KotestPropertyBase(seed = paritySeed, iterations = 100) {
     // set up a base cfg with most features disabled
     private val cfg = Config.default +
         (ExplicitNullValueWeight to 0.0) +
@@ -61,14 +71,118 @@ class ViaductsTest : KotestPropertyBase(iterations = 100) {
         (CheckerExceptionWeight to 0.0) +
         (CheckerErrorWeight to 0.0)
 
+    @ParameterizedTest(name = "generated service engine2={0}")
+    @ValueSource(booleans = [false, true])
+    fun `generated service constructs and executes the selected engine`(engine2Enabled: Boolean): Unit =
+        runBlocking {
+            val viaduct = Arb.viaduct(
+                "extend type Query { x: Int! @resolver }".asViaductSchema,
+                cfg,
+                engine2Enabled,
+            ).next(RandomSource.seeded(paritySeed))
+            val service = assertInstanceOf(StandardViaduct::class.java, (viaduct as DescribedViaduct).delegate)
+            assertInstanceOf(if (engine2Enabled) Engine2::class.java else EngineImpl::class.java, service.engineRegistry.getEngine(SchemaId.Base))
+
+            val result = viaduct.execute(ExecutionInput.create("{ x }"))
+            assertTrue(result.errors.isEmpty())
+            assertTrue(result.getData()?.get("x") is Int)
+        }
+
+    @Test
+    fun `runtime2 rejects unsupported generation configuration before sampling`() {
+        val schema = "extend type Query { x: Int @resolver, y(a: Int): Int @resolver, z(a: Int): Int @resolver }".asViaductSchema
+        val variables = VariablesResolver.Factory.Instrumented()
+        val config = cfg +
+            (VariableWeight to 1.0) +
+            (RequiredSelectionSetWeight to CompoundingWeight(1.0, 3)) +
+            (VariablesResolverFactory to variables)
+        Arb.viaduct(schema, config, engine2Enabled = false).next(RandomSource.seeded(0))
+        assertTrue(variables.allResolvers.any { it.requiredSelectionSet != null })
+
+        val failure = assertThrows<IllegalArgumentException> {
+            Arb.viaduct(schema, config, engine2Enabled = true)
+        }
+        assertTrue(failure.message.orEmpty().contains("Arb.viaduct(engine2Enabled = true)"))
+        assertTrue(failure.message.orEmpty().contains("variables callbacks with their own required selection sets"))
+        assertTrue(failure.message.orEmpty().contains("RequiredSelectionSetWeight.max"))
+    }
+
+    @Test
+    fun `runtime2 default generation constructs engines without nested variables callbacks`(): Unit =
+        runBlocking {
+            val schema = "extend type Query { x: Int @resolver, y(a: Int): Int @resolver, z(a: Int): Int @resolver }".asViaductSchema
+            Arb.viaduct(schema, engine2Enabled = true).checkAll(20) { viaduct ->
+                val service = (viaduct as DescribedViaduct).delegate as StandardViaduct
+                val constructed = runCatching { service.engineRegistry.getEngine(SchemaId.Base) }
+                assertTrue(constructed.isSuccess, "${constructed.exceptionOrNull()}\n${viaduct.dump()}")
+                assertInstanceOf(Engine2::class.java, constructed.getOrThrow())
+            }
+        }
+
+    @Test
+    fun `explicit portable configuration generates identical fixtures for both engines`() {
+        val schema = "extend type Query { x: Int @resolver, y(a: Int): Int @resolver, z(a: Int): Int @resolver }".asViaductSchema
+        val config = cfg +
+            (VariableWeight to 1.0) +
+            (RequiredSelectionSetWeight to CompoundingWeight(.5, 1)) +
+            (FieldCheckerWeight to 1.0) +
+            (TypeCheckerWeight to 1.0)
+        for (seed in 0L until 10L) {
+            val fixtures = listOf(false, true).map { engine2Enabled ->
+                Arb.viaduct(schema, config, engine2Enabled).next(RandomSource.seeded(seed)).dump()
+            }
+            assertEquals(fixtures[0], fixtures[1], "seed=$seed")
+        }
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = [false, true])
+    fun `custom checker callbacks cannot bypass runtime2 configuration validation`(typeChecker: Boolean) {
+        val schema = "extend type Query { value: Int @resolver, policy(value: Int): Int @resolver, source: Int @resolver }".asViaductSchema
+        val nested = RequiredSelectionSet(SelectionsParser.parse("Query", "source"), emptyList(), forChecker = true)
+        val variables = object : EngineVariablesResolver {
+            override val variableNames = setOf("provided")
+            override val requiredSelectionSet = nested
+
+            override suspend fun resolve(
+                ctx: EngineVariablesResolver.ResolveCtx,
+                context: EngineExecutionContext,
+            ): Map<String, Any?> = mapOf("provided" to 37)
+        }
+        val required = RequiredSelectionSet(
+            SelectionsParser.parse("Query", "policy(value: \$provided)"),
+            listOf(variables),
+            forChecker = true,
+        )
+        val key = "Query" to if (typeChecker) null else "value"
+        val checkers = CheckerExecutor.Factory { params ->
+            CheckerExecutor.Factory.Arbitrary.createCheckerExecutor(
+                params.copy(requiredSelectionSets = if (params.key == key) mapOf("input" to required) else emptyMap()),
+            )
+        }
+        val config = cfg +
+            (FieldCheckerWeight to if (typeChecker) 0.0 else 1.0) +
+            (TypeCheckerWeight to if (typeChecker) 1.0 else 0.0) +
+            (CheckerExecutorFactory to checkers)
+
+        val failure = assertThrows<IllegalArgumentException> {
+            Arb.viaduct(schema, config, engine2Enabled = true).next(RandomSource.seeded(0))
+        }
+        val location = if (typeChecker) "type checker Query" else "field checker Query.value"
+        assertTrue(failure.message.orEmpty().contains(location), failure.message)
+        assertTrue(failure.message.orEmpty().contains("variables callbacks with their own required selection sets"), failure.message)
+    }
+
     @Nested
     inner class FieldResolverTests {
-        @Test
-        fun `simple`(): Unit =
+        @ParameterizedTest
+        @ValueSource(booleans = [false, true])
+        fun `simple`(engine2Enabled: Boolean): Unit =
             runBlocking {
                 Arb.viaduct(
                     "extend type Query { x:Int! @resolver }".asViaductSchema,
                     cfg,
+                    engine2Enabled = engine2Enabled,
                 ).forAll { viaduct ->
                     val result = viaduct.execute(
                         ExecutionInput.create("{x}")
@@ -77,29 +191,31 @@ class ViaductsTest : KotestPropertyBase(iterations = 100) {
                 }
             }
 
-        @Test
-        fun `ExplicitNullValueWeight`(): Unit =
+        @ParameterizedTest
+        @ValueSource(booleans = [false, true])
+        fun `ExplicitNullValueWeight`(engine2Enabled: Boolean): Unit =
             runBlocking {
                 val schema = "extend type Query { x:Int @resolver }".asViaductSchema
                 val input = ExecutionInput.create("{x}")
 
                 // disabled
-                Arb.viaduct(schema, cfg + (ExplicitNullValueWeight to 0.0))
+                Arb.viaduct(schema, cfg + (ExplicitNullValueWeight to 0.0), engine2Enabled = engine2Enabled)
                     .forAll { viaduct ->
                         val result = viaduct.execute(input)
                         result.getData()!!.get("x") != null
                     }
 
                 // enabled
-                Arb.viaduct(schema, cfg + (ExplicitNullValueWeight to 1.0))
+                Arb.viaduct(schema, cfg + (ExplicitNullValueWeight to 1.0), engine2Enabled = engine2Enabled)
                     .forAll { viaduct ->
                         val result = viaduct.execute(input)
                         result.getData()!!.get("x") == null
                     }
             }
 
-        @Test
-        fun `RequiredSelectionSetWeight`(): Unit =
+        @ParameterizedTest
+        @ValueSource(booleans = [false, true])
+        fun `RequiredSelectionSetWeight`(engine2Enabled: Boolean): Unit =
             runBlocking {
                 val schema = "extend type Query { x:Int @resolver, y:Int @resolver }".asViaductSchema
 
@@ -110,7 +226,8 @@ class ViaductsTest : KotestPropertyBase(iterations = 100) {
                         schema,
                         cfg +
                             (FieldResolverFactory to instr) +
-                            (RequiredSelectionSetWeight to weight)
+                            (RequiredSelectionSetWeight to weight),
+                        engine2Enabled = engine2Enabled,
                     ).bind()
                     viaduct.executeAsync(ExecutionInput.create("{ x }")).join()
 
@@ -128,22 +245,25 @@ class ViaductsTest : KotestPropertyBase(iterations = 100) {
                 }
             }
 
-        @Test
-        fun `ExerciseRequiredSelectionsWeight`(): Unit =
+        @ParameterizedTest
+        @ValueSource(booleans = [false, true])
+        fun `ExerciseRequiredSelectionsWeight`(engine2Enabled: Boolean): Unit =
             runBlocking {
                 Arb.viaduct(
                     "extend type Query { x:Int @resolver }".asViaductSchema,
                     cfg +
                         (RequiredSelectionSetWeight to Once) +
-                        (ExerciseRequiredSelectionsWeight to 1.0)
+                        (ExerciseRequiredSelectionsWeight to 1.0),
+                    engine2Enabled = engine2Enabled,
                 ).forAll { viaduct ->
                     val result = viaduct.execute(ExecutionInput.create("{x}"))
                     result.errors.isEmpty() && result.getData()!!["x"] is Int
                 }
             }
 
-        @Test
-        fun `ResolverLatencyMillis`(): Unit =
+        @ParameterizedTest
+        @ValueSource(booleans = [false, true])
+        fun `ResolverLatencyMillis`(engine2Enabled: Boolean): Unit =
             runBlocking {
                 val arb = arbitrary {
                     val instr = FieldResolver.Factory.Instrumented()
@@ -151,7 +271,8 @@ class ViaductsTest : KotestPropertyBase(iterations = 100) {
                         "extend type Query { x:Int! @resolver }".asViaductSchema,
                         cfg +
                             (ResolverLatencyMillis to 100.asLongRange()) +
-                            (FieldResolverFactory to instr)
+                            (FieldResolverFactory to instr),
+                        engine2Enabled = engine2Enabled,
                     ).bind()
                     viaduct.executeAsync(ExecutionInput.create("{x}")).join()
 
@@ -163,27 +284,29 @@ class ViaductsTest : KotestPropertyBase(iterations = 100) {
                 }
             }
 
-        @Test
-        fun `FieldResolverExceptionWeight`(): Unit =
+        @ParameterizedTest
+        @ValueSource(booleans = [false, true])
+        fun `FieldResolverExceptionWeight`(engine2Enabled: Boolean): Unit =
             runBlocking {
                 val schema = "extend type Query { x:Int! @resolver }".asViaductSchema
                 val input = ExecutionInput.create("{x}")
 
                 // disabled
-                Arb.viaduct(schema, cfg + (FieldResolverExceptionWeight to 0.0))
+                Arb.viaduct(schema, cfg + (FieldResolverExceptionWeight to 0.0), engine2Enabled = engine2Enabled)
                     .forAll {
                         it.execute(input).errors.isEmpty()
                     }
 
                 // enabled
-                Arb.viaduct(schema, cfg + (FieldResolverExceptionWeight to 1.0))
+                Arb.viaduct(schema, cfg + (FieldResolverExceptionWeight to 1.0), engine2Enabled = engine2Enabled)
                     .forAll {
                         it.execute(input).errors.size == 1
                     }
             }
 
-        @Test
-        fun `SelectiveResolverWeight`(): Unit =
+        @ParameterizedTest
+        @ValueSource(booleans = [false, true])
+        fun `SelectiveResolverWeight`(engine2Enabled: Boolean): Unit =
             runBlocking {
                 val schema = """
                 extend type Query { obj: Obj }
@@ -197,7 +320,8 @@ class ViaductsTest : KotestPropertyBase(iterations = 100) {
                         schema,
                         cfg +
                             (FieldResolverFactory to instr) +
-                            (SelectiveResolverWeight to selectiveResolverWeight)
+                            (SelectiveResolverWeight to selectiveResolverWeight),
+                        engine2Enabled = engine2Enabled,
                     ).bind()
                     viaduct.executeAsync(ExecutionInput.create("{ obj { x } }")).join()
 
@@ -216,8 +340,9 @@ class ViaductsTest : KotestPropertyBase(iterations = 100) {
                 }
             }
 
-        @Test
-        fun `DeterministicResolveWeight`(): Unit =
+        @ParameterizedTest
+        @ValueSource(booleans = [false, true])
+        fun `DeterministicResolveWeight`(engine2Enabled: Boolean): Unit =
             runBlocking {
                 val schema = "extend type Query { x: Int @resolver }".asViaductSchema
 
@@ -228,7 +353,8 @@ class ViaductsTest : KotestPropertyBase(iterations = 100) {
                         schema,
                         cfg +
                             (FieldResolverFactory to instr) +
-                            (DeterministicResolveWeight to deterministicResolveWeight)
+                            (DeterministicResolveWeight to deterministicResolveWeight),
+                        engine2Enabled = engine2Enabled,
                     ).bind()
 
                     repeat(50) {
@@ -251,8 +377,9 @@ class ViaductsTest : KotestPropertyBase(iterations = 100) {
                 }
             }
 
-        @Test
-        fun `ResolverFieldRefWeight`(): Unit =
+        @ParameterizedTest
+        @ValueSource(booleans = [false, true])
+        fun `ResolverFieldRefWeight`(engine2Enabled: Boolean): Unit =
             runBlocking {
                 val schema = """
                     | extend type Query { foo1:Foo! @resolver, foo2:Foo! @resolver }
@@ -265,7 +392,8 @@ class ViaductsTest : KotestPropertyBase(iterations = 100) {
                         schema,
                         cfg +
                             (ResolverFieldRefWeight to 1.0) +
-                            (FieldResolverFactory to instr)
+                            (FieldResolverFactory to instr),
+                        engine2Enabled = engine2Enabled,
                     ).bind()
                     val inp = ExecutionInput.create("{ foo1 { x } foo2 { x } }")
 
@@ -286,8 +414,9 @@ class ViaductsTest : KotestPropertyBase(iterations = 100) {
                 }
             }
 
-        @Test
-        fun `root field refs do not form cycles with required selections`(): Unit =
+        @ParameterizedTest
+        @ValueSource(booleans = [false, true])
+        fun `root field refs do not form cycles with required selections`(engine2Enabled: Boolean): Unit =
             runBlocking {
                 val schema = """
                     | extend type Query { foo1:Foo, foo2:Foo }
@@ -300,7 +429,8 @@ class ViaductsTest : KotestPropertyBase(iterations = 100) {
                     cfg +
                         (RequiredSelectionSetWeight to Once) +
                         (ExerciseRequiredSelectionsWeight to 1.0) +
-                        (ResolverFieldRefWeight to 1.0)
+                        (ResolverFieldRefWeight to 1.0),
+                    engine2Enabled = engine2Enabled,
                 ).checkAll { viaduct ->
                     withTimeout(2.seconds) {
                         viaduct.execute(input).errors.isEmpty()
@@ -308,8 +438,9 @@ class ViaductsTest : KotestPropertyBase(iterations = 100) {
                 }
             }
 
-        @Test
-        fun `field resolver -- returns its output selection set`(): Unit =
+        @ParameterizedTest
+        @ValueSource(booleans = [false, true])
+        fun `field resolver -- returns its output selection set`(engine2Enabled: Boolean): Unit =
             runBlocking {
                 val schema = """
                 extend type Query { obj: Obj @resolver }
@@ -318,7 +449,7 @@ class ViaductsTest : KotestPropertyBase(iterations = 100) {
                 val input = ExecutionInput.create("{ obj { x y } }")
                 val instr = FieldResolver.Factory.Instrumented()
 
-                Arb.viaduct(schema, cfg + (FieldResolverFactory to instr))
+                Arb.viaduct(schema, cfg + (FieldResolverFactory to instr), engine2Enabled = engine2Enabled)
                     .forAll { viaduct ->
                         viaduct.execute(input)
                         val result = instr.resolver("Query" to "obj").recorder.result.getOrThrow() as ResolvedEngineObjectData
@@ -326,8 +457,9 @@ class ViaductsTest : KotestPropertyBase(iterations = 100) {
                     }
             }
 
-        @Test
-        fun `field resolver values are stable when resolver scheduling changes`(): Unit =
+        @ParameterizedTest
+        @ValueSource(booleans = [false, true])
+        fun `field resolver values are stable when resolver scheduling changes`(engine2Enabled: Boolean): Unit =
             runBlocking {
                 // test that field resolvers are deterministic and independent of each other,
                 // producing the same value for the same seed even if called in different order
@@ -357,7 +489,8 @@ class ViaductsTest : KotestPropertyBase(iterations = 100) {
                             schema,
                             cfg +
                                 (FieldResolverFactory to factory) +
-                                (ListValueSize to 1.asIntRange())
+                                (ListValueSize to 1.asIntRange()),
+                            engine2Enabled = engine2Enabled,
                         ).next(RandomSource.seeded(rs.seed))
 
                         val result = viaduct.executeAsync(ExecutionInput.create("{ a b }")).join()
@@ -379,12 +512,14 @@ class ViaductsTest : KotestPropertyBase(iterations = 100) {
 
     @Nested
     inner class NodeResolverTests {
-        @Test
-        fun `simple`(): Unit =
+        @ParameterizedTest
+        @ValueSource(booleans = [false, true])
+        fun `simple`(engine2Enabled: Boolean): Unit =
             runBlocking {
                 Arb.viaduct(
                     "type Foo implements Node @resolver { id:ID! x:Int! }".asViaductSchema,
-                    cfg
+                    cfg,
+                    engine2Enabled = engine2Enabled,
                 ).forAll { viaduct ->
                     val id = arbId().bind()
                     val result = viaduct.execute(
@@ -401,13 +536,14 @@ class ViaductsTest : KotestPropertyBase(iterations = 100) {
                 }
             }
 
-        @Test
-        fun `NodeResolverExceptionWeight`() {
+        @ParameterizedTest
+        @ValueSource(booleans = [false, true])
+        fun `NodeResolverExceptionWeight`(engine2Enabled: Boolean) {
             fun arbExecutionResult(exceptionWeight: Double): Arb<ExecutionResult.Standard> {
                 val schema = "type Foo implements Node @resolver { id:ID! x:Int! }".asViaductSchema
                 val cfg = cfg + (NodeResolverExceptionWeight to exceptionWeight)
                 return arbitrary {
-                    val viaduct = Arb.viaduct(schema, cfg).bind()
+                    val viaduct = Arb.viaduct(schema, cfg, engine2Enabled = engine2Enabled).bind()
                     viaduct.executeAsync(
                         ExecutionInput.create(
                             "query (\$id:ID!) { node(id:\$id) { ... on Foo { x } } }",
@@ -432,8 +568,9 @@ class ViaductsTest : KotestPropertyBase(iterations = 100) {
             }
         }
 
-        @Test
-        fun `ResolverLatencyMillis`(): Unit =
+        @ParameterizedTest
+        @ValueSource(booleans = [false, true])
+        fun `ResolverLatencyMillis`(engine2Enabled: Boolean): Unit =
             runBlocking {
                 val arb = arbitrary {
                     val instr = NodeResolver.Factory.Instrumented()
@@ -441,7 +578,8 @@ class ViaductsTest : KotestPropertyBase(iterations = 100) {
                         "type Foo implements Node @resolver { id:ID! x:Int! }".asViaductSchema,
                         cfg +
                             (ResolverLatencyMillis to 100.asLongRange()) +
-                            (NodeResolverFactory to instr)
+                            (NodeResolverFactory to instr),
+                        engine2Enabled = engine2Enabled,
                     ).bind()
 
                     viaduct.executeAsync(
@@ -459,14 +597,15 @@ class ViaductsTest : KotestPropertyBase(iterations = 100) {
                 }
             }
 
-        @Test
-        fun `returns its output selection set`(): Unit =
+        @ParameterizedTest
+        @ValueSource(booleans = [false, true])
+        fun `returns its output selection set`(engine2Enabled: Boolean): Unit =
             runBlocking {
                 val schema = "type Foo implements Node @resolver { id:ID!, x:Int @resolver y:Int }".asViaductSchema
 
                 val arb = arbitrary {
                     val instr = NodeResolver.Factory.Instrumented()
-                    val viaduct = Arb.viaduct(schema, cfg + (NodeResolverFactory to instr)).bind()
+                    val viaduct = Arb.viaduct(schema, cfg + (NodeResolverFactory to instr), engine2Enabled = engine2Enabled).bind()
                     viaduct to instr
                 }
 
@@ -485,8 +624,9 @@ class ViaductsTest : KotestPropertyBase(iterations = 100) {
                 }
             }
 
-        @Test
-        fun `SelectiveResolverWeight`(): Unit =
+        @ParameterizedTest
+        @ValueSource(booleans = [false, true])
+        fun `SelectiveResolverWeight`(engine2Enabled: Boolean): Unit =
             runBlocking {
                 val schema = "type Foo implements Node { id:ID!, x:Int, y:Int }".asViaductSchema
 
@@ -498,7 +638,8 @@ class ViaductsTest : KotestPropertyBase(iterations = 100) {
                         cfg +
                             (NodeResolverFactory to instr) +
                             (UndeclaredNodeResolverWeight to 1.0) +
-                            (SelectiveResolverWeight to selectiveResolverWeight)
+                            (SelectiveResolverWeight to selectiveResolverWeight),
+                        engine2Enabled = engine2Enabled,
                     ).bind()
                     viaduct.executeAsync(
                         ExecutionInput.create(
@@ -521,8 +662,9 @@ class ViaductsTest : KotestPropertyBase(iterations = 100) {
                 }
             }
 
-        @Test
-        fun `DeterministicResolveWeight`(): Unit =
+        @ParameterizedTest
+        @ValueSource(booleans = [false, true])
+        fun `DeterministicResolveWeight`(engine2Enabled: Boolean): Unit =
             runBlocking {
                 val schema = "type Foo implements Node @resolver { id:ID!, x:Int }".asViaductSchema
 
@@ -533,7 +675,8 @@ class ViaductsTest : KotestPropertyBase(iterations = 100) {
                         schema,
                         cfg +
                             (NodeResolverFactory to instr) +
-                            (DeterministicResolveWeight to deterministicResolveWeight)
+                            (DeterministicResolveWeight to deterministicResolveWeight),
+                        engine2Enabled = engine2Enabled,
                     ).bind()
 
                     repeat(50) {
@@ -565,8 +708,9 @@ class ViaductsTest : KotestPropertyBase(iterations = 100) {
 
     @Nested
     inner class VariablesResolverTests {
-        @Test
-        fun `simple`(): Unit =
+        @ParameterizedTest
+        @ValueSource(booleans = [false, true])
+        fun `simple`(engine2Enabled: Boolean): Unit =
             runBlocking {
                 val arb = arbitrary {
                     val instr = VariablesResolver.Factory.Instrumented()
@@ -577,7 +721,8 @@ class ViaductsTest : KotestPropertyBase(iterations = 100) {
                         cfg +
                             (RequiredSelectionSetWeight to Once) +
                             (VariableWeight to 1.0) +
-                            (VariablesResolverFactory to instr)
+                            (VariablesResolverFactory to instr),
+                        engine2Enabled = engine2Enabled,
                     ).bind()
                     instr to viaduct
                 }
@@ -599,8 +744,9 @@ class ViaductsTest : KotestPropertyBase(iterations = 100) {
                 assertTrue(wasExecuted)
             }
 
-        @Test
-        fun `VariablesResolverExceptionWeight`(): Unit =
+        @ParameterizedTest
+        @ValueSource(booleans = [false, true])
+        fun `VariablesResolverExceptionWeight`(engine2Enabled: Boolean): Unit =
             runBlocking {
                 val arb = arbitrary {
                     val instr = VariablesResolver.Factory.Instrumented()
@@ -612,7 +758,8 @@ class ViaductsTest : KotestPropertyBase(iterations = 100) {
                             (RequiredSelectionSetWeight to Once) +
                             (VariableWeight to 1.0) +
                             (VariablesResolverFactory to instr) +
-                            (VariablesResolverExceptionWeight to 1.0)
+                            (VariablesResolverExceptionWeight to 1.0),
+                        engine2Enabled = engine2Enabled,
                     ).bind()
                     instr to viaduct
                 }
@@ -629,13 +776,14 @@ class ViaductsTest : KotestPropertyBase(iterations = 100) {
                     }
             }
 
-        @Test
-        fun `ResolverLatencyMillis`(): Unit =
+        @ParameterizedTest
+        @ValueSource(booleans = [false, true])
+        fun `ResolverLatencyMillis`(engine2Enabled: Boolean): Unit =
             runBlocking {
                 val arb = arbitrary {
                     val instr = VariablesResolver.Factory.Instrumented()
                     val viaduct = Arb.viaduct(
-                        "extend type Query { x:Int @resolver, y(a:Int!):Int }".asViaductSchema,
+                        "extend type Query { x:Int @resolver, y(a:Int!):Int @resolver }".asViaductSchema,
                         cfg +
                             (IncludeRequiredResolvers to false) +
                             (RequiredSelectionSetWeight to Once) +
@@ -645,7 +793,8 @@ class ViaductsTest : KotestPropertyBase(iterations = 100) {
                             (FieldSelectionWeight to Once) +
                             (InlineFragmentWeight to Never) +
                             (FragmentSpreadWeight to Never) +
-                            (BanSelectionCoordinates to setOf("Query" to "x"))
+                            (BanSelectionCoordinates to setOf("Query" to "x")),
+                        engine2Enabled = engine2Enabled,
                     ).bind()
                     instr to viaduct
                 }
@@ -662,6 +811,7 @@ class ViaductsTest : KotestPropertyBase(iterations = 100) {
                 assertTrue(logs.all { it.time >= 100.milliseconds })
             }
 
+        // Opaque variable callbacks with their own RSS remain a legacy-runtime API.
         @Test
         fun `ExerciseRequiredSelectionsWeight`(): Unit =
             runBlocking {
@@ -683,8 +833,9 @@ class ViaductsTest : KotestPropertyBase(iterations = 100) {
                 }
             }
 
-        @Test
-        fun `DeterministicResolveWeight`(): Unit =
+        @ParameterizedTest
+        @ValueSource(booleans = [false, true])
+        fun `DeterministicResolveWeight`(engine2Enabled: Boolean): Unit =
             runBlocking {
                 val arb = arbitrary {
                     val deterministicResolveWeight = Arb.of(0.0, 1.0).bind()
@@ -695,7 +846,8 @@ class ViaductsTest : KotestPropertyBase(iterations = 100) {
                             (RequiredSelectionSetWeight to CompoundingWeight(1.0, 1)) +
                             (DeterministicResolveWeight to deterministicResolveWeight) +
                             (VariablesResolverFactory to instr) +
-                            (VariableWeight to 1.0)
+                            (VariableWeight to 1.0),
+                        engine2Enabled = engine2Enabled,
                     ).bind()
 
                     repeat(50) {
@@ -724,8 +876,136 @@ class ViaductsTest : KotestPropertyBase(iterations = 100) {
 
     @Nested
     inner class CheckerExecutorTest {
-        @Test
-        fun FieldCheckerWeight(): Unit =
+        @ParameterizedTest(name = "checker variables engine2={0}")
+        @ValueSource(booleans = [false, true])
+        fun `checker variables without required selections execute through generated services`(engine2Enabled: Boolean): Unit =
+            runBlocking {
+                val variables = VariablesResolver.Instrumented(EngineVariablesResolver.const(mapOf("provided" to 37)))
+                val required = RequiredSelectionSet(
+                    selections = SelectionsParser.parse("Query", "policy(value: \$provided)"),
+                    variablesResolvers = listOf(variables),
+                    forChecker = true,
+                )
+                val checkers = CheckerExecutor.Factory.Instrumented { params ->
+                    CheckerExecutor.Factory.Arbitrary.createCheckerExecutor(
+                        params.copy(
+                            requiredSelectionSets = if (params.key == ("Query" to "value")) mapOf("input" to required) else emptyMap(),
+                            exerciseRequiredSelections = true,
+                        ),
+                    )
+                }
+                val fields = FieldResolver.Factory.Instrumented(object : FieldResolver.Factory {
+                    override fun createFieldResolver(params: FieldResolver.Factory.Params): FieldResolver =
+                        FieldResolver { selector, _ ->
+                            if (params.coordinate.second == "policy") selector.arguments.getValue("value") else 7
+                        }
+                })
+                val viaduct = Arb.viaduct(
+                    "extend type Query { value: Int! @resolver, policy(value: Int!): Int! @resolver }".asViaductSchema,
+                    cfg + (FieldCheckerWeight to 1.0) + (CheckerExecutorFactory to checkers) + (FieldResolverFactory to fields),
+                    engine2Enabled,
+                ).next(RandomSource.seeded(0))
+
+                val result = viaduct.execute(ExecutionInput.create("{ value }"))
+
+                assertTrue(result.errors.isEmpty(), result.toSpecification().toString())
+                assertEquals(mapOf("value" to 7), result.getData())
+                assertEquals(setOf(mapOf("provided" to 37)), variables.recorder.log.map { it.result.getOrThrow() }.toSet())
+                assertEquals(setOf(mapOf("value" to 37)), fields.resolver("Query" to "policy").recorder.log.map { it.arg.selector.arguments }.toSet())
+                val checkerInput = checkers.fieldChecker("Query" to "value").recorder.arg.objectDataMap.getValue("input")
+                assertEquals(37, checkerInput.fetch("policy"))
+            }
+
+        @ParameterizedTest(name = "checker variables with required selections engine2={0}")
+        @ValueSource(booleans = [false, true])
+        fun `checker variables with required selections retain runtime support and receive a generator diagnostic`(engine2Enabled: Boolean) {
+            val nested = RequiredSelectionSet(SelectionsParser.parse("Query", "source"), emptyList(), forChecker = true)
+            val variables = VariablesResolver.Instrumented(object : EngineVariablesResolver {
+                override val variableNames: Set<String> = setOf("provided")
+                override val requiredSelectionSet: RequiredSelectionSet = nested
+
+                override suspend fun resolve(
+                    ctx: EngineVariablesResolver.ResolveCtx,
+                    context: EngineExecutionContext,
+                ): Map<String, Any?> = mapOf("provided" to ctx.objectData.fetch("source"))
+            })
+            val required = RequiredSelectionSet(
+                selections = SelectionsParser.parse("Query", "policy(value: \$provided)"),
+                variablesResolvers = listOf(variables),
+                forChecker = true,
+            )
+            val checkers = CheckerExecutor.Factory.Instrumented { params ->
+                CheckerExecutor.Factory.Arbitrary.createCheckerExecutor(
+                    params.copy(
+                        requiredSelectionSets = if (params.key == ("Query" to "value")) mapOf("input" to required) else emptyMap(),
+                        exerciseRequiredSelections = true,
+                    ),
+                )
+            }
+            val fields = FieldResolver.Factory.Instrumented(object : FieldResolver.Factory {
+                override fun createFieldResolver(params: FieldResolver.Factory.Params): FieldResolver =
+                    FieldResolver { selector, _ ->
+                        when (params.coordinate.second) {
+                            "policy" -> selector.arguments.getValue("value")
+                            "source" -> 37
+                            else -> 7
+                        }
+                    }
+            })
+            val generate = {
+                Arb.viaduct(
+                    "extend type Query { value: Int! @resolver, policy(value: Int!): Int! @resolver, source: Int! @resolver }".asViaductSchema,
+                    cfg + (FieldCheckerWeight to 1.0) + (CheckerExecutorFactory to checkers) + (FieldResolverFactory to fields),
+                    engine2Enabled,
+                ).next(RandomSource.seeded(0))
+            }
+
+            if (engine2Enabled) {
+                val failure = assertThrows<IllegalArgumentException> {
+                    generate()
+                }
+                assertTrue(failure.message.orEmpty().contains("field checker Query.value"))
+                assertTrue(failure.message.orEmpty().contains("variables callbacks with their own required selection sets"))
+            } else {
+                val result = runBlocking { generate().execute(ExecutionInput.create("{ value }")) }
+                assertTrue(result.errors.isEmpty(), result.toSpecification().toString())
+                assertEquals(mapOf("value" to 7), result.getData())
+                assertEquals(setOf(mapOf("provided" to 37)), variables.recorder.log.map { it.result.getOrThrow() }.toSet())
+                assertEquals(setOf(mapOf("value" to 37)), fields.resolver("Query" to "policy").recorder.log.map { it.arg.selector.arguments }.toSet())
+            }
+        }
+
+        @ParameterizedTest(name = "reachable checker failure engine2={0}")
+        @ValueSource(booleans = [false, true])
+        fun `each reachable checker reports its exception without relying on downstream execution`(engine2Enabled: Boolean): Unit =
+            runBlocking {
+                val schema = "extend type Query { obj: Obj! @resolver } type Obj { x: Int! }".asViaductSchema
+                for (failingChecker in listOf("Query" to "obj", "Obj" to null, "Obj" to "x")) {
+                    val checkers = CheckerExecutor.Factory.Instrumented { params ->
+                        CheckerExecutor.Factory.Arbitrary.createCheckerExecutor(
+                            params.copy(cfg = params.cfg + (CheckerExceptionWeight to if (params.key == failingChecker) 1.0 else 0.0)),
+                        )
+                    }
+                    val viaduct = Arb.viaduct(
+                        schema,
+                        cfg + (FieldCheckerWeight to 1.0) + (TypeCheckerWeight to 1.0) + (CheckerExecutorFactory to checkers),
+                        engine2Enabled,
+                    ).next(RandomSource.seeded(paritySeed))
+
+                    val result = viaduct.execute(ExecutionInput.create("{ obj { x } }"))
+
+                    val calls = checkers.checkers.getValue(failingChecker).recorder.log
+                    assertEquals(1, calls.size, failingChecker.toString())
+                    assertTrue(calls.single().result.isFailure, failingChecker.toString())
+                    assertTrue(checkers.checkers.filterKeys { it != failingChecker }.values.flatMap { it.recorder.log }.all { it.result.isSuccess })
+                    assertTrue(result.errors.isNotEmpty())
+                    assertEquals(null, result.getData())
+                }
+            }
+
+        @ParameterizedTest
+        @ValueSource(booleans = [false, true])
+        fun FieldCheckerWeight(engine2Enabled: Boolean): Unit =
             runBlocking {
                 val schema = "extend type Query { x:Int @resolver }".asViaductSchema
                 val arb = arbitrary {
@@ -734,7 +1014,8 @@ class ViaductsTest : KotestPropertyBase(iterations = 100) {
                         schema,
                         cfg +
                             (FieldCheckerWeight to 1.0) +
-                            (CheckerExecutorFactory to instr)
+                            (CheckerExecutorFactory to instr),
+                        engine2Enabled = engine2Enabled,
                     ).bind()
 
                     viaduct.executeAsync(ExecutionInput.create("{ x }")).join()
@@ -765,8 +1046,9 @@ class ViaductsTest : KotestPropertyBase(iterations = 100) {
                 }
             }
 
-        @Test
-        fun TypeCheckerWeight(): Unit =
+        @ParameterizedTest
+        @ValueSource(booleans = [false, true])
+        fun TypeCheckerWeight(engine2Enabled: Boolean): Unit =
             runBlocking {
                 val schema = """
                     extend type Query { obj:Obj @resolver }
@@ -779,7 +1061,8 @@ class ViaductsTest : KotestPropertyBase(iterations = 100) {
                         schema,
                         cfg +
                             (TypeCheckerWeight to 1.0) +
-                            (CheckerExecutorFactory to instr)
+                            (CheckerExecutorFactory to instr),
+                        engine2Enabled = engine2Enabled,
                     ).bind()
 
                     viaduct.executeAsync(ExecutionInput.create("{obj { x } }")).join()
@@ -791,8 +1074,9 @@ class ViaductsTest : KotestPropertyBase(iterations = 100) {
                 }
             }
 
-        @Test
-        fun CheckerErrorWeight(): Unit =
+        @ParameterizedTest
+        @ValueSource(booleans = [false, true])
+        fun CheckerErrorWeight(engine2Enabled: Boolean): Unit =
             runBlocking {
                 val schema = "extend type Query { x:Int! @resolver }".asViaductSchema
                 val input = ExecutionInput.create("{x}")
@@ -803,7 +1087,8 @@ class ViaductsTest : KotestPropertyBase(iterations = 100) {
                         schema,
                         cfg +
                             (FieldCheckerWeight to 1.0) +
-                            (CheckerErrorWeight to weight)
+                            (CheckerErrorWeight to weight),
+                        engine2Enabled = engine2Enabled,
                     ).bind()
                     val result = viaduct.executeAsync(input).join()
                     weight to result
@@ -818,8 +1103,9 @@ class ViaductsTest : KotestPropertyBase(iterations = 100) {
                 }
             }
 
-        @Test
-        fun CheckerExceptionWeight(): Unit =
+        @ParameterizedTest
+        @ValueSource(booleans = [false, true])
+        fun CheckerExceptionWeight(engine2Enabled: Boolean): Unit =
             runBlocking {
                 val schema = """
                 extend type Query { obj:Obj! @resolver }
@@ -836,7 +1122,8 @@ class ViaductsTest : KotestPropertyBase(iterations = 100) {
                             (FieldCheckerWeight to .25) +
                             (TypeCheckerWeight to .25) +
                             (CheckerExceptionWeight to weight) +
-                            (CheckerExecutorFactory to instr)
+                            (CheckerExecutorFactory to instr),
+                        engine2Enabled = engine2Enabled,
                     ).bind()
                     val result = viaduct.executeAsync(input).join()
                     Triple(weight, instr, result)
@@ -850,7 +1137,9 @@ class ViaductsTest : KotestPropertyBase(iterations = 100) {
                     )
 
                     if (weight == 1.0 && checkers.isNotEmpty()) {
-                        checkers.all { it.recorder.result.isFailure } &&
+                        // An upstream denial can prevent downstream checkers from being invoked.
+                        val calls = checkers.flatMap { it.recorder.log }
+                        calls.isNotEmpty() && calls.all { it.result.isFailure } &&
                             result.errors.isNotEmpty() &&
                             result.getData() == null
                     } else {
@@ -859,8 +1148,9 @@ class ViaductsTest : KotestPropertyBase(iterations = 100) {
                 }
             }
 
-        @Test
-        fun ExerciseRequiredSelectionsWeight(): Unit =
+        @ParameterizedTest
+        @ValueSource(booleans = [false, true])
+        fun ExerciseRequiredSelectionsWeight(engine2Enabled: Boolean): Unit =
             runBlocking {
                 val schema = """
                     extend type Query { obj:Obj! @resolver }
@@ -875,7 +1165,8 @@ class ViaductsTest : KotestPropertyBase(iterations = 100) {
                             (FieldCheckerWeight to 1.0) +
                             (TypeCheckerWeight to 1.0) +
                             (RequiredSelectionSetWeight to Once) +
-                            (ExerciseRequiredSelectionsWeight to exerciseWeight)
+                            (ExerciseRequiredSelectionsWeight to exerciseWeight),
+                        engine2Enabled = engine2Enabled,
                     ).bind()
 
                     viaduct.executeAsync(ExecutionInput.create("{obj { x }}")).join()
@@ -884,8 +1175,9 @@ class ViaductsTest : KotestPropertyBase(iterations = 100) {
                 arb.forAll { result -> result.errors.isEmpty() }
             }
 
-        @Test
-        fun RequiredSelectionSetWeight(): Unit =
+        @ParameterizedTest
+        @ValueSource(booleans = [false, true])
+        fun RequiredSelectionSetWeight(engine2Enabled: Boolean): Unit =
             runBlocking {
                 val schema = """
                     extend type Query { obj:Obj! @resolver }
@@ -900,7 +1192,8 @@ class ViaductsTest : KotestPropertyBase(iterations = 100) {
                             (FieldCheckerWeight to 1.0) +
                             (TypeCheckerWeight to 1.0) +
                             (CheckerExecutorFactory to instr) +
-                            (RequiredSelectionSetWeight to Once)
+                            (RequiredSelectionSetWeight to Once),
+                        engine2Enabled = engine2Enabled,
                     ).bind()
 
                     viaduct.executeAsync(ExecutionInput.create("{ obj { x } }")).join()
@@ -919,8 +1212,9 @@ class ViaductsTest : KotestPropertyBase(iterations = 100) {
                 }
             }
 
-        @Test
-        fun DeterministicResolveWeight(): Unit =
+        @ParameterizedTest
+        @ValueSource(booleans = [false, true])
+        fun DeterministicResolveWeight(engine2Enabled: Boolean): Unit =
             runBlocking {
                 val schema = "extend type Query { x:Int @resolver }".asViaductSchema
 
@@ -934,7 +1228,8 @@ class ViaductsTest : KotestPropertyBase(iterations = 100) {
                             (CheckerExceptionWeight to .5) +
                             (CheckerErrorWeight to .5) +
                             (CheckerExecutorFactory to instr) +
-                            (DeterministicResolveWeight to deterministicResolveWeight)
+                            (DeterministicResolveWeight to deterministicResolveWeight),
+                        engine2Enabled = engine2Enabled,
                     ).bind()
 
                     repeat(50) {
@@ -983,8 +1278,9 @@ class ViaductsTest : KotestPropertyBase(iterations = 100) {
                 }
             }
 
-        @Test
-        fun ResolverLatencyMillis(): Unit =
+        @ParameterizedTest
+        @ValueSource(booleans = [false, true])
+        fun ResolverLatencyMillis(engine2Enabled: Boolean): Unit =
             runBlocking {
                 val arb = arbitrary {
                     val instr = CheckerExecutor.Factory.Instrumented()
@@ -998,7 +1294,8 @@ class ViaductsTest : KotestPropertyBase(iterations = 100) {
                             (FieldCheckerWeight to 1.0) +
                             (TypeCheckerWeight to 1.0) +
                             (CheckerExecutorFactory to instr) +
-                            (ResolverLatencyMillis to 100.asLongRange())
+                            (ResolverLatencyMillis to 100.asLongRange()),
+                        engine2Enabled = engine2Enabled,
                     ).bind()
 
                     viaduct.executeAsync(ExecutionInput.create("{ obj { x } }")).join()
@@ -1086,6 +1383,7 @@ class ViaductsTest : KotestPropertyBase(iterations = 100) {
     }
 
     companion object {
+        private val paritySeed = defaultSeed()
         val codec = DefaultGlobalIDCodec()
 
         fun arbId(typeName: String = "Foo"): Arb<String> =

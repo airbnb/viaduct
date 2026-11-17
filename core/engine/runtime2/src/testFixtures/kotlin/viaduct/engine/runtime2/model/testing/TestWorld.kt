@@ -146,15 +146,26 @@ class TestWorld private constructor(
             schemaSDL: String,
             fieldCheckers: (ViaductAndGJSchema) -> Map<ViaductSchema.ObjectField, FieldCheckerResolver> = { emptyMap() },
             typeCheckers: (ViaductAndGJSchema) -> Map<ViaductSchema.Object, TypeCheckerResolver> = { emptyMap() },
+            scriptBindings: Map<String, Any?> = emptyMap(),
         ): TestWorld {
-            val dsl = ResolverTestDsl.parse(schemaSDL)
+            val dsl = ResolverTestDsl.parse(schemaSDL, scriptBindings)
             return create(
                 schemaSDL = dsl.schemaSDL,
                 sourceSchemaSDL = schemaSDL,
                 nodeResolvers = dsl::nodeResolvers,
                 fieldResolvers = dsl::fieldResolvers,
-                fieldCheckers = fieldCheckers,
-                typeCheckers = typeCheckers,
+                fieldCheckers = { schema ->
+                    val scripted = dsl.fieldCheckers(schema)
+                    val supplied = fieldCheckers(schema)
+                    require(scripted.keys.intersect(supplied.keys).isEmpty()) { "A field checker is declared by both DSL and Kotlin" }
+                    scripted + supplied
+                },
+                typeCheckers = { schema ->
+                    val scripted = dsl.typeCheckers(schema)
+                    val supplied = typeCheckers(schema)
+                    require(scripted.keys.intersect(supplied.keys).isEmpty()) { "A type checker is declared by both DSL and Kotlin" }
+                    scripted + supplied
+                },
                 variableProviders = dsl::variableProviders,
             )
         }

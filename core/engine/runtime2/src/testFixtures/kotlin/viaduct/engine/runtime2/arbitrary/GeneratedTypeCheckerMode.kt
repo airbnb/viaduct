@@ -16,6 +16,7 @@ import viaduct.engine.runtime2.model.selectionForestOf
 import viaduct.engine.runtime2.model.testing.fragmentFrom
 import viaduct.engine.runtime2.model.usedVariables
 import viaduct.engine.runtime2.schema.ViaductAndGJSchema
+import viaduct.engine.runtime2.schema.lowering.isSyntheticName
 import viaduct.graphql.schema.ViaductSchema
 
 /** Execution-profile input; ordinary generated worlds remain type-checker free. */
@@ -50,7 +51,7 @@ internal fun ArbitraryRegistry.generatedTypeCheckers(
         .associateWith { type ->
             val passiveFields = type.fields.filter { field ->
                 field.args.isEmpty() && field.type.baseTypeDef is ViaductSchema.SimpleTypeDef &&
-                    !field.name.contains("V_A") && !field.name.startsWith("__") &&
+                    !isSyntheticName(field.name) && !field.name.startsWith("__") &&
                     FieldCoordinate(type.name, field.name) !in fieldResolverCoordinates
             }.sortedBy { it.name }.take(2)
 

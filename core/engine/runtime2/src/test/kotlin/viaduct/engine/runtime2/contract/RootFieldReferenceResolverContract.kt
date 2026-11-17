@@ -24,9 +24,7 @@ import viaduct.engine.runtime2.model.outputValue
 import viaduct.engine.runtime2.model.registry.fieldResolverOf
 import viaduct.engine.runtime2.model.registry.fromArgument
 import viaduct.engine.runtime2.model.registry.nodeResolverOf
-import viaduct.engine.runtime2.model.registry.selectiveFieldResolverOf
 import viaduct.engine.runtime2.model.requireObjectField
-import viaduct.engine.runtime2.model.requireType
 import viaduct.engine.runtime2.model.testing.TestWorld
 import viaduct.engine.runtime2.model.testing.emptyFragmentOf
 import viaduct.engine.runtime2.model.testing.fragmentFrom
@@ -153,81 +151,24 @@ interface RootFieldReferenceResolverContract : ResolverContract {
 
     @Test
     fun `root-field references publish scalar and enum values at every consumer shape`() {
-        val testWorld =
-            TestWorld.fromSDL(
-                schemaSDL =
-                    """
-                    type Query {
-                      container: Container!
-                      factory: Factory
-                      indirectNumber: Int!
-                    }
-
-                    type Container {
-                      numbers: [Int!]!
-                      status: Status!
-                    }
-
-                    type Factory {
-                      number(value: Int!): Int!
-                      status: Status!
-                    }
-
-                    enum Status {
-                      READY
-                    }
-                    """.trimIndent(),
-                fieldResolvers = { schema ->
-                    val container = schema.loweredSchema.requireObjectField("Query", "container")
-                    val factory = schema.loweredSchema.requireObjectField("Query", "factory")
-                    val indirectNumber = schema.loweredSchema.requireObjectField("Query", "indirectNumber")
-                    val number = schema.loweredSchema.requireObjectField("Factory", "number")
-                    val status = schema.loweredSchema.requireObjectField("Factory", "status")
-                    mapOf(
-                        container to
-                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
-                                schema.loweredSchema.objectOf("Container") {
-                                    "numbers" setTo
-                                        listOf(
-                                            RootFieldReferenceData.of(
-                                                path = listOf(factory, number),
-                                                arguments = mapOf("value" to 1),
-                                            ),
-                                            2,
-                                            RootFieldReferenceData.of(
-                                                path = listOf(factory, number),
-                                                arguments = mapOf("value" to 3),
-                                            ),
-                                        )
-                                    "status" setTo
-                                        RootFieldReferenceData.of(
-                                            path = listOf(factory, status),
-                                            arguments = emptyMap(),
-                                        )
-                                }
-                            },
-                        factory to
-                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
-                                schema.loweredSchema.objectOf("Factory")
-                            },
-                        indirectNumber to
-                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
-                                RootFieldReferenceData.of(
-                                    path = listOf(factory, number),
-                                    arguments = mapOf("value" to 42),
-                                )
-                            },
-                        number to
-                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Factory")) { _, arguments ->
-                                arguments.fieldValues.getValue("value")
-                            },
-                        status to
-                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Factory")) { _, _ ->
-                                "READY"
-                            },
-                    )
-                },
-            )
+        val testWorld = TestWorld.fromDSL(
+            """
+            extend type Query {
+              container: Container! @resolver(script: "{'numbers': [ref('factory.number', {'value': 1}), 2, ref('factory.number', {'value': 3})], 'status': ref('factory.status')}")
+              factory: Factory @resolver(script: "{:}")
+              indirectNumber: Int! @resolver(script: "ref('factory.number', {'value': 42})")
+            }
+            type Container {
+              numbers: [Int!]!
+              status: Status!
+            }
+            type Factory {
+              number(value: Int!): Int! @resolver(script: "value")
+              status: Status! @resolver(script: "'READY'")
+            }
+            enum Status { READY }
+            """.trimIndent(),
+        )
         val world = testWorld.assumptions
         val result =
             resolveAndValidate(testWorld, "query { indirectNumber container { numbers status } }")
@@ -867,13 +808,24 @@ interface SelectiveRootFieldReferenceResolverContract : ResolverContract {
     @Test
     fun `supplies successor demand to a selective referenced target`() {
         var suppliedFields: Set<String>? = null
+        val invocationObserver = object : CorrectnessResolverObserver() {
+            override val onResolverInvocation: (ResolverInvocationObservation) -> Unit = { observation ->
+                super.onResolverInvocation(observation)
+                if (observation.field.containingDef.name == "Query" && observation.field.name == "target") {
+                    suppliedFields = observation.suppliedDemand
+                        ?.merge(observation.field.type.baseTypeDef as ViaductSchema.Object)
+                        ?.groundKeys()
+                        ?.mapTo(linkedSetOf()) { key -> key.field.name }
+                }
+            }
+        }
         val testWorld =
-            TestWorld.fromSDL(
+            TestWorld.fromDSL(
                 schemaSDL =
                     """
-                    type Query {
-                      container: Container!
-                      target: Product!
+                    extend type Query {
+                      container: Container! @resolver(script: "{'product': ref('target')}")
+                      target: Product! @resolver(isSelective: true, script: "{'base': 'input', 'extra': 'unselected'}")
                     }
 
                     type Container {
@@ -882,45 +834,14 @@ interface SelectiveRootFieldReferenceResolverContract : ResolverContract {
 
                     type Product {
                       base: String!
-                      computed: String!
+                      computed: String! @resolver(of: "base", script: "'computed-' + objectValue.base")
+                      extra: String
                     }
                     """.trimIndent(),
-                fieldResolvers = { schema ->
-                    val container = schema.loweredSchema.requireObjectField("Query", "container")
-                    val target = schema.loweredSchema.requireObjectField("Query", "target")
-                    val computed = schema.loweredSchema.requireObjectField("Product", "computed")
-                    val productType = schema.loweredSchema.requireType("Product") as ViaductSchema.Object
-                    mapOf(
-                        container to
-                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
-                                schema.loweredSchema.objectOf("Container") {
-                                    "product" setTo
-                                        RootFieldReferenceData.of(listOf(target), emptyMap())
-                                }
-                            },
-                        target to
-                            selectiveFieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) {
-                                    _,
-                                    _,
-                                    demand,
-                                ->
-                                suppliedFields =
-                                    demand
-                                        .merge(productType)
-                                        .groundKeys()
-                                        .mapTo(linkedSetOf()) { key -> key.field.name }
-                                schema.loweredSchema.objectOf("Product") { "base" setTo "input" }
-                            },
-                        computed to
-                            fieldResolverOf(
-                                schema.fragmentFrom("fragment ComputedInput on Product { base }"),
-                            ) { input, _ -> "computed-${input.outputValue("base")}" },
-                    )
-                },
             )
         val world = testWorld.assumptions
 
-        val result = resolveAndValidateObserved(testWorld, "query { container { product { computed } } }")
+        val result = resolveAndValidateObserved(testWorld, "query { container { product { computed } } }", resolutionObserver = invocationObserver)
         val container =
             assertIs<ObjectEngineResult>(
                 result.result.getCell(world.schema.contractKey("Query", "container")).get(),
@@ -931,6 +852,7 @@ interface SelectiveRootFieldReferenceResolverContract : ResolverContract {
             )
 
         assertEquals("computed-input", product.getCell(world.schema.contractKey("Product", "computed")).get())
+        assertEquals(setOf("base", "computed"), product.keys.map { it.field.name }.toSet())
         assertEquals(setOf("base", "computed"), suppliedFields)
     }
 }

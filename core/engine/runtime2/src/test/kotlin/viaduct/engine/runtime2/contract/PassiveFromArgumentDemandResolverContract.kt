@@ -16,7 +16,7 @@ interface PassiveFromArgumentDemandResolverContract : ResolverContract {
                     """
                     extend type Query {
                       container: Container!
-                        @resolver(script: "{'bridge': {'id': 1}}")
+                        @resolver(isSelective: $selectiveResolvers, script: "{'bridge': {'id': 1}}")
                       result(value: Int!): Int!
                         @resolver(
                           of: "container { trigger(value: ${'$'}value) }"
@@ -36,7 +36,7 @@ interface PassiveFromArgumentDemandResolverContract : ResolverContract {
                     type Bridge {
                       id: Int!
                       load: Entity!
-                        @resolver(of: "id", script: "{'name': 2}")
+                        @resolver(isSelective: $selectiveResolvers, of: "id", script: "{'name': 2}")
                     }
 
                     type Entity {

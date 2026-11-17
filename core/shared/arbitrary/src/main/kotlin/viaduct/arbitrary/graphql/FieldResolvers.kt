@@ -11,12 +11,15 @@ import viaduct.arbitrary.common.sampleWeight
 import viaduct.arbitrary.graphql.FieldResolver.Instrumented
 import viaduct.engine.api.Coordinate
 import viaduct.engine.api.EngineExecutionContext
+import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.RequiredSelectionSet
 import viaduct.engine.api.ResolverMetadata
+import viaduct.engine.api.VariablesResolver
 import viaduct.engine.api.gj
 import viaduct.engine.api.instrumentation.resolver.ResolverInstrumentationContext
 import viaduct.engine.api.spi.FieldResolverExecutor
+import viaduct.engine.api.spi.VariableFromFunctionDefinitions
 
 /**
  * Generate resolvers for object fields in the provided schema,
@@ -76,8 +79,9 @@ internal fun interface FieldResolverExecutorGen {
     companion object {
         operator fun invoke(env: ViaductGenEnv): FieldResolverExecutorGen =
             FieldResolverExecutorGen { coord ->
-                val objectSelectionSet = env.requiredSelectionSetGen.gen(coord, coord.first, forChecker = false, 0)
-                val querySelectionSet = env.requiredSelectionSetGen.gen(coord, env.schemas.schema.queryType.name, forChecker = false, 0)
+                // The declarative SPI shares one namespace across object and Query variables.
+                val objectSelectionSet = env.requiredSelectionSetGen.gen(coord, coord.first, forChecker = false, 0, variableNamePrefix = "object_")
+                val querySelectionSet = env.requiredSelectionSetGen.gen(coord, env.schemas.schema.queryType.name, forChecker = false, 0, variableNamePrefix = "query_")
                 val isSelective = env.resolverConfig.isSelective(coord)
                 val isBatching = env.resolverConfig.isBatching(coord)
 
@@ -122,6 +126,28 @@ private class FieldResolverExecutorImpl(
 ) : FieldResolverExecutor {
     override val resolverId: String = "${coord.first}.${coord.second}"
     override val metadata: ResolverMetadata = ResolverMetadata.forModern(resolverId)
+
+    // RSS-free callbacks can also expose the declarative provider SPI consumed by runtime2.
+    override val variablesFromFunctionProvider: VariableFromFunctionDefinitions? =
+        listOfNotNull(objectSelectionSet, querySelectionSet)
+            .flatMap { it.variablesResolvers }
+            .takeIf { resolvers -> resolvers.isNotEmpty() && resolvers.all { it.requiredSelectionSet == null } }
+            ?.let { resolvers ->
+                object : VariableFromFunctionDefinitions {
+                    override val variableNames: Set<String> = resolvers.flatMapTo(linkedSetOf()) { it.variableNames }
+
+                    override suspend fun provideVariables(
+                        objectData: EngineObjectData.Sync,
+                        arguments: Map<String, Any?>,
+                        context: EngineExecutionContext,
+                    ): Map<String, Any?> =
+                        buildMap {
+                            resolvers.forEach { resolver ->
+                                putAll(resolver.resolve(VariablesResolver.ResolveCtx(objectData, arguments), context))
+                            }
+                        }
+                }
+            }
 
     override suspend fun batchResolve(
         selectors: List<FieldResolverExecutor.Selector>,

@@ -29,6 +29,7 @@ dependencies {
     testImplementation(testFixtures(libs.viaduct.engine.api))
     testImplementation(testFixtures(libs.viaduct.service.api))
     testImplementation(libs.javax.inject)
+    testImplementation(libs.viaduct.engine.runtime2)
 }
 
 dokka {

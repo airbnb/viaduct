@@ -45,6 +45,21 @@ class MockFlagManager(
         /** A [FlagManager] that reports every flag as disabled. */
         val Disabled: FlagManager = const(false)
 
+        /** Pins tests to an engine without changing unrelated delegate behavior. */
+        @OptIn(InternalApi::class)
+        fun forEngine(
+            engine2Enabled: Boolean,
+            delegate: FlagManager = Disabled,
+        ): FlagManager =
+            object : FlagManager by delegate {
+                override fun isEnabled(flag: Flag): Boolean =
+                    when (flag) {
+                        FlagManager.Flags.ENGINE2_ENABLED -> engine2Enabled
+                        FlagManager.Flags.ENGINE2_PER_REQUEST -> false
+                        else -> delegate.isEnabled(flag)
+                    }
+            }
+
         /** Enables ordinary runtime behavior flags while leaving construction-time gates disabled. */
         val RuntimeFlagsEnabled: FlagManager =
             object : FlagManager {

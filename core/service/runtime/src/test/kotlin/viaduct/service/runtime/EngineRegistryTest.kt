@@ -19,17 +19,22 @@ import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.ValueSource
 import viaduct.engine.EngineFactory
-import viaduct.engine.EngineImpl
 import viaduct.engine.EngineKind
 import viaduct.engine.SchemaFactory
+import viaduct.engine.airbnb.EngineGraphQLJavaCompat
 import viaduct.engine.api.Engine
 import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.FullSchema
+import viaduct.engine.api.mocks.EngineTestModule
+import viaduct.engine.api.mocks.MockExecutorCodeInjector
 import viaduct.engine.runtime.context.CompositeLocalContext
 import viaduct.engine.runtime.execution.withThreadLocalCoroutineContext
 import viaduct.graphql.scopes.SchemaScopingMode
 import viaduct.service.api.SchemaId
+import viaduct.service.api.spi.mocks.MockFlagManager
 
 class EngineRegistryTest {
     companion object {
@@ -407,25 +412,28 @@ class EngineRegistryTest {
         assertNotNull(fullSchema!!.schema.queryType.getFieldDefinition("internalOnly"))
     }
 
-    @Test
-    fun `getFullSchemaGraphQLEngine_DONOTUSE - validates against full schema`() {
-        val factory = EngineRegistry.Factory(
-            createSchemaFactory(),
-            DocumentProviderFactory { _, _ -> NoOpPreparsedDocumentProvider() }
-        )
+    @ParameterizedTest
+    @ValueSource(booleans = [false, true])
+    fun `getFullSchemaGraphQLEngine_DONOTUSE - validates against full schema`(engine2Enabled: Boolean) {
         val sdl = """
-            directive @tenantLocal on FIELD_DEFINITION
-
-            type Query {
+            extend type Query {
                 publicField: String
                 internalOnly: String @tenantLocal
             }
         """.trimIndent()
-        val registry = factory.create(SchemaConfiguration.fromSdl(sdl))
-        registry.setEngineFactory(EngineFactory())
+        val module = EngineTestModule(sdl) {
+            fieldWithValue("Query" to "publicField", null)
+            fieldWithValue("Query" to "internalOnly", "internal")
+        }
+        val registry = StandardViaduct.Builder()
+            .withFlagManager(MockFlagManager.forEngine(engine2Enabled))
+            .withSchemaConfiguration(SchemaConfiguration.fromSdl(sdl))
+            .withTenantModuleInjectorFactory(MockExecutorCodeInjector(module.mockExecutorRegistry))
+            .withExecutorRegistryConfigSources(listOf(module.toModuleConfigSource()))
+            .build().engineRegistry
 
-        val baseEngine = registry.getEngine(SchemaId.Base) as EngineImpl
-        val fullSchemaEngine = registry.getFullSchemaEngine() as EngineImpl
+        val baseEngine = registry.getEngine(SchemaId.Base)
+        val fullSchemaEngine = registry.getFullSchemaEngine()
         val baseResult =
             executeQuery(
                 registry.getGraphQLEngine_DONOTUSE(SchemaId.Base),
@@ -442,6 +450,7 @@ class EngineRegistryTest {
             baseResult.errors.toString()
         )
         assertTrue(fullResult.errors.isEmpty(), fullResult.errors.toString())
+        assertEquals(mapOf("internalOnly" to "internal"), fullResult.getData())
     }
 
     @Test
@@ -467,11 +476,11 @@ class EngineRegistryTest {
 
     private fun executionInputFor(
         query: String,
-        engine: EngineImpl
+        engine: Engine
     ): ExecutionInput =
         ExecutionInput.newExecutionInput()
             .query(query)
-            .localContext(CompositeLocalContext.withContexts(engine.createEngineExecutionContext(null)))
+            .localContext(CompositeLocalContext.withContexts((engine as EngineGraphQLJavaCompat).createEngineExecutionContext(null)))
             .build()
 
     private fun executeQuery(

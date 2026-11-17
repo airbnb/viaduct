@@ -1,13 +1,19 @@
 package viaduct.engine.runtime2.coverage
 
 import java.io.Reader
+import viaduct.engine.runtime2.arbitrary.Config
+import viaduct.engine.runtime2.arbitrary.ListsEnabled
+import viaduct.engine.runtime2.arbitrary.ResolverFromArgumentVariablesEnabled
+import viaduct.engine.runtime2.arbitrary.ResolverFromObjectFieldVariablesEnabled
+import viaduct.engine.runtime2.arbitrary.ResolverFromQueryFieldVariablesEnabled
+import viaduct.engine.runtime2.arbitrary.ResolverVariablesEnabled
 import viaduct.engine.runtime2.propertytest.PropertyTestJson
 import viaduct.engine.runtime2.propertytest.ResolverTestCaseId
 import viaduct.engine.runtime2.propertytest.ResolverTestShardIds
 import viaduct.engine.runtime2.resolution.framework.ProviderCellOutcome
 
 /** Version of the RFC-271 coverage data and companion report, independent of saved-suite storage versions. */
-const val RESOLVER_COVERAGE_MODEL_VERSION = 9
+const val RESOLVER_COVERAGE_MODEL_VERSION = 11
 
 enum class ResolutionRole { INVOKED, SOURCE_SUPPLIED, ARGUMENT_ERROR_NOT_INVOKED, UNKNOWN }
 
@@ -63,6 +69,7 @@ data class ResolverCoverageRow(
     val argumentState: ArgumentState,
     val declaredOutputShape: DeclaredOutputShape,
     val outputKind: OutputKind,
+    val objectFragment: ObjectFragmentShape = ObjectFragmentShape.EMPTY,
 ) {
     val test: CoverageTestId get() = CoverageTestId(batchId, schemaId, registryId, queryId)
     val execution: CoverageExecution get() = CoverageExecution(runId, executionId, test)
@@ -197,15 +204,32 @@ data class ResolverCoverageAttribute(
     }
 }
 
+/**
+ * [code] is the short label RFC-271 results use, such as A, FO, FI, X and B for the core obligations. [applicableTo] names the
+ * generator switches whose evidence this obligation needs; with them off, zero support is a property of the config, not a gap.
+ */
 internal class ResolverCoverageMetricDefinition(
     val id: String,
+    val code: String,
     val evidenceKind: CoverageEvidenceKind,
     val description: String,
     val core: Boolean = false,
+    val applicableTo: (Config) -> Boolean = { true },
     val evidence: (ResolverCoverageMeasurement) -> ResolverCoverageEvidence,
 ) {
     fun measure(measurement: ResolverCoverageMeasurement): ResolverCoverageMetric = ResolverCoverageMetric(id, evidenceKind, description, evidence(measurement).support())
 }
+
+private fun Config.generatesArgumentBindings(): Boolean = this[ResolverFromArgumentVariablesEnabled]
+
+private fun Config.generatesObjectFieldBindings(): Boolean = this[ResolverVariablesEnabled] && this[ResolverFromObjectFieldVariablesEnabled]
+
+private fun Config.generatesProviderReads(): Boolean = this[ResolverVariablesEnabled] && (this[ResolverFromObjectFieldVariablesEnabled] || this[ResolverFromQueryFieldVariablesEnabled])
+
+private fun Config.generatesBothSources(): Boolean = generatesArgumentBindings() && generatesObjectFieldBindings()
+
+/** Obligations whose evidence [config] cannot generate, so a suite built from it reports them as not applicable rather than not exercised. */
+fun inapplicableObligationIds(config: Config): Set<String> = resolverCoverageMetricCatalog.filterNot { it.applicableTo(config) }.mapTo(sortedSetOf()) { it.id }
 
 internal class ResolverCoverageAttributeDefinition(
     val id: String,
@@ -272,12 +296,15 @@ internal val resolverCoverageAttributeDefinitions =
         OutputKind.values().forEach { kind ->
             add(resolverAttribute("output_kind:${kind.name.lowercase()}", "An invoked resolver returns a ${kind.name.lowercase()} result.") { it.outputKind == kind })
         }
+        objectFragmentTraits.forEach { trait -> add(resolverAttribute(trait.id, trait.description) { trait.matches(it.objectFragment) }) }
     }
 
 internal val resolverCoverageMetricCatalog =
     listOf(
         ResolverCoverageMetricDefinition(
             id = "both_sources_on_one_occurrence",
+            code = "A",
+            applicableTo = Config::generatesBothSources,
             evidenceKind = CoverageEvidenceKind.LOCAL_COMBINATION,
             description = "One invoked occurrence has both ARGUMENT and OBJECT_FIELD bindings.",
             core = true,
@@ -285,6 +312,8 @@ internal val resolverCoverageMetricCatalog =
         ),
         ResolverCoverageMetricDefinition(
             id = "shared_provider_fan_out",
+            code = "FO",
+            applicableTo = Config::generatesProviderReads,
             evidenceKind = CoverageEvidenceKind.DEPENDENCY_RELATIONSHIP,
             description = "One provider occurrence has recorded reads from at least two consumers.",
             core = true,
@@ -292,6 +321,8 @@ internal val resolverCoverageMetricCatalog =
         ),
         ResolverCoverageMetricDefinition(
             id = "multiple_provider_fan_in",
+            code = "FI",
+            applicableTo = Config::generatesProviderReads,
             evidenceKind = CoverageEvidenceKind.DEPENDENCY_RELATIONSHIP,
             description = "One consumer occurrence has recorded reads from at least two providers.",
             core = true,
@@ -299,6 +330,8 @@ internal val resolverCoverageMetricCatalog =
         ),
         ResolverCoverageMetricDefinition(
             id = "both_sources_within_one_execution",
+            code = "X",
+            applicableTo = Config::generatesBothSources,
             evidenceKind = CoverageEvidenceKind.EXECUTION_COEXISTENCE,
             description = "Argument and object-field bindings occur on invoked rows in one execution.",
             core = true,
@@ -306,6 +339,7 @@ internal val resolverCoverageMetricCatalog =
         ),
         ResolverCoverageMetricDefinition(
             id = "successful_and_failing_branches_within_one_execution",
+            code = "B",
             evidenceKind = CoverageEvidenceKind.EXECUTION_COEXISTENCE,
             description = "One execution has invoked non-error and error outputs.",
             core = true,
@@ -313,45 +347,69 @@ internal val resolverCoverageMetricCatalog =
         ),
         ResolverCoverageMetricDefinition(
             id = "list_object_field_error",
+            code = "LOE",
+            applicableTo = { it.generatesObjectFieldBindings() && it[ListsEnabled] },
             evidenceKind = CoverageEvidenceKind.LOCAL_COMBINATION,
             description = "One invoked occurrence is in a list element, uses an object-field binding, and returns an error.",
             evidence = ResolverCoverageMeasurement::listObjectFieldErrorEvidence,
         ),
         ResolverCoverageMetricDefinition(
             id = "resolver_output_contains_descendant",
+            code = "OD",
             evidenceKind = CoverageEvidenceKind.RESULT_TREE_PATH,
             description = "An invoked resolver occurrence is an ancestor of another invoked resolver in the result tree.",
             evidence = ResolverCoverageMeasurement::resolverOutputContainsDescendantEvidence,
         ),
         ResolverCoverageMetricDefinition(
             id = "descendant_reads_ancestor",
+            code = "DA",
+            applicableTo = Config::generatesProviderReads,
             evidenceKind = CoverageEvidenceKind.DEPENDENCY_RELATIONSHIP,
             description = "A provider's owning object is an ancestor of the resolver field that reads it.",
             evidence = ResolverCoverageMeasurement::descendantReadsAncestorEvidence,
         ),
         ResolverCoverageMetricDefinition(
             id = "provider_read_crosses_list_boundary",
+            code = "LX",
+            applicableTo = { it.generatesProviderReads() && it[ListsEnabled] },
             evidenceKind = CoverageEvidenceKind.DEPENDENCY_RELATIONSHIP,
             description = "A recorded provider read connects occurrences with different list-ancestor depths.",
             evidence = ResolverCoverageMeasurement::providerReadCrossesListBoundaryEvidence,
         ),
         ResolverCoverageMetricDefinition(
             id = "provider_dependency_diamond",
+            code = "DD",
+            applicableTo = Config::generatesProviderReads,
             evidenceKind = CoverageEvidenceKind.DEPENDENCY_RELATIONSHIP,
             description = "Recorded provider reads form a four-edge diamond from one provider through two consumers to one consumer.",
             evidence = ResolverCoverageMeasurement::providerDependencyDiamondEvidence,
         ),
         ResolverCoverageMetricDefinition(
             id = "provider_null_or_error_reaches_consumer",
+            code = "NE",
+            applicableTo = Config::generatesProviderReads,
             evidenceKind = CoverageEvidenceKind.DEPENDENCY_RELATIONSHIP,
             description = "A recorded read delivers a null or error provider outcome to a consumer occurrence.",
             evidence = ResolverCoverageMeasurement::providerNullOrErrorReachesConsumerEvidence,
         ),
-    )
+    ) +
+        objectFragmentObligations.map { obligation ->
+            ResolverCoverageMetricDefinition(
+                id = obligation.id,
+                code = obligation.code,
+                evidenceKind = CoverageEvidenceKind.LOCAL_COMBINATION,
+                description = obligation.description,
+                applicableTo = obligation.applicableTo,
+                evidence = { measurement -> measurement.occurrenceEvidence(obligation) },
+            )
+        }
 
 /** RFC-271's initial interaction obligations, identified by their catalog entries. */
 val RFC_271_CORE_OBLIGATION_IDS: Set<String> =
     resolverCoverageMetricCatalog.filter { it.core }.mapTo(sortedSetOf()) { it.id }
+
+/** Each catalog obligation's short code, such as A or FO, by metric ID. */
+val resolverCoverageMetricCodes: Map<String, String> = resolverCoverageMetricCatalog.associate { it.id to it.code }
 
 /** Versioned companion report for occurrence rows, obligations, resolver attributes, and analysis. */
 data class ResolverCoverageReport(
@@ -370,12 +428,16 @@ data class ResolverCoverageReport(
         val attributeIds = attributes.map { it.id }
         require(attributeIds.distinct().size == attributeIds.size) { "Duplicate resolver attribute" }
         require(resolverCoverageAttributeDefinitions.map { it.id }.all { it in attributeIds }) { "Coverage attributes omit a resolver attribute category" }
-        require(attributes.filter { it.id.startsWith("list_ancestor_count:") || it.id.startsWith("provider_path_depth:") && it.id != "provider_path_depth:none" }.all { it.support.occurrences > 0 }) {
+        require(attributes.filter { it.isOpenEnded() }.all { it.support.occurrences > 0 }) {
             "Open-ended resolver attributes must have observed support"
         }
         require(analysis.modelVersion == modelVersion) { "Coverage analysis uses a different model version" }
     }
 }
+
+private val openEndedAttributeId = Regex("(?:list_ancestor_count|object_fragment_depth|provider_path_depth):[0-9]+")
+
+private fun ResolverCoverageAttribute.isOpenEnded(): Boolean = id.isOpenEndedResolverAttribute()
 
 /** Support changes for one RFC obligation when comparing a candidate with a baseline. */
 data class CoverageSupportChange(
@@ -480,7 +542,7 @@ data class ResolverCoverageCandidateScore(
         }
     }
 
-    private fun supportFor(requirement: ResolverCoverageRequirement): Int =
+    fun supportFor(requirement: ResolverCoverageRequirement): Int =
         when (requirement.kind) {
             ResolverCoverageRequirementKind.OBLIGATION -> obligationTestSupport[requirement.id] ?: 0
             ResolverCoverageRequirementKind.ATTRIBUTE -> attributeTestSupport[requirement.id] ?: 0
@@ -676,7 +738,7 @@ fun ResolverCoverageReport.compareCandidate(
     )
 }
 
-private fun String.isOpenEndedResolverAttribute(): Boolean = Regex("(?:list_ancestor_count|provider_path_depth):[0-9]+").matches(this)
+private fun String.isOpenEndedResolverAttribute(): Boolean = openEndedAttributeId.matches(this)
 
 private fun compareAttributes(
     baseline: List<ResolverCoverageAttribute>,
@@ -724,7 +786,13 @@ object ResolverCoverageReportJson {
 }
 
 /** Explicit local obligations can include any number of attributes; absent obligations return zero. */
-class OccurrenceCoverageObligation(val id: String, val matches: (ResolverCoverageRow) -> Boolean)
+class OccurrenceCoverageObligation(
+    val id: String,
+    val description: String = id,
+    val code: String = id,
+    val applicableTo: (Config) -> Boolean = { true },
+    val matches: (ResolverCoverageRow) -> Boolean,
+)
 
 /** Only complete, correctness-checked campaigns should construct a measurement. */
 data class ResolverCoverageMeasurement(
@@ -753,7 +821,9 @@ data class ResolverCoverageMeasurement(
         ) { "Dependency coordinates conflict with recorded occurrences" }
     }
 
-    fun support(obligation: OccurrenceCoverageObligation): CoverageSupport = rows.filter { it.resolutionRole == ResolutionRole.INVOKED && obligation.matches(it) }.support()
+    fun support(obligation: OccurrenceCoverageObligation): CoverageSupport = occurrenceEvidence(obligation).support()
+
+    internal fun occurrenceEvidence(obligation: OccurrenceCoverageObligation) = rowsEvidence { it.resolutionRole == ResolutionRole.INVOKED && obligation.matches(it) }
 
     fun bothSourcesOnOneOccurrence(): CoverageSupport = bothSourcesOnOneOccurrenceEvidence().support()
 
@@ -927,11 +997,15 @@ private fun CoverageTestId.withSuiteScopedSchemaId(): CoverageTestId {
 }
 
 internal fun resolverCoverageAttributes(measurement: ResolverCoverageMeasurement): List<ResolverCoverageAttribute> {
-    val exactListDepths = measurement.rows.filter { it.resolutionRole == ResolutionRole.INVOKED }.map { it.listAncestorCount }.distinct().sorted()
-    val exactProviderPathDepths =
-        measurement.rows.filter { it.resolutionRole == ResolutionRole.INVOKED }.mapNotNull { it.maxProviderPathDepth }.distinct().sorted()
+    val invoked = measurement.rows.filter { it.resolutionRole == ResolutionRole.INVOKED }
+    val exactListDepths = invoked.map { it.listAncestorCount }.distinct().sorted()
+    val exactProviderPathDepths = invoked.mapNotNull { it.maxProviderPathDepth }.distinct().sorted()
+    val exactFragmentDepths = invoked.map { it.objectFragment.depth }.distinct().sorted()
     val openEndedAttributes =
         buildList {
+            exactFragmentDepths.forEach { depth ->
+                add(resolverAttribute("object_fragment_depth:$depth", "An invoked resolver's object fragment is exactly $depth selection levels deep.") { it.objectFragment.depth == depth })
+            }
             exactListDepths.forEach { depth ->
                 add(resolverAttribute("list_ancestor_count:$depth", "An invoked resolver has exactly $depth list ancestors.") { it.listAncestorCount == depth })
             }

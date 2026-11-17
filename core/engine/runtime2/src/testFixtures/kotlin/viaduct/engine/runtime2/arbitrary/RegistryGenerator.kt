@@ -369,7 +369,7 @@ class ArbitraryRegistry internal constructor(
     fun resolutionApplicationCounts(): Map<FieldCoordinate, Long> = applicationCounts.toMap()
 
     fun resolverProgram(sourceField: FieldCoordinate): ResolverProgramKind =
-        if (sourceField.fieldName == "V_A_typename") {
+        if (sourceField.fieldName == "_viaduct_internal__typename") {
             ResolverProgramKind.CONSTANT
         } else {
             resolverPrograms.getValue(sourceField)
@@ -390,7 +390,7 @@ class ArbitraryRegistry internal constructor(
         canonicalField: FieldCoordinate,
     ): Boolean =
         when {
-            canonicalField.fieldName == "V_A_typename" -> false
+            canonicalField.fieldName == "_viaduct_internal__typename" -> false
             canonicalField.isNodeLoader(schema) -> false
             else -> {
                 val sourceField = sourceField(canonicalField)

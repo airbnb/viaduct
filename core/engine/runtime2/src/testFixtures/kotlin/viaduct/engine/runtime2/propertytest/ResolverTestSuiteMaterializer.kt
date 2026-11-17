@@ -2,12 +2,10 @@
 
 package viaduct.engine.runtime2.propertytest
 
-import java.nio.file.Files
 import java.nio.file.Path
 import kotlinx.coroutines.runBlocking
 import viaduct.engine.runtime2.arbitrary.ResolverTestBatch
 import viaduct.engine.runtime2.arbitrary.generateResolverTestBatches
-import viaduct.utils.string.sha256Hash
 
 object ResolverTestSuiteMaterializer {
     @JvmStatic
@@ -26,42 +24,14 @@ object ResolverTestSuiteMaterializer {
         resourcesRoot: Path,
         definition: ResolverTestSuiteDefinition,
     ) {
-        val batches = runBlocking { generateResolverTestBatches(definition.counts, definition.config, definition.seed) }
-        write(resourcesRoot, definition, batches)
+        val generated = runBlocking { generateResolverTestBatches(definition.counts, definition.config, definition.seed) }
+        ResolverTestSuite.fromGenerated(definition, generated).retainingDefinitionBatches().writeTo(resourcesRoot)
     }
 
-    /** Stores every batch, including batches that share a schema; their SDL is written once. */
     fun write(
         resourcesRoot: Path,
         definition: ResolverTestSuiteDefinition,
         generated: List<ResolverTestBatch>,
         partBytes: Int = RESOLVER_TEST_SUITE_PART_BYTES,
-    ) {
-        Files.createDirectories(resourcesRoot.resolve(suiteArchiveResource(definition.id)).parent)
-        val shards = linkedMapOf<String, ByteArray>()
-        val sdlBySchema = linkedMapOf<String, ByteArray>()
-        val batches =
-            definition.numberBatches(generated).map { (batchId, batch, ids) ->
-                val shard = ResolverTestShardCodec.encode(batchId, batch)
-                val reencoded = ResolverTestShardCodec.encode(batchId, ResolverTestShardCodec.decode(batchId, shard.sdl, shard.json))
-                check(reencoded.sdl.contentEquals(shard.sdl) && reencoded.json.contentEquals(shard.json)) {
-                    "Suite ${definition.id} batch $batchId does not round-trip through the shard codec"
-                }
-                check(sdlBySchema.getOrPut(ids.schema) { shard.sdl }.contentEquals(shard.sdl)) {
-                    "Suite ${definition.id} has distinct schemas whose IDs collide at ${ids.schema}"
-                }
-                shards[shardEntry(batchId)] = shard.json
-                ResolverTestSuiteBatch(batchId, ids.schema, shard.json.sha256Hash(), ids.registry, ids.queries)
-            }
-        val schemas = sdlBySchema.map { (schemaId, sdl) -> ResolverTestSuiteSchema(schemaId, sdl.sha256Hash()) }
-        val entries =
-            linkedMapOf(MANIFEST_ENTRY to PropertyTestJson.write(definition.manifest(schemas, batches)).toByteArray()) +
-                sdlBySchema.mapKeys { (schemaId, _) -> sdlEntry(schemaId) } +
-                shards
-        val parts = writeResolverTestSuiteParts(entries, partBytes)
-        parts.forEachIndexed { index, part -> Files.write(resourcesRoot.resolve(suiteArchiveResource(definition.id, index + 1)), part) }
-        // A regenerated suite that shrank must not leave a stale trailing part for the loader to merge.
-        var stalePart = parts.size + 1
-        while (Files.deleteIfExists(resourcesRoot.resolve(suiteArchiveResource(definition.id, stalePart)))) stalePart += 1
-    }
+    ) = ResolverTestSuite.fromGenerated(definition, generated).writeTo(resourcesRoot, partBytes)
 }

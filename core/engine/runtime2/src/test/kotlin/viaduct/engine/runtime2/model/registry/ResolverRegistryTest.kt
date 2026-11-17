@@ -1148,7 +1148,7 @@ class ResolverRegistryTest {
 
     @Test
     fun `rejects field resolvers for node id and generated typename fields`() {
-        listOf("id", "V_A_typename").forEach { fieldName ->
+        listOf("id", "_viaduct_internal__typename").forEach { fieldName ->
             assertFailsWith<IllegalArgumentException> {
                 TestWorld.fromSDL(
                     schemaSDL = SCHEMA_SDL,

@@ -133,6 +133,8 @@ class ResolverCoverageMeasurementTest {
                         "provider_read_crosses_list_boundary" to CoverageEvidenceKind.DEPENDENCY_RELATIONSHIP,
                         "provider_dependency_diamond" to CoverageEvidenceKind.DEPENDENCY_RELATIONSHIP,
                         "provider_null_or_error_reaches_consumer" to CoverageEvidenceKind.DEPENDENCY_RELATIONSHIP,
+                        "object_fragment_resolver_field_in_list_element" to CoverageEvidenceKind.LOCAL_COMBINATION,
+                        "object_fragment_reads_failed_resolver_field" to CoverageEvidenceKind.LOCAL_COMBINATION,
                     ),
                 attributes =
                     setOf(
@@ -158,6 +160,11 @@ class ResolverCoverageMeasurementTest {
                         "output_kind:list",
                         "output_kind:null",
                         "output_kind:error",
+                        "object_fragment:reads_resolver_field",
+                        "object_fragment:reads_nested_resolver_field",
+                        "object_fragment:crosses_list",
+                        "object_fragment:type_conditioned",
+                        "object_fragment:traverses_parent",
                     ) + bindingSourceAttributeIds(),
             ),
             MetricAndAttributeCatalog(

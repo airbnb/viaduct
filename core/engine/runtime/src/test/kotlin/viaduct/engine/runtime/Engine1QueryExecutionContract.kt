@@ -73,6 +73,7 @@ interface Engine1QueryExecutionContract : QueryExecutionContract {
                 QueryRunner(
                     { query, variables -> runQuery(query, variables) },
                     { query, variables, timeoutMillis -> runQueryWithin(query, variables, timeoutMillis) },
+                    engine,
                 )
             )
         }

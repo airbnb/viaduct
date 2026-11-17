@@ -142,6 +142,7 @@ internal class FieldResolverTask(
                 occurrence,
                 FieldResolverOccurrence(selection, occurrence.root, path, id, resolver, emptyList(), dependencies.instantiateFragments(id), dependencies),
                 providerReads = emptyList(),
+                checkerScheduled = true,
                 creator = creator,
             )
         }

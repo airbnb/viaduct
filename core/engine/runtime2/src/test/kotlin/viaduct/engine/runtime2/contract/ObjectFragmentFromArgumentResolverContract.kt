@@ -2,18 +2,12 @@ package viaduct.engine.runtime2.contract
 
 import kotlin.test.assertEquals
 import org.junit.jupiter.api.Test
-import viaduct.engine.runtime2.model.Arguments
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.ResolverOccurrenceId
 import viaduct.engine.runtime2.model.VariableBinding
-import viaduct.engine.runtime2.model.emptyFragmentOf
-import viaduct.engine.runtime2.model.registry.fieldResolverOf
-import viaduct.engine.runtime2.model.registry.fromArgument
 import viaduct.engine.runtime2.model.requireField
 import viaduct.engine.runtime2.model.requireObjectField
 import viaduct.engine.runtime2.model.testing.TestWorld
-import viaduct.engine.runtime2.model.testing.emptyFragmentOf
-import viaduct.engine.runtime2.model.testing.fragmentFrom
 
 /**
  * Contract for nonempty object fragments with variables bound from resolver arguments.
@@ -95,44 +89,18 @@ interface ObjectFragmentFromArgumentResolverContract :
 
     @Test
     fun `resolves a fromArgument variable whose name differs from its argument`() {
-        val resultFragment =
+        val testWorld = TestWorld.fromDSL(
             """
-            fragment Result on Query {
-              consume(value: ${'$'}argumentValue)
+            extend type Query {
+              result(value: Int!): Int! @resolver(
+                of: "consume(value: ${'$'}argumentValue)"
+                variables: {name: "argumentValue", fromArgument: ["value"]}
+                script: "objectValue.consume"
+              )
+              consume(value: Int!): Int! @resolver(script: "value")
             }
-            """.trimIndent()
-        // The compact DSL reserves $argname for same-named argument variables.
-        val testWorld =
-            TestWorld.fromSDL(
-                schemaSDL =
-                    """
-                    type Query {
-                      result(value: Int!): Int!
-                      consume(value: Int!): Int!
-                    }
-                    """.trimIndent(),
-                fieldResolvers = { schema ->
-                    val result = schema.loweredSchema.requireObjectField("Query", "result")
-                    val consume = schema.loweredSchema.requireObjectField("Query", "consume")
-                    mapOf(
-                        result to
-                            fieldResolverOf(schema.fragmentFrom(resultFragment)) { input, _ ->
-                                input.selectionValues().getValue("consume")
-                            },
-                        consume to
-                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, arguments ->
-                                arguments.fieldValues.getValue("value") as Int
-                            },
-                    )
-                },
-                variableProviders = { schema ->
-                    val result = schema.loweredSchema.requireObjectField("Query", "result")
-                    mapOf(
-                        Arguments.Variable.of(result, "argumentValue") to
-                            schema.loweredSchema.fromArgument(result, "value"),
-                    )
-                },
-            )
+            """.trimIndent(),
+        )
         val world = testWorld.assumptions
         val resultKey =
             ObjectEngineResult.GroundKey.of(
@@ -147,47 +115,19 @@ interface ObjectFragmentFromArgumentResolverContract :
 
     @Test
     fun `resolves a fromArgument variable through a nested input object`() {
-        val resultFragment =
+        val testWorld = TestWorld.fromDSL(
             """
-            fragment Result on Query {
-              consume(value: ${'$'}nestedValue)
+            extend type Query {
+              result(input: Input!): Int! @resolver(
+                of: "consume(value: ${'$'}nestedValue)"
+                variables: {name: "nestedValue", fromArgument: ["input", "value"]}
+                script: "objectValue.consume"
+              )
+              consume(value: Int!): Int! @resolver(script: "value")
             }
-            """.trimIndent()
-        val testWorld =
-            TestWorld.fromSDL(
-                schemaSDL =
-                    """
-                    input Input {
-                      value: Int!
-                    }
-
-                    type Query {
-                      result(input: Input!): Int!
-                      consume(value: Int!): Int!
-                    }
-                    """.trimIndent(),
-                fieldResolvers = { schema ->
-                    val result = schema.loweredSchema.requireObjectField("Query", "result")
-                    val consume = schema.loweredSchema.requireObjectField("Query", "consume")
-                    mapOf(
-                        result to
-                            fieldResolverOf(schema.fragmentFrom(resultFragment)) { input, _ ->
-                                input.selectionValues().getValue("consume")
-                            },
-                        consume to
-                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, arguments ->
-                                arguments.fieldValues.getValue("value") as Int
-                            },
-                    )
-                },
-                variableProviders = { schema ->
-                    val result = schema.loweredSchema.requireObjectField("Query", "result")
-                    mapOf(
-                        Arguments.Variable.of(result, "nestedValue") to
-                            schema.loweredSchema.fromArgument(result, listOf("input", "value")),
-                    )
-                },
-            )
+            input Input { value: Int! }
+            """.trimIndent(),
+        )
         val world = testWorld.assumptions
         val resultKey =
             ObjectEngineResult.GroundKey.of(
@@ -202,47 +142,19 @@ interface ObjectFragmentFromArgumentResolverContract :
 
     @Test
     fun `binds null when a fromArgument path traverses a null input object`() {
-        val resultFragment =
+        val testWorld = TestWorld.fromDSL(
             """
-            fragment Result on Query {
-              consume(value: ${'$'}nestedValue)
+            extend type Query {
+              result(input: Input): Int! @resolver(
+                of: "consume(value: ${'$'}nestedValue)"
+                variables: {name: "nestedValue", fromArgument: ["input", "value"]}
+                script: "objectValue.consume == null ? 7 : objectValue.consume"
+              )
+              consume(value: Int): Int @resolver(script: "value")
             }
-            """.trimIndent()
-        val testWorld =
-            TestWorld.fromSDL(
-                schemaSDL =
-                    """
-                    input Input {
-                      value: Int! = 2
-                    }
-
-                    type Query {
-                      result(input: Input): Int!
-                      consume(value: Int): Int
-                    }
-                    """.trimIndent(),
-                fieldResolvers = { schema ->
-                    val result = schema.loweredSchema.requireObjectField("Query", "result")
-                    val consume = schema.loweredSchema.requireObjectField("Query", "consume")
-                    mapOf(
-                        result to
-                            fieldResolverOf(schema.fragmentFrom(resultFragment)) { input, _ ->
-                                input.selectionValues().getValue("consume") ?: 7
-                            },
-                        consume to
-                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, arguments ->
-                                arguments.fieldValues.getValue("value")
-                            },
-                    )
-                },
-                variableProviders = { schema ->
-                    val result = schema.loweredSchema.requireObjectField("Query", "result")
-                    mapOf(
-                        Arguments.Variable.of(result, "nestedValue") to
-                            schema.loweredSchema.fromArgument(result, listOf("input", "value")),
-                    )
-                },
-            )
+            input Input { value: Int! = 2 }
+            """.trimIndent(),
+        )
         val world = testWorld.assumptions
         val resultKey =
             ObjectEngineResult.GroundKey.of(

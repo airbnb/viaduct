@@ -8,12 +8,13 @@ import kotlinx.coroutines.flow.single
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import org.junit.jupiter.params.ParameterizedTest
-import org.junit.jupiter.params.provider.ValueSource
+import org.junit.jupiter.params.provider.CsvSource
 import viaduct.engine.api.mocks.EngineTestModule
 import viaduct.engine.api.mocks.MockExecutorCodeInjector
 import viaduct.graphql.test.assertJson
 import viaduct.service.api.ExecutionInput
 import viaduct.service.api.SchemaId
+import viaduct.service.api.spi.mocks.MockFlagManager
 
 class CoroutineContextPropagationTest {
     data class TestContext(val bar: Int?) : CoroutineContext.Element {
@@ -23,8 +24,11 @@ class CoroutineContextPropagationTest {
     }
 
     @ParameterizedTest
-    @ValueSource(booleans = [false, true])
-    fun `coroutine context is propagated to resolver functions`(reactive: Boolean) {
+    @CsvSource("false, false", "false, true", "true, false", "true, true")
+    fun `coroutine context is propagated to resolver functions`(
+        engine2Enabled: Boolean,
+        reactive: Boolean
+    ) {
         val sdl = "extend type Query { result: Int }"
         val module = EngineTestModule(sdl) {
             field("Query" to "result") {
@@ -36,6 +40,7 @@ class CoroutineContextPropagationTest {
             }
         }
         val subject = StandardViaduct.Builder()
+            .withFlagManager(MockFlagManager.forEngine(engine2Enabled))
             .withTenantModuleInjectorFactory(MockExecutorCodeInjector(module.mockExecutorRegistry))
             .withExecutorRegistryConfigSources(listOf(module.toModuleConfigSource()))
             .withSchemaConfiguration(SchemaConfiguration.fromSdl(sdl))

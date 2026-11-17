@@ -10,7 +10,6 @@ import kotlinx.coroutines.launch
 import viaduct.engine.runtime2.model.EngineErrorData
 import viaduct.engine.runtime2.model.EngineObjectOrErrorData
 import viaduct.engine.runtime2.model.EngineResultCell
-import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.ObjectSelection
 import viaduct.engine.runtime2.model.PathComponent
 import viaduct.engine.runtime2.model.RootFieldReferenceData
@@ -48,7 +47,6 @@ class CoroutineFieldPublicationOccurrence(
     publicationExpectedType: ViaductSchema.TypeExpr<ViaductSchema.OutputTypeDef> = selection.key.field.outputType,
     queryOER: SharedOERContext? = null,
     constructionDemand: Demand<SelectionForest> = Demand.checked(selection.subselections),
-    private val activateOnDispatch: Boolean = false,
     creator: ResolutionTask? = null,
 ) : GroundedFieldPublicationOccurrence<CoroutineOperationContext>(
         operation = operation,
@@ -67,20 +65,10 @@ class CoroutineFieldPublicationOccurrence(
     override val task = CoroutineFieldResolverTask(this)
 
     override fun dispatch(requestScope: CoroutineScope) {
-        if (activateOnDispatch) {
-            check(publicationCell.setActivated(true)) { "Cell activation was decided twice" }
-            publicationCell.fieldCheckerResult.complete(null)
-        }
         requestScope.launch {
             task.run(this)
         }.invokeOnCompletion { cause ->
             if (cause is CancellationException) CoroutineFieldResolverTask.cancel(this@CoroutineFieldPublicationOccurrence, cause)
-        }
-    }
-
-    fun prepareActivation() {
-        if (!activateOnDispatch && publicationPath.last() is ObjectEngineResult.ObjectKey) {
-            check(publicationCell.setActivated(true)) { "Cell activation was decided twice" }
         }
     }
 }
@@ -99,7 +87,7 @@ class CoroutineFieldResolverTask internal constructor(
             creator: ResolutionTask? = null,
         ): CoroutineFieldPublicationOccurrence =
             prepare(
-                CoroutineFieldPublicationOccurrence(operation, occurrence, selection, occurrence.target.getCell(selection.key), activateOnDispatch = true, creator = creator),
+                CoroutineFieldPublicationOccurrence(operation, occurrence, selection, occurrence.target.getCell(selection.key), creator = creator),
             )
 
         /** Installs all local promises before dispatching any producer, including source references. */
@@ -129,7 +117,9 @@ class CoroutineFieldResolverTask internal constructor(
                                 queryOER = orchestrationTask.queryOER,
                                 constructionDemand = constructionDemand.descendants(key),
                             ),
-                        )
+                        ).also { publication ->
+                            check(publication.publicationCell.setActivated(true)) { "Cell activation was decided twice" }
+                        }
                     }
             }
         }
@@ -142,8 +132,6 @@ class CoroutineFieldResolverTask internal constructor(
         private fun prepare(publication: CoroutineFieldPublicationOccurrence): CoroutineFieldPublicationOccurrence =
             publication.apply {
                 publicationCell.value.claim()
-                // List cells are activated when the shared traversal allocates their list.
-                prepareActivation()
                 operation.cycleChecker.registerWriter(
                     owner = publicationCell,
                     kind = CycleSlotKind.VALUE,

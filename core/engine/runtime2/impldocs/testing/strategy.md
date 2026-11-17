@@ -1,5 +1,7 @@
 # Testing Strategy
 
+For the choice between shared Engine API contracts and parameterized consumer tests, including when to use mocks, real engines, or all three variants, see the [OSS testing guidance](../../../../../impldocs/testing-guidance.md#engine-behavior-and-engine-consumers). The evidence layers below describe Runtime2 internals.
+
 ## Evidence Map
 
 Runtime2 establishes confidence through several independent kinds of tests and judgments. They share fixtures and observations, but each answers a different question; agreement among them must not be manufactured by deriving every expectation from the same completed result or event stream.

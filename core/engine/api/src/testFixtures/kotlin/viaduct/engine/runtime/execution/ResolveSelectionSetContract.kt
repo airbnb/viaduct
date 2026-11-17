@@ -9,7 +9,7 @@ import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.ResolveSelectionSetOptions
 import viaduct.engine.api.mocks.EngineTestModule
 import viaduct.engine.api.mocks.createEngineObjectData
-import viaduct.engine.api.mocks.runFeatureTest
+import viaduct.graphql.test.assertJson
 
 /**
  * Test suite for the [viaduct.engine.api.EngineExecutionContext.resolveSelectionSet] API.
@@ -17,7 +17,7 @@ import viaduct.engine.api.mocks.runFeatureTest
  * resolveSelectionSet returns an [EngineObjectData.Sync] with all fields eagerly resolved
  * before the method returns.
  */
-class ResolveSelectionSetTest {
+interface ResolveSelectionSetContract : QueryExecutionContract {
     // ==================== resolveSelectionSet ====================
 
     @Test
@@ -59,7 +59,7 @@ class ResolveSelectionSetTest {
                     }
                 }
             }
-        }.runFeatureTest {
+        }.runContractTest {
             runQuery("{ container { result } }")
                 .assertJson("""{"data": {"container": {"result": "name=Alice, age=30"}}}""")
         }
@@ -104,7 +104,7 @@ class ResolveSelectionSetTest {
                     }
                 }
             }
-        }.runFeatureTest {
+        }.runContractTest {
             runQuery("{ container { result } }")
                 .assertJson("""{"data": {"container": {"result": "name=Bob"}}}""")
         }
@@ -153,7 +153,7 @@ class ResolveSelectionSetTest {
                     }
                 }
             }
-        }.runFeatureTest {
+        }.runContractTest {
             runQuery("{ container { result } }")
                 .assertJson("""{"data": {"container": {"result": "selections=x,y"}}}""")
         }
@@ -198,7 +198,7 @@ class ResolveSelectionSetTest {
                     }
                 }
             }
-        }.runFeatureTest {
+        }.runContractTest {
             runQuery("{ container { result } }")
                 .assertJson("""{"data": {"container": {"result": "mutationResult=done"}}}""")
         }
@@ -255,7 +255,7 @@ class ResolveSelectionSetTest {
                     }
                 }
             }
-        }.runFeatureTest {
+        }.runContractTest {
             runQuery("{ container { result } }")
                 .assertJson("""{"data": {"container": {"result": "name=Dave, age=40"}}}""")
         }

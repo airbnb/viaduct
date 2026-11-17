@@ -94,7 +94,7 @@ interface GroundedFieldCheckerObjectFragmentContract {
                 schemaSDL =
                     """
                     extend type Query {
-                      item: Item! @resolver(script: "{'passive': 11, 'child': {'nested': 13}}")
+                      item: Item! @resolver(isSelective: ${coroutineResolverSubject.selectiveResolvers}, script: "{'passive': 11, 'child': {'nested': 13}}")
                     }
 
                     type Item {

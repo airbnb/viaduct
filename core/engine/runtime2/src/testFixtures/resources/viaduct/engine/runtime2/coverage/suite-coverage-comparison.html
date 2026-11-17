@@ -10,7 +10,7 @@
   --page: #f9f9f7; --surface-1: #fcfcfb;
   --text-primary: #0b0b0b; --text-secondary: #52514e; --text-muted: #898781;
   --grid: #e1e0d9; --axis: #c3c2b7; --ring: rgba(11,11,11,0.10);
-  --sideA: #2a78d6; --sideB: #eb6834; --both: #1baf7a; --neither: #e1e0d9;
+  --original: #6b7280; --new: #2563eb; --dropped: #d64545; --kept: #e8a317; --added: #2e9e5b; --neither: #e1e0d9;
   --seq-100: #cde2fb; --seq-250: #86b6ef; --seq-400: #3987e5; --seq-550: #1c5cab; --seq-700: #0d366b;
 }
 @media (prefers-color-scheme: dark) {
@@ -19,7 +19,7 @@
     --page: #0d0d0d; --surface-1: #1a1a19;
     --text-primary: #f0efec; --text-secondary: #c3c2b7; --text-muted: #898781;
     --grid: #2c2c2a; --axis: #383835; --ring: rgba(255,255,255,0.10);
-    --sideA: #3987e5; --sideB: #d95926; --both: #199e70; --neither: #2c2c2a;
+    --original: #9aa0a8; --new: #5b8def; --dropped: #e05a5a; --kept: #f0b429; --added: #3fb873; --neither: #2c2c2a;
     --seq-100: #104281; --seq-250: #184f95; --seq-400: #256abf; --seq-550: #5598e7; --seq-700: #9ec5f4;
   }
 }
@@ -28,7 +28,7 @@
   --page: #0d0d0d; --surface-1: #1a1a19;
   --text-primary: #f0efec; --text-secondary: #c3c2b7; --text-muted: #898781;
   --grid: #2c2c2a; --axis: #383835; --ring: rgba(255,255,255,0.10);
-  --sideA: #3987e5; --sideB: #d95926; --both: #199e70; --neither: #2c2c2a;
+  --original: #9aa0a8; --new: #5b8def; --dropped: #e05a5a; --kept: #f0b429; --added: #3fb873; --neither: #2c2c2a;
   --seq-100: #104281; --seq-250: #184f95; --seq-400: #256abf; --seq-550: #5598e7; --seq-700: #9ec5f4;
 }
 body { margin: 0; }
@@ -37,7 +37,7 @@ h1 { font-size: 22px; margin: 0 0 4px; }
 h2 { font-size: 16px; margin: 0 0 4px; }
 .sub { color: var(--text-secondary); margin: 0 0 16px; }
 .card { background: var(--surface-1); border: 1px solid var(--ring); border-radius: 12px; padding: 20px; margin-bottom: 20px; }
-.kpis { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin-bottom: 20px; }
+.kpis { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-bottom: 20px; }
 .kpi { background: var(--surface-1); border: 1px solid var(--ring); border-radius: 12px; padding: 16px 20px; }
 .kpi .label { color: var(--text-secondary); display: flex; align-items: center; gap: 8px; }
 .kpi .value { font-size: 32px; font-weight: 600; margin-top: 4px; }
@@ -55,17 +55,20 @@ svg .value-label { fill: var(--text-primary); }
 .tooltip .key { width: 12px; height: 2px; display: inline-block; }
 .grid-cells { display: grid; grid-template-columns: repeat(20, 1fr); gap: 2px; }
 .cell { aspect-ratio: 1; border-radius: 4px; border: none; padding: 0; font-size: 10px; color: var(--text-primary); cursor: pointer; display: flex; align-items: center; justify-content: center; }
-.cell.sideA, .cell.sideB { color: #ffffff; }
+.cell.dropped, .cell.added { color: #ffffff; }
+.cell.kept { color: #1a1a1a; }
+.stack { display: flex; height: 12px; border-radius: 6px; overflow: hidden; margin: 10px 0 8px; background: var(--grid); }
+.stack span { display: block; height: 100%; }
+.tag.lost { background: var(--dropped); color: #ffffff; border-color: transparent; }
+.tag.new { background: var(--added); color: #ffffff; border-color: transparent; }
 .cell:focus-visible, .cell.active { outline: 2px solid var(--text-primary); outline-offset: 1px; }
-.matrix { border-collapse: separate; border-spacing: 2px; font-size: 12px; }
-.matrix th { color: var(--text-secondary); font-weight: 500; }
-.matrix th.behavior { white-space: nowrap; vertical-align: bottom; padding: 0 0 6px; width: 20px; }
-.matrix th.behavior div { writing-mode: vertical-rl; transform: rotate(180deg); margin: 0 auto; }
-.matrix th.count { vertical-align: bottom; padding: 0 8px 6px; }
-.matrix td.dot { width: 18px; height: 18px; border-radius: 4px; background: var(--grid); }
-.matrix td.dot.on { background: var(--seq-550); }
-.matrix td.num { text-align: right; padding: 0 8px; font-variant-numeric: tabular-nums; }
-.matrix tr:hover td { filter: brightness(0.95); }
+.changes h3 { font-size: 14px; margin: 14px 0 6px; }
+.changes h3 .count { color: var(--text-secondary); font-weight: 400; }
+.changes ul { margin: 0; padding-left: 18px; }
+.changes li { margin: 4px 0; }
+.changes .example { color: var(--text-secondary); }
+.changes button.open { padding: 0 6px; font-size: 12px; margin-left: 4px; }
+.changes .none { color: var(--text-muted); }
 .tag { border-radius: 4px; padding: 0 6px; font-size: 11px; color: var(--text-primary); border: 1px solid var(--axis); }
 .detail-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; }
 pre { background: var(--page); border: 1px solid var(--ring); border-radius: 8px; padding: 12px; overflow: auto; max-height: 420px; font-size: 12px; margin: 0; }
@@ -74,6 +77,12 @@ table.data th, table.data td { text-align: left; padding: 4px 8px; border-bottom
 table.data th { color: var(--text-secondary); font-weight: 500; cursor: pointer; }
 table.data td.n { text-align: right; font-variant-numeric: tabular-nums; }
 .muted { color: var(--text-muted); }
+table.obligations td.code { font-weight: 600; white-space: nowrap; }
+table.obligations tr.group td { color: var(--text-secondary); font-weight: 600; padding-top: 12px; border-bottom: 1px solid var(--axis); }
+table.obligations tr.absent td { color: var(--text-muted); }
+table.obligations td.count { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.minibar { display: inline-block; height: 8px; border-radius: 4px; margin-left: 6px; vertical-align: middle; }
+.delta-up { color: var(--added); font-weight: 600; } .delta-down { color: var(--dropped); font-weight: 600; }
 details summary { cursor: pointer; color: var(--text-secondary); }
 </style>
 </head>
@@ -86,17 +95,23 @@ details summary { cursor: pointer; color: var(--text-secondary); }
   <div class="kpis" id="kpis"></div>
 
   <div class="card">
-    <h2>Cases per behavior</h2>
-    <p class="sub">Distinct test cases showing each behavior. Behaviors neither candidate produced are listed underneath.</p>
-    <div class="legend" id="bar-legend"></div>
-    <div id="bars"></div>
-    <p class="muted" id="never"></p>
+    <h2>Interaction obligations</h2>
+    <p class="sub">The RFC-271 interactions first, then candidate interactions. Each count is the number of distinct test cases with evidence of that interaction; the evidence column says what counts as evidence. "n/a" means that side's generator config cannot produce the evidence (for example, no variable bindings), so zero is a property of the config rather than a coverage gap. "Not exercised" means the config could produce it but no case did.</p>
+    <table class="data obligations" id="obligations"></table>
   </div>
 
   <div class="card">
-    <h2>Behavior combinations</h2>
-    <p class="sub">Each row is a set of behaviors seen together in one case. Filled cells mark the behaviors in that combination; counts are cases with exactly that combination.</p>
-    <div style="overflow:auto"><table class="matrix" id="matrix"></table></div>
+    <h2>Cases per resolver attribute</h2>
+    <p class="sub">Distinct test cases with an invoked resolver showing each attribute, grouped by category. Attributes neither candidate produced are listed underneath.</p>
+    <div class="legend" id="attr-legend"></div>
+    <div id="attr-bars"></div>
+    <p class="muted" id="attr-never"></p>
+  </div>
+
+  <div class="card">
+    <h2>What changed</h2>
+    <p class="sub" id="changes-summary"></p>
+    <div id="changes"></div>
   </div>
 
   <div class="card">
@@ -120,10 +135,9 @@ details summary { cursor: pointer; color: var(--text-secondary); }
   </div>
 
   <div class="card">
-    <details>
-      <summary>Table view of all batches</summary>
-      <table class="data" id="batch-table" style="margin-top:12px"></table>
-    </details>
+    <h2>Batches side by side</h2>
+    <p class="sub">One row per batch (one schema, its registry and queries). Columns count that batch's cases showing each behavior. Click a row to open it.</p>
+    <table class="data" id="batch-table"></table>
   </div>
   <div class="tooltip" id="tooltip"></div>
 </div>
@@ -131,29 +145,48 @@ details summary { cursor: pointer; color: var(--text-secondary); }
 <script>
 const data = JSON.parse(document.getElementById('data').textContent);
 const keyOf = b => `${b.id}/${b.schemaId}`;
-const sideA = new Set(data.batches.filter(b => b.side !== 'b').map(keyOf));
-const sideB = new Set(data.batches.filter(b => b.side !== 'a').map(keyOf));
 const behaviors = data.behaviors.map(b => b.id);
-const short = id => id.replace(/^object_fragment_/, 'fragment: ').replace(/_/g, ' ');
+const behaviorInfo = new Map(data.behaviors.map(b => [b.id, b]));
+const short = id => (behaviorInfo.get(id) || {}).code || id;
+const evidenceLabel = { LOCAL_COMBINATION: 'Same occurrence', RESULT_TREE_PATH: 'Result-tree path', DEPENDENCY_RELATIONSHIP: 'Recorded dependency', EXECUTION_COEXISTENCE: 'Same execution' };
 const el = (tag, attrs = {}, text) => { const n = document.createElement(tag); for (const [k, v] of Object.entries(attrs)) n.setAttribute(k, v); if (text !== undefined) n.textContent = text; return n; };
 const svgEl = (tag, attrs = {}) => { const n = document.createElementNS('http://www.w3.org/2000/svg', tag); for (const [k, v] of Object.entries(attrs)) n.setAttribute(k, v); return n; };
-const membership = b => b.side === 'both' ? 'both' : b.side === 'a' ? 'sideA' : 'sideB';
-const membershipLabel = { sideA: 'A only', sideB: 'B only', both: 'A and B' };
-const comboKey = obligations => obligations.join('|');
+const membership = b => b.side === 'both' ? 'kept' : b.side === 'a' ? 'dropped' : 'added';
+const membershipLabel = { dropped: 'Dropped (original only)', kept: 'Kept (in both)', added: 'Added (new only)' };
+data.batches.forEach(b => b.cases.forEach(c => { c.combo = c.obligations.join('|'); }));
+const inapplicable = { a: new Set((data.inapplicable || {}).a || []), b: new Set((data.inapplicable || {}).b || []) };
 
 const sets = {
-  sideA: data.batches.filter(b => sideA.has(keyOf(b))),
-  sideB: data.batches.filter(b => sideB.has(keyOf(b))),
+  sideA: data.batches.filter(b => b.side !== 'b'),
+  sideB: data.batches.filter(b => b.side !== 'a'),
   pool: data.batches,
 };
 const casesOf = batches => batches.flatMap(b => b.cases);
-const combosOf = batches => new Set(casesOf(batches).map(c => comboKey(c.obligations)));
+const combosOf = batches => new Set(casesOf(batches).map(c => c.combo));
 const supportOf = (batches, id) => casesOf(batches).filter(c => c.obligations.includes(id)).length;
 const poolCombos = combosOf(sets.pool);
 
-document.getElementById('title').textContent = `${data.a} vs ${data.b}`;
-document.getElementById('subtitle').textContent = `A: ${data.a} · B: ${data.b}`;
-if (!data.sameCost) { const w = document.getElementById('cost-warning'); w.hidden = false; w.textContent = 'A and B differ in cases or batches, so raw coverage favors the larger candidate.'; }
+const attributes = (data.attributes || []).map(a => a.id);
+const attrCategory = id => id.slice(0, id.indexOf(':'));
+const attrValue = id => id.slice(id.indexOf(':') + 1);
+const attrsOf = batches => new Set(casesOf(batches).flatMap(c => c.attributes));
+const attrSupportOf = (batches, id) => casesOf(batches).filter(c => c.attributes.includes(id)).length;
+const poolAttrs = attrsOf(sets.pool);
+// Categories keep catalog order; numeric values (depths, counts) sort numerically after non-numeric ones such as "none".
+const attrGroups = new Map();
+attributes.forEach(id => { const k = attrCategory(id); if (!attrGroups.has(k)) attrGroups.set(k, []); attrGroups.get(k).push(id); });
+const attrRank = id => { const n = Number(attrValue(id)); return Number.isNaN(n) ? -1 : n; };
+attrGroups.forEach(ids => ids.sort((x, y) => attrRank(x) - attrRank(y)));
+const words = s => s.replace(/_/g, ' ');
+const describeAttrs = ids => {
+  const byCategory = new Map();
+  [...ids].sort().forEach(id => { const k = attrCategory(id); if (!byCategory.has(k)) byCategory.set(k, []); byCategory.get(k).push(words(attrValue(id))); });
+  return [...byCategory].map(([k, values]) => `${words(k)}: ${values.join(', ')}`).join('; ');
+};
+
+document.getElementById('title').textContent = `${data.a} → ${data.b}`;
+document.getElementById('subtitle').textContent = `Original (A): ${data.a} · New (B): ${data.b}`;
+if (!data.sameCost) { const w = document.getElementById('cost-warning'); w.hidden = false; w.textContent = `Original has ${casesOf(sets.sideA).length} cases, new has ${casesOf(sets.sideB).length}. Raw case counts favour the bigger suite, so compare D0 and the percentages below.`; }
 
 const tooltip = document.getElementById('tooltip');
 function showTip(event, build) {
@@ -165,38 +198,87 @@ function showTip(event, build) {
 const hideTip = () => { tooltip.style.display = 'none'; };
 const tipRow = (parent, color, value, label) => { const r = el('div', { class: 'row' }); const k = el('span', { class: 'key' }); k.style.background = color; r.append(k, el('span', { class: 'strong' }, value), el('span', {}, label)); parent.append(r); };
 
-// KPI tiles
+// KPI tiles: original = dropped + kept, new = kept + added
 const kpis = document.getElementById('kpis');
-[['A', 'sideA', sets.sideA], ['B', 'sideB', sets.sideB], ['A and B together', null, sets.pool]].forEach(([label, key, batches]) => {
+const byMembership = key => data.batches.filter(b => membership(b) === key);
+const combosA = combosOf(sets.sideA), combosB = combosOf(sets.sideB);
+const pct = (n, total) => total ? `${Math.round((100 * n) / total)}%` : '0%';
+function kpiTile(title, batches, parts, combos, comboNote, diversity) {
   const tile = el('div', { class: 'kpi' });
-  const l = el('div', { class: 'label' });
-  if (key) { const s = el('span', { class: 'swatch' }); s.style.background = `var(--${key})`; l.append(s); }
-  l.append(document.createTextNode(label));
-  tile.append(l, el('div', { class: 'value' }, `${combosOf(batches).size} of ${poolCombos.size}`), el('div', { class: 'detail' }, `combinations · ${batches.length} batches · ${casesOf(batches).length} cases`));
+  tile.append(el('div', { class: 'label' }, title), el('div', { class: 'value' }, `${batches.length} batches`));
+  const stack = el('div', { class: 'stack' });
+  parts.forEach(([key, n]) => { const seg = el('span', { title: `${n} ${membershipLabel[key]}` }); seg.style.width = pct(n, batches.length); seg.style.background = `var(--${key})`; stack.append(seg); });
+  tile.append(stack);
+  const split = el('div', { class: 'detail' });
+  parts.forEach(([key, n], i) => {
+    if (i) split.append(document.createTextNode(' · '));
+    const sw = el('span', { class: 'swatch' }); sw.style.background = `var(--${key})`; sw.style.marginRight = '4px';
+    split.append(sw, document.createTextNode(`${n} ${key} (${pct(n, batches.length)})`));
+  });
+  tile.append(split,
+    el('div', { class: 'detail' }, `D0 ${combos.size} of ${poolCombos.size} combinations seen in either candidate (${pct(combos.size, poolCombos.size)}) · ${comboNote}`),
+    el('div', { class: 'detail', title: 'D1 = exp(Shannon entropy), D2 = inverse Simpson over combination frequencies; singletons are combinations only one case carries' },
+      `D1 ${diversity.d1.toFixed(2)} · D2 ${diversity.d2.toFixed(2)} · ${diversity.singletons} singleton combination${diversity.singletons === 1 ? '' : 's'}`),
+    el('div', { class: 'detail' }, `${casesOf(batches).length} cases · ${attrsOf(batches).size} of ${poolAttrs.size} resolver attributes`));
   kpis.append(tile);
-});
+}
+const kept = byMembership('kept').length;
+kpiTile(`Original (A): ${data.a}`, sets.sideA, [['dropped', byMembership('dropped').length], ['kept', kept]], combosA,
+  `${[...combosA].filter(k => !combosB.has(k)).length} lost in the new suite`, data.diversity.a);
+kpiTile(`New (B): ${data.b}`, sets.sideB, [['kept', kept], ['added', byMembership('added').length]], combosB,
+  `${[...combosB].filter(k => !combosA.has(k)).length} not in the original`, data.diversity.b);
 
-// Grouped horizontal bars: A vs B per behavior
 const seen = behaviors.filter(id => supportOf(sets.pool, id) > 0);
-const never = behaviors.filter(id => supportOf(sets.pool, id) === 0);
-document.getElementById('never').textContent = never.length ? `Produced by neither: ${never.map(short).join(', ')}.` : '';
-const barLegend = document.getElementById('bar-legend');
-[['sideA', 'A'], ['sideB', 'B']].forEach(([key, label]) => { const s = el('span'); const w = el('span', { class: 'swatch' }); w.style.background = `var(--${key})`; s.append(w, document.createTextNode(label)); barLegend.append(s); });
-(function drawBars() {
-  const labelW = 400, plotW = 520, rowH = 34, barH = 12, top = 8;
-  const max = Math.max(...seen.map(id => Math.max(supportOf(sets.sideA, id), supportOf(sets.sideB, id))));
-  const height = top + seen.length * rowH + 24;
-  const svg = svgEl('svg', { width: labelW + plotW + 60, height, role: 'img', 'aria-label': 'Cases per behavior, A versus B' });
+
+(function drawObligations() {
+  const table = document.getElementById('obligations');
+  const head = el('tr'); ['Code', 'Interaction', 'Evidence', 'Original', 'New', 'Change'].forEach(h => head.append(el('th', {}, h))); table.append(head);
+  const max = Math.max(1, ...behaviors.map(id => Math.max(supportOf(sets.sideA, id), supportOf(sets.sideB, id))));
+  const countCell = (n, key, applicable) => {
+    if (!applicable) return el('td', { class: 'count muted', title: 'This side\'s generator config cannot produce this evidence' }, 'n/a');
+    const td = el('td', { class: 'count' }, n); if (n) { const bar = el('span', { class: 'minibar' }); bar.style.width = `${Math.max(2, (60 * n) / max)}px`; bar.style.background = `var(--${key})`; td.append(bar); } return td;
+  };
+  [['RFC-271 core obligations', true], ['Candidate interactions', false]].forEach(([title, core]) => {
+    const group = el('tr', { class: 'group' }); group.append(el('td', { colspan: 6 }, title)); table.append(group);
+    data.behaviors.filter(b => !!b.core === core).forEach(b => {
+      const a = supportOf(sets.sideA, b.id), n = supportOf(sets.sideB, b.id), d = n - a;
+      const aApplies = !inapplicable.a.has(b.id), bApplies = !inapplicable.b.has(b.id);
+      const tr = el('tr', { class: a || n ? '' : 'absent', title: b.id });
+      const changeText = !aApplies && !bApplies ? 'not applicable by config' : a || n ? (d > 0 ? `+${d}` : `${d}`) : 'not exercised';
+      const change = el('td', { class: a || n ? (d > 0 ? 'delta-up' : d < 0 ? 'delta-down' : '') : 'muted' }, changeText);
+      tr.append(el('td', { class: 'code' }, b.code), el('td', {}, b.description), el('td', {}, evidenceLabel[b.evidence] || b.evidence), countCell(a, 'original', aApplies), countCell(n, 'new', bApplies), change);
+      table.append(tr);
+    });
+  });
+})();
+
+const drawLegend = id => { const legend = document.getElementById(id); [['original', 'Original (A)'], ['new', 'New (B)']].forEach(([key, label]) => { const s = el('span'); const w = el('span', { class: 'swatch' }); w.style.background = `var(--${key})`; s.append(w, document.createTextNode(label)); legend.append(s); }); };
+drawLegend('attr-legend');
+
+// Rows are { header } labels or { label, tip, a, b } A-versus-B case counts.
+function drawBars(containerId, rows, ariaLabel) {
+  const labelW = 400, plotW = 520, rowH = 34, headerH = 26, barH = 12, top = 8;
+  const bars = rows.filter(r => !r.header);
+  if (!bars.length) return;
+  const max = Math.max(1, ...bars.map(r => Math.max(r.a, r.b)));
+  const heightOf = r => r.header ? headerH : rowH;
+  const height = top + rows.reduce((sum, r) => sum + heightOf(r), 0) + 24;
+  const svg = svgEl('svg', { width: labelW + plotW + 60, height, role: 'img', 'aria-label': ariaLabel });
   const x = v => labelW + (v / max) * plotW;
   [0, 0.25, 0.5, 0.75, 1].forEach(t => {
     const v = Math.round(max * t);
     svg.append(svgEl('line', { x1: x(v), x2: x(v), y1: top, y2: height - 20, stroke: 'var(--grid)' }));
     const tx = svgEl('text', { x: x(v), y: height - 6, 'text-anchor': 'middle' }); tx.textContent = v; svg.append(tx);
   });
-  seen.forEach((id, i) => {
-    const y = top + i * rowH;
-    const label = svgEl('text', { x: labelW - 12, y: y + rowH / 2 + 4, 'text-anchor': 'end' }); label.textContent = short(id); svg.append(label);
-    const values = [['sideA', supportOf(sets.sideA, id)], ['sideB', supportOf(sets.sideB, id)]];
+  let y = top;
+  rows.forEach(row => {
+    if (row.header) {
+      const h = svgEl('text', { x: 0, y: y + headerH - 8, class: 'value-label', 'font-weight': 600 }); h.textContent = row.header; svg.append(h);
+      y += headerH;
+      return;
+    }
+    const label = svgEl('text', { x: labelW - 12, y: y + rowH / 2 + 4, 'text-anchor': 'end' }); label.textContent = row.label; svg.append(label);
+    const values = [['original', row.a], ['new', row.b]];
     values.forEach(([key, v], j) => {
       const by = y + 4 + j * (barH + 2);
       const w = Math.max(v === 0 ? 0 : 2, x(v) - labelW);
@@ -204,55 +286,89 @@ const barLegend = document.getElementById('bar-legend');
       const vt = svgEl('text', { x: labelW + w + 6, y: by + barH - 2, class: 'value-label' }); vt.textContent = v; svg.append(vt);
     });
     const hit = svgEl('rect', { x: 0, y, width: labelW + plotW + 60, height: rowH, fill: 'transparent', tabindex: 0 });
-    const tip = e => showTip(e, t => { t.append(el('div', { class: 'muted' }, short(id))); tipRow(t, 'var(--sideA)', values[0][1], 'A'); tipRow(t, 'var(--sideB)', values[1][1], 'B'); });
+    const tip = e => showTip(e, t => { t.append(el('div', { class: 'muted' }, row.tip)); tipRow(t, 'var(--original)', row.a, 'original'); tipRow(t, 'var(--new)', row.b, 'new'); });
     hit.addEventListener('pointermove', tip); hit.addEventListener('pointerleave', hideTip);
-    hit.addEventListener('focus', e => { const r = hit.getBoundingClientRect(); tip({ clientX: r.left + labelW, clientY: r.top }); }); hit.addEventListener('blur', hideTip);
+    hit.addEventListener('focus', () => { const r = hit.getBoundingClientRect(); tip({ clientX: r.left + labelW, clientY: r.top }); }); hit.addEventListener('blur', hideTip);
     svg.append(hit);
+    y += rowH;
   });
-  document.getElementById('bars').append(svg);
-})();
+  document.getElementById(containerId).append(svg);
+}
 
-// Combination matrix
-(function drawMatrix() {
-  const counts = new Map();
-  const add = (setName, batches) => casesOf(batches).forEach(c => { const k = comboKey(c.obligations); const row = counts.get(k) || { obligations: c.obligations, sideA: 0, sideB: 0, pool: 0 }; row[setName]++; counts.set(k, row); });
-  add('sideA', sets.sideA); add('sideB', sets.sideB); add('pool', sets.pool);
-  const rows = [...counts.values()].sort((a, b) => b.pool - a.pool || a.obligations.length - b.obligations.length);
-  const table = document.getElementById('matrix');
-  const head = el('tr');
-  seen.forEach(id => { const th = el('th', { class: 'behavior' }); th.append(el('div', {}, short(id))); head.append(th); });
-  ['A', 'B', ''].forEach(h => head.append(el('th', { class: 'count' }, h)));
-  table.append(head);
-  rows.forEach(row => {
-    const tr = el('tr');
-    seen.forEach(id => tr.append(el('td', { class: row.obligations.includes(id) ? 'dot on' : 'dot', title: short(id) })));
-    tr.append(el('td', { class: 'num' }, row.sideA), el('td', { class: 'num' }, row.sideB));
-    const note = el('td');
-    if (row.sideA === 0) note.append(el('span', { class: 'tag' }, 'only B')); else if (row.sideB === 0) note.append(el('span', { class: 'tag' }, 'only A'));
-    if (row.obligations.length === 0) note.append(document.createTextNode(' no behaviors'));
-    tr.append(note);
-    tr.addEventListener('pointermove', e => showTip(e, t => { t.append(el('div', { class: 'muted' }, row.obligations.length ? row.obligations.map(short).join(' + ') : 'no behaviors')); tipRow(t, 'var(--sideA)', row.sideA, 'A cases'); tipRow(t, 'var(--sideB)', row.sideB, 'B cases'); }));
-    tr.addEventListener('pointerleave', hideTip);
-    table.append(tr);
-  });
+
+const attrDescriptions = new Map((data.attributes || []).map(a => [a.id, a.description]));
+const attrRows = [];
+const attrNever = [];
+attrGroups.forEach((ids, category) => {
+  const observed = ids.filter(id => poolAttrs.has(id));
+  const missing = ids.filter(id => !poolAttrs.has(id));
+  if (missing.length) attrNever.push(`${words(category)}: ${missing.map(id => words(attrValue(id))).join(', ')}`);
+  if (!observed.length) return;
+  attrRows.push({ header: words(category) });
+  observed.forEach(id => attrRows.push({ label: words(attrValue(id)), tip: attrDescriptions.get(id) || id, a: attrSupportOf(sets.sideA, id), b: attrSupportOf(sets.sideB, id) }));
+});
+drawBars('attr-bars', attrRows, 'Cases per resolver attribute, A versus B');
+document.getElementById('attr-never').textContent = attrNever.length ? `Produced by neither: ${attrNever.join('; ')}.` : '';
+
+// What changed: behaviour mixes lost, gained, or carried by a single case, each with a case to open.
+(function drawChanges() {
+  const describe = ids => ids.length ? ids.map(id => (behaviorInfo.get(id) || {}).description || id).map(d => d.replace(/\.$/, '')).join('; ') : 'no tracked behavior';
+  const label = ids => ids.length ? ids.map(short).join(' + ') : 'nothing tracked';
+  const mixes = new Map();
+  ['sideA', 'sideB'].forEach(side => sets[side].forEach(b => b.cases.forEach(c => {
+    const row = mixes.get(c.combo) || { obligations: c.obligations, sideA: [], sideB: [] };
+    row[side].push({ batch: b, query: c.query });
+    mixes.set(c.combo, row);
+  })));
+  const rows = [...mixes.values()];
+  const lost = rows.filter(r => r.sideA.length && !r.sideB.length).sort((x, y) => y.sideA.length - x.sideA.length);
+  const gained = rows.filter(r => !r.sideA.length && r.sideB.length).sort((x, y) => y.sideB.length - x.sideB.length);
+  const fragile = rows.filter(r => r.sideB.length === 1);
+  const casesA = casesOf(sets.sideA).length, casesB = casesOf(sets.sideB).length;
+  document.getElementById('changes-summary').textContent =
+    `Original: ${combosA.size} behavior mixes across ${casesA} cases. New: ${combosB.size} mixes across ${casesB} cases. ` +
+    `${lost.length ? `${lost.length} mix${lost.length === 1 ? '' : 'es'} lost` : 'Nothing lost'}, ${gained.length} gained, ${fragile.length} carried by a single new case.`;
+  const container = document.getElementById('changes');
+  container.className = 'changes';
+  const section = (title, items, render, emptyText) => {
+    const h = el('h3', {}, title); h.append(el('span', { class: 'count' }, ` (${items.length})`)); container.append(h);
+    if (!items.length) { container.append(el('p', { class: 'none' }, emptyText)); return; }
+    const list = el('ul');
+    const shown = items.slice(0, 15);
+    shown.forEach(r => list.append(render(r)));
+    container.append(list);
+    if (items.length > shown.length) {
+      const more = el('button', {}, `Show all ${items.length}`);
+      more.addEventListener('click', () => { items.slice(15).forEach(r => list.append(render(r))); more.remove(); });
+      container.append(more);
+    }
+  };
+  const openButton = ex => { const btn = el('button', { class: 'open' }, `${ex.batch.id} / ${ex.query}`); btn.title = 'Open this batch; the case list shows the query'; btn.addEventListener('click', () => showDetail(ex.batch)); return btn; };
+  const item = (lead, r, examples) => {
+    const li = el('li');
+    li.append(el('strong', {}, lead), document.createTextNode(` ${label(r.obligations)}: `), el('span', { class: 'example' }, describe(r.obligations) + '. Example: '));
+    li.append(openButton(examples[0]));
+    return li;
+  };
+  section('Lost: in the original, absent from the new suite', lost, r => item(`${r.sideA.length} original case${r.sideA.length === 1 ? '' : 's'} showed`, r, r.sideA), 'Every behavior mix in the original still appears in the new suite.');
+  section('Gained: new in the new suite', gained, r => item(`${r.sideB.length} new case${r.sideB.length === 1 ? '' : 's'} show`, r, r.sideB), 'The new suite adds no behavior mix the original lacked.');
+  section('Fragile: one new case only', fragile, r => item('1 new case shows', r, r.sideB), 'Every behavior mix in the new suite is carried by at least two cases.');
 })();
 
 // Candidate grid
 const gridLegend = document.getElementById('grid-legend');
-['sideA', 'both', 'sideB'].forEach(key => { const s = el('span'); const w = el('span', { class: 'swatch' }); w.style.background = `var(--${key})`; s.append(w, document.createTextNode(`${membershipLabel[key]} (${data.batches.filter(b => membership(b) === key).length})`)); gridLegend.append(s); });
-const uniqueCombos = new Map();
-data.batches.forEach(b => {
-  const own = new Set(b.cases.map(c => comboKey(c.obligations)));
-  const others = new Set(data.batches.filter(o => o !== b).flatMap(o => o.cases.map(c => comboKey(c.obligations))));
-  uniqueCombos.set(keyOf(b), [...own].filter(k => !others.has(k)).length);
-});
+['dropped', 'kept', 'added'].forEach(key => { const s = el('span'); const w = el('span', { class: 'swatch' }); w.style.background = `var(--${key})`; s.append(w, document.createTextNode(`${membershipLabel[key]} (${byMembership(key).length})`)); gridLegend.append(s); });
+// A combination is "only here" when exactly one batch carries it.
+const batchesPerCombo = new Map();
+data.batches.forEach(b => combosOf([b]).forEach(k => batchesPerCombo.set(k, (batchesPerCombo.get(k) || 0) + 1)));
+const uniqueCombos = new Map(data.batches.map(b => [keyOf(b), [...combosOf([b])].filter(k => batchesPerCombo.get(k) === 1).length]));
 const grid = document.getElementById('grid');
 let activeCell = null;
 data.batches.forEach(b => {
   const m = membership(b);
   const cell = el('button', { class: `cell ${m}`, 'aria-label': `${b.id}, ${membershipLabel[m]}` }, b.id.slice(1));
   cell.style.background = `var(--${m})`;
-  const tip = e => showTip(e, t => { t.append(el('div', { class: 'strong' }, b.id), el('div', {}, membershipLabel[m]), el('div', { class: 'muted' }, `${b.cases.length} cases · ${new Set(b.cases.map(c => comboKey(c.obligations))).size} combinations · ${uniqueCombos.get(keyOf(b))} only here`)); });
+  const tip = e => showTip(e, t => { t.append(el('div', { class: 'strong' }, b.id), el('div', {}, membershipLabel[m]), el('div', { class: 'muted' }, `${b.cases.length} cases · D0 ${b.d0} · ${uniqueCombos.get(keyOf(b))} only here`)); });
   cell.addEventListener('pointermove', tip); cell.addEventListener('pointerleave', hideTip);
   cell.addEventListener('click', () => { if (activeCell) activeCell.classList.remove('active'); activeCell = cell; cell.classList.add('active'); showDetail(b); });
   grid.append(cell);
@@ -262,18 +378,18 @@ function showDetail(b) {
   const panel = document.getElementById('detail');
   panel.hidden = false;
   document.getElementById('detail-title').textContent = `${b.id} · schema ${b.schemaId}`;
-  document.getElementById('detail-sub').textContent = `${membershipLabel[membership(b)]} · ${b.cases.length} cases · registry ${b.registry.id} × ${b.queries.length} queries`;
+  document.getElementById('detail-sub').textContent = `${membershipLabel[membership(b)]} · ${b.cases.length} cases · D0 ${b.d0} · registry ${b.registry.id} × ${b.queries.length} queries`;
   document.getElementById('detail-sdl').textContent = b.sdl;
   const fragments = Object.entries(b.registry.objectFragments);
   document.getElementById('detail-fragments').textContent = fragments.length ? fragments.map(([f, s]) => `${f}: ${s}`).join('\n') : '(no object fragments)';
   document.getElementById('detail-queries').textContent = b.queries.map(q => `# ${q.id}\n${q.source}`).join('\n\n');
   const table = document.getElementById('detail-cases');
   table.replaceChildren();
-  const head = el('tr'); ['Query', 'Behaviors', 'Fragment depths'].forEach(h => head.append(el('th', {}, h))); table.append(head);
+  const head = el('tr'); ['Query', 'Behaviors', 'Resolver attributes'].forEach(h => head.append(el('th', {}, h))); table.append(head);
   b.cases.forEach(c => {
     const tr = el('tr');
     tr.append(el('td', {}, c.query), el('td', {}, c.obligations.map(short).join(', ') || '—'),
-      el('td', {}, c.attributes.filter(a => a.startsWith('object_fragment_depth:')).map(a => a.split(':')[1]).join(', ')));
+      el('td', {}, describeAttrs(c.attributes) || '—'));
     table.append(tr);
   });
   panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -282,8 +398,9 @@ function showDetail(b) {
 // Table view
 (function drawTable() {
   const table = document.getElementById('batch-table');
-  const columns = [['Batch', b => b.id], ['In', b => membershipLabel[membership(b)]], ['Cases', b => b.cases.length], ['Combinations', b => new Set(b.cases.map(c => comboKey(c.obligations))).size], ['Only here', b => uniqueCombos.get(keyOf(b))], ...seen.map(id => [short(id), b => supportOf([b], id)])];
-  let sortIndex = 0, ascending = true;
+  const columns = [['Batch', b => b.id], ['In', b => membershipLabel[membership(b)]], ['Cases', b => b.cases.length], ['D0 (richness)', b => b.d0], ['Only here', b => uniqueCombos.get(keyOf(b))], ['Attributes', b => attrsOf([b]).size], ...seen.map(id => [short(id), b => supportOf([b], id)])];
+  // Richest batches first; click any header to re-sort.
+  let sortIndex = 3, ascending = false;
   function render() {
     table.replaceChildren();
     const head = el('tr');

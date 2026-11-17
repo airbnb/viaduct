@@ -98,31 +98,14 @@ open class FieldCheckerLifecycleTest : ResolutionDispatcherResource {
     @Test
     fun `checker ctx query uses an independent raw scope with ordinary checked resolver boundaries`() {
         val orchestrations = ConcurrentLinkedQueue<SharedOrchestrationTask<*>>()
-        val checkerTasks = ConcurrentLinkedQueue<FieldCheckerTask>()
         val world = TestWorld.fromDSL(
             """
             extend type Query {
-              checked: Int! @resolver(script: "1")
-              dependency: Int! @resolver(of: "protected", script: "7")
-              protected: Int! @resolver(script: "9")
+              checked: Int! @resolver(script: "1") @checker(script: "query('{ dependency }').dependency == 7 && query('{ dependency }').dependency == 7 ? allow : deny")
+              dependency: Int! @resolver(of: "protected", script: "7") @checker(script: "allow")
+              protected: Int! @resolver(script: "9") @checker(script: "allow")
             }
             """.trimIndent(),
-            fieldCheckers = { schema ->
-                val checked = schema.loweredSchema.requireObjectField("Query", "checked")
-                val dependency = schema.loweredSchema.requireObjectField("Query", "dependency")
-                val protected = schema.loweredSchema.requireObjectField("Query", "protected")
-                mapOf(
-                    checked to FieldCheckerResolver.of(checked, schema.loweredSchema.requireQueryTypeDef()) { _, _, ctx ->
-                        checkerTasks += assertIs<FieldCheckerTask>(ctx)
-                        val selections = schema.fragmentFrom("fragment Child on Query { dependency }").subselections
-                        assertEquals(7, ctx.resolveSelectionSet(selections).get("dependency"))
-                        assertEquals(7, ctx.resolveSelectionSet(selections).get("dependency"))
-                        CheckerResult.Success
-                    },
-                    dependency to FieldCheckerResolver.of(dependency, schema.loweredSchema.requireQueryTypeDef()) { _, _, _ -> CheckerResult.Success },
-                    protected to FieldCheckerResolver.of(protected, schema.loweredSchema.requireQueryTypeDef()) { _, _, _ -> CheckerResult.Success },
-                )
-            },
         )
         val resolutionObserver = object : ResolutionObserver {
             override val onResolverInvocation: (ResolverInvocationObservation) -> Unit = { _ -> Unit }
@@ -136,12 +119,15 @@ open class FieldCheckerLifecycleTest : ResolutionDispatcherResource {
             world.newAssumptions(usePrecomputedConstructionDemand = precomputedConstructionDemand),
             resolutionObserver = recorder,
         )
-        operation.resolveWithTestDispatcher(world.schemas.operationSelectionsFrom("{ checked dependency }"))
+        val result = operation.resolveWithTestDispatcher(world.schemas.operationSelectionsFrom("{ checked dependency }"))
+        assertSame(CheckerResult.Success, result.getCell(result.keys.single { it.field.name == "checked" }).fieldCheckerResult.get())
         assertEquals(5, recorder.checkerApplications().size)
         assertEquals(3, recorder.checkerApplications().count { it.checkedCoordinate.name == "protected" })
         assertEquals(3, orchestrations.size)
         val root = orchestrations.single { it.creator == null }
-        val checker = checkerTasks.single()
+        val checker = assertIs<FieldCheckerTask>(orchestrations.first { it !== root }.creator)
+        assertEquals(world.schema.requireObjectField("Query", "checked"), checker.publication.checkerOccurrence.selection.key.field)
+        assertSame(result.getCell(result.keys.single { it.field.name == "checked" }), checker.publication.publicationCell)
         assertSame(root, checker.creator)
         assertSame(checker, checker.publication.task)
         orchestrations.filter { it !== root }.forEach { assertSame(checker, it.creator) }

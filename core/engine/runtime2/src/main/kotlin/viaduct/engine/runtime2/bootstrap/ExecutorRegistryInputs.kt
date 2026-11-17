@@ -2,6 +2,7 @@
 
 package viaduct.engine.runtime2.bootstrap
 
+import graphql.schema.GraphQLCompositeType
 import graphql.schema.GraphQLObjectType
 import graphql.schema.GraphQLOutputType
 import graphql.schema.GraphQLTypeUtil
@@ -41,6 +42,8 @@ import viaduct.engine.runtime2.model.emptyFragmentOf
 import viaduct.engine.runtime2.model.engineObjectDataOf
 import viaduct.engine.runtime2.model.guardedBy
 import viaduct.engine.runtime2.model.inputType
+import viaduct.engine.runtime2.model.isMutationNamespaceField
+import viaduct.engine.runtime2.model.mutationNamespaceTypes
 import viaduct.engine.runtime2.model.registry.CheckerInput
 import viaduct.engine.runtime2.model.registry.FieldCheckerResolver
 import viaduct.engine.runtime2.model.registry.FieldResolverDefinition
@@ -131,6 +134,7 @@ private fun executorRegistryInputs(
     validateExecutorRegistrations(fieldResolverExecutors, nodeResolverExecutors)
     val schema = schemas.loweredSchema
     val sourceSchema = SourceSchemaAdapter(schema)
+    val mutationOnlyNamespaces = mutationOnlyNamespaceFields(schemas, sourceSchema)
     val runtime2ContextForInvocation: (ResolutionExecutionContext) -> EngineExecutionContext =
         { resolutionContext ->
             Runtime2EngineExecutionContext(
@@ -140,14 +144,15 @@ private fun executorRegistryInputs(
             )
         }
     val variableProviders = linkedMapOf<Arguments.Variable, VariableDeclaration>()
-    val supplied =
-        fieldResolverExecutors.associate { (coordinate, executor) ->
+    val suppliedEntries =
+        fieldResolverExecutors.mapNotNull { (coordinate, executor) ->
             val field =
                 sourceSchema.field(coordinate.first, coordinate.second)
                     as? ViaductSchema.ObjectField
                     ?: throw IllegalArgumentException(
                         "Field executor ${coordinate.render()} does not map to a concrete object field",
                     )
+            if (field in mutationOnlyNamespaces) return@mapNotNull null
             val sourceField =
                 requireNotNull(fullSchema.schema.getObjectType(coordinate.first))
                     .getFieldDefinition(coordinate.second)
@@ -240,13 +245,14 @@ private fun executorRegistryInputs(
             field to resolverWithVariablesProvider
         }
 
-    require(supplied.size == fieldResolverExecutors.size) {
+    val supplied = suppliedEntries.toMap()
+    require(supplied.size == suppliedEntries.size) {
         "Field executor coordinates must map to distinct canonical fields"
     }
     return ExecutorRegistryInputs(
         fieldResolvers =
             supplied +
-                namespaceFieldResolvers(fullSchema, schema, sourceSchema, supplied.keys) +
+                namespaceFieldResolvers(fullSchema, schema, sourceSchema, supplied.keys + mutationOnlyNamespaces) +
                 if (includeDefaultQueryNodeResolvers) {
                     builtInNodeFieldResolvers(
                         fullSchema,
@@ -900,11 +906,44 @@ private class DispatcherNodeExecutor(
     }
 }
 
+private fun mutationOnlyNamespaceFields(
+    schemas: ViaductAndGJSchema,
+    sourceSchema: SourceSchemaAdapter,
+): Set<ViaductSchema.ObjectField> {
+    val mutationTypes = schemas.loweredSchema.mutationNamespaceTypes()
+    if (mutationTypes.isEmpty()) return emptySet()
+    val ordinaryTypes = mutableSetOf<String>()
+
+    fun visit(type: GraphQLOutputType) {
+        val composite = GraphQLTypeUtil.unwrapAll(type) as? GraphQLCompositeType ?: return
+        schemas.typeRelations.possibleObjectTypes(composite).forEach { obj ->
+            if (ordinaryTypes.add(obj.name)) {
+                obj.fieldDefinitions.forEach { visit(it.type) }
+            }
+        }
+    }
+
+    visit(schemas.graphQLSchema.queryType)
+    schemas.graphQLSchema.subscriptionType?.let(::visit)
+    mutationTypes.forEach { type ->
+        val sourceType = requireNotNull(schemas.graphQLSchema.getObjectType(type.name)) {
+            "Mutation namespace type ${type.name} is missing from the source schema"
+        }
+        sourceType.fieldDefinitions.forEach { sourceField ->
+            val field = sourceSchema.field(type.name, sourceField.name) as ViaductSchema.ObjectField
+            if (!field.isMutationNamespaceField()) visit(sourceField.type)
+        }
+    }
+    return mutationTypes.filterNot { it.name in ordinaryTypes }
+        .flatMap { it.fields.filter { field -> field.isMutationNamespaceField() } }
+        .toSet()
+}
+
 private fun namespaceFieldResolvers(
     fullSchema: EngineSchema,
     schema: ViaductSchema,
     sourceSchema: SourceSchemaAdapter,
-    suppliedFields: Set<ViaductSchema.Field>,
+    excludedFields: Set<ViaductSchema.Field>,
 ): Map<ViaductSchema.Field, FieldResolverDefinition> =
     fullSchema.schema.allTypesAsList
         .filterIsInstance<GraphQLObjectType>()
@@ -918,7 +957,7 @@ private fun namespaceFieldResolvers(
                     "Namespace field ${sourceParent.name}/${sourceField.name} " +
                         "does not map to a concrete object field"
                 }
-                if (field in suppliedFields) return@mapNotNull null
+                if (field in excludedFields) return@mapNotNull null
                 val outputType = schema.requireType(sourceOutput.name)
                 require(outputType is ViaductSchema.Object) {
                     "Namespace field ${sourceParent.name}/${sourceField.name} " +

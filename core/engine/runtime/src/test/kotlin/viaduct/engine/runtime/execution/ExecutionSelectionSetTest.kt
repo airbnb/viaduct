@@ -9,23 +9,17 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
-import viaduct.engine.EngineConfiguration
 import viaduct.engine.api.Coordinate
 import viaduct.engine.api.EngineSelection
 import viaduct.engine.api.EngineSelectionSet
 import viaduct.engine.api.ResolverType
-import viaduct.engine.api.mocks.EngineTestModule
 import viaduct.engine.api.mocks.MockSchema
-import viaduct.engine.api.mocks.createEngineObjectData
-import viaduct.engine.api.mocks.featureTestDefault
-import viaduct.engine.api.mocks.runFeatureTest
 import viaduct.engine.api.select.SelectionsParser
 import viaduct.engine.runtime.DispatcherRegistry
 import viaduct.engine.runtime.FieldResolverDispatcher
 import viaduct.engine.runtime.NodeResolverDispatcher
 import viaduct.engine.runtime.ResolverSelectionProjector
 import viaduct.engine.runtime.select.typeFields
-import viaduct.service.api.spi.mocks.MockFlagManager
 
 class ExecutionSelectionSetTest {
     private val defaultSdl =
@@ -404,48 +398,6 @@ class ExecutionSelectionSetTest {
 
     @Nested
     inner class Creation {
-        @Test
-        fun `legacy resolver selection set preserves named fragments`() {
-            var receivedSelections: EngineSelectionSet? = null
-
-            EngineTestModule(
-                """
-                    extend type Query { item: Item }
-                    type Item { id: ID! }
-                """.trimIndent()
-            ) {
-                field("Query" to "item") {
-                    resolver {
-                        fn { _, _, _, selections, _ ->
-                            receivedSelections = selections
-                            createEngineObjectData(
-                                schema.schema.getObjectType("Item"),
-                                mapOf("id" to "item-1"),
-                            )
-                        }
-                    }
-                }
-            }.runFeatureTest(
-                engineConfig = EngineConfiguration.featureTestDefault.copy(
-                    flagManager = MockFlagManager.Disabled,
-                )
-            ) {
-                runQuery(
-                    """
-                        query {
-                          item { ...ItemFields }
-                        }
-
-                        fragment ItemFields on Item {
-                          id
-                        }
-                    """.trimIndent()
-                ).assertJson("""{"data": {"item": {"id": "item-1"}}}""")
-            }
-
-            assertTrue(requireNotNull(receivedSelections).containsField("Item", "id"))
-        }
-
         @Test
         fun `conditional fields with unbound include remain`() {
             val selections = mk("Foo", "id @include(if: \$includeField)")

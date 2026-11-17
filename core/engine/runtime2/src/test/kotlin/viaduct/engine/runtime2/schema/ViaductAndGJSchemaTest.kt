@@ -48,7 +48,7 @@ class ViaductAndGJSchemaTest {
     }
 
     @Test
-    fun `prepares ordinary enum values containing incidental V_A characters`() {
+    fun `prepares enum values outside the internal namespace`() {
         val source =
             graphQLSchema(
                 """
@@ -58,6 +58,11 @@ class ViaductAndGJSchemaTest {
                   AOV_AND_PASSWORD_RESET
                   V_ALPHA
                   AV_A
+                  V_A
+                  V_A_typename
+                  user_V_A_node
+                  user_viaduct_internal__node
+                  _viaduct_internal_node
                 }
                 """,
             )
@@ -67,14 +72,24 @@ class ViaductAndGJSchemaTest {
         assertTrue(result.isSuccess, result.exceptionOrNull()?.message)
         val status = result.getOrThrow().loweredSchema.requireType("Status") as ViaductSchema.Enum
         assertEquals(
-            setOf("SYSTEM_AV_ALT_PLAY", "AOV_AND_PASSWORD_RESET", "V_ALPHA", "AV_A"),
+            setOf(
+                "SYSTEM_AV_ALT_PLAY",
+                "AOV_AND_PASSWORD_RESET",
+                "V_ALPHA",
+                "AV_A",
+                "V_A",
+                "V_A_typename",
+                "user_V_A_node",
+                "user_viaduct_internal__node",
+                "_viaduct_internal_node",
+            ),
             status.values.map { it.name }.toSet(),
         )
     }
 
     @Test
-    fun `rejects enum values containing the reserved V_A token at name boundaries`() {
-        listOf("V_A", "V_A_typename", "user_V_A", "user_V_A_node").forEach { name ->
+    fun `rejects enum values starting with the reserved prefix`() {
+        listOf("_viaduct_internal__", "_viaduct_internal__typename", "_viaduct_internal__VALUE").forEach { name ->
             val source =
                 graphQLSchema(
                     """
@@ -88,20 +103,27 @@ class ViaductAndGJSchemaTest {
                     ViaductAndGJSchema.fromGraphQLSchema(source)
                 }
 
-            assertTrue(exception.message.orEmpty().contains("reserved token V_A"), name)
+            assertTrue(exception.message.orEmpty().contains("reserved prefix _viaduct_internal__"), name)
         }
     }
 
     @Test
     fun `rejects reserved names through the public preparation entry point`() {
-        val source = graphQLSchema("type Query { V_A_typename: String }")
+        listOf(
+            "type Query { _viaduct_internal__typename: String }",
+            "type Query { value: Int } type _viaduct_internal__AllSourceObjects { value: String }",
+            "type Query { value: Int } directive @_viaduct_internal__example on FIELD_DEFINITION",
+            "type Query { value(_viaduct_internal__arg: Int): Int }",
+            "type Query { value: Int } directive @example(_viaduct_internal__arg: Int) on FIELD_DEFINITION",
+        ).forEach { sdl ->
+            val source = graphQLSchema(sdl)
 
-        val exception =
-            assertFailsWith<IllegalArgumentException> {
-                ViaductAndGJSchema.fromGraphQLSchema(source)
-            }
+            val exception =
+                assertFailsWith<IllegalArgumentException>(sdl) {
+                    ViaductAndGJSchema.fromGraphQLSchema(source)
+                }
 
-        assertTrue(exception.message.orEmpty().contains("reserved token V_A"))
-        assertTrue(exception.message.orEmpty().contains("V_A_typename"))
+            assertTrue(exception.message.orEmpty().contains("reserved prefix _viaduct_internal__"), sdl)
+        }
     }
 }

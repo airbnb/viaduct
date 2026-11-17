@@ -2,15 +2,22 @@ package viaduct.service
 
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertInstanceOf
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.ValueSource
+import viaduct.engine.EngineImpl
 import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.GraphQLBuildError
+import viaduct.engine.api.mocks.EngineTestModule
+import viaduct.engine.api.mocks.MockExecutorCodeInjector
 import viaduct.engine.api.spi.CheckerExecutorFactory
 import viaduct.engine.api.spi.ProxyResolverFactory
+import viaduct.engine.runtime2.Engine2
 import viaduct.service.api.ExecutionInput
 import viaduct.service.api.SchemaId
 import viaduct.service.api.spi.CodeInjector
@@ -25,8 +32,7 @@ import viaduct.service.runtime.SchemaConfiguration
 import viaduct.service.runtime.StandardViaduct
 
 class ViaductBuilderTest {
-    // Loaded from viaduct_builder_test_schema.graphqls on the test classpath. helloWorld has
-    // no registered resolver, so strict validation rejects it unless withLenientResolverValidation() is set.
+    // Without an injector factory, the classpath test module is not loaded and helloWorld has no resolver.
     val scopedSchemas = listOf(SchemaScopeInfo.Scoped("public", setOf("publicScope")))
 
     val flagManager = MockFlagManager.RuntimeFlagsEnabled
@@ -42,13 +48,17 @@ class ViaductBuilderTest {
             }
     }
 
-    @Test
-    fun `base SchemaScopeInfo executes across all scopes but hides tenantLocal fields`() {
+    @ParameterizedTest
+    @ValueSource(booleans = [false, true])
+    fun `base SchemaScopeInfo executes across all scopes but hides tenantLocal fields`(engine2Enabled: Boolean) {
         val viaduct = ViaductBuilder()
-            .withFlagManager(flagManager)
-            .withLenientResolverValidation()
+            .withFlagManager(MockFlagManager.forEngine(engine2Enabled, flagManager))
+            .withTenantModuleInjectorFactory(NaiveTenantModuleInjectorFactory)
             .withScopedSchemas(listOf(SchemaScopeInfo.Base))
             .build()
+
+        val standardViaduct = assertInstanceOf(StandardViaduct::class.java, viaduct)
+        assertInstanceOf(if (engine2Enabled) Engine2::class.java else EngineImpl::class.java, standardViaduct.engineRegistry.getEngine(SchemaId.Base))
 
         val visibleResult = viaduct.executeAsync(
             ExecutionInput.create("{ basePublicFieldA basePublicFieldB }"),
@@ -70,16 +80,22 @@ class ViaductBuilderTest {
     }
 
     // Inline SDL keeps this unscoped fixture separate from the indexed, scope-bearing schemas.
-    @Test
+    @ParameterizedTest
+    @ValueSource(booleans = [false, true])
     @Suppress("DEPRECATION")
-    fun `base SchemaScopeInfo executes the base view of an unscoped schema`() {
+    fun `base SchemaScopeInfo executes the base view of an unscoped schema`(engine2Enabled: Boolean) {
         val sdl = "extend type Query { unscopedVisibleField: String }"
         val schemaConfiguration = SchemaConfiguration.fromSdl(
             sdl,
             scopes = setOf(SchemaConfiguration.ScopeConfig.Base),
         )
+        val module = EngineTestModule(sdl) {
+            fieldWithValue("Query" to "unscopedVisibleField", null)
+        }
         val viaduct = StandardViaduct.Builder()
-            .withFlagManager(flagManager)
+            .withTenantModuleInjectorFactory(MockExecutorCodeInjector(module.mockExecutorRegistry))
+            .withExecutorRegistryConfigSources(listOf(module.toModuleConfigSource()))
+            .withFlagManager(MockFlagManager.forEngine(engine2Enabled, flagManager))
             .withSchemaConfiguration(schemaConfiguration)
             .build()
 
@@ -291,7 +307,7 @@ class ViaductBuilderTest {
     }
 
     @Test
-    fun `builds with an injector factory and an empty module index`() {
+    fun `builds with an injector factory and a classpath module index`() {
         val viaduct = ViaductBuilder()
             .withFlagManager(flagManager)
             .withTenantModuleInjectorFactory(NaiveTenantModuleInjectorFactory)

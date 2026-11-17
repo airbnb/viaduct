@@ -15,7 +15,7 @@ interface RecursiveListFromArgumentDemandResolverContract : ResolverContract {
                 schemaSDL =
                     """
                     extend type Query {
-                      item: Item! @resolver(script: "{'common': 1}")
+                      item: Item! @resolver(isSelective: $selectiveResolvers, script: "{'common': 1}")
                       result(value: Int!): Int!
                         @resolver(
                           of: "item { consume(value: ${'$'}value) }"

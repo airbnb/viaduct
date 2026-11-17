@@ -1,6 +1,7 @@
 package viaduct.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -15,6 +16,10 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ForkJoinPool;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
+import viaduct.engine.EngineImpl;
+import viaduct.engine.runtime2.Engine2;
 import viaduct.service.api.ExecutionInput;
 import viaduct.service.api.ExecutionResult;
 import viaduct.service.api.GraphQLError;
@@ -30,6 +35,8 @@ import viaduct.service.api.spi.InputStreamSource;
 import viaduct.service.api.spi.NaiveTenantModuleInjectorFactory;
 import viaduct.service.api.spi.ResolverErrorBuilder;
 import viaduct.service.api.spi.SharedTenantModuleInjectorFactory;
+import viaduct.service.api.spi.mocks.MockFlagManager;
+import viaduct.service.runtime.StandardViaduct;
 import viaduct.service.spi.ExampleJavaTenantModuleInjectorFactory;
 import viaduct.service.spi.JavaCodeInjector;
 import viaduct.service.spi.JavaErrorReporter;
@@ -43,31 +50,39 @@ import viaduct.service.wiring.graphiql.GraphiQLHtmlConfig;
 /**
  * Compile-and-execute coverage harness proving the {@code viaduct.service.*} {@code @StableApi}
  * surface is consumable from Java. If this class compiles, Java callers and implementers can use
- * the surface; {@link #executionSmoke()} proves the end-to-end Java execution path.
+ * the surface; {@link #executionSmoke(boolean)} proves the end-to-end Java execution path.
  *
  * <p>As later slices land they edit this harness (clean the call / add the newly-possible coverage
  * and remove the marker), so the marker count is a live progress meter for the initiative.
  */
 class ServiceApiJavaCoverageTest {
 
-  @Test
-  void executionSmoke() {
-    final var viaduct = buildMinimalViaduct();
+  @ParameterizedTest
+  @ValueSource(booleans = {false, true})
+  void executionSmoke(boolean engine2Enabled) {
+    final var viaduct = buildMinimalViaduct(engine2Enabled);
+    final var standardViaduct = assertInstanceOf(StandardViaduct.class, viaduct);
+    final Class<?> expectedEngine = engine2Enabled ? Engine2.class : EngineImpl.class;
+    assertInstanceOf(
+        expectedEngine, standardViaduct.getEngineRegistry().getEngine(SchemaId.Base.INSTANCE));
     final var input =
-        ExecutionInput.Companion.create("{ __typename }", null, Collections.emptyMap(), null);
+        ExecutionInput.Companion.create(
+            "{ __typename greeting }", null, Collections.emptyMap(), null);
     final ExecutionResult.Standard result =
         viaduct.executeAsync(input, SchemaId.Base.INSTANCE).join();
 
     final Map<String, Object> data = result.getData();
-    assertNotNull(data, "expected data for { __typename }");
+    assertNotNull(data, "expected data for { __typename greeting }");
     assertEquals("Query", data.get("__typename"));
+    assertEquals("Hello from the classpath resolver", data.get("greeting"));
     assertTrue(result.getErrors().isEmpty(), "expected no errors");
     assertNotNull(result.toSpecification());
   }
 
-  @Test
-  void executeAsyncOverloadsAndAppliedScopes() {
-    final var viaduct = buildMinimalViaduct();
+  @ParameterizedTest
+  @ValueSource(booleans = {false, true})
+  void executeAsyncOverloadsAndAppliedScopes(boolean engine2Enabled) {
+    final var viaduct = buildMinimalViaduct(engine2Enabled);
     final var input = ExecutionInput.Companion.builder().operationText("{ __typename }").build();
 
     // All three executeAsync overloads are Java-callable
@@ -180,15 +195,14 @@ class ServiceApiJavaCoverageTest {
     assertThrows(IllegalStateException.class, () -> SchemaScopeInfo.fromResources(Set.of()));
   }
 
-  private static Viaduct buildMinimalViaduct() {
+  private static Viaduct buildMinimalViaduct(boolean engine2Enabled) {
     final var scopedSchemas =
         List.of(
             SchemaScopeInfo.Base.INSTANCE,
             new SchemaScopeInfo.Scoped("public", Set.of("viaduct-public")));
     return new ViaductBuilder()
-        .withFlagManager(new JavaFlagManager())
+        .withFlagManager(MockFlagManager.Companion.forEngine(engine2Enabled, new JavaFlagManager()))
         .withTenantModuleInjectorFactory(NaiveTenantModuleInjectorFactory.INSTANCE)
-        .withLenientResolverValidation(true)
         .withScopedSchemas(scopedSchemas)
         .build();
   }
@@ -196,7 +210,7 @@ class ServiceApiJavaCoverageTest {
   /**
    * Never invoked — exists purely to prove these calls COMPILE from Java. Kept out of the executed
    * tests because {@link BasicViaductFactory#create} discovers tenant modules from the classpath;
-   * building/executing is already covered by {@link #executionSmoke()}.
+   * building/executing is already covered by {@link #executionSmoke(boolean)}.
    */
   @SuppressWarnings("unused")
   private static void compileOnlyReferences() {

@@ -357,7 +357,7 @@ internal data class GeneratedViaductDescriptorConfig(
 )
 
 internal class DescribedViaduct(
-    private val delegate: Viaduct,
+    val delegate: Viaduct,
     val descriptor: () -> ViaductDescriptor,
 ) : Viaduct by delegate
 

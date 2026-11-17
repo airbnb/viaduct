@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import viaduct.service.api.ExecutionInput
 import viaduct.service.api.SchemaId
 import viaduct.service.api.spi.NaiveTenantModuleInjectorFactory
 import viaduct.service.runtime.SchemaConfiguration
@@ -11,9 +12,10 @@ import viaduct.service.runtime.SchemaConfiguration
 internal class BasicViaductFactoryTest {
     @Test
     fun `create should attempt to build Viaduct from classpath registry`() {
-        assertThrows<Exception> {
-            BasicViaductFactory.create()
-        }
+        val viaduct = BasicViaductFactory.create()
+        val result = viaduct.executeAsync(ExecutionInput.create("{ __typename greeting }")).join()
+        assertEquals(emptyList<Any>(), result.errors)
+        assertEquals(mapOf("__typename" to "Query", "greeting" to "Hello from the classpath resolver"), result.getData())
     }
 
     @Nested
@@ -72,11 +74,12 @@ internal class BasicViaductFactoryTest {
     inner class CreateTests {
         @Test
         fun `create should accept a custom tenant module injector factory`() {
-            assertThrows<Exception> {
-                BasicViaductFactory.create(
-                    tenantModuleInjectorFactory = NaiveTenantModuleInjectorFactory,
-                )
-            }
+            val viaduct = BasicViaductFactory.create(
+                tenantModuleInjectorFactory = NaiveTenantModuleInjectorFactory,
+            )
+            val result = viaduct.executeAsync(ExecutionInput.create("{ __typename }")).join()
+            assertEquals(emptyList<Any>(), result.errors)
+            assertEquals(mapOf("__typename" to "Query"), result.getData())
         }
 
         @Test

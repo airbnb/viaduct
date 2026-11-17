@@ -80,7 +80,7 @@ private fun ResolverContract.resolvePassiveOutputFixture(): PassiveOutputFixture
             schemaSDL =
                 """
                 extend type Query {
-                  user: User! @resolver(script: "{'requested': 1, 'extra': 2}")
+                  user: User! @resolver(isSelective: $selectiveResolvers, script: "{'requested': 1, 'extra': 2}")
                 }
 
                 type User {
@@ -129,6 +129,7 @@ private fun ResolverContract.resolveRecursiveOutputFixture(): RecursiveOutputFix
                 extend type Query {
                   chain: Chain!
                     @resolver(
+                      isSelective: $selectiveResolvers
                       script: "{'label': 1, 'next': {'label': 2, 'next': null}}"
                     )
                 }
