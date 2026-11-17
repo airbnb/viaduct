@@ -1,31 +1,39 @@
 package viaduct.engine.runtime2.model.testing
 
-import graphql.language.ArrayValue
-import graphql.language.AstPrinter
-import graphql.language.Definition
-import graphql.language.Directive
-import graphql.language.FieldDefinition
-import graphql.language.IntValue
 import graphql.language.Node
-import graphql.language.ObjectField
-import graphql.language.ObjectTypeDefinition
-import graphql.language.ObjectTypeExtensionDefinition
-import graphql.language.ObjectValue
-import graphql.language.StringValue
-import graphql.language.Value as GraphQLValue
 import graphql.language.VariableReference
 import graphql.parser.Parser
+import viaduct.engine.api.testing.DslChecker
+import viaduct.engine.api.testing.DslFieldResolver
+import viaduct.engine.api.testing.DslNodeResolver
+import viaduct.engine.api.testing.DslPathVariable
+import viaduct.engine.api.testing.DslVariable
+import viaduct.engine.api.testing.DslVariableSource
+import viaduct.engine.api.testing.ResolverTestDslDocument
 import viaduct.engine.runtime2.bootstrap.compileFromField
 import viaduct.engine.runtime2.model.Arguments
 import viaduct.engine.runtime2.model.Fragment
 import viaduct.engine.runtime2.model.ResolverTarget
 import viaduct.engine.runtime2.model.emptyFragmentOf
+import viaduct.engine.runtime2.model.materializeSelectionForestOf
+import viaduct.engine.runtime2.model.outputType
+import viaduct.engine.runtime2.model.registry.FieldCheckerResolver
 import viaduct.engine.runtime2.model.registry.FieldResolverDefinition
+import viaduct.engine.runtime2.model.registry.FromArgument
+import viaduct.engine.runtime2.model.registry.FromField
 import viaduct.engine.runtime2.model.registry.NodeResolverFunction
 import viaduct.engine.runtime2.model.registry.ProviderFragment
+import viaduct.engine.runtime2.model.registry.ResolverFragmentTemplates
+import viaduct.engine.runtime2.model.registry.TypeCheckerResolver
 import viaduct.engine.runtime2.model.registry.VariableDeclaration
+import viaduct.engine.runtime2.model.registry.VariableDefinition
 import viaduct.engine.runtime2.model.registry.fieldResolverOf
 import viaduct.engine.runtime2.model.registry.fromArgument
+import viaduct.engine.runtime2.model.registry.selectiveFieldResolverOf
+import viaduct.engine.runtime2.model.registry.selectiveNodeResolverOf
+import viaduct.engine.runtime2.model.registry.usedVariables
+import viaduct.engine.runtime2.model.requireOutputType
+import viaduct.engine.runtime2.model.requireQueryTypeDef
 import viaduct.engine.runtime2.model.requireType
 import viaduct.engine.runtime2.model.spec.flattenForMaterialization
 import viaduct.engine.runtime2.schema.GJSelectionParser
@@ -34,248 +42,29 @@ import viaduct.engine.runtime2.schema.SourceSchemaAdapter
 import viaduct.engine.runtime2.schema.ViaductAndGJSchema
 import viaduct.graphql.schema.ViaductSchema
 
-/**
- * Compiles schema-embedded resolver fixtures into the existing test-world composition API.
- */
 internal class ResolverTestDsl private constructor(
-    val schemaSDL: String,
-    private val fieldDefinitions: List<DslFieldResolver>,
-    private val nodeDefinitions: List<DslNodeResolver>,
+    private val document: ResolverTestDslDocument,
+    private val scriptBindings: Map<String, Any?>,
 ) {
-    fun nodeResolvers(schema: ViaductAndGJSchema): Map<ViaductSchema.Object, NodeResolverFunction> = Compiler(schema, fieldDefinitions, nodeDefinitions).nodeResolvers()
+    val schemaSDL: String get() = document.schemaSDL
 
-    fun fieldResolvers(schema: ViaductAndGJSchema): Map<ViaductSchema.Field, FieldResolverDefinition> = Compiler(schema, fieldDefinitions, nodeDefinitions).fieldResolvers()
+    private fun compiler(schema: ViaductAndGJSchema) = Compiler(schema, document.fieldDefinitions, document.nodeDefinitions, scriptBindings)
 
-    fun variableProviders(schema: ViaductAndGJSchema): Map<Arguments.Variable, VariableDeclaration> = Compiler(schema, fieldDefinitions, nodeDefinitions).variableProviders()
+    fun nodeResolvers(schema: ViaductAndGJSchema): Map<ViaductSchema.Object, NodeResolverFunction> = compiler(schema).nodeResolvers()
+
+    fun fieldResolvers(schema: ViaductAndGJSchema): Map<ViaductSchema.Field, FieldResolverDefinition> = compiler(schema).fieldResolvers()
+
+    fun variableProviders(schema: ViaductAndGJSchema): Map<Arguments.Variable, VariableDeclaration> = compiler(schema).variableProviders()
+
+    fun fieldCheckers(schema: ViaductAndGJSchema): Map<ViaductSchema.ObjectField, FieldCheckerResolver> = compiler(schema).fieldCheckers(document.checkerDefinitions)
+
+    fun typeCheckers(schema: ViaductAndGJSchema): Map<ViaductSchema.Object, TypeCheckerResolver> = compiler(schema).typeCheckers(document.checkerDefinitions)
 
     companion object {
-        fun parse(source: String): ResolverTestDsl {
-            val document = Parser.parse(source)
-            val fields = mutableListOf<DslFieldResolver>()
-            val nodes = mutableListOf<DslNodeResolver>()
-
-            document.definitions.forEach { definition ->
-                when (definition) {
-                    is ObjectTypeExtensionDefinition ->
-                        collectObjectDefinition(
-                            definition.name,
-                            definition.directives,
-                            definition.fieldDefinitions,
-                            fields,
-                            nodes,
-                        )
-                    is ObjectTypeDefinition ->
-                        collectObjectDefinition(
-                            definition.name,
-                            definition.directives,
-                            definition.fieldDefinitions,
-                            fields,
-                            nodes,
-                        )
-                }
-            }
-
-            require(fields.map { it.typeName to it.fieldName }.distinct().size == fields.size) {
-                "A field may carry only one @$RESOLVER_DIRECTIVE directive"
-            }
-            require(nodes.map { it.typeName }.distinct().size == nodes.size) {
-                "An object may carry only one @$NODE_RESOLVER_DIRECTIVE directive"
-            }
-
-            val stripped =
-                document.transform { builder ->
-                    builder.definitions(document.definitions.map(::stripDslDirectives))
-                }
-            return ResolverTestDsl(
-                schemaSDL = BUILT_IN_SCHEMA + "\n" + AstPrinter.printAst(stripped),
-                fieldDefinitions = fields,
-                nodeDefinitions = nodes,
-            )
-        }
-
-        private fun collectObjectDefinition(
-            typeName: String,
-            directives: List<Directive>,
-            fieldDefinitions: List<FieldDefinition>,
-            fields: MutableList<DslFieldResolver>,
-            nodes: MutableList<DslNodeResolver>,
-        ) {
-            directives
-                .filter { it.name == NODE_RESOLVER_DIRECTIVE }
-                .forEach { directive ->
-                    requireOnlyArguments(directive, setOf(IDS_ARGUMENT, SCRIPT_ARGUMENT))
-                    val script = directive.requiredArgument(SCRIPT_ARGUMENT)
-                    require(script is StringValue) { "@$NODE_RESOLVER_DIRECTIVE.script must be a string" }
-                    val ids = directive.requiredArgument(IDS_ARGUMENT)
-                    require(ids is ArrayValue && ids.values.isNotEmpty()) { "@$NODE_RESOLVER_DIRECTIVE.ids must be a nonempty list" }
-                    nodes += DslNodeResolver(typeName, ids.values.map(::parseId), script.requiredValue())
-                }
-
-            fieldDefinitions.forEach { field ->
-                field.directives
-                    .filter { it.name == RESOLVER_DIRECTIVE }
-                    .forEach { directive ->
-                        requireOnlyArguments(
-                            directive,
-                            setOf(
-                                OF_ARGUMENT,
-                                QF_ARGUMENT,
-                                PATH_VARS_ARGUMENT,
-                                VARS_ARGUMENT,
-                                SCRIPT_ARGUMENT,
-                            ),
-                        )
-                        val script = directive.requiredArgument(SCRIPT_ARGUMENT)
-                        require(script is StringValue) { "@$RESOLVER_DIRECTIVE.$SCRIPT_ARGUMENT must be a string" }
-                        val of =
-                            directive.argument(OF_ARGUMENT)?.let { value ->
-                                require(value is StringValue) {
-                                    "@$RESOLVER_DIRECTIVE.$OF_ARGUMENT must be a string"
-                                }
-                                value.requiredValue()
-                            }.orEmpty()
-                        val qf =
-                            directive.argument(QF_ARGUMENT)?.let { value ->
-                                require(value is StringValue) {
-                                    "@$RESOLVER_DIRECTIVE.$QF_ARGUMENT must be a string"
-                                }
-                                value.requiredValue()
-                            }.orEmpty()
-                        val pathVariables =
-                            directive.argument(PATH_VARS_ARGUMENT)
-                                ?.let(::parsePathVariables)
-                                .orEmpty()
-                        val variablesProvider = directive.argument(VARS_ARGUMENT)?.let(::parseVariablesProvider)
-                        fields +=
-                            DslFieldResolver(
-                                typeName = typeName,
-                                fieldName = field.name,
-                                of = of,
-                                qf = qf,
-                                pathVariables = pathVariables,
-                                variablesProvider = variablesProvider,
-                                script = script.requiredValue(),
-                            )
-                    }
-            }
-        }
-
-        private fun parsePathVariables(value: GraphQLValue<*>): List<DslPathVariable> {
-            val values =
-                when (value) {
-                    is ArrayValue -> value.values
-                    is ObjectValue -> listOf(value)
-                    else ->
-                        throw IllegalArgumentException(
-                            "@$RESOLVER_DIRECTIVE.$PATH_VARS_ARGUMENT must be a list",
-                        )
-                }
-            return values.map { entry ->
-                require(entry is ObjectValue) {
-                    "$PATH_VARS_ARGUMENT entries must be objects"
-                }
-                val fields = entry.uniqueFields("$PATH_VARS_ARGUMENT entry")
-                require(fields.keys == setOf(NAME_FIELD, PATH_FIELD)) {
-                    "$PATH_VARS_ARGUMENT entries require exactly name and path"
-                }
-                val name = fields.getValue(NAME_FIELD)
-                require(name is StringValue && GRAPHQL_NAME.matches(name.requiredValue())) {
-                    "$PATH_VARS_ARGUMENT.name must be a GraphQL name"
-                }
-                val path = fields.getValue(PATH_FIELD)
-                require(path is ArrayValue && path.values.isNotEmpty()) {
-                    "$PATH_VARS_ARGUMENT.path must be a nonempty list"
-                }
-                DslPathVariable(
-                    name = name.requiredValue(),
-                    path =
-                        path.values.map { component ->
-                            require(
-                                component is StringValue &&
-                                    GRAPHQL_NAME.matches(component.requiredValue()),
-                            ) {
-                                "$PATH_VARS_ARGUMENT.path components must be GraphQL names"
-                            }
-                            component.requiredValue()
-                        },
-                )
-            }.also { definitions ->
-                require(definitions.map { it.name }.distinct().size == definitions.size) {
-                    "$PATH_VARS_ARGUMENT variable names must be unique"
-                }
-            }
-        }
-
-        private fun parseVariablesProvider(value: GraphQLValue<*>): DslVariablesProvider {
-            require(value is ObjectValue) { "@$RESOLVER_DIRECTIVE.$VARS_ARGUMENT must be an object" }
-            val fields = value.uniqueFields(VARS_ARGUMENT)
-            require(fields.keys == setOf("names", SCRIPT_ARGUMENT)) { "$VARS_ARGUMENT requires exactly names and script" }
-            val names = fields.getValue("names")
-            require(names is ArrayValue && names.values.isNotEmpty()) { "$VARS_ARGUMENT.names must be a nonempty list" }
-            val parsedNames = names.values.map { name ->
-                require(name is StringValue && GRAPHQL_NAME.matches(name.requiredValue())) { "$VARS_ARGUMENT.names must contain GraphQL names" }
-                name.requiredValue()
-            }
-            require(parsedNames.distinct().size == parsedNames.size) { "$VARS_ARGUMENT.names must be unique" }
-            val script = fields.getValue(SCRIPT_ARGUMENT)
-            require(script is StringValue) { "$VARS_ARGUMENT.script must be a string" }
-            return DslVariablesProvider(parsedNames.toSet(), script.requiredValue())
-        }
-
-        private fun stripDslDirectives(definition: Definition<*>): Definition<*> =
-            when (definition) {
-                is ObjectTypeExtensionDefinition ->
-                    definition.transformExtension { builder ->
-                        builder
-                            .directives(definition.directives.withoutDslDirectives())
-                            .fieldDefinitions(
-                                definition.fieldDefinitions.map { it.withoutDslDirectives() },
-                            )
-                    }
-                is ObjectTypeDefinition ->
-                    definition.transform { builder ->
-                        builder
-                            .directives(definition.directives.withoutDslDirectives())
-                            .fieldDefinitions(
-                                definition.fieldDefinitions.map { it.withoutDslDirectives() },
-                            )
-                    }
-                else -> definition
-            }
-
-        private fun FieldDefinition.withoutDslDirectives(): FieldDefinition = transform { builder -> builder.directives(directives.withoutDslDirectives()) }
-
-        private fun List<Directive>.withoutDslDirectives(): List<Directive> = filterNot { it.name == RESOLVER_DIRECTIVE || it.name == NODE_RESOLVER_DIRECTIVE }
-
-        private fun requireOnlyArguments(
-            directive: Directive,
-            allowed: Set<String>,
-        ) {
-            require(directive.arguments.map { it.name }.distinct().size == directive.arguments.size) {
-                "@${directive.name} contains duplicate arguments"
-            }
-            val unexpected = directive.arguments.map { it.name }.filterNot(allowed::contains)
-            require(unexpected.isEmpty()) {
-                "Unexpected @${
-                    directive.name
-                } arguments: ${unexpected.sorted().joinToString()}"
-            }
-        }
-
-        private fun Directive.requiredArgument(name: String): GraphQLValue<*> =
-            argument(name)
-                ?: throw IllegalArgumentException(
-                    "@${this.name} requires $name",
-                )
-
-        private fun Directive.argument(name: String): GraphQLValue<*>? = arguments.singleOrNull { it.name == name }?.value
-
-        private fun parseId(value: GraphQLValue<*>): String =
-            when (value) {
-                is StringValue -> value.requiredValue()
-                is IntValue -> value.value.toString()
-                else -> throw IllegalArgumentException("@$NODE_RESOLVER_DIRECTIVE.ids must contain ID literals")
-            }
+        fun parse(
+            source: String,
+            scriptBindings: Map<String, Any?> = emptyMap(),
+        ): ResolverTestDsl = ResolverTestDsl(ResolverTestDslDocument.parse(source), scriptBindings)
     }
 }
 
@@ -283,6 +72,7 @@ private class Compiler(
     private val schemas: ViaductAndGJSchema,
     private val fieldDefinitions: List<DslFieldResolver>,
     private val nodeDefinitions: List<DslNodeResolver>,
+    private val scriptBindings: Map<String, Any?>,
 ) {
     private val schema = schemas.loweredSchema
     private val sourceSchema = SourceSchemaAdapter(schema)
@@ -295,7 +85,15 @@ private class Compiler(
             require(type in nodeType().possibleObjectTypes) {
                 "${definition.typeName} does not implement Node"
             }
-            val function = createJEXLNodeResolverFunction(schemas, type, definition.script)
+            val script = createJEXLNodeResolverFunction(schemas, type, definition.script, scriptBindings)
+            val function =
+                if (definition.isSelective) {
+                    selectiveNodeResolverOf { id, demand, context ->
+                        script(id, demand, context).snipToDemand(demand, type.asTypeExpr().requireOutputType())
+                    }
+                } else {
+                    script
+                }
             definition.ids.map { id -> CompiledNodeResolver(type, id, function) }
         }
     private val nodesById: Map<String, CompiledNodeResolver> =
@@ -310,7 +108,7 @@ private class Compiler(
             .groupBy(CompiledNodeResolver::type)
             .mapValues { (_, entries) ->
                 val byId = entries.associateBy(CompiledNodeResolver::id)
-                NodeResolverFunction(NodeResolverFunction.Mode.NONSELECTIVE) { id, selections, context ->
+                NodeResolverFunction(entries.first().function.mode) { id, selections, context ->
                     byId[id]?.let { entry ->
                         entry.function.invoke(id, selections, context)
                     }
@@ -327,25 +125,28 @@ private class Compiler(
             }
             val objectFragment = fragment(field, definition.of)
             val queryFragment = fragment(field, definition.qf, "Query")
-            val resolver = fieldResolverOf(
-                objectFragment,
-                queryFragment,
-                createJEXLNonselectiveFieldResolverFunction(
-                    schemas = schemas,
-                    field = field,
-                    script = definition.script,
-                    hasObjectFragment = definition.of.isNotBlank(),
-                    hasQueryFragment = definition.qf.isNotBlank(),
-                ),
+            val script = createJEXLNonselectiveFieldResolverFunction(
+                schemas = schemas,
+                field = field,
+                script = definition.script,
+                hasObjectFragment = definition.of.isNotBlank(),
+                hasQueryFragment = definition.qf.isNotBlank(),
+                scriptBindings = scriptBindings,
             )
-            compiled[field] =
-                when {
-                    definition.variablesProvider != null -> resolver.withVariablesProvider(
-                        definition.variablesProvider.names,
-                        createJEXLVariablesProviderFunction(field, definition.variablesProvider.names, definition.variablesProvider.script),
-                    )
-                    else -> resolver
+            val resolver =
+                if (definition.isSelective) {
+                    selectiveFieldResolverOf(objectFragment, queryFragment) { input, query, arguments, demand, additionalContext, context ->
+                        script(input, query, arguments, additionalContext, context).snipToDemand(demand, field.outputType)
+                    }
+                } else {
+                    fieldResolverOf(objectFragment, queryFragment, script)
                 }
+            compiled[field] = definition.variablesProvider?.let { provider ->
+                resolver.withVariablesProvider(
+                    provider.names,
+                    createJEXLVariablesProviderFunction(field, provider.names, provider.script, scriptBindings),
+                )
+            } ?: resolver
         }
 
         val queryNode = sourceSchema.field("Query", "node")
@@ -367,6 +168,81 @@ private class Compiler(
         return compiled
     }
 
+    fun fieldCheckers(definitions: List<DslChecker>): Map<ViaductSchema.ObjectField, FieldCheckerResolver> =
+        definitions.filter { it.fieldName != null }.associate { definition ->
+            val field = sourceSchema.field(definition.typeName, checkNotNull(definition.fieldName))
+            require(field is ViaductSchema.ObjectField) { "@$CHECKER_DIRECTIVE requires a concrete object field" }
+            val target = ResolverTarget.FieldCheckerTarget(field)
+            field to FieldCheckerResolver.of(
+                field = field,
+                queryType = schema.requireQueryTypeDef(),
+                fragmentTemplates = checkerTemplates(definition, target, field),
+                function = createJEXLFieldCheckerFunction(schemas, field, definition.script, scriptBindings),
+            )
+        }
+
+    fun typeCheckers(definitions: List<DslChecker>): Map<ViaductSchema.Object, TypeCheckerResolver> =
+        definitions.filter { it.fieldName == null }.associate { definition ->
+            val type = schema.requireType(definition.typeName)
+            require(type is ViaductSchema.Object) { "@$CHECKER_DIRECTIVE requires a concrete object type" }
+            val target = ResolverTarget.TypeCheckerTarget(type)
+            type to TypeCheckerResolver.of(
+                type = type,
+                queryType = schema.requireQueryTypeDef(),
+                fragmentTemplates = checkerTemplates(definition, target, null),
+                function = createJEXLTypeCheckerFunction(schemas, type, definition.script, scriptBindings),
+            )
+        }
+
+    private fun checkerTemplates(
+        checker: DslChecker,
+        target: ResolverTarget,
+        field: ViaductSchema.ObjectField?,
+    ): Map<String, ResolverFragmentTemplates> =
+        checker.inputs.associate { input ->
+            val coordinate = "${checker.typeName}${checker.fieldName?.let { "/$it" }.orEmpty()}.checker.inputs.${input.name}"
+
+            fun selections(
+                source: String,
+                typeName: String
+            ) = if (source.isBlank()) {
+                materializeSelectionForestOf()
+            } else {
+                val parsed = parseFragment(target, "fragment CheckerInput on $typeName { $source }")
+                flattenForMaterialization(schema, parsed.nominalType, parsed.selections)
+            }
+            val objectSelections = selections(input.of, checker.typeName)
+            val querySelections = selections(input.qf, "Query")
+            val used = (objectSelections.usedVariables() + querySelections.usedVariables()).mapTo(linkedSetOf()) { it.variableName }
+            val declared = input.variables.associateBy(DslVariable::name)
+            val provided = input.variablesProvider?.names.orEmpty()
+            val arguments = field?.args?.mapTo(linkedSetOf()) { it.name }.orEmpty()
+            require(provided.intersect(declared.keys + arguments).isEmpty()) { "$coordinate vars may not redefine arguments or variables" }
+            require((declared.keys + provided - used).isEmpty()) { "$coordinate has unused variables" }
+            val variables = used.associate { name ->
+                val variable = Arguments.Variable.of(target, name)
+                val declaration = when {
+                    name in declared -> compileVariable(field, target, checker.typeName, input.of, input.qf, declared.getValue(name))
+                    name in arguments -> schema.fromArgument(checkNotNull(field), name)
+                    name in provided -> null
+                    else -> throw IllegalArgumentException("$coordinate has no source for variable \$$name")
+                }
+                variable to when (declaration) {
+                    is FromArgument -> VariableDefinition.FromArgument.of(declaration.argument, declaration.inputPath)
+                    is FromField -> VariableDefinition.FromField.of(declaration.providerFragment, declaration.keyPath, declaration.responsePath)
+                    null -> VariableDefinition.FromProvider
+                }
+            }
+            input.name to ResolverFragmentTemplates(
+                objectFragmentTemplate = objectSelections,
+                queryFragmentTemplate = querySelections,
+                variables = variables,
+                variablesProvider = input.variablesProvider?.let { provider ->
+                    createJEXLVariablesProviderFunction("$coordinate.vars", field, provider.names, provider.script, scriptBindings)
+                },
+            )
+        }
+
     fun variableProviders(): Map<Arguments.Variable, VariableDeclaration> =
         buildMap {
             fieldDefinitions.forEach { definition ->
@@ -374,16 +250,22 @@ private class Compiler(
                 require(field is ViaductSchema.ObjectField)
                 val argumentNames = field.args.mapTo(linkedSetOf(), ViaductSchema.FieldArg::name)
                 val pathVariables = definition.pathVariables.associateBy(DslPathVariable::name)
+                val explicitVariables = definition.variables.associateBy(DslVariable::name)
                 val providerVariableNames = definition.variablesProvider?.names.orEmpty()
                 require(pathVariables.keys.intersect(argumentNames).isEmpty()) {
                     "${definition.typeName}.${definition.fieldName} $PATH_VARS_ARGUMENT may not " +
                         "redefine field arguments"
                 }
                 require(
-                    providerVariableNames.intersect(argumentNames + pathVariables.keys).isEmpty(),
+                    pathVariables.keys.intersect(explicitVariables.keys).isEmpty(),
+                ) {
+                    "${definition.typeName}.${definition.fieldName} $VARIABLES_ARGUMENT may not redefine $PATH_VARS_ARGUMENT variables"
+                }
+                require(
+                    providerVariableNames.intersect(argumentNames + pathVariables.keys + explicitVariables.keys).isEmpty(),
                 ) {
                     "${definition.typeName}.${definition.fieldName} $VARS_ARGUMENT may " +
-                        "not redefine field arguments or $PATH_VARS_ARGUMENT variables"
+                        "not redefine field arguments, $PATH_VARS_ARGUMENT or $VARIABLES_ARGUMENT variables"
                 }
                 val usedVariables = variablesIn(definition, field)
                 val unusedPathVariables = pathVariables.keys - usedVariables
@@ -396,9 +278,14 @@ private class Compiler(
                     "Unused $VARS_ARGUMENT variables on ${definition.typeName}." +
                         "${definition.fieldName}: ${unusedProviderVariables.sorted().joinToString()}"
                 }
+                val unusedExplicitVariables = explicitVariables.keys - usedVariables
+                require(unusedExplicitVariables.isEmpty()) {
+                    "Unused $VARIABLES_ARGUMENT on ${definition.typeName}.${definition.fieldName}: ${unusedExplicitVariables.sorted().joinToString()}"
+                }
                 usedVariables.forEach { name ->
                     val variable = Arguments.Variable.of(field, name)
                     when {
+                        name in explicitVariables -> put(variable, compileVariable(field, definition, explicitVariables.getValue(name)))
                         name in argumentNames -> put(variable, schema.fromArgument(field, name))
                         name in pathVariables ->
                             put(
@@ -418,10 +305,43 @@ private class Compiler(
                                 "Variable \$$name on ${definition.typeName}." +
                                     "${definition.fieldName} is neither an argument, a " +
                                     "$PATH_VARS_ARGUMENT definition, nor a " +
-                                    "$VARS_ARGUMENT definition",
+                                    "$VARS_ARGUMENT or $VARIABLES_ARGUMENT definition",
                             )
                     }
                 }
+            }
+        }
+
+    private fun compileVariable(
+        field: ViaductSchema.ObjectField,
+        definition: DslFieldResolver,
+        variable: DslVariable,
+    ): VariableDeclaration = compileVariable(field, ResolverTarget.FieldValueResolverTarget(field), field.containingDef.name, definition.of, definition.qf, variable)
+
+    private fun compileVariable(
+        field: ViaductSchema.ObjectField?,
+        target: ResolverTarget,
+        typeName: String,
+        of: String,
+        qf: String,
+        variable: DslVariable,
+    ): VariableDeclaration =
+        when (variable.source) {
+            DslVariableSource.ARGUMENT -> {
+                require(field != null) { "Type checker variables cannot be defined from an argument" }
+                schema.fromArgument(field, variable.path)
+            }
+            DslVariableSource.OBJECT, DslVariableSource.QUERY -> {
+                val isQuery = variable.source == DslVariableSource.QUERY
+                val source = if (isQuery) qf else of
+                require(source.isNotBlank()) { "${variable.source.fieldName} has no selection in ${if (isQuery) QF_ARGUMENT else OF_ARGUMENT}" }
+                val fragment = "fragment ResolverTestDsl on ${if (isQuery) "Query" else typeName} { $source }"
+                compileFromField(
+                    schema = schemas,
+                    parsed = parseFragment(target, fragment),
+                    responsePath = variable.path,
+                    providerFragment = if (isQuery) ProviderFragment.QUERY else ProviderFragment.OBJECT,
+                )
             }
         }
 
@@ -443,12 +363,17 @@ private class Compiler(
     private fun parseFragment(
         field: ViaductSchema.ObjectField,
         fragment: String,
+    ): ParsedSpecFragment = parseFragment(ResolverTarget.FieldValueResolverTarget(field), fragment)
+
+    private fun parseFragment(
+        target: ResolverTarget,
+        fragment: String,
     ): ParsedSpecFragment {
         return GJSelectionParser(
             sourceSchema = schemas.graphQLSchema,
             schema = schema,
             variableValues = emptyMap(),
-            variableTarget = ResolverTarget.FieldValueResolverTarget(field),
+            variableTarget = target,
         ).specSelectionsFrom(fragment)
     }
 
@@ -478,68 +403,23 @@ private class Compiler(
             ?: throw IllegalArgumentException("The resolver-test DSL requires interface Node")
 }
 
-private data class DslFieldResolver(
-    val typeName: String,
-    val fieldName: String,
-    val of: String,
-    val qf: String,
-    val pathVariables: List<DslPathVariable>,
-    val variablesProvider: DslVariablesProvider?,
-    val script: String,
-)
-
-private data class DslVariablesProvider(
-    val names: Set<String>,
-    val script: String,
-)
-
-private data class DslPathVariable(
-    val name: String,
-    val path: List<String>,
-)
-
-private data class DslNodeResolver(
-    val typeName: String,
-    val ids: List<String>,
-    val script: String,
-)
-
 private data class CompiledNodeResolver(
     val type: ViaductSchema.Object,
     val id: String,
     val function: NodeResolverFunction,
 )
 
-private fun StringValue.requiredValue(): String = requireNotNull(value) { "GraphQL string literal has no value" }
-
-private fun ObjectValue.uniqueFields(context: String): Map<String, GraphQLValue<*>> {
-    require(objectFields.map(ObjectField::getName).distinct().size == objectFields.size) {
-        "$context contains duplicate fields"
-    }
-    return objectFields.associate { requireNotNull(it.name) to it.value }
-}
-
 private fun Node<*>.visitRecursively(visitor: (Node<*>) -> Unit) {
     visitor(this)
     children.forEach { child -> child.visitRecursively(visitor) }
 }
 
-private const val RESOLVER_DIRECTIVE = "resolver"
-private const val NODE_RESOLVER_DIRECTIVE = "nodeResolver"
-private const val SCRIPT_ARGUMENT = "script"
-private const val OF_ARGUMENT = "of"
-private const val QF_ARGUMENT = "qf"
-private const val PATH_VARS_ARGUMENT = "pathVars"
-private const val VARS_ARGUMENT = "vars"
-private const val NAME_FIELD = "name"
-private const val PATH_FIELD = "path"
+private const val CHECKER_DIRECTIVE = "checker"
 private const val ID_FIELD = "id"
-private const val IDS_ARGUMENT = "ids"
-private val GRAPHQL_NAME = Regex("[_A-Za-z][_0-9A-Za-z]*")
-
-private val BUILT_IN_SCHEMA =
-    """
-    directive @parent on FIELD_DEFINITION
-    interface Node { id: ID! }
-    type Query { node(id: ID!): Node }
-    """.trimIndent()
+private const val NODE_RESOLVER_DIRECTIVE = "nodeResolver"
+private const val OF_ARGUMENT = "of"
+private const val PATH_VARS_ARGUMENT = "pathVars"
+private const val QF_ARGUMENT = "qf"
+private const val RESOLVER_DIRECTIVE = "resolver"
+private const val VARIABLES_ARGUMENT = "variables"
+private const val VARS_ARGUMENT = "vars"

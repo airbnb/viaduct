@@ -36,25 +36,16 @@ interface FragmentFreeFieldCheckerEnforcementContract {
                 schemaSDL =
                     """
                     extend type Query {
-                      item: Item! @resolver(script: "{'passive': 11}")
+                      item: Item! @resolver(isSelective: ${coroutineResolverSubject.selectiveResolvers}, script: "{'passive': 11}")
                     }
 
                     type Item {
-                      active: Int! @resolver(script: "7")
-                      passive: Int!
+                      active: Int! @resolver(script: "7") @checker(script: "allow")
+                      passive: Int! @checker(script: "allow")
                       consumeActive: Int! @resolver(of: "active", script: "(objectValue.active == null ? 0 : objectValue.active)")
                       consumePassive: Int! @resolver(of: "passive", script: "(objectValue.passive == null ? 0 : objectValue.passive)")
                     }
                     """.trimIndent(),
-                fieldCheckers = { schema ->
-                    listOf("active", "passive").associate { name ->
-                        val field = schema.loweredSchema.requireObjectField("Item", name)
-                        field to
-                            FieldCheckerResolver.of(field, schema.loweredSchema.requireQueryTypeDef()) { _, _, _ ->
-                                CheckerResult.Success
-                            }
-                    }
-                },
             )
         val world = worldFixture.assumptions
 
@@ -72,7 +63,7 @@ interface FragmentFreeFieldCheckerEnforcementContract {
                 schemaSDL =
                     """
                     extend type Query {
-                      item: Item! @resolver(script: "{'passive': 11}")
+                      item: Item! @resolver(isSelective: ${coroutineResolverSubject.selectiveResolvers}, script: "{'passive': 11}")
                     }
 
                     type Item {
@@ -154,7 +145,7 @@ interface FragmentFreeFieldCheckerEnforcementContract {
                 schemaSDL =
                     """
                     extend type Query {
-                      item: Item! @resolver(script: "{'denied': 7}")
+                      item: Item! @resolver(isSelective: ${coroutineResolverSubject.selectiveResolvers}, script: "{'denied': 7}")
                     }
 
                     type Item {
@@ -193,7 +184,7 @@ interface FragmentFreeFieldCheckerEnforcementContract {
                     directive @bypassPolicyCheck on FIELD
 
                     extend type Query {
-                      item: Item! @resolver(script: "{'denied': 7}")
+                      item: Item! @resolver(isSelective: ${coroutineResolverSubject.selectiveResolvers}, script: "{'denied': 7}")
                     }
 
                     type Item {
@@ -349,7 +340,7 @@ interface FragmentFreeFieldCheckerEnforcementContract {
                 schemaSDL =
                     """
                     extend type Query {
-                      item: Item! @resolver(script: "{'dependency': 7}")
+                      item: Item! @resolver(isSelective: ${coroutineResolverSubject.selectiveResolvers}, script: "{'dependency': 7}")
                     }
 
                     type Item {

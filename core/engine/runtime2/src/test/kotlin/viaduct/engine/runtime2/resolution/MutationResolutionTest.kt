@@ -152,28 +152,13 @@ class MutationResolutionTest : ResolutionDispatcherResource {
             DynamicTest.dynamicTest(family.name) {
                 val count = AtomicInteger()
                 val observed = mutableListOf<Int>()
-                val fixture = TestWorld.fromSDL(
+                val fixture = TestWorld.fromDSL(
                     """
-                    type Query { current: Int }
-                    type Mutation { update: Payload }
-                    type Payload { observed: Int }
+                    extend type Query { current: Int @resolver(script: "var value = count.get(); observed.add(value); value") }
+                    type Mutation { update: Payload @resolver(script: "count.incrementAndGet(); {:}") }
+                    type Payload { observed: Int @resolver(qf: "current", script: "queryValue.current") }
                     """.trimIndent(),
-                    fieldResolvers = { schemas ->
-                        val schema = schemas.loweredSchema
-                        mapOf(
-                            schema.requireObjectField("Query", "current") to fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ ->
-                                count.get().also { observed += it }
-                            },
-                            schema.requireObjectField("Mutation", "update") to fieldResolverOf(schema.emptyFragmentOf("Mutation")) { _, _ ->
-                                count.incrementAndGet()
-                                engineObjectDataOf(schema.requireType("Payload") as ViaductSchema.Object)
-                            },
-                            schema.requireObjectField("Payload", "observed") to fieldResolverOf(
-                                schema.emptyFragmentOf("Payload"),
-                                schemas.fragmentFrom("fragment PayloadQuery on Query { current }"),
-                            ) { _, queryValue, _ -> queryValue.get("current") },
-                        )
-                    },
+                    scriptBindings = mapOf("count" to count, "observed" to observed),
                 )
                 val result = family.resolve(
                     SharedOperationContext.create(fixture.newAssumptions(usePrecomputedConstructionDemand = family.precomputed)),

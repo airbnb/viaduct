@@ -19,6 +19,11 @@ dependencies {
 tasks.named<ShadowJar>("shadowJar") {
     // Package all dependencies (test fixtures from core modules)
     configurations = listOf(project.configurations.runtimeClasspath.get())
+    dependencies {
+        exclude(dependency("org.apache.commons:commons-jexl3:.*"))
+        exclude(dependency("commons-logging:commons-logging:.*"))
+    }
+    exclude("viaduct/engine/api/testing/**")
 
     // Exclude third-party classes with rapid API churn that would cause version conflicts
     // (e.g. NoSuchMethodError) when the consumer's versions differ from the bundled ones.
@@ -63,11 +68,22 @@ val checkTestFixturesPublication = tasks.register("checkTestFixturesPublication"
                 .filter { it.startsWith("viaduct/engine/runtime/execution/") && !it.endsWith("/") }.toSet()
         }
         check(engineContractSuites.isNotEmpty()) { "engine-api test fixtures no longer hold the engine contract suites" }
+        ZipFile(engineApiTestFixtures.singleFile).use { archive ->
+            check(archive.getEntry("viaduct/engine/api/testing/JEXLScriptKt.class") != null) { "engine-api test fixtures no longer hold the scripting helpers" }
+        }
         ZipFile(fixturesJar.get().asFile).use { archive ->
             val entries = archive.entries().asSequence().map { it.name }.toList()
             check("viaduct/engine/runtime/execution/CoroutineContextContract.class" in entries)
             check(entries.none { "org/junit/" in it }) { "Test fixtures fat JAR bundles JUnit" }
             check(entries.none { it in engineContractSuites }) { "Test fixtures fat JAR bundles engine contract suites" }
+            check("viaduct/engine/api/mocks/EngineTestModule.class" in entries)
+            check(entries.none { it.startsWith("viaduct/engine/api/testing/") }) { "Test fixtures fat JAR bundles engine scripting fixtures" }
+            check(entries.none { it.startsWith("org/apache/commons/jexl3/") || it.startsWith("META-INF/maven/org.apache.commons/commons-jexl3/") }) {
+                "Test fixtures fat JAR bundles JEXL"
+            }
+            check(entries.none { it.startsWith("org/apache/commons/logging/") || it.startsWith("META-INF/maven/commons-logging/commons-logging/") }) {
+                "Test fixtures fat JAR bundles commons-logging"
+            }
         }
     }
 }

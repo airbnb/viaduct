@@ -51,7 +51,7 @@ interface ObjectFragmentResolverContract : ResolverContract {
                 schemaSDL =
                     """
                     extend type Query {
-                      viewer: User! @resolver(script: "{'plain': 5}")
+                      viewer: User! @resolver(isSelective: $selectiveResolvers, script: "{'plain': 5}")
                     }
 
                     type User {
@@ -103,6 +103,7 @@ interface ObjectFragmentResolverContract : ResolverContract {
                     extend type Query {
                       holders: [Holder!]!
                         @resolver(
+                          isSelective: $selectiveResolvers
                           script: "[{'item': {'__typename': 'Alpha', 'alpha': 4}}, {'item': {'__typename': 'Beta', 'beta': 7}}]"
                         )
                     }
@@ -202,7 +203,7 @@ interface ObjectFragmentResolverContract : ResolverContract {
                 schemaSDL =
                     """
                     extend type Query {
-                      container: Container! @resolver(script: "{'one': 2, 'two': 3}")
+                      container: Container! @resolver(isSelective: $selectiveResolvers, script: "{'one': 2, 'two': 3}")
                       result: Int!
                         @resolver(
                           of: "payload: container { first: one } payload: container { second: two }"
@@ -243,7 +244,7 @@ interface ObjectFragmentResolverContract : ResolverContract {
                 schemaSDL =
                     """
                     extend type Query {
-                      viewer: User! @resolver(script: "{'first': 2, 'last': 3}")
+                      viewer: User! @resolver(isSelective: $selectiveResolvers, script: "{'first': 2, 'last': 3}")
                     }
 
                     type User {
@@ -299,7 +300,7 @@ interface ObjectFragmentResolverContract : ResolverContract {
                 schemaSDL =
                     """
                     extend type Query {
-                      viewer: User! @resolver(script: "{'profile': {'raw': 2}}")
+                      viewer: User! @resolver(isSelective: $selectiveResolvers, script: "{'profile': {'raw': 2}}")
                     }
 
                     type User {
@@ -345,6 +346,7 @@ interface ObjectFragmentResolverContract : ResolverContract {
                     extend type Query {
                       chain: Chain!
                         @resolver(
+                          isSelective: $selectiveResolvers
                           script: "{'label': 1, 'next': {'label': 2, 'next': null}}"
                         )
                     }
@@ -386,7 +388,7 @@ interface ObjectFragmentResolverContract : ResolverContract {
                 schemaSDL =
                     """
                     extend type Query {
-                      holder: Holder! @resolver(script: "{'item': {'__typename': 'ConcreteItem'}}")
+                      holder: Holder! @resolver(isSelective: $selectiveResolvers, script: "{'item': {'__typename': 'ConcreteItem'}}")
                     }
 
                     type Holder {
@@ -443,7 +445,7 @@ interface ObjectFragmentResolverContract : ResolverContract {
                     """
                     extend type Query {
                       items: [Item]
-                        @resolver(script: "[null, error, {'seed': 3}]")
+                        @resolver(isSelective: $selectiveResolvers, script: "[null, error, {'seed': 3}]")
                     }
 
                     type Item {
@@ -490,7 +492,7 @@ interface ObjectFragmentResolverContract : ResolverContract {
                           of: "container { helper }"
                           script: "2"
                         )
-                      container: Container! @resolver(script: "{:}")
+                      container: Container! @resolver(isSelective: $selectiveResolvers, script: "{:}")
                     }
 
                     type Container {

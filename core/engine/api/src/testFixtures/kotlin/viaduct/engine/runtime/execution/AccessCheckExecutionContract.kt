@@ -22,6 +22,7 @@ import viaduct.engine.api.mocks.createRSS
 import viaduct.engine.api.mocks.createSchemaWithWiring
 import viaduct.engine.api.mocks.featureTestDefault
 import viaduct.engine.api.mocks.getAs
+import viaduct.engine.api.testing.executors.fromDSL
 import viaduct.engine.runtime.QueryPlanExecutionCondition
 import viaduct.graphql.test.assertJson
 import viaduct.service.api.spi.ErrorBuilder
@@ -630,23 +631,37 @@ interface AccessCheckExecutionContract : QueryExecutionContract {
     @Test
     fun `objectValueFragment field - field successful, checker throws`() {
         runQueryTest(
-            EngineTestModule(schema) {
-                fieldWithValue("Query" to "string2", "2nd")
-                field("Query" to "string1") {
-                    resolver {
-                        objectSelections("string2")
-                        fn { _, obj, _, _, _ ->
-                            val value = obj.fetch("string2")
-                            "1st & $value"
-                        }
+            EngineTestModule.fromDSL(
+                """
+                    extend type Query {
+                        string1: String @resolver(isSelective: false, of: "string2", script: "'1st & ' + objectValue.string2")
+                        string2: String @resolver(isSelective: false, script: "'2nd'")
+                            @checker(script: "throw 'string2 permission denied';")
                     }
-                }
-                field("Query" to "string2") {
-                    checker {
-                        fn { _, _ -> throw RuntimeException("string2 permission denied") }
+                """.trimIndent()
+            )
+        ) { runQuery ->
+            val result = runQuery("{ string1 }")
+            assertEquals(mapOf("string1" to null), result.getData())
+            assertEquals(1, result.errors.size)
+            val error = result.errors[0]
+            assertEquals(listOf("string1"), error.path)
+            assertTrue(error.message.contains("string2 permission denied"))
+        }
+    }
+
+    @Test
+    fun `objectValueFragment field - field successful, checker returns denial with message`() {
+        runQueryTest(
+            EngineTestModule.fromDSL(
+                """
+                    extend type Query {
+                        string1: String @resolver(isSelective: false, of: "string2", script: "'1st & ' + objectValue.string2")
+                        string2: String @resolver(isSelective: false, script: "'2nd'")
+                            @checker(script: "denyWithMessage('string2 permission denied')")
                     }
-                }
-            }
+                """.trimIndent()
+            )
         ) { runQuery ->
             val result = runQuery("{ string1 }")
             assertEquals(mapOf("string1" to null), result.getData())

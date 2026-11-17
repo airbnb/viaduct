@@ -909,7 +909,7 @@ def render(recording):
     )
     context = ""
     if identity == PROJECTION:
-        context = '<p>The resolver supplies both fields. Only <code>requested</code> belongs in the constructed User OER.</p>'
+        context = '<p>The script constructs both fields. The selective fixture projects its output to demand, so only <code>requested</code> is supplied to the constructed User OER.</p>'
     elif identity == OBJECT_FRAGMENT:
         title = "Object fragments: a dependency chain"
         context = '<p>The client asks only for <code>greeting</code>. Its object fragment requires <code>display</code>, whose object fragment requires <code>first</code> and <code>last</code>. Watch demand expand, then <code>display = 5</code> become available before <code>greeting = 6</code>. The internal OER retains these dependencies; GraphQL completion selects the client’s response fields.</p>'

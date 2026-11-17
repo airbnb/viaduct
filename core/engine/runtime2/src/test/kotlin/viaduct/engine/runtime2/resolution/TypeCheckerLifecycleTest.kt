@@ -50,24 +50,13 @@ open class TypeCheckerLifecycleTest : ResolutionDispatcherResource {
     @Test
     fun `type checker nested query retains its creating task`() {
         val orchestrations = ConcurrentLinkedQueue<SharedOrchestrationTask<*>>()
-        val checkerTasks = ConcurrentLinkedQueue<TypeCheckerTask>()
         val fixture = TestWorld.fromDSL(
             """
-            extend type Query {
+            extend type Query @checker(script: "query('{ dependency }').dependency == 7 ? allow : deny") {
               checked: Int @resolver(script: "1")
               dependency: Int @resolver(script: "7")
             }
             """.trimIndent(),
-            typeCheckers = { schemas ->
-                val type = schemas.loweredSchema.requireQueryTypeDef()
-                mapOf(
-                    type to TypeCheckerResolver.of(type, type) { _, ctx ->
-                        checkerTasks += assertIs<TypeCheckerTask>(ctx)
-                        assertEquals(7, ctx.resolveSelectionSet(schemas.fragmentFrom("fragment Child on Query { dependency }").materializeSelections).get("dependency"))
-                        CheckerResult.Success
-                    }
-                )
-            },
         )
         val observer = object : ResolutionObserver {
             override val onQueryOERPrepared: (SharedOrchestrationTask<*>, Int?) -> Unit = { task, _ ->
@@ -80,8 +69,8 @@ open class TypeCheckerLifecycleTest : ResolutionDispatcherResource {
         ).resolveWithTestDispatcher(fixture.schemas.operationSelectionsFrom("{ checked }"))
         assertEquals(CheckerResult.Success, result.typeCheckerResult.get())
         assertEquals(2, orchestrations.size)
-        val checker = checkerTasks.single()
         val root = orchestrations.single { it.creator == null }
+        val checker = assertIs<TypeCheckerTask>(orchestrations.single { it !== root }.creator)
         assertSame(root, checker.creator)
         assertSame(checker, checker.publication.task)
         assertSame(checker, orchestrations.single { it !== root }.creator)

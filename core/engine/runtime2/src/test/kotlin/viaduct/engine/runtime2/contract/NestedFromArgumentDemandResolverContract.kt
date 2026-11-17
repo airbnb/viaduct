@@ -15,7 +15,7 @@ interface NestedFromArgumentDemandResolverContract : ResolverContract {
                 schemaSDL =
                     """
                     extend type Query {
-                      holder: Item! @resolver(script: "{'passive': 7}")
+                      holder: Item! @resolver(isSelective: $selectiveResolvers, script: "{'passive': 7}")
                       result(value: Int!): Int!
                         @resolver(
                           of: "holder { consume(value: ${'$'}value) }"

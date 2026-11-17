@@ -1,46 +1,52 @@
 @file:Suppress("ForbiddenImport")
-@file:OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 
 package viaduct.engine.runtime2.model.testing
 
+import graphql.parser.Parser
 import java.math.BigInteger
 import kotlin.coroutines.ContinuationInterceptor
-import kotlin.coroutines.CoroutineContext
-import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.currentCoroutineContext
-import kotlinx.coroutines.ensureActive
-import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.runInterruptible
 import kotlinx.coroutines.withContext
-import org.apache.commons.jexl3.JexlBuilder
 import org.apache.commons.jexl3.JexlException
-import org.apache.commons.jexl3.JexlFeatures
-import org.apache.commons.jexl3.JexlScript
 import org.apache.commons.jexl3.MapContext
-import org.apache.commons.jexl3.introspection.JexlPermissions
+import viaduct.engine.api.CheckerResult
 import viaduct.engine.api.EngineObjectData
+import viaduct.engine.api.testing.JEXLError
+import viaduct.engine.api.testing.JEXLExecutionCallable
+import viaduct.engine.api.testing.JEXLReferenceCallable
+import viaduct.engine.api.testing.PreparedJEXLChecker
+import viaduct.engine.api.testing.PreparedJEXLVariablesProvider
+import viaduct.engine.api.testing.createJEXLScriptBindings
+import viaduct.engine.api.testing.evaluateJEXL
+import viaduct.engine.api.testing.jexlDispatcher
+import viaduct.engine.api.testing.jexlObjectValue
+import viaduct.engine.api.testing.prepareJEXLScript
+import viaduct.engine.api.testing.requireJEXLArgumentNames
+import viaduct.engine.api.testing.requireJEXLResolverOutput
+import viaduct.engine.api.testing.scriptInteger
+import viaduct.engine.api.testing.unwrapJEXLObjectValue
 import viaduct.engine.runtime2.model.Arguments
 import viaduct.engine.runtime2.model.EngineErrorData
 import viaduct.engine.runtime2.model.EngineErrorDataReadException
-import viaduct.engine.runtime2.model.EngineInputData
 import viaduct.engine.runtime2.model.ResolverOutputData
 import viaduct.engine.runtime2.model.RootFieldReferenceData
 import viaduct.engine.runtime2.model.Runtime2EngineObjectData
+import viaduct.engine.runtime2.model.registry.CheckerInput
+import viaduct.engine.runtime2.model.registry.FieldCheckerFunction
 import viaduct.engine.runtime2.model.registry.NodeResolverFunction
 import viaduct.engine.runtime2.model.registry.NonselectiveFieldResolverFunction
 import viaduct.engine.runtime2.model.registry.ResolutionExecutionContext
+import viaduct.engine.runtime2.model.registry.TypeCheckerFunction
 import viaduct.engine.runtime2.model.registry.VariablesProviderFunction
 import viaduct.engine.runtime2.model.registry.nodeResolverOf
+import viaduct.engine.runtime2.model.requireQueryTypeDef
 import viaduct.engine.runtime2.model.requireType
 import viaduct.engine.runtime2.schema.SourceSchemaAdapter
 import viaduct.engine.runtime2.schema.ViaductAndGJSchema
-import viaduct.engine.runtime2.schema.materializeSelectionsFrom
+import viaduct.engine.runtime2.schema.mutationSelections
+import viaduct.engine.runtime2.schema.specFragmentFromDocument
 import viaduct.graphql.schema.ViaductSchema
-
-private val jexlDispatcher = Dispatchers.IO.limitedParallelism(Int.MAX_VALUE)
-
-private object JEXLError
+import viaduct.graphql.utils.SelectionsParserUtils
 
 fun createJEXLNonselectiveFieldResolverFunction(
     schemas: ViaductAndGJSchema,
@@ -48,29 +54,36 @@ fun createJEXLNonselectiveFieldResolverFunction(
     script: String,
     hasObjectFragment: Boolean = false,
     hasQueryFragment: Boolean = false,
-): NonselectiveFieldResolverFunction = PreparedJEXLResolver(schemas, field, script, hasObjectFragment, hasQueryFragment)::invoke
+    scriptBindings: Map<String, Any?> = emptyMap(),
+): NonselectiveFieldResolverFunction = PreparedJEXLResolver(schemas, field, script, hasObjectFragment, hasQueryFragment, scriptBindings)::invoke
 
 fun createJEXLNodeResolverFunction(
     schemas: ViaductAndGJSchema,
     type: ViaductSchema.Object,
     script: String,
+    scriptBindings: Map<String, Any?> = emptyMap(),
 ): NodeResolverFunction {
     val coordinate = "${type.name}/@nodeResolver"
-    val prepared = prepareJEXLScript(coordinate, script)
+    val prepared = prepareJEXLScript(coordinate, script, scriptBindings)
     val adapter = JEXLOutputAdapter(schemas)
-    return nodeResolverOf { id ->
+    return nodeResolverOf { id, context ->
         withContext(jexlDispatcher) {
-            val bindings = MapContext()
+            val bindings = MapContext(HashMap(scriptBindings))
+            bindings.bindExecution(schemas, context)
             bindings.set("id", id)
             bindings.set("error", JEXLError)
-            bindings.set("ref", JEXLReferenceCallable(schemas))
-            val output = prepared.evaluate(bindings)
-            if (output is Map<*, *>) {
-                require("id" !in output) { "$coordinate supplies id from the Node identity" }
-                adapter.convert(ViaductSchema.TypeExpr(type), output + ("id" to id), coordinate)
-            } else {
-                require(output == null || output === JEXLError || output is RootFieldReferenceData) { "$coordinate requires an object or reference" }
-                adapter.convert(ViaductSchema.TypeExpr(type), output, coordinate)
+            bindings.set("ref", runtime2ReferenceCallable(schemas))
+            withRuntime2ReadErrors {
+                prepared.evaluateJEXL(bindings) { output ->
+                    requireJEXLResolverOutput(output, coordinate)
+                    if (output is Map<*, *>) {
+                        require("id" !in output) { "$coordinate supplies id from the Node identity" }
+                        adapter.convert(ViaductSchema.TypeExpr(type), output + ("id" to id), coordinate)
+                    } else {
+                        require(output == null || output === JEXLError || output is EngineErrorData || output is RootFieldReferenceData) { "$coordinate requires an object or reference" }
+                        adapter.convert(ViaductSchema.TypeExpr(type), output, coordinate)
+                    }
+                }
             }
         }
     }
@@ -80,101 +93,86 @@ fun createJEXLVariablesProviderFunction(
     field: ViaductSchema.ObjectField,
     names: Set<String>,
     script: String,
+    scriptBindings: Map<String, Any?> = emptyMap(),
+): VariablesProviderFunction = createJEXLVariablesProviderFunction("${field.containingDef.name}/${field.name}.vars", field, names, script, scriptBindings)
+
+internal fun createJEXLVariablesProviderFunction(
+    coordinate: String,
+    field: ViaductSchema.ObjectField?,
+    names: Set<String>,
+    script: String,
+    scriptBindings: Map<String, Any?> = emptyMap(),
 ): VariablesProviderFunction {
-    val coordinate = "${field.containingDef.name}/${field.name}.vars"
-    requireJEXLArgumentNames(field, coordinate)
-    val expectedNames = names.toSet()
-    require(expectedNames.isNotEmpty()) { "$coordinate requires variable names" }
-    val prepared = prepareJEXLScript(coordinate, script)
+    val prepared = PreparedJEXLVariablesProvider(coordinate, field?.args?.map { it.name }.orEmpty(), names, script, scriptBindings)
     return { arguments ->
         withContext(jexlDispatcher) {
-            val output = prepared.evaluate(scriptBindings(field, arguments))
-            require(output !== JEXLError) { "$coordinate returned error" }
-            require(output is Map<*, *>) { "$coordinate requires a variable map" }
-            require(output.keys == expectedNames) {
-                "$coordinate returned invalid variables. Missing keys: ${expectedNames - output.keys}. Extra keys: ${output.keys - expectedNames}"
-            }
-            expectedNames.associateWith { name -> scriptInput(output[name], "$coordinate.$name") }
+            withRuntime2ReadErrors { prepared.evaluate(arguments.fieldValues) }
         }
     }
 }
 
-private fun prepareJEXLScript(
+fun createJEXLFieldCheckerFunction(
+    schemas: ViaductAndGJSchema,
+    field: ViaductSchema.ObjectField,
+    script: String,
+    scriptBindings: Map<String, Any?> = emptyMap(),
+): FieldCheckerFunction {
+    val prepared = Runtime2JEXLChecker(schemas, "${field.containingDef.name}/${field.name}.checker", field, script, scriptBindings)
+    return { arguments, inputs, context -> prepared.invoke(arguments, inputs, context) }
+}
+
+fun createJEXLTypeCheckerFunction(
+    schemas: ViaductAndGJSchema,
+    type: ViaductSchema.Object,
+    script: String,
+    scriptBindings: Map<String, Any?> = emptyMap(),
+): TypeCheckerFunction {
+    val prepared = Runtime2JEXLChecker(schemas, "${type.name}.checker", null, script, scriptBindings)
+    return { inputs, context -> prepared.invoke(null, inputs, context) }
+}
+
+private class Runtime2JEXLChecker(
+    private val schemas: ViaductAndGJSchema,
     coordinate: String,
-    source: String
-): JexlScript {
-    val engine = JexlBuilder()
-        .features(
-            JexlFeatures()
-                .lexical(true)
-                .lexicalShade(true)
-                .newInstance(false)
-                .sideEffectGlobal(false)
-                .pragma(false)
-                .annotation(false),
-        )
-        .permissions(
-            JexlPermissions.ClassPermissions(JEXLQueryCallable::class.java, JEXLReferenceCallable::class.java).compose(
-                "viaduct.engine.runtime2.model.testing { +JEXLObjectValue { get(); } }",
-                "java.lang { Object { getClass(); } }",
-            ),
-        )
-        .strict(true)
-        .silent(false)
-        .safe(false)
-        .cancellable(true)
-        .create()
-    return engine.createScript(engine.createInfo(coordinate, 1, 1), source)
-}
-
-private fun requireJEXLArgumentNames(
-    field: ViaductSchema.ObjectField,
-    coordinate: String
+    field: ViaductSchema.ObjectField?,
+    source: String,
+    scriptBindings: Map<String, Any?>,
 ) {
-    require(field.args.none { it.name in setOf("query", "objectValue", "queryValue", "error", "ref") }) {
-        "$coordinate has an argument colliding with a JEXL resolver binding"
-    }
+    private val checker = PreparedJEXLChecker(coordinate, source, field?.args?.map { it.name }.orEmpty(), scriptBindings)
+
+    suspend fun invoke(
+        arguments: Arguments.Resolved?,
+        inputs: Map<String, CheckerInput>,
+        context: ResolutionExecutionContext,
+    ): CheckerResult =
+        withContext(jexlDispatcher) {
+            val bindings = checker.bindings(
+                arguments?.fieldValues.orEmpty(),
+                inputs.mapValues { (_, input) -> mapOf("objectValue" to input.objectValue, "queryValue" to input.queryValue) },
+            )
+            bindings.bindExecution(schemas, context)
+            withRuntime2ReadErrors { checker.evaluate(bindings) }
+        }
 }
 
-private fun scriptBindings(
-    field: ViaductSchema.ObjectField,
-    arguments: Arguments.Resolved
-): MapContext =
-    MapContext().also { bindings ->
-        bindings.set("error", JEXLError)
-        field.args.forEach { bindings.set(it.name, scriptValue(arguments.fieldValues[it.name])) }
-    }
-
-private suspend fun JexlScript.evaluate(bindings: MapContext): Any? =
+private suspend fun <T> withRuntime2ReadErrors(block: suspend () -> T): T =
     try {
-        runInterruptible { execute(bindings) }
+        block()
     } catch (exception: JexlException) {
-        currentCoroutineContext().ensureActive()
         generateSequence<Throwable>(exception) { it.cause }.forEach { cause ->
-            if (cause is CancellationException || cause is EngineErrorDataReadException) throw cause
+            if (cause is EngineErrorDataReadException) throw cause
         }
         throw exception
     }
 
-private fun scriptInput(
-    value: Any?,
-    path: String
-): EngineInputData? =
-    when (value) {
-        null, is String, is Boolean, is Double -> value
-        is Int, is Long, is BigInteger -> scriptInteger(value, path)
-        is Map<*, *> -> value.entries.associate { (name, item) ->
-            require(name is String) { "$path input-object keys must be strings" }
-            name to scriptInput(item, "$path.$name")
-        }
-        is List<*> -> value.mapIndexed { index, item -> scriptInput(item, "$path[$index]") }
-        is Array<*> -> scriptInput(value.toList(), path)
-        is IntArray -> value.toList()
-        is LongArray -> scriptInput(value.toList(), path)
-        is BooleanArray -> value.toList()
-        is DoubleArray -> value.toList()
-        else -> throw IllegalArgumentException("$path requires an input value; errors and other objects are not allowed")
-    }
+private suspend fun MapContext.bindExecution(
+    schemas: ViaductAndGJSchema,
+    context: ResolutionExecutionContext,
+) {
+    val bridgeContext = currentCoroutineContext().minusKey(ContinuationInterceptor)
+    set("query", JEXLExecutionCallable(bridgeContext, mutation = false) { selections, variables -> executeSelections(schemas, context, selections, variables, mutation = false) })
+    set("mutation", JEXLExecutionCallable(bridgeContext, mutation = true) { selections, variables -> executeSelections(schemas, context, selections, variables, mutation = true) })
+}
 
 private class PreparedJEXLResolver(
     private val schemas: ViaductAndGJSchema,
@@ -182,14 +180,15 @@ private class PreparedJEXLResolver(
     source: String,
     private val hasObjectFragment: Boolean,
     private val hasQueryFragment: Boolean,
+    private val scriptBindings: Map<String, Any?>,
 ) {
     private val coordinate = "${field.containingDef.name}/${field.name}"
     private val sourceSchema = SourceSchemaAdapter(schemas.loweredSchema)
-    private val script = prepareJEXLScript(coordinate, source)
+    private val script = prepareJEXLScript(coordinate, source, scriptBindings)
     private val outputAdapter = JEXLOutputAdapter(schemas)
 
     init {
-        requireJEXLArgumentNames(field, coordinate)
+        requireJEXLArgumentNames(field.args.map { it.name }, coordinate, scriptBindings)
     }
 
     suspend fun invoke(
@@ -200,15 +199,18 @@ private class PreparedJEXLResolver(
         executionContext: ResolutionExecutionContext,
     ): ResolverOutputData? {
         return withContext(jexlDispatcher) {
-            val bridgeContext = currentCoroutineContext().minusKey(ContinuationInterceptor)
-            val bindings = scriptBindings(field, arguments)
-            bindings.set("query", JEXLQueryCallable(schemas, executionContext, bridgeContext))
-            bindings.set("ref", JEXLReferenceCallable(schemas))
-            bindings.set("objectValue", if (hasObjectFragment) JEXLObjectValue(objectValue) else null)
-            bindings.set("queryValue", if (hasQueryFragment) JEXLObjectValue(queryValue) else null)
+            val bindings = createJEXLScriptBindings(field.args.map { it.name }, arguments.fieldValues, scriptBindings)
+            bindings.bindExecution(schemas, executionContext)
+            bindings.set("ref", runtime2ReferenceCallable(schemas))
+            bindings.set("objectValue", if (hasObjectFragment) jexlObjectValue(objectValue, fromRSS = true) else null)
+            bindings.set("queryValue", if (hasQueryFragment) jexlObjectValue(queryValue, fromRSS = true) else null)
             // Subqueries must be able to use the engine dispatcher while JEXL blocks here.
-            val output = script.evaluate(bindings)
-            sourceSchema.lowerOutput(field, outputAdapter.convert(sourceSchema.typeExpr(field), output, coordinate))
+            withRuntime2ReadErrors {
+                script.evaluateJEXL(bindings) { output ->
+                    requireJEXLResolverOutput(output, coordinate)
+                    sourceSchema.lowerOutput(field, outputAdapter.convert(sourceSchema.typeExpr(field), output, coordinate))
+                }
+            }
         }
     }
 }
@@ -223,13 +225,16 @@ private class JEXLOutputAdapter(private val schemas: ViaductAndGJSchema) {
         path: String,
     ): ResolverOutputData? {
         if (value === JEXLError) return errorResult
-        if (value == null || value is RootFieldReferenceData) return value
+        if (value == null || value is EngineErrorData || value is RootFieldReferenceData) return value
         if (type.isList) {
             val elements = when (value) {
                 is List<*> -> value
                 is Array<*> -> value.toList()
                 is IntArray -> value.toList()
                 is LongArray -> value.toList()
+                is BooleanArray -> value.toList()
+                is FloatArray -> value.toList()
+                is DoubleArray -> value.toList()
                 else -> throw IllegalArgumentException("$path requires a list")
             }
             return elements.mapIndexed { index, item -> convert(checkNotNull(type.unwrapList()), item, "$path[$index]") }
@@ -237,8 +242,9 @@ private class JEXLOutputAdapter(private val schemas: ViaductAndGJSchema) {
         val declared = type.baseTypeDef
         if (declared is ViaductSchema.CompositeTypeDef) {
             require(value is Map<*, *>) { "$path requires an object" }
-            if (value is JEXLObjectValue) value.requireUnaliased(path, sourceSchema)
-            val typename = if (value is JEXLObjectValue) value.typeName else value["__typename"]
+            val original = unwrapJEXLObjectValue(value)
+            original?.requireUnaliased(path, sourceSchema)
+            val typename = original?.type?.name ?: value["__typename"]
             val concrete = when {
                 typename != null -> {
                     require(typename is String) { "$path.__typename requires a type name" }
@@ -256,99 +262,83 @@ private class JEXLOutputAdapter(private val schemas: ViaductAndGJSchema) {
                     require(name is String) { "$path object keys must be field names" }
                     if (name != "__typename") {
                         val child = sourceSchema.field(concrete.name, name)
+                        require(child.args.isEmpty()) { "$path must not supply argument-bearing field '$name'" }
                         field(name) setTo sourceSchema.lowerOutput(child, convert(sourceSchema.typeExpr(child), item, "$path.$name"))
                     }
                 }
             }
         }
-        return when (declared.name) {
+        val normalized = when (declared.name) {
             "Int" -> scriptInteger(value, path)
             "ID" -> {
                 require(value is String || value is Int || value is Long || value is BigInteger) { "$path requires an ID" }
                 value.toString()
             }
-            else -> throw IllegalArgumentException("$path has unsupported JEXL result type ${declared.name}")
-        }
-    }
-}
-
-private fun scriptInteger(
-    value: Any,
-    path: String
-): Int {
-    val integer = when (value) {
-        is Int -> value.toBigInteger()
-        is Long -> value.toBigInteger()
-        is BigInteger -> value
-        else -> throw IllegalArgumentException("$path requires an integer")
-    }
-    require(integer >= Int.MIN_VALUE.toBigInteger() && integer <= Int.MAX_VALUE.toBigInteger()) {
-        "$path integer is outside GraphQL Int range: $integer"
-    }
-    return integer.toInt()
-}
-
-private class JEXLObjectValue(private val value: EngineObjectData.Sync) : AbstractMap<String, Any?>() {
-    val typeName: String get() = value.type.name
-
-    fun requireUnaliased(
-        path: String,
-        sourceSchema: SourceSchemaAdapter
-    ) {
-        (value as? Runtime2EngineObjectData)?.selectionFields?.forEach { (selection, field) ->
-            require(selection == field.name || (selection == "__typename" && field == sourceSchema.field(typeName, selection))) {
-                "$path contains aliased selection '$selection' for field '${field.name}'; construct an output map using schema field names"
+            "Float" -> {
+                require(value is Number) { "$path requires a number" }
+                value.toDouble()
+            }
+            else -> {
+                require(declared is ViaductSchema.Enum || declared.name in setOf("String", "Boolean")) {
+                    "$path has unsupported JEXL result type ${declared.name}"
+                }
+                value
             }
         }
+        return try {
+            coerceSimpleValue(declared as ViaductSchema.SimpleTypeDef, normalized)
+        } catch (exception: IllegalArgumentException) {
+            throw IllegalArgumentException("$path: ${exception.message}", exception)
+        }
     }
-
-    override val entries: Set<Map.Entry<String, Any?>>
-        get() = value.getSelections().map { key -> java.util.AbstractMap.SimpleImmutableEntry(key, get(key)) }.toSet()
-
-    override fun containsKey(key: String): Boolean = value.isPresent(key)
-
-    override fun get(key: String): Any? = scriptValue(value.get(key))
 }
 
-private fun scriptValue(value: Any?): Any? =
-    when (value) {
-        is EngineObjectData.Sync -> JEXLObjectValue(value)
-        is Map<*, *> -> java.util.Collections.unmodifiableMap(value.mapValues { (_, item) -> scriptValue(item) })
-        is List<*> -> java.util.Collections.unmodifiableList(value.map(::scriptValue))
-        else -> value
-    }
-
-class JEXLQueryCallable internal constructor(
-    private val schemas: ViaductAndGJSchema,
-    private val executionContext: ResolutionExecutionContext,
-    private val bridgeContext: CoroutineContext,
+private fun EngineObjectData.Sync.requireUnaliased(
+    path: String,
+    sourceSchema: SourceSchemaAdapter,
 ) {
-    fun call(selections: String): Map<String, Any?> = call(selections, emptyMap())
-
-    fun call(
-        selections: String,
-        variables: Map<String, Any?>,
-    ): Map<String, Any?> {
-        val bindings = variables.mapValues { (name, value) -> value?.let { scriptInteger(it, "query variable '$name'") } }
-        val (_, forest) = schemas.materializeSelectionsFrom(
-            source = "fragment JEXLQuery on Query $selections",
-            bindings = bindings,
-            preserveSourceResponseKeys = true,
-        )
-        return JEXLObjectValue(runBlocking(bridgeContext) { executionContext.resolveSelectionSet(forest) })
+    (this as? Runtime2EngineObjectData)?.selectionFields?.forEach { (selection, field) ->
+        require(selection == field.name || (selection == "__typename" && field == sourceSchema.field(type.name, selection))) {
+            "$path contains aliased selection '$selection' for field '${field.name}'; construct an output map using schema field names"
+        }
     }
 }
 
-class JEXLReferenceCallable internal constructor(schemas: ViaductAndGJSchema) {
-    private val sourceSchema = SourceSchemaAdapter(schemas.loweredSchema)
+private suspend fun executeSelections(
+    schemas: ViaductAndGJSchema,
+    executionContext: ResolutionExecutionContext,
+    selections: String,
+    bindings: Map<String, Any?>,
+    mutation: Boolean,
+): EngineObjectData.Sync {
+    val root = if (mutation) {
+        requireNotNull(schemas.loweredSchema.mutationTypeDef) { "Cannot execute mutation selections without a Mutation root" }
+    } else {
+        schemas.loweredSchema.requireQueryTypeDef()
+    }
+    val source = if (SelectionsParserUtils.classify(selections) == SelectionsParserUtils.SelectionsForm.FRAGMENTS) {
+        selections
+    } else {
+        "fragment ${SelectionsParserUtils.EntryPointFragmentName} on ${root.name} $selections"
+    }
+    val fragment = schemas.specFragmentFromDocument(
+        document = Parser.parse(source),
+        bindings = bindings,
+    ).fragment
+    require(fragment.nominalType == root) {
+        "Cannot execute selections with type ${fragment.nominalType.name} on schema root type ${root.name}"
+    }
+    val forest = fragment.materializeSelections
+    return if (mutation) {
+        executionContext.resolveMutationSelectionSet(forest, forest.mutationSelections(schemas.loweredSchema, root))
+    } else {
+        executionContext.resolveSelectionSet(forest)
+    }
+}
 
-    fun call(path: String): RootFieldReferenceData = call(path, emptyMap())
-
-    fun call(
-        path: String,
-        arguments: Map<String, Any?>
-    ): RootFieldReferenceData {
-        require(Regex("[_A-Za-z][_0-9A-Za-z]*(\\.[_A-Za-z][_0-9A-Za-z]*)*").matches(path)) { "Invalid root-field-reference path: $path" }
+private fun runtime2ReferenceCallable(schemas: ViaductAndGJSchema): JEXLReferenceCallable {
+    val sourceSchema = SourceSchemaAdapter(schemas.loweredSchema)
+    return JEXLReferenceCallable { path, values ->
         var typeName = "Query"
         val fields = path.split('.').map { name ->
             val field = sourceSchema.field(typeName, name)
@@ -356,8 +346,7 @@ class JEXLReferenceCallable internal constructor(schemas: ViaductAndGJSchema) {
             typeName = sourceSchema.typeExpr(field).baseTypeDef.name
             field
         }
-        val values = arguments.mapValues { (name, value) -> scriptInput(value, "reference '$path' argument '$name'") }
-        return try {
+        try {
             RootFieldReferenceData.of(fields, values)
         } catch (cause: ClassCastException) {
             throw IllegalArgumentException("Invalid reference arguments for $path", cause)

@@ -29,6 +29,7 @@ import viaduct.engine.runtime2.model.EngineErrorDataReadException
 import viaduct.engine.runtime2.model.EngineObjectDataEntry
 import viaduct.engine.runtime2.model.ListEngineResult
 import viaduct.engine.runtime2.model.MaterializeSelectionForest
+import viaduct.engine.runtime2.model.MutationSelectionForest
 import viaduct.engine.runtime2.model.emptyFragmentOf
 import viaduct.engine.runtime2.model.engineObjectDataOf
 import viaduct.engine.runtime2.model.outputValue
@@ -44,12 +45,112 @@ import viaduct.engine.runtime2.schema.operationSelectionsFrom
 import viaduct.graphql.schema.ViaductSchema
 
 class JEXLNonselectiveFieldResolverFunctionTest {
+    @Test
+    fun `nested execution rejects malformed documents wrong roots and unbound variables at the script line`(): Unit =
+        runBlocking {
+            var calls = 0
+            val context = object : ResolutionExecutionContext {
+                override suspend fun resolveSelectionSet(selections: MaterializeSelectionForest): EngineObjectData.Sync {
+                    calls++
+                    return world.schema.objectOf("Query")
+                }
+            }
+            for (document in listOf(
+                "fragment Main on Item { n }",
+                "fragment First on Query { numbers } fragment Second on Query { numbers }",
+                "fragment Main on Query { ...Missing }",
+                "fragment Main on Query { ...Loop } fragment Loop on Query { ...Main }",
+                "fragment Main on Query { numbers } fragment Main on Query { numbers }",
+                "{ item { n @include(if: ${'$'}missing) } }",
+                "{ item { } }",
+                "mutation { numbers }",
+            )) {
+                val failure = assertThrows<JexlException>(document) {
+                    invoke(function("var n = 1;\nreturn query('$document');"), context = context)
+                }
+                assertEquals("Query/result", failure.info.name)
+                assertEquals(2, failure.info.line)
+                assertTrue(failure.cause != null)
+            }
+            assertEquals(0, calls)
+        }
+
+    @Test
+    fun `nested executions retain causes and locations for every callback kind`(): Unit =
+        runBlocking {
+            val fixture = nestedExecutionWorld()
+            val failure = IllegalStateException("nested execution failed")
+            val context = object : ResolutionExecutionContext {
+                override suspend fun resolveSelectionSet(selections: MaterializeSelectionForest): EngineObjectData.Sync = throw failure
+            }
+            for ((coordinate, function) in fixture.executionFunctions("var n = 1;\nquery('{ remote }');")) {
+                val error = assertThrows<JexlException>(coordinate) { function(context) }
+                assertSame(failure, error.cause)
+                assertEquals(coordinate, error.info.name)
+                assertEquals(2, error.info.line)
+            }
+        }
+
+    @Test
+    fun `cancellation owns nested Query and Mutation work for every callback bridge`(): Unit =
+        runBlocking {
+            withTimeout(5_000) {
+                val fixture = nestedExecutionWorld()
+                for ((call, selections) in listOf("query" to "{ remote }", "mutation" to "{ update }")) {
+                    for ((_, function) in fixture.executionFunctions("$call('$selections');")) {
+                        val entered = CompletableDeferred<Unit>()
+                        val finished = CompletableDeferred<Unit>()
+
+                        suspend fun suspendChild(): Nothing {
+                            entered.complete(Unit)
+                            try {
+                                awaitCancellation()
+                            } finally {
+                                finished.complete(Unit)
+                            }
+                        }
+                        val context = object : ResolutionExecutionContext {
+                            override suspend fun resolveSelectionSet(selections: MaterializeSelectionForest): EngineObjectData.Sync = suspendChild()
+
+                            override suspend fun resolveMutationSelectionSet(
+                                selections: MaterializeSelectionForest,
+                                mutations: MutationSelectionForest,
+                            ): EngineObjectData.Sync = suspendChild()
+                        }
+                        val invocation = launch { function(context) }
+                        entered.await()
+                        invocation.cancelAndJoin()
+                        finished.await()
+                    }
+                }
+            }
+        }
+
+    @Test
+    fun `nested mutations require a Mutation root and a supporting execution context`(): Unit =
+        runBlocking {
+            val absent = assertThrows<JexlException> { invoke(function("mutation('{ update }')")) }
+            assertTrue(absent.cause?.message.orEmpty().contains("without a Mutation root"))
+            val fixture = nestedExecutionWorld()
+            for ((_, function) in fixture.executionFunctions("mutation('{ update }');")) {
+                val unsupported = assertThrows<JexlException> { function(ResolutionExecutionContext.Unsupported) }
+                assertIs<UnsupportedOperationException>(unsupported.cause)
+            }
+        }
+
     private val world = TestWorld.fromSDL(
         """
-        type Query { result(arg_x: Int, arg_y: Int): Int item: Item items: [[Item]] abstract: Value numbers: [Int] }
+        type Query {
+          result(arg_x: Int, arg_y: Int): Int
+          item: Item items: [[Item]] abstract: Value numbers: [Int]
+          text: String flag: Boolean decimal: Float status: Status scalars: Scalars
+          strings: [String] flags: [Boolean] decimals: [Float]
+        }
         interface Value { n: Int }
         type Item implements Value { n: Int child: Item numbers: [Int] absent: Int }
         type Other implements Value { n: Int }
+        type Scalars { text: String flag: Boolean decimal: Float status: Status }
+        enum Status { READY DONE }
         """.trimIndent(),
     )
 
@@ -92,6 +193,50 @@ class JEXLNonselectiveFieldResolverFunctionTest {
         }
 
     @Test
+    fun `converts ordinary scalar and enum outputs including typed lists`(): Unit =
+        runBlocking {
+            for ((field, script, expected) in listOf(
+                Triple("text", "'ERROR'", "ERROR"),
+                Triple("flag", "true", true),
+                Triple("flag", "false", false),
+                Triple("decimal", "1", 1.0),
+                Triple("decimal", "2147483648L", 2147483648.0),
+                Triple("decimal", "1.25f", 1.25),
+                Triple("decimal", "1.25b", 1.25),
+                Triple("status", "'READY'", "READY"),
+                Triple("strings", "['one', null, 'two']", listOf("one", null, "two")),
+                Triple("flags", "[true, false]", listOf(true, false)),
+                Triple("decimals", "[1.25d, 2.5d]", listOf(1.25, 2.5)),
+            )) {
+                assertEquals(expected, invoke(function(script, field)), "$field: $script")
+            }
+            val output = assertIs<EngineObjectData.Sync>(invoke(function("{'text': 'hello', 'flag': true, 'decimal': 2, 'status': 'DONE'}", "scalars")))
+            assertEquals("hello", output.get("text"))
+            assertEquals(true, output.get("flag"))
+            assertEquals(2.0, output.get("decimal"))
+            assertEquals("DONE", output.get("status"))
+        }
+
+    @Test
+    fun `rejects mismatched scalars nonfinite floats and unknown enum members with output paths`(): Unit =
+        runBlocking {
+            for ((field, script, path) in listOf(
+                Triple("text", "1", "Query/text"),
+                Triple("flag", "1", "Query/flag"),
+                Triple("flag", "'true'", "Query/flag"),
+                Triple("decimal", "'1.25'", "Query/decimal"),
+                Triple("decimal", "1.0e999d", "Query/decimal"),
+                Triple("status", "'UNKNOWN'", "Query/status"),
+                Triple("status", "1", "Query/status"),
+                Triple("strings", "['ok', 1]", "Query/strings[1]"),
+                Triple("scalars", "{'status': 'UNKNOWN'}", "Query/scalars.status"),
+            )) {
+                val failure = assertThrows<IllegalArgumentException>("$field: $script") { invoke(function(script, field)) }
+                assertTrue(failure.message.orEmpty().contains(path), failure.message)
+            }
+        }
+
+    @Test
     fun `returns explicit errors at scalar object list and nested output positions`(): Unit =
         runBlocking {
             for (field in listOf("result", "item", "numbers", "abstract")) {
@@ -111,26 +256,129 @@ class JEXLNonselectiveFieldResolverFunctionTest {
         }
 
     @Test
+    fun `retains bound error values and causes throughout resolver outputs`(): Unit =
+        runBlocking {
+            val suppliedError = EngineErrorData.of(IllegalStateException("fixture failure"))
+
+            fun boundFunction(
+                script: String,
+                fieldName: String = "result"
+            ) = createJEXLNonselectiveFieldResolverFunction(
+                world.schemas,
+                world.schema.requireObjectField("Query", fieldName),
+                script,
+                scriptBindings = mapOf("suppliedError" to suppliedError),
+            )
+            for (field in listOf("result", "item", "numbers", "abstract")) {
+                assertSame(suppliedError, invoke(boundFunction("suppliedError", field)))
+            }
+            val output = assertIs<EngineObjectData.Sync>(invoke(boundFunction("{'n': suppliedError, 'child': suppliedError, 'numbers': [1, suppliedError]}", "item")))
+            assertSame(suppliedError, output.outputValue("n"))
+            assertSame(suppliedError, output.outputValue("child"))
+            assertSame(suppliedError, assertIs<List<*>>(output.outputValue("numbers"))[1])
+
+            val nodeWorld = TestWorld.fromDSL(
+                """
+                extend type Query { user: User @resolver(script: "{'id': 'one'}") }
+                type User implements Node @nodeResolver(ids: ["one"], script: "suppliedError") { id: ID! }
+                """.trimIndent(),
+                scriptBindings = mapOf("suppliedError" to suppliedError),
+            )
+            val node = createJEXLNodeResolverFunction(
+                nodeWorld.schemas,
+                nodeWorld.schema.requireType("User") as ViaductSchema.Object,
+                "suppliedError",
+                scriptBindings = mapOf("suppliedError" to suppliedError),
+            )
+            assertSame(suppliedError, node("one", selectionForestOf(), ResolutionExecutionContext.Unsupported))
+
+            for (value in listOf("suppliedError", "[suppliedError]", "{'nested': suppliedError}")) {
+                val provider = createJEXLVariablesProviderFunction(
+                    world.schema.requireObjectField("Query", "result"),
+                    setOf("value"),
+                    "{'value': $value}",
+                    scriptBindings = mapOf("suppliedError" to suppliedError),
+                )
+                assertThrows<IllegalArgumentException> { provider(Arguments.Resolved.of(world.schema.requireObjectField("Query", "result"), emptyMap())) }
+                assertThrows<JexlException> { invoke(boundFunction("query('{ numbers }', {'value': $value})")) }
+            }
+        }
+
+    @Test
     fun `rejects explicit errors as subquery input values`(): Unit =
         runBlocking {
             val exception = assertThrows<JexlException> { invoke(function("query('{ numbers }', {'n': error})")) }
             val cause = assertIs<IllegalArgumentException>(exception.cause)
-            assertTrue(cause.message.orEmpty().contains("query variable 'n' requires an integer"), cause.message)
+            assertTrue(cause.message.orEmpty().contains("query variable 'n' requires an input value"), cause.message)
         }
 
     @Test
-    fun `uses typename for abstract results and retains type when returning an input object`(): Unit =
+    fun `uses typename for abstract results and retains type when returning a subquery object`(): Unit =
         runBlocking {
             val output = assertIs<EngineObjectData.Sync>(invoke(function("{'__typename': 'Item', 'n': 9}", "abstract")))
             assertEquals("Item", output.type.name)
             assertEquals(9, output.get("n"))
             val input = world.schema.objectOf("Other") { "n" setTo 11 }
-            val returned = assertIs<EngineObjectData.Sync>(invoke(function("objectValue", "abstract", objectRss = true), input))
+            val context = object : ResolutionExecutionContext {
+                override suspend fun resolveSelectionSet(selections: MaterializeSelectionForest): EngineObjectData.Sync = world.schema.objectOf("Query") { "abstract" setTo input }
+            }
+            val returned = assertIs<EngineObjectData.Sync>(invoke(function("query('{ abstract { __typename n } }').abstract", "abstract"), context = context))
             assertEquals("Other", returned.type.name)
             assertEquals(11, returned.get("n"))
             assertThrows<IllegalArgumentException> { invoke(function("{'n': 1}", "abstract")) }
             assertThrows<IllegalArgumentException> { invoke(function("{'__typename': 'Query'}", "abstract")) }
             assertThrows<IllegalArgumentException> { invoke(function("{'__typename': 'Other'}", "item")) }
+        }
+
+    @Test
+    fun `marks required selection objects recursively without changing engine data`(): Unit =
+        runBlocking {
+            val child = world.schema.objectOf("Item") { "n" setTo 7 }
+            val input = world.schema.objectOf("Item") { "child" setTo child }
+            val query = world.schema.objectOf("Query") { "items" setTo listOf(listOf(child)) }
+            val script = "objectValue['**FROM_RSS**'] && objectValue.child['**FROM_RSS**'] && queryValue['**FROM_RSS**'] && queryValue.items[0][0]['**FROM_RSS**'] ? 1 : 0"
+            assertEquals(1, invoke(function(script, objectRss = true, queryRss = true), input, query))
+            val mutating = function("var local = objectValue; local['**FROM_RSS**'] = false", objectRss = true)
+            assertThrows<JexlException> { invoke(mutating, input) }
+            assertEquals(setOf("child"), input.getSelections().toSet())
+            assertEquals(setOf("n"), child.getSelections().toSet())
+        }
+
+    @Test
+    fun `rejects RSS objects returned directly or inside fresh objects and lists`(): Unit =
+        runBlocking {
+            val child = world.schema.objectOf("Item") { "n" setTo 7 }
+            val input = world.schema.objectOf("Item") { "child" setTo child }
+            val query = world.schema.objectOf("Query") { "item" setTo child }
+            for ((script, fieldName) in listOf(
+                "objectValue" to "item",
+                "objectValue.child" to "item",
+                "queryValue.item" to "item",
+                "{'child': objectValue.child}" to "item",
+                "[[objectValue.child]]" to "items",
+            )) {
+                val failure = assertThrows<IllegalArgumentException>(script) {
+                    invoke(function(script, fieldName, objectRss = true, queryRss = true), input, query)
+                }
+                assertTrue(failure.message.orEmpty().contains("**FROM_RSS**"), failure.message)
+            }
+            val copied = assertIs<EngineObjectData.Sync>(invoke(function("{'n': objectValue.child.n}", "item", objectRss = true), input))
+            assertEquals(7, copied.get("n"))
+        }
+
+    @Test
+    fun `rejects marker keys regardless of their value including node outputs`(): Unit =
+        runBlocking {
+            for (marker in listOf("true", "false", "null")) {
+                val failure = assertThrows<IllegalArgumentException> {
+                    invoke(function("{'n': 7, '**FROM_RSS**': $marker}", "item"))
+                }
+                assertTrue(failure.message.orEmpty().contains("**FROM_RSS**"), failure.message)
+                val fixture = nestedExecutionWorld()
+                val node = createJEXLNodeResolverFunction(fixture.schemas, fixture.schema.requireType("User") as ViaductSchema.Object, "{'score': 7, '**FROM_RSS**': $marker}")
+                val nodeFailure = assertThrows<IllegalArgumentException> { node("one", selectionForestOf(), ResolutionExecutionContext.Unsupported) }
+                assertTrue(nodeFailure.message.orEmpty().contains("**FROM_RSS**"), nodeFailure.message)
+            }
         }
 
     @Test
@@ -144,9 +392,8 @@ class JEXLNonselectiveFieldResolverFunctionTest {
                 override suspend fun resolveSelectionSet(selections: MaterializeSelectionForest): EngineObjectData.Sync = world.schema.objectOf("Query") { "item" setTo input }
             }
             for ((script, path) in listOf(
-                "objectValue" to "Query/item",
-                "{'child': objectValue}" to "Query/item.child",
                 "query('{ item { absent: n } }').item" to "Query/item",
+                "{'child': query('{ item { absent: n } }').item}" to "Query/item.child",
             )) {
                 val exception = assertThrows<IllegalArgumentException> { invoke(function(script, "item", objectRss = true), input, context = context) }
                 assertTrue(exception.message.orEmpty().contains(path), exception.message)
@@ -192,9 +439,9 @@ class JEXLNonselectiveFieldResolverFunctionTest {
     }
 
     @Test
-    fun `rejects noninteger and overflowing subquery variables with their names`(): Unit =
+    fun `rejects invalid and overflowing subquery variables with their names`(): Unit =
         runBlocking {
-            for (value in listOf("2147483648L", "-2147483649H", "1.5", "'7'", "[7]")) {
+            for (value in listOf("2147483648L", "-2147483649H", "error", "{'nested': [error]}", "1.0e309d")) {
                 val exception = assertThrows<JexlException> { invoke(function("query('{ numbers }', {'bad': $value})")) }
                 val cause = assertIs<IllegalArgumentException>(exception.cause)
                 assertTrue(cause.message.orEmpty().contains("query variable 'bad'"), cause.message)
@@ -244,10 +491,15 @@ class JEXLNonselectiveFieldResolverFunctionTest {
     fun `denies class access through bound objects and literal values`(): Unit =
         runBlocking {
             val input = world.schema.objectOf("Item") { "n" setTo 3 }
-            val method = function("objectValue.getClass(); return 1;", objectRss = true)
-            val deniedMethod = assertThrows<JexlException> { invoke(method, input) }
-            assertEquals("Query/result", deniedMethod.info.name)
-            assertTrue(deniedMethod.message.orEmpty().contains("getClass"), deniedMethod.message)
+            for (binding in listOf("objectValue", "query", "mutation", "ref")) {
+                val method = function("$binding.getClass(); return 1;", objectRss = true)
+                val deniedMethod = assertThrows<JexlException> { invoke(method, input) }
+                assertEquals("Query/result", deniedMethod.info.name)
+                assertTrue(deniedMethod.message.orEmpty().contains("getClass"), deniedMethod.message)
+            }
+            for (binding in listOf("query", "mutation", "ref")) {
+                assertThrows<JexlException> { invoke(function("$binding.class; return 1;")) }
+            }
             val property = function("''.class; return 1;")
             assertThrows<JexlException.Property> { invoke(property) }
             assertEquals(3, invoke(function("objectValue.n", objectRss = true), input))
@@ -281,6 +533,32 @@ class JEXLNonselectiveFieldResolverFunctionTest {
             }
             val read = assertThrows<EngineErrorDataReadException> { invoke(function("query('{ numbers }').numbers[0]"), context = errorValue) }
             assertSame(error, read.errorData)
+        }
+
+    @Test
+    fun `field and Node subquery outputs preserve deferred engine read errors`(): Unit =
+        runBlocking {
+            val fixture = TestWorld.fromSDL("type Query { item: Item copy: Item } type Item implements Node { id: ID! n: Int child: Item children: [Item] } interface Node { id: ID! }")
+            val field = fixture.schema.requireObjectField("Query", "copy")
+            val type = fixture.schema.requireType("Item") as ViaductSchema.Object
+            val error = EngineErrorData.of(IllegalStateException("deferred child failed"))
+            val item = fixture.schema.objectOf("Item") { "n" setTo error }
+            val root = engineObjectDataOf(field.containingDef, mapOf("item" to item))
+            val context = object : ResolutionExecutionContext {
+                override suspend fun resolveSelectionSet(selections: MaterializeSelectionForest): EngineObjectData.Sync = root
+            }
+            for (script in listOf(
+                "query('{ item { n } }').item",
+                "{'child': query('{ item { n } }').item}",
+                "{'children': [query('{ item { n } }').item]}",
+            )) {
+                val fieldFunction = createJEXLNonselectiveFieldResolverFunction(fixture.schemas, field, script)
+                val fieldRead = assertThrows<EngineErrorDataReadException>(script) { fieldFunction(root, root, Arguments.Resolved.of(field, emptyMap()), null, context) }
+                assertSame(error, fieldRead.errorData)
+                val nodeFunction = createJEXLNodeResolverFunction(fixture.schemas, type, script)
+                val nodeRead = assertThrows<EngineErrorDataReadException>(script) { nodeFunction("one", selectionForestOf(), context) }
+                assertSame(error, nodeRead.errorData)
+            }
         }
 
     @Test
@@ -419,8 +697,8 @@ class JEXLNonselectiveFieldResolverFunctionTest {
 
     @Test
     fun `rejects reserved bindings`() {
-        val invalidWorld = TestWorld.fromSDL("type Query { collision(query: Int): Int errorCollision(error: Int): Int refCollision(ref: Int): Int }")
-        for (name in listOf("collision", "errorCollision", "refCollision")) {
+        val invalidWorld = TestWorld.fromSDL("type Query { collision(query: Int): Int errorCollision(error: Int): Int refCollision(ref: Int): Int mutationCollision(mutation: Int): Int }")
+        for (name in listOf("collision", "errorCollision", "refCollision", "mutationCollision")) {
             assertThrows<IllegalArgumentException> {
                 createJEXLNonselectiveFieldResolverFunction(invalidWorld.schemas, invalidWorld.schema.requireObjectField("Query", name), "1")
             }
@@ -530,7 +808,7 @@ class JEXLNonselectiveFieldResolverFunctionTest {
     fun `variable scripts expose neither fragment inputs nor a query callable`(): Unit =
         runBlocking {
             val field = world.schema.requireObjectField("Query", "result")
-            for (script in listOf("objectValue", "queryValue", "query('{}')")) {
+            for (script in listOf("objectValue", "queryValue", "query('{}')", "mutation('{}')")) {
                 val provider = createJEXLVariablesProviderFunction(field, setOf("value"), script)
                 assertThrows<JexlException> { provider(Arguments.Resolved.of(field, emptyMap())) }
             }
@@ -554,6 +832,32 @@ class JEXLNonselectiveFieldResolverFunctionTest {
                 assertThrows<JexlException> { createJEXLVariablesProviderFunction(field, setOf("value"), script) }
             }
         }
+
+    private fun nestedExecutionWorld(): TestWorld =
+        TestWorld.fromDSL(
+            """
+        extend type Query { value: Int remote: Int }
+        type Mutation { update: Int }
+        type User implements Node { id: ID! }
+            """.trimIndent(),
+        )
+
+    private fun TestWorld.executionFunctions(source: String): Map<String, suspend (ResolutionExecutionContext) -> Any?> {
+        val field = schema.requireObjectField("Query", "value")
+        val type = schema.requireType("User") as ViaductSchema.Object
+        val arguments = Arguments.Resolved.of(field, emptyMap())
+        val empty = schema.objectOf("Query")
+        val fieldFunction = createJEXLNonselectiveFieldResolverFunction(schemas, field, source)
+        val nodeFunction = createJEXLNodeResolverFunction(schemas, type, source)
+        val fieldChecker = createJEXLFieldCheckerFunction(schemas, field, source)
+        val typeChecker = createJEXLTypeCheckerFunction(schemas, type, source)
+        return mapOf(
+            "Query/value" to { context -> fieldFunction(empty, empty, arguments, null, context) },
+            "User/@nodeResolver" to { context -> nodeFunction("one", selectionForestOf(), context) },
+            "Query/value.checker" to { context -> fieldChecker(arguments, emptyMap(), context) },
+            "User.checker" to { context -> typeChecker(emptyMap(), context) },
+        )
+    }
 
     private fun function(
         script: String,

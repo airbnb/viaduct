@@ -101,7 +101,7 @@ interface GroundedFieldCheckerCapabilityContract {
         val fixture = TestWorld.fromDSL(
             schemaSDL = """
                 extend type Query {
-                  root: Parent! @resolver(script: "{'child': {'protected': 7}}")
+                  root: Parent! @resolver(isSelective: ${coroutineResolverSubject.selectiveResolvers}, script: "{'child': {'protected': 7}}")
                 }
                 type Parent {
                   result: Int! @resolver(of: "child { protected }", script: "1")

@@ -7,6 +7,165 @@ import org.junit.jupiter.api.assertThrows
 
 class ResolverTestDslParsingTest {
     @Test
+    fun `resolver selectivity requires a single boolean literal`() {
+        for (value in listOf("null", "1", "\"true\"", "[]", "{}", "true, isSelective: false")) {
+            for (source in listOf(
+                "extend type Query { value: Int @resolver(script: \"1\", isSelective: $value) }",
+                "type User implements Node @nodeResolver(ids: [\"one\"], script: \"{:}\", isSelective: $value) { id: ID! }",
+            )) {
+                val failure = assertThrows<IllegalArgumentException>(source) { TestWorld.fromDSL(source) }
+                assertTrue(failure.message.orEmpty().contains("isSelective") || failure.message.orEmpty().contains("duplicate"), failure.message)
+            }
+        }
+    }
+
+    @Test
+    fun `checker declarations validate scripts input names and paired metadata`() {
+        for (declaration in listOf(
+            "",
+            "script: 1",
+            "script: \"allow\", other: 1",
+            "script: \"allow\", script: \"deny\"",
+            "script: \"allow\", inputs: null",
+            "script: \"allow\", inputs: [1]",
+            "script: \"allow\", inputs: [{}]",
+            "script: \"allow\", inputs: [{name: \"bad-name\"}]",
+            "script: \"allow\", inputs: [{name: \"x\", of: 1}]",
+            "script: \"allow\", inputs: [{name: \"x\", qf: null}]",
+            "script: \"allow\", inputs: [{name: \"x\", result: 1}]",
+            "script: \"allow\", inputs: [{name: \"x\", name: \"y\"}]",
+            "script: \"allow\", inputs: [{name: \"x\"}, {name: \"x\"}]",
+        )) {
+            assertThrows<IllegalArgumentException>(declaration) { TestWorld.fromDSL("extend type Query { checked: Int @checker${if (declaration.isEmpty()) "" else "($declaration)"} }") }
+        }
+        for (source in listOf(
+            "extend type Query { checked: Int @checker(script: \"allow\") @checker(script: \"allow\") }",
+            "extend type Query @checker(script: \"allow\") @checker(script: \"allow\") { checked: Int }",
+        )) {
+            assertThrows<IllegalArgumentException>(source) { TestWorld.fromDSL(source) }
+        }
+    }
+
+    @Test
+    fun `checker pairs reject missing unused conflicting and argumentless variable sources`() {
+        for ((metadata, diagnostic) in listOf(
+            "" to "no source",
+            "variables: [{name: \"v\", fromArgument: [\"missing\"]}]" to "has no argument",
+            "variables: [{name: \"v\", fromQueryField: [\"missing\"]}]" to "no selection",
+            "variables: [{name: \"v\", fromObjectField: [\"echo\"]}]" to "dependency cycle",
+            "variables: [{name: \"unused\", fromArgument: [\"seed\"]}]" to "unused variables",
+            "vars: {names: [\"seed\"], script: \"{'seed': 1}\"}" to "may not redefine",
+            "variables: [{name: \"v\", fromArgument: [\"seed\"]}], vars: {names: [\"v\"], script: \"{'v': 1}\"}" to "may not redefine",
+        )) {
+            val failure = assertThrows<IllegalArgumentException>(metadata) {
+                TestWorld.fromDSL(
+                    """
+                extend type Query {
+                  checked(seed: Int): Int @checker(inputs: [{name: "input", of: "echo(value: ${'$'}v)", $metadata}], script: "allow")
+                  echo(value: Int): Int @resolver(script: "value")
+                }
+                    """.trimIndent(),
+                )
+            }
+            assertTrue(failure.message.orEmpty().contains(diagnostic), failure.message)
+        }
+        val typeFailure = assertThrows<IllegalArgumentException> {
+            TestWorld.fromDSL(
+                """
+            extend type Query @checker(inputs: [{name: "input", of: "echo(value: ${'$'}v)", variables: [{name: "v", fromArgument: ["seed"]}]}], script: "allow") {
+              echo(value: Int): Int @resolver(script: "value")
+            }
+                """.trimIndent(),
+            )
+        }
+        assertTrue(typeFailure.message.orEmpty().contains("Type checker variables cannot be defined from an argument"), typeFailure.message)
+        for (name in listOf("inputs", "allow", "deny", "error")) {
+            assertThrows<IllegalArgumentException>(name) { TestWorld.fromDSL("extend type Query { checked($name: Int): Int @checker(script: \"allow\") }") }
+        }
+    }
+
+    @Test
+    fun `explicit variables require a name and exactly one well formed source path`() {
+        for (declaration in listOf(
+            "null",
+            "1",
+            "[null]",
+            "{}",
+            "{name: \"value\"}",
+            "{fromArgument: [\"seed\"]}",
+            "{name: \"bad-name\", fromArgument: [\"seed\"]}",
+            "{name: \"value\", fromArgument: [\"seed\"], fromQueryField: [\"source\"]}",
+            "{name: \"value\", fromArgument: [\"seed\"], extra: 1}",
+            "{name: \"value\", fromArgument: [\"seed\"], name: \"other\"}",
+            "{name: \"value\", fromArgument: []}",
+            "{name: \"value\", fromArgument: \"seed\"}",
+            "{name: \"value\", fromObjectField: [null]}",
+            "{name: \"value\", fromQueryField: [\"bad-name\"]}",
+            "[{name: \"value\", fromArgument: [\"seed\"]}, {name: \"value\", fromQueryField: [\"source\"]}]",
+        )) {
+            val failure = assertThrows<IllegalArgumentException>(declaration) {
+                TestWorld.fromDSL("extend type Query { result(seed: Int): Int @resolver(variables: $declaration, script: \"1\") }")
+            }
+            assertTrue(failure.message.orEmpty().contains("variables"), failure.message)
+        }
+    }
+
+    @Test
+    fun `explicit variables reject duplicate sources and unused declarations`() {
+        for ((declaration, diagnostic) in listOf(
+            "variables: {name: \"unused\", fromArgument: [\"seed\"]}" to "Unused variables",
+            "variables: {name: \"value\", fromArgument: [\"seed\"]}, pathVars: {name: \"value\", path: [\"source\"]}" to "may not redefine pathVars",
+            "variables: {name: \"value\", fromArgument: [\"seed\"]}, vars: {names: [\"value\"], script: \"{'value': 1}\"}" to "may not redefine",
+        )) {
+            val failure = assertThrows<IllegalArgumentException>(declaration) {
+                TestWorld.fromDSL(
+                    """
+                    extend type Query {
+                      result(seed: Int): Int @resolver(of: "source consume(value: ${'$'}value)", $declaration, script: "1")
+                      source: Int @resolver(script: "2")
+                      consume(value: Int): Int @resolver(script: "value")
+                    }
+                    """.trimIndent(),
+                )
+            }
+            assertTrue(failure.message.orEmpty().contains(diagnostic), failure.message)
+        }
+    }
+
+    @Test
+    fun `explicit sources use the existing input and response path validation`() {
+        for ((source, diagnostic) in listOf(
+            "fromArgument: [\"missing\"]" to "has no argument missing",
+            "fromArgument: [\"input\", \"missing\"]" to "has no field missing",
+            "fromArgument: [\"inputs\", \"value\"]" to "cannot traverse list",
+            "fromObjectField: [\"missing\"]" to "no selection",
+            "fromQueryField: [\"local\"]" to "no selection",
+            "fromQueryField: [\"items\", \"value\"]" to "cannot traverse list",
+        )) {
+            val failure = assertThrows<IllegalArgumentException>(source) {
+                TestWorld.fromDSL(
+                    """
+                    extend type Query {
+                      result(input: Input, inputs: [Input]): Int @resolver(
+                        of: "local: source consume(value: ${'$'}value)"
+                        qf: "remote: source items { value }"
+                        variables: {name: "value", $source}
+                        script: "1"
+                      )
+                      source: Int @resolver(script: "2")
+                      items: [Item] @resolver(script: "[]")
+                      consume(value: Int): Int @resolver(script: "value")
+                    }
+                    input Input { value: Int }
+                    type Item { value: Int }
+                    """.trimIndent(),
+                )
+            }
+            assertTrue(failure.message.orEmpty().contains(diagnostic), failure.message)
+        }
+    }
+
+    @Test
     fun `validates scripted Node declarations`() {
         for (declaration in listOf(
             "result: [{id: 1, result: {}}]",
