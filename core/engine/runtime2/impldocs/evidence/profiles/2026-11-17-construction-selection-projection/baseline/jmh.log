@@ -1,0 +1,121 @@
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::objectFieldOffset has been called by org.openjdk.jmh.util.Utils (file:/opt/graphql-schema-perf/viaduct-null-response-key-20261117-0855/baseline.jar)
+WARNING: Please consider reporting this to the maintainers of class org.openjdk.jmh.util.Utils
+WARNING: sun.misc.Unsafe::objectFieldOffset will be removed in a future release
+# JMH version: 1.36
+# VM version: JDK 25.0.5.0.3, OpenJDK 64-Bit Server VM, 25.0.5.0.3+1-1-26.04.1-Ubuntu
+# VM invoker: /usr/lib/jvm/java-25-openjdk-amd64/bin/java
+# VM options: -Xms2g -Xmx8g -XX:+UseG1GC
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 2 iterations, 30 s each
+# Measurement: 3 iterations, 60 s each
+# Timeout: 10 min per iteration
+# Threads: 1 thread, will synchronize iterations
+# Benchmark mode: Average time, time/op
+# Benchmark: viaduct.engine.runtime2.schema.SelectionForestCollectionBenchmark.mergeAndCollect
+
+# Run progress: 0.00% complete, ETA 00:08:00
+# Fork: 1 of 2
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::objectFieldOffset has been called by org.openjdk.jmh.util.Utils (file:/opt/graphql-schema-perf/viaduct-null-response-key-20261117-0855/baseline.jar)
+WARNING: Please consider reporting this to the maintainers of class org.openjdk.jmh.util.Utils
+WARNING: sun.misc.Unsafe::objectFieldOffset will be removed in a future release
+# Warmup Iteration   1: Collection workload: sites=43240, typePairs=163374, constructionGroups=406050, projectionGroups=406090
+245.099 ms/op
+# Warmup Iteration   2: 242.105 ms/op
+Iteration   1: 243.138 ms/op
+                 ·gc.alloc.rate:      1770.959 MB/sec
+                 ·gc.alloc.rate.norm: 451505529.781 B/op
+                 ·gc.count:           79.000 counts
+                 ·gc.time:            57.000 ms
+
+Iteration   2: 243.287 ms/op
+                 ·gc.alloc.rate:      1769.879 MB/sec
+                 ·gc.alloc.rate.norm: 451505529.652 B/op
+                 ·gc.count:           79.000 counts
+                 ·gc.time:            56.000 ms
+
+Iteration   3: 245.312 ms/op
+                 ·gc.alloc.rate:      1755.270 MB/sec
+                 ·gc.alloc.rate.norm: 451505529.796 B/op
+                 ·gc.count:           78.000 counts
+                 ·gc.time:            57.000 ms
+
+
+# Run progress: 50.00% complete, ETA 00:04:15
+# Fork: 2 of 2
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::objectFieldOffset has been called by org.openjdk.jmh.util.Utils (file:/opt/graphql-schema-perf/viaduct-null-response-key-20261117-0855/baseline.jar)
+WARNING: Please consider reporting this to the maintainers of class org.openjdk.jmh.util.Utils
+WARNING: sun.misc.Unsafe::objectFieldOffset will be removed in a future release
+# Warmup Iteration   1: Collection workload: sites=43240, typePairs=163374, constructionGroups=406050, projectionGroups=406090
+282.721 ms/op
+# Warmup Iteration   2: 277.872 ms/op
+Iteration   1: 279.686 ms/op
+                 ·gc.alloc.rate:      1568.527 MB/sec
+                 ·gc.alloc.rate.norm: 460015729.898 B/op
+                 ·gc.count:           59.000 counts
+                 ·gc.time:            44.000 ms
+
+Iteration   2: 277.723 ms/op
+                 ·gc.alloc.rate:      1579.648 MB/sec
+                 ·gc.alloc.rate.norm: 460015729.880 B/op
+                 ·gc.count:           59.000 counts
+                 ·gc.time:            43.000 ms
+
+Iteration   3: 277.859 ms/op
+                 ·gc.alloc.rate:      1578.873 MB/sec
+                 ·gc.alloc.rate.norm: 460015729.889 B/op
+                 ·gc.count:           58.000 counts
+                 ·gc.time:            43.000 ms
+
+
+
+Result "viaduct.engine.runtime2.schema.SelectionForestCollectionBenchmark.mergeAndCollect":
+  261.167 ±(99.9%) 53.084 ms/op [Average]
+  (min, avg, max) = (243.138, 261.167, 279.686), stdev = 18.930
+  CI (99.9%): [208.083, 314.252] (assumes normal distribution)
+
+Secondary result "viaduct.engine.runtime2.schema.SelectionForestCollectionBenchmark.mergeAndCollect:·gc.alloc.rate":
+  1670.526 ±(99.9%) 291.964 MB/sec [Average]
+  (min, avg, max) = (1568.527, 1670.526, 1770.959), stdev = 104.117
+  CI (99.9%): [1378.562, 1962.490] (assumes normal distribution)
+
+Secondary result "viaduct.engine.runtime2.schema.SelectionForestCollectionBenchmark.mergeAndCollect:·gc.alloc.rate.norm":
+  455760629.816 ±(99.9%) 13070955.343 B/op [Average]
+  (min, avg, max) = (451505529.652, 455760629.816, 460015729.898), stdev = 4661228.589
+  CI (99.9%): [442689674.473, 468831585.159] (assumes normal distribution)
+
+Secondary result "viaduct.engine.runtime2.schema.SelectionForestCollectionBenchmark.mergeAndCollect:·gc.count":
+  412.000 ±(99.9%) 0.001 counts [Sum]
+  (min, avg, max) = (58.000, 68.667, 79.000), stdev = 10.967
+  CI (99.9%): [412.000, 412.000] (assumes normal distribution)
+
+Secondary result "viaduct.engine.runtime2.schema.SelectionForestCollectionBenchmark.mergeAndCollect:·gc.time":
+  300.000 ±(99.9%) 0.001 ms [Sum]
+  (min, avg, max) = (43.000, 50.000, 57.000), stdev = 7.321
+  CI (99.9%): [300.000, 300.000] (assumes normal distribution)
+
+
+# Run complete. Total time: 00:08:30
+
+REMEMBER: The numbers below are just data. To gain reusable insights, you need to follow up on
+why the numbers are the way they are. Use profilers (see -prof, -lprof), design factorial
+experiments, perform baseline and negative tests that provide experimental control, make sure
+the benchmarking environment is safe on JVM/OS/HW level, ask for reviews from the domain experts.
+Do not assume the numbers tell you what you want them to tell.
+
+NOTE: Current JVM experimentally supports Compiler Blackholes, and they are in use. Please exercise
+extra caution when trusting the results, look into the generated code to check the benchmark still
+works, and factor in a small probability of new VM bugs. Additionally, while comparisons between
+different JVMs are already problematic, the performance difference caused by different Blackhole
+modes can be very significant. Please make sure you use the consistent Blackhole mode for comparisons.
+
+Benchmark                                                               Mode  Cnt          Score          Error   Units
+SelectionForestCollectionBenchmark.mergeAndCollect                      avgt    6        261.167 ±       53.084   ms/op
+SelectionForestCollectionBenchmark.mergeAndCollect:·gc.alloc.rate       avgt    6       1670.526 ±      291.964  MB/sec
+SelectionForestCollectionBenchmark.mergeAndCollect:·gc.alloc.rate.norm  avgt    6  455760629.816 ± 13070955.343    B/op
+SelectionForestCollectionBenchmark.mergeAndCollect:·gc.count            avgt    6        412.000                 counts
+SelectionForestCollectionBenchmark.mergeAndCollect:·gc.time             avgt    6        300.000                     ms
+
+Benchmark result is saved to baseline/results.json

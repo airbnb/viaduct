@@ -47,7 +47,7 @@ java -cp core/engine/runtime2/build/libs/engine-runtime2-4.0.0-SNAPSHOT-jmh.jar 
   -f 2 -t 1 -wi 2 -w 30s -i 3 -r 60s -prof gc -rf json -rff results.json
 ```
 
-This uses the same eight-minute schedule per variant as the preparation benchmark. Results measure the combined uncached collectors; they cannot establish an end-to-end request improvement or the isolated cost of either collector.
+This uses the same eight-minute schedule per variant as the preparation benchmark. Results measure the combined uncached collectors; they cannot establish an end-to-end request improvement or the isolated cost of either collector. The [construction-projection boundary evidence](../evidence/profiles/2026-11-17-construction-selection-projection/README.md) records the nullable-response-key comparison, including its inconclusive timing result.
 
 ## Choosing A Profiling Target
 
