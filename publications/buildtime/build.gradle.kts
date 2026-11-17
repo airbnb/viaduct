@@ -7,6 +7,10 @@ viaductPublishing {
     description.set("Fat jar bundling Viaduct build-time code generation tools for plugin tool classpaths")
 }
 
+viaductFatJar {
+    relocateCommonDependencies.set(false)
+}
+
 dependencies {
     api(libs.viaduct.tenant.codegen)
 }

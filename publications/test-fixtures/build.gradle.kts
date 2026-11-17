@@ -12,6 +12,8 @@ viaductPublishing {
 
 dependencies {
     api(testFixtures(libs.viaduct.tenant.api))
+    fatJarLayers(project(":api"))
+    fatJarLayers(project(":runtime"))
 }
 
 tasks.named<ShadowJar>("shadowJar") {
@@ -32,12 +34,6 @@ tasks.named<ShadowJar>("shadowJar") {
     exclude("reactor/**")
     exclude("io/projectreactor/**")
     exclude("_COROUTINE/**")
-
-    // Relocate common dependencies to avoid conflicts
-    relocate("com.google.common", "viaduct.shaded.guava")
-    relocate("com.google.guava", "viaduct.shaded.guava")
-    relocate("com.fasterxml.jackson", "viaduct.shaded.jackson")
-    relocate("org.slf4j", "viaduct.shaded.slf4j")
 
     // Engine contract suites only test engine implementations.
     val engineApiTestFixtures = project.configurations.runtimeClasspath.get()

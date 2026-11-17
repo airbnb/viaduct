@@ -11,8 +11,11 @@ viaductPublishing {
 
 dependencies {
     // Always expose as api so composite-build consumers (demo apps) get transitive deps.
-    // In the published shadow jar, these are bundled and transitive deps are suppressed below.
+    // In the published shadow jar, these are bundled, and its POM depends only on the fat jars in fatJarLayers.
     api(libs.viaduct.javaapi.runtime)
+    fatJarLayers(project(":api"))
+    fatJarLayers(project(":javaapi-api"))
+    fatJarLayers(project(":runtime"))
 }
 
 tasks.named<ShadowJar>("shadowJar") {
@@ -26,10 +29,4 @@ tasks.named<ShadowJar>("shadowJar") {
     exclude("reactor/**")
     exclude("io/projectreactor/**")
     exclude("_COROUTINE/**")
-
-    // Relocate common dependencies to avoid conflicts
-    relocate("com.google.common", "viaduct.shaded.guava")
-    relocate("com.google.guava", "viaduct.shaded.guava")
-    relocate("com.fasterxml.jackson", "viaduct.shaded.jackson")
-    relocate("org.slf4j", "viaduct.shaded.slf4j")
 }
