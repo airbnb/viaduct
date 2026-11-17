@@ -461,7 +461,7 @@ A run takes about 1h10–1h30.
 The workflow runs these steps in sequence:
 
 1. **Preflight** — validates the `release_version` / `rc_ver` / `final` inputs and verifies the `release/v${RELEASE_VER}` branch exists
-2. **Publish** — validates versions, runs checks, refuses an RC version that is already published, and publishes `${RELEASE_VER}-${RC_VER}-SNAPSHOT` to the Central snapshot repository. Nothing goes to Maven Central or the Gradle Plugin Portal
+2. **Publish** — validates versions, runs checks, rehearses release signing and Plugin Portal validation, refuses an RC version that is already published, and publishes `${RELEASE_VER}-${RC_VER}-SNAPSHOT` to the Central snapshot repository. Nothing goes to Maven Central or the Gradle Plugin Portal
 3. **Push demo apps** — updates the 5 standalone `viaduct-dev/*` repos on `rc/v${RELEASE_VER}-${RC_VER}`
 4. **Wait for new artifacts** — polls the snapshot repository until every published coordinate is visible, then checks that every published file has a valid signature from the release key in `.github/release-signing-key.asc`
 5. **Verify demo apps** — confirms standalone repos build against the published RC artifacts
@@ -659,7 +659,7 @@ The run lists main's SHA as its head because it is dispatched from main; `publis
 The workflow runs these steps in sequence:
 
 1. **Preflight** — verifies release branch exists and tag does not
-2. **Publish** — validates versions, runs checks, publishes to Plugin Portal + Maven Central (via `publish-branch.yml`)
+2. **Publish** — validates versions, runs checks, rehearses release signing and Plugin Portal validation, publishes to Plugin Portal + Maven Central (via `publish-branch.yml`)
 3. **Push demo apps** — updates the 5 standalone `viaduct-dev/*` repos on `main` (via `push-demoapps.yml`)
 4. **Wait for new artifacts** — polls Maven Central and the Gradle Plugin Portal until every published coordinate is visible
 5. **Verify demo apps** — confirms standalone repos build against published artifacts
@@ -771,7 +771,7 @@ If `release.yml` fails in a job after `publish` succeeded (`push-demoapps`, `wai
 gh run rerun <RUN_ID> --repo airbnb/viaduct --failed
 ```
 
-If `publish` itself failed after part of the upload (e.g., Plugin Portal succeeded but Maven Central failed), investigate before re-running: the publish tasks do not skip versions that are already uploaded, so a re-run can fail on the part that succeeded. For an RC, the re-run stops at `Refuse to overwrite a published release candidate`, so move to the next RC number; see below.
+If `publish` itself failed after part of the upload (e.g., Plugin Portal succeeded but Maven Central failed), investigate before re-running: the publish tasks do not skip versions that are already uploaded, so a re-run can fail on the part that succeeded. For an RC, the re-run stops at `Refuse to overwrite a published release candidate`, so move to the next RC number; see below. For a final whose Plugin Portal upload succeeded, the re-run stops earlier, at `rehearse`, because the Portal rejects validation of a version it already has.
 
 ### `create-release` fails after creating the tag
 
@@ -789,6 +789,10 @@ If the two SHAs differ, stop and ask the team.
 ### RC publication fails partway through
 
 If `release.yml` fails during an RC publication after publishing `${RELEASE_VER}-${RC_VER}-SNAPSHOT`, do not reuse that RC version. Fix the issue, increment to the next RC version, and rerun the workflow.
+
+### `rehearse` fails
+
+Nothing was published, because `publish` waits for it. `Verify every local file is signed with the release key` names each file without a good signature from `.github/release-signing-key.asc`; check the `GPG_PRIVATE_KEY` and `GPG_PASSPHRASE` repository secrets. `Validate every plugin against the Plugin Portal` prints the Portal's reason, such as rejected credentials; check the `VIADUCT_GRADLE_PUBLISH_KEY` and `VIADUCT_GRADLE_PUBLISH_SECRET` repository secrets. An RC needs the Portal too, even though it publishes nothing there: if the Portal is unreachable or returns a server error, wait for it to recover and re-run the failed jobs. After a fix, rehearse again without publishing: `gh workflow run rehearse-release.yml --ref main -f ref=release/v${RELEASE_VER}`. Rehearse a release branch only before its final release.
 
 ### `Refuse to overwrite a published release candidate` fails
 
