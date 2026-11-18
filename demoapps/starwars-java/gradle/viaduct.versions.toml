@@ -33,7 +33,7 @@ viaduct-api = { group = "com.airbnb.viaduct", name = "api", version.ref = "viadu
 viaduct-javaapi-api = { group = "com.airbnb.viaduct", name = "javaapi-api", version.ref = "viaduct" }
 viaduct-javaapi-runtime = { group = "com.airbnb.viaduct", name = "javaapi-runtime", version.ref = "viaduct" }
 viaduct-runtime = { group = "com.airbnb.viaduct", name = "runtime", version.ref = "viaduct" }
-viaduct-test-fixtures = { group = "com.airbnb.viaduct", name = "test-fixtures", version.ref = "viaduct" }
+viaduct-javaapi-test-fixtures = { group = "com.airbnb.viaduct", name = "javaapi-test-fixtures", version.ref = "viaduct" }
 viaduct-x-remoteresolvers = { group = "com.airbnb.viaduct", name = "remoteresolvers", version.ref = "viaduct" }
 guice = { group = "com.google.inject", name = "guice", version.ref = "guice" }
 kotlin-reflect = { group = "org.jetbrains.kotlin", name = "kotlin-reflect", version.ref = "kotlin" }

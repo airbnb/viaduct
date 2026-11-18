@@ -1,6 +1,6 @@
 @file:Suppress("ForbiddenImport")
 
-package viaduct.java.api.testing
+package viaduct.java.runtime.featureapp
 
 import viaduct.api.testing.featureapp.AbstractFeatureAppTestContractBase
 import viaduct.engine.api.bootstrap.executionregistry.ModuleConfigSource

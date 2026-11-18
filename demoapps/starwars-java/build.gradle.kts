@@ -39,7 +39,6 @@ dependencies {
     testImplementation(libs.assertj.core)
     testImplementation(libs.micronaut.test.junit5)
     testImplementation(libs.micronaut.http.client)
-    testImplementation(libs.viaduct.test.fixtures)
     testImplementation(project(":modules:filmography"))
     testImplementation(project(":modules:universe"))
     testRuntimeOnly(libs.junit.platform.launcher)

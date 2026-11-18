@@ -35,12 +35,12 @@ check_poms() {
   base=https://repo.maven.apache.org/maven2
   case "$v" in *-SNAPSHOT) base=https://central.sonatype.com/repository/maven-snapshots ;; esac
   pom_file() { case "$v" in *-SNAPSHOT) echo maven-metadata.xml ;; *) echo "$1-$v.pom" ;; esac; }
-  for a in api runtime buildtime test-fixtures javaapi-api javaapi-runtime javaapi-buildtime; do
-    printf "%-20s -> %s\n" "$a" "$(curl -sL -o /dev/null -w '%{http_code}' \
+  for a in api runtime buildtime test-fixtures javaapi-api javaapi-runtime javaapi-buildtime javaapi-test-fixtures; do
+    printf "%-22s -> %s\n" "$a" "$(curl -sL -o /dev/null -w '%{http_code}' \
       "$base/com/airbnb/viaduct/$a/$v/$(pom_file $a)")"
   done
   m=com.airbnb.viaduct.module-java-gradle-plugin.gradle.plugin
-  printf "%-20s -> %s\n" "java plugin marker" "$(curl -sL -o /dev/null -w '%{http_code}' \
+  printf "%-22s -> %s\n" "java plugin marker" "$(curl -sL -o /dev/null -w '%{http_code}' \
     "$base/com/airbnb/viaduct/module-java-gradle-plugin/$m/$v/$(pom_file $m)")"
 }
 ```
@@ -343,7 +343,7 @@ cd ~/repos/viaduct && git checkout release/v${RELEASE_VER} && git pull origin re
 ./gradlew -p publications cyclonedxBom --rerun --no-configuration-cache --no-build-cache
 ```
 
-The task logs many `Unable to resolve POM for com.airbnb.viaduct...` lines; they do not fail it. One SBOM is written per fat JAR at `publications/<module>/build/reports/sbom/cyclonedx.json` (`api`, `runtime`, `buildtime`, `test-fixtures`, `javaapi-api`, `javaapi-runtime`, `javaapi-buildtime`). Each should list a few dozen dependencies. A nearly empty file means the configuration cache blanked it; re-run the command, keeping `--no-configuration-cache`.
+The task logs many `Unable to resolve POM for com.airbnb.viaduct...` lines; they do not fail it. One SBOM is written per fat JAR at `publications/<module>/build/reports/sbom/cyclonedx.json` (`api`, `runtime`, `buildtime`, `test-fixtures`, `javaapi-api`, `javaapi-runtime`, `javaapi-buildtime`, `javaapi-test-fixtures`). Each should list a few dozen dependencies. A nearly empty file means the configuration cache blanked it; re-run the command, keeping `--no-configuration-cache`.
 
 **2. List the coordinates and look for test libraries:**
 
@@ -352,7 +352,7 @@ for f in publications/*/build/reports/sbom/cyclonedx.json; do
   echo "== $f =="
   python3 -c "import json,sys;[print(f\"{c.get('group','')}:{c['name']}:{c.get('version','')}\") for c in json.load(open(sys.argv[1])).get('components',[])]" "$f"
 done > /tmp/sbom-${RELEASE_VER}.txt
-grep -c "^== " /tmp/sbom-${RELEASE_VER}.txt     # 7
+grep -c "^== " /tmp/sbom-${RELEASE_VER}.txt     # 8
 grep -iE "junit|mockk|mockito|byte-buddy|objenesis|assertj|strikt|hamcrest|truth" /tmp/sbom-${RELEASE_VER}.txt
 ```
 
@@ -381,7 +381,7 @@ Every count must be `0`. `buildtime` currently also ships `io/kotest` classes; t
 ./gradlew -p publications :test-fixtures:checkTestFixturesPublication --no-build-cache
 ```
 
-Then check that no jar ships a class, resource or `META-INF/maven` descriptor that one of its lower jars ships, and that each POM depends on exactly its lower jars. `runtime`, `test-fixtures`, `javaapi-api`, `javaapi-runtime` and `javaapi-buildtime` each leave out the classes of the jars they depend on in their POMs:
+Then check that no jar ships a class, resource or `META-INF/maven` descriptor that one of its lower jars ships, and that each POM depends on exactly its lower jars. `runtime`, `test-fixtures`, `javaapi-api`, `javaapi-runtime`, `javaapi-buildtime` and `javaapi-test-fixtures` each leave out the classes of the jars they depend on in their POMs:
 
 ```bash
 ./gradlew -p publications checkFatJarLayers --no-build-cache

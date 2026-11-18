@@ -31,7 +31,7 @@ viaduct/                         ← root project (orchestration only)
 │   ├── buildtime                (compile-only dependencies)
 │   ├── runtime                  (runtime-only dependencies)
 │   ├── test-fixtures            (test utilities)
-│   └── javaapi-*                (api, buildtime, runtime facades for Java tenants)
+│   └── javaapi-*                (api, buildtime, runtime, test-fixtures facades for Java tenants)
 ├── gradle-plugins/              ← included build: Gradle plugins for application developers
 │   ├── application              (ViaductApplicationPlugin)
 │   ├── module                   (ViaductModulePlugin)

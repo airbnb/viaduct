@@ -27,13 +27,6 @@ dependencies {
 
     testImplementation(libs.assertj.core)
 
-    /** Test fixtures - Viaduct dependencies **/
-    testFixturesImplementation(testFixtures(libs.viaduct.engine.api))
-    testFixturesImplementation(testFixtures(libs.viaduct.service.api))
-    testFixturesImplementation(libs.viaduct.service.runtime)
-    testFixturesImplementation(testFixtures(libs.viaduct.tenant.runtime))
+    testFixturesApi(libs.viaduct.service.api)
     testFixturesImplementation(libs.viaduct.tenant.api)
-    testFixturesImplementation(libs.viaduct.javaapi.runtime)
-    // BootstrapperFactory (file-based bootstrap entry point) lives in engine:wiring.
-    testFixturesImplementation(libs.viaduct.engine.wiring)
 }

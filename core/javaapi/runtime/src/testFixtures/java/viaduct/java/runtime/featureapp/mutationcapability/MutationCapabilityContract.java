@@ -1,7 +1,7 @@
 package viaduct.java.runtime.featureapp.mutationcapability;
 
 import viaduct.api.testing.TestSchema;
-import viaduct.java.api.testing.FeatureAppTestContractBase;
+import viaduct.java.runtime.featureapp.FeatureAppTestContractBase;
 
 @TestSchema(
     """

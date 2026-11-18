@@ -97,7 +97,7 @@ description: Testing Tenant Module Code
 
 === "Java"
 
-    Add the Java Tenant API **test-fixtures variant** to your test dependencies at the same Viaduct version as the application, together with JUnit 5 and AssertJ. The helper lives in `core/javaapi/api/src/testFixtures`; it is not part of the main API jar.
+    Add `com.airbnb.viaduct:javaapi-test-fixtures` to your test dependencies at the same Viaduct version as the application, together with JUnit 5 and AssertJ. Viaduct jars do not bundle the Kotlin runtime. If the module does not already have it, add `org.jetbrains.kotlin:kotlin-reflect` as a `testRuntimeOnly` dependency, at your application's Kotlin version.
 
     Construct `ResolverTestBase` instead of extending it. Pass the `EngineSchema` for the resolver's schema; Java does not load it automatically from the classpath. For a small unit test, the schema can be constructed explicitly, following the Java harness's own tests:
 
