@@ -44,6 +44,7 @@ class ContextMocks(
     myBaseLocalContext: CompositeLocalContext? = null,
     myScopedSchema: EngineSchema? = myFullSchema,
     private val myRequestContext: Any? = null,
+    private val incrementalExecution: Boolean = true,
 ) {
     val fullSchema: FullSchema = myFullSchema?.let { if (it is FullSchema) it else FullSchema(it) } ?: FullSchema(
         GraphQLSchema.newSchema()
@@ -60,13 +61,13 @@ class ContextMocks(
     val dispatcherRegistry: DispatcherRegistry = myDispatcherRegistry ?: DispatcherRegistry.Empty
     val resolverInstrumentation: Instrumentation = myResolverInstrumentation ?: SimplePerformantInstrumentation()
     val flagManager: FlagManager = myFlagManager ?: MockFlagManager.Enabled
-    val engine: Engine = myEngine ?: NoOpEngine(flagManager)
+    val engine: Engine = myEngine ?: NoOpEngine()
     val globalIDCodec: GlobalIDCodec = myGlobalIDCodec ?: GlobalIDCodecDefault
 
     val engineExecutionContext: EngineExecutionContext get() =
         when {
             myEngineExecutionContext != null -> myEngineExecutionContext
-            else -> engineExecutionContextFactory.create(scopedSchema, myRequestContext)
+            else -> engineExecutionContextFactory.create(scopedSchema, myRequestContext, incrementalExecution)
         }
 
     val engineExecutionContextImpl: EngineExecutionContextImpl get() =
@@ -101,9 +102,8 @@ class ContextMocks(
     }
 }
 
-private class NoOpEngine(private val flagManager: FlagManager) : Engine {
-    override val supportsIncrementalExecution: Boolean
-        get() = flagManager.isEnabled(FlagManager.Flags.ENABLE_INCREMENTAL_EXECUTION)
+private class NoOpEngine : Engine {
+    override val supportsIncrementalExecution: Boolean = true
 
     override val schema: EngineSchema get() = error("NoOpEngine: schema not configured")
 

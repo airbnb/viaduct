@@ -89,12 +89,13 @@ class QueryRunner(
         query: String,
         variables: Map<String, Any?> = emptyMap(),
         timeoutMillis: Long = 2_000,
+        incrementalExecution: Boolean = true,
     ): ExecutionResult {
         val input = ExecutionInput(operationText = query, variables = variables, requestContext = Any())
         return runBlocking {
             withTimeout(timeoutMillis) {
                 DefaultCoroutineInterop.enterThreadLocalCoroutineContext(coroutineContext) {
-                    engine.execute(input, incrementalExecution = true)
+                    engine.execute(input, incrementalExecution = incrementalExecution)
                 }.await()
             }
         }

@@ -249,7 +249,7 @@ class ExecutionParametersTest {
     }
 
     @Test
-    fun `field collection receives the incremental execution flag from the request`() {
+    fun `field collection receives the incremental execution choice from the request`() {
         val plan = buildPlan("{ ... @defer(label: \"later\") { foo { id } } }", viaductSchema)
         val disabledParameters = createExecutionParameters(
             source = defaultRootValue,
@@ -259,7 +259,7 @@ class ExecutionParametersTest {
         val enabledParameters = disabledParameters.copy(
             _engineExecutionContext = ContextMocks(
                 myFullSchema = viaductSchema,
-                myFlagManager = MockFlagManager.create(FlagManager.Flags.ENABLE_INCREMENTAL_EXECUTION),
+                incrementalExecution = true,
             ).engineExecutionContext,
         )
 
@@ -304,7 +304,7 @@ class ExecutionParametersTest {
             queryPlan = plan,
             engineExecutionContext = ContextMocks(
                 myFullSchema = viaductSchema,
-                myFlagManager = MockFlagManager.create(FlagManager.Flags.ENABLE_INCREMENTAL_EXECUTION),
+                incrementalExecution = true,
             ).engineExecutionContext,
         )
         val rootFields = FieldExecutionHelpers.collectFields(queryType, root)
@@ -348,7 +348,7 @@ class ExecutionParametersTest {
         val disabledParameters = objectParameters.copy(
             _engineExecutionContext = ContextMocks(
                 myFullSchema = viaductSchema,
-                myFlagManager = MockFlagManager.Disabled,
+                incrementalExecution = false,
             ).engineExecutionContext,
         )
         val disabledSubfields = FieldExecutionHelpers.collectFields(fooType, disabledParameters)
@@ -360,6 +360,7 @@ class ExecutionParametersTest {
         assertEquals(emptyList<DeferUsage>(), disabledSubfields.newDeferUsages)
         val repeatedDisabled = FieldExecutionHelpers.collectFields(fooType, disabledParameters.copy())
         assertSame(disabledSubfields, repeatedDisabled)
+        assertEquals(emptyList<DeferUsage>(), repeatedDisabled.newDeferUsages)
     }
 
     @Test
@@ -417,7 +418,7 @@ class ExecutionParametersTest {
             queryPlan = plan,
             engineExecutionContext = ContextMocks(
                 myFullSchema = viaductSchema,
-                myFlagManager = MockFlagManager.create(FlagManager.Flags.ENABLE_INCREMENTAL_EXECUTION),
+                incrementalExecution = true,
             ).engineExecutionContext,
         )
         val fooField = FieldExecutionHelpers.collectFields(queryType, root).collectedFieldsMap.getValue("foo")
@@ -1464,12 +1465,7 @@ class ExecutionParametersTest {
             queryPlan = plan,
             engineExecutionContext = ContextMocks(
                 myFullSchema = viaductSchema,
-                myFlagManager =
-                    if (incrementalExecutionEnabled) {
-                        MockFlagManager.create(FlagManager.Flags.ENABLE_INCREMENTAL_EXECUTION)
-                    } else {
-                        MockFlagManager.Disabled
-                    },
+                incrementalExecution = incrementalExecutionEnabled,
             ).engineExecutionContext,
         )
 
@@ -1486,7 +1482,7 @@ class ExecutionParametersTest {
         coroutineContext: CoroutineContext = EmptyCoroutineContext,
         engineExecutionContext: EngineExecutionContext = ContextMocks(
             myFullSchema = viaductSchema,
-            myFlagManager = MockFlagManager.Disabled,
+            incrementalExecution = false,
         ).engineExecutionContext,
     ): ExecutionParameters {
         val executionContext = executionContext(rootValue, localContext)

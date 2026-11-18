@@ -12,7 +12,6 @@ import graphql.execution.NonNullableFieldWasNullException
 import graphql.language.OperationDefinition
 import java.util.concurrent.CompletableFuture
 import kotlin.coroutines.EmptyCoroutineContext
-import kotlinx.coroutines.CoroutineScope
 import viaduct.engine.api.spi.CoroutineInterop
 import viaduct.engine.runtime.EngineExecutionContextImpl
 import viaduct.engine.runtime.ObjectEngineResultImpl
@@ -182,21 +181,12 @@ class ViaductExecutionStrategy internal constructor(
         executionContext: ExecutionContext,
         gjParameters: ExecutionStrategyParameters
     ): CompletableFuture<ExecutionResult> {
-        val engineExecutionContext = executionContext.findLocalContextForType<EngineExecutionContextImpl>()
-        return if (engineExecutionContext.incrementalExecutionEnabled) {
-            ExecutionSession().also { session ->
-                val dispatcher = executionContext.executionInput.getLocalContextForType<DispatcherLocalContext>()?.dispatcher
-                session.start(coroutineInterop, dispatcher ?: EmptyCoroutineContext) { supervisorScopeFactory ->
-                    executeInternal(executionContext, gjParameters, supervisorScopeFactory)
-                }
-            }.initialResult
-        } else {
-            coroutineInterop.scopedFuture {
-                withRequestSupervisor { supervisorScopeFactory ->
-                    executeInternal(executionContext, gjParameters, supervisorScopeFactory)
-                }
+        return ExecutionSession().also { session ->
+            val dispatcher = executionContext.executionInput.getLocalContextForType<DispatcherLocalContext>()?.dispatcher
+            session.start(coroutineInterop, dispatcher ?: EmptyCoroutineContext) { supervisorScopeFactory ->
+                executeInternal(executionContext, gjParameters, supervisorScopeFactory)
             }
-        }
+        }.initialResult
     }
 
     private suspend fun executeInternal(
@@ -279,7 +269,4 @@ class ViaductExecutionStrategy internal constructor(
             else -> throw IllegalStateException("Unsupported operation type: $operation")
         }
     }
-
-    /** Runs [block] in [RequestScope], reusing an enclosing request's supervisor when present. */
-    internal suspend fun <T> withRequestSupervisor(block: suspend CoroutineScope.(supervisorFactory: SupervisorScopeFactory) -> T): T = RequestScope(block = block)
 }

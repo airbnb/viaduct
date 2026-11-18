@@ -19,10 +19,11 @@ All flags are defined in `FlagManager.Flags`.
 | `ENGINE2_ENABLED` | disabled | Selects the engine2 runtime. |
 | `ENGINE2_BATCHING` | disabled | Reserved gate; explicit enablement is accepted, but engine2 continues using singleton dispatch. |
 | `ENABLE_MAT_RESOLUTION` | disabled | Enables differential resolver execution through the Mat workflow. |
-| `ENABLE_INCREMENTAL_EXECUTION` | disabled | Enables incremental query execution. |
 | `ENABLE_RESOLVER_OUTPUT_MISSING_FIELD_ERRORS` | disabled | Adds field errors when resolver output omits a requested field. |
 | `ENABLE_CACHE_KEY_LOOKUP_PARTITIONING` | disabled | Deprecated compatibility flag; partitioning is always enabled. |
 | `KILLSWITCH_FIELD_RSS_ORIGIN_FILTERING` | disabled | Restores legacy origin filtering for field required selections. |
+
+The original engine always supports incremental execution. Use `Engine.execute(..., incrementalExecution = false)` to require a complete result.
 
 ## Wiring a FlagManager
 

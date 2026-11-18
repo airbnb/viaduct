@@ -205,23 +205,14 @@ class EngineExecutionContextImplTest {
         assertEquals(supportsIncrementalExecution && incrementalExecution, context.incrementalExecutionEnabled)
     }
 
-    @Test
-    fun `incremental execution flag is latched per request and preserved in copies and shadow executions`() {
-        var enabled = true
-        val flagManager = object : FlagManager {
-            override fun isEnabled(flag: FlagManager.Flag): Boolean = flag == FlagManager.Flags.ENABLE_INCREMENTAL_EXECUTION && enabled
-        }
-        val enabledContext = engineExecutionContext(flagManager)
+    @ParameterizedTest
+    @ValueSource(booleans = [false, true])
+    fun `incremental execution choice is preserved in copies and shadow executions`(incrementalExecution: Boolean) {
+        val context = engineExecutionContext(MockFlagManager.Disabled, incrementalExecution = incrementalExecution)
 
-        enabled = false
-
-        assertTrue(enabledContext.incrementalExecutionEnabled)
-        assertTrue(enabledContext.copy().incrementalExecutionEnabled)
-        assertTrue(enabledContext.forkForShadowExecution().incrementalExecutionEnabled)
-        val disabledContext = engineExecutionContext(flagManager)
-        assertFalse(disabledContext.incrementalExecutionEnabled)
-        assertFalse(disabledContext.copy().incrementalExecutionEnabled)
-        assertFalse(disabledContext.forkForShadowExecution().incrementalExecutionEnabled)
+        assertEquals(incrementalExecution, context.incrementalExecutionEnabled)
+        assertEquals(incrementalExecution, context.copy().incrementalExecutionEnabled)
+        assertEquals(incrementalExecution, context.forkForShadowExecution().incrementalExecutionEnabled)
     }
 
     @Test
@@ -241,7 +232,7 @@ class EngineExecutionContextImplTest {
         dispatcherRegistry: DispatcherRegistry = DispatcherRegistry.Empty,
         fieldValueReader: MaterializedFieldValueReader = MaterializedFieldValueReader.Default,
         engine: Engine = mockk {
-            every { supportsIncrementalExecution } answers { flagManager.isEnabled(FlagManager.Flags.ENABLE_INCREMENTAL_EXECUTION) }
+            every { supportsIncrementalExecution } returns true
         },
         incrementalExecution: Boolean = true,
     ): EngineExecutionContextImpl {

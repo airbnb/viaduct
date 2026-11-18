@@ -83,7 +83,6 @@ import viaduct.engine.runtime.execution.ExecutionTestHelpers.executeQuery
 import viaduct.engine.runtime.execution.ExecutionTestHelpers.executeViaductModernGraphQL
 import viaduct.engine.runtime.execution.ExecutionTestHelpers.runExecutionTest
 import viaduct.service.api.spi.FlagManager
-import viaduct.service.api.spi.mocks.MockFlagManager
 import viaduct.utils.slf4j.logger
 
 /**
@@ -1724,7 +1723,7 @@ class ViaductExecutionStrategyTest {
     }
 
     @Test
-    fun `withRequestSupervisor integration - cleans up lingering child plan jobs after query execution`() {
+    fun `request completion cleans up lingering child plan jobs`() {
         runExecutionTest {
             withContext(nextTickDispatcher) {
                 val sdl = """
@@ -2012,8 +2011,7 @@ class ViaductExecutionStrategyTest {
                                 started.await()
                                 ExecutionResult.newExecutionResult().data(mapOf("value" to 2)).build()
                             }
-                            val flags = if (incremental) MockFlagManager.create(FlagManager.Flags.ENABLE_INCREMENTAL_EXECUTION) else FlagManager.Disabled
-                            val input = createExecutionInput(schema, query, flagManager = flags)
+                            val input = createExecutionInput(schema, query, incrementalExecution = incremental)
 
                             val result = graphQL.executeAsync(input).await()
 
@@ -2051,7 +2049,7 @@ class ViaductExecutionStrategyTest {
                         emptyList(),
                     )
                 }
-                val input = createExecutionInput(schema, "{ value }", flagManager = MockFlagManager.create(FlagManager.Flags.ENABLE_INCREMENTAL_EXECUTION))
+                val input = createExecutionInput(schema, "{ value }", incrementalExecution = true)
                 val future = graphQL.executeAsync(input)
                 var result: IncrementalExecutionResult? = null
                 try {
@@ -2105,7 +2103,7 @@ class ViaductExecutionStrategyTest {
                         emptyList(),
                     )
                 }
-                val input = createExecutionInput(schema, "{ value }", flagManager = MockFlagManager.create(FlagManager.Flags.ENABLE_INCREMENTAL_EXECUTION))
+                val input = createExecutionInput(schema, "{ value }", incrementalExecution = true)
                 val future = graphQL.executeAsync(input)
                 var result: IncrementalExecutionResult? = null
                 try {
@@ -2144,7 +2142,7 @@ class ViaductExecutionStrategyTest {
                             },
                         )
                     }
-                    val input = createExecutionInput(schema, "{ value }", flagManager = MockFlagManager.create(FlagManager.Flags.ENABLE_INCREMENTAL_EXECUTION)).let { input ->
+                    val input = createExecutionInput(schema, "{ value }", incrementalExecution = true).let { input ->
                         input.transform { builder ->
                             builder.localContext(input.updateCompositeLocalContext<DispatcherLocalContext> { DispatcherLocalContext(dispatcher) })
                         }

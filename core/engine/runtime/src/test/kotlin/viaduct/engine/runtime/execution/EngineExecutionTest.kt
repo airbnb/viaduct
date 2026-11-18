@@ -1,21 +1,31 @@
 package viaduct.engine.runtime.execution
 
 import graphql.ExecutionInput as GJExecutionInput
+import graphql.ExecutionResult
 import graphql.GraphQL
 import graphql.execution.AsyncExecutionStrategy
+import graphql.execution.ExecutionContext
+import graphql.execution.ExecutionStrategyParameters
 import graphql.execution.instrumentation.InstrumentationContext
 import graphql.execution.instrumentation.InstrumentationState
 import graphql.execution.instrumentation.SimpleInstrumentationContext
 import graphql.execution.instrumentation.SimplePerformantInstrumentation
 import graphql.execution.instrumentation.parameters.InstrumentationFieldParameters
 import graphql.schema.DataFetcher
+import io.mockk.every
+import io.mockk.mockk
+import java.util.concurrent.CompletableFuture
+import java.util.concurrent.Executors
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.future.await
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertInstanceOf
+import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.Timeout
@@ -27,19 +37,111 @@ import viaduct.engine.api.mocks.EngineTestModule
 import viaduct.engine.api.mocks.featureTestDefault
 import viaduct.engine.api.mocks.runFeatureTest
 import viaduct.engine.runtime.context.CompositeLocalContext
+import viaduct.engine.runtime.context.DispatcherLocalContext
 import viaduct.engine.runtime.execution.ExecutionTestHelpers.createSchema
 import viaduct.engine.runtime.execution.ExecutionTestHelpers.runExecutionTest
-import viaduct.service.api.spi.FlagManager
-import viaduct.service.api.spi.mocks.MockFlagManager
 
 @Timeout(10)
 class EngineExecutionTest {
     @Test
+    fun `wrapper executes graphql-java data fetchers on the configured dispatcher`() {
+        Executors.newSingleThreadExecutor().asCoroutineDispatcher().use { dispatcher ->
+            runExecutionTest {
+                val executionThread = withContext(dispatcher) { Thread.currentThread() }
+                val schema = createSchema(
+                    "type Query { value: Int }",
+                    mapOf(
+                        "Query" to mapOf(
+                            "value" to DataFetcher {
+                                assertSame(executionThread, Thread.currentThread())
+                                42
+                            }
+                        )
+                    ),
+                )
+                val graphql = GraphQL.newGraphQL(schema.schema)
+                    .queryExecutionStrategy(WrappedCoroutineExecutionStrategy(AsyncExecutionStrategy(), DefaultCoroutineInterop))
+                    .build()
+                val input = GJExecutionInput.newExecutionInput()
+                    .query("{ value }")
+                    .localContext(CompositeLocalContext.empty.addOrUpdate(DispatcherLocalContext(dispatcher)))
+                    .build()
+
+                val result = withTimeout(2_000) { graphql.executeAsync(input).await() }
+
+                assertEquals(mapOf("value" to 42), result.getData<Map<String, Any?>>())
+                assertTrue(result.errors.isEmpty())
+            }
+        }
+    }
+
+    @Test
+    fun `nested wrapper execution preserves the delegated future and its cancellation`() {
+        val context = mockk<ExecutionContext>()
+        val expectedParameters = mockk<ExecutionStrategyParameters>()
+        every { expectedParameters.parent } returns mockk<ExecutionStrategyParameters>()
+        val pending = CompletableFuture<ExecutionResult>()
+        val delegate = object : AsyncExecutionStrategy() {
+            override fun execute(
+                executionContext: ExecutionContext,
+                parameters: ExecutionStrategyParameters,
+            ): CompletableFuture<ExecutionResult> {
+                assertSame(context, executionContext)
+                assertSame(expectedParameters, parameters)
+                return pending
+            }
+        }
+        val wrapper = WrappedCoroutineExecutionStrategy(delegate, DefaultCoroutineInterop)
+
+        val result = wrapper.execute(context, expectedParameters)
+
+        assertSame(pending, result)
+        result.cancel(true)
+        assertTrue(pending.isCancelled)
+    }
+
+    @Test
+    fun `wrapper preserves adapted field resolution for nested objects`() {
+        runExecutionTest {
+            val fields = mutableListOf<String>()
+            val delegate = object : AsyncExecutionStrategy(), AdaptedExecutionStrategy {
+                override fun resolveFieldWithInfo(
+                    executionContext: ExecutionContext,
+                    parameters: ExecutionStrategyParameters,
+                ): Any {
+                    fields.add(parameters.field.singleField.name)
+                    return super.resolveFieldWithInfo(executionContext, parameters)
+                }
+            }
+            val schema = createSchema(
+                "type Query { obj: Obj } type Obj { value: Int }",
+                mapOf(
+                    "Query" to mapOf("obj" to DataFetcher { emptyMap<String, Any?>() }),
+                    "Obj" to mapOf("value" to DataFetcher { 42 }),
+                ),
+            )
+            val graphql = GraphQL.newGraphQL(schema.schema)
+                .queryExecutionStrategy(WrappedCoroutineExecutionStrategy(delegate, DefaultCoroutineInterop))
+                .build()
+
+            val input = GJExecutionInput.newExecutionInput().query("{ obj { value } }").build()
+            val result = withTimeout(2_000) { graphql.executeAsync(input).await() }
+
+            assertEquals(mapOf("obj" to mapOf("value" to 42)), result.getData<Map<String, Any?>>())
+            assertTrue(result.errors.isEmpty())
+            assertEquals(listOf("obj", "value"), fields)
+        }
+    }
+
+    @Test
     fun `wrapper supports graphql-java requests without a viaduct engine context`() {
         runExecutionTest {
             val schema = createSchema(
-                "type Query { value: Int }",
-                mapOf("Query" to mapOf("value" to DataFetcher { 42 })),
+                "type Query { obj: Obj } type Obj { value: Int }",
+                mapOf(
+                    "Query" to mapOf("obj" to DataFetcher { emptyMap<String, Any?>() }),
+                    "Obj" to mapOf("value" to DataFetcher { 42 }),
+                ),
             )
             val graphql = GraphQL.newGraphQL(schema.schema)
                 .queryExecutionStrategy(WrappedCoroutineExecutionStrategy(AsyncExecutionStrategy(), DefaultCoroutineInterop))
@@ -47,11 +149,11 @@ class EngineExecutionTest {
 
             for (localContext in listOf(null, "fixture-context", CompositeLocalContext.empty)) {
                 val input = GJExecutionInput.newExecutionInput()
-                    .query("{ value }")
+                    .query("{ obj { value } }")
                     .localContext(localContext)
                     .build()
                 val result = withTimeout(2_000) { graphql.executeAsync(input).await() }
-                assertEquals(mapOf("value" to 42), result.getData<Map<String, Any?>>())
+                assertEquals(mapOf("obj" to mapOf("value" to 42)), result.getData<Map<String, Any?>>())
                 assertTrue(result.errors.isEmpty())
             }
         }
@@ -102,7 +204,7 @@ class EngineExecutionTest {
                     }
                 }
             }
-        }.runFeatureTest(engineConfig = incrementalConfig.copy(additionalInstrumentation = instrumentation)) {
+        }.runFeatureTest(engineConfig = EngineConfiguration.featureTestDefault.copy(additionalInstrumentation = instrumentation)) {
             runExecutionTest {
                 try {
                     val result = assertInstanceOf(
@@ -134,8 +236,4 @@ class EngineExecutionTest {
             }
         }
     }
-
-    private val incrementalConfig = EngineConfiguration.featureTestDefault.copy(
-        flagManager = MockFlagManager.create(FlagManager.Flags.ENABLE_INCREMENTAL_EXECUTION),
-    )
 }

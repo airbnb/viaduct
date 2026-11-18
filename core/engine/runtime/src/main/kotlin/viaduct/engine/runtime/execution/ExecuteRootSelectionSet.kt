@@ -41,7 +41,7 @@ fun interface ExecuteRootSelectionSet {
             if (!incrementalExecutionEnabled) {
                 check(work == Work.empty) { "Deferred work requires incremental execution" }
             }
-            return if (data == null || !incrementalExecutionEnabled) {
+            return if (data == null || work.tasks.isEmpty()) {
                 result
             } else {
                 YieldIncrementalResults(parameters, data, errors, work)

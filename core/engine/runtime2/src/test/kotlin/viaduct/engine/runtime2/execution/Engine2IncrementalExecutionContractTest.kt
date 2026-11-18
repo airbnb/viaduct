@@ -9,7 +9,6 @@ import viaduct.engine.runtime.execution.runIncrementalEngineTest
 class Engine2IncrementalExecutionContractTest : IncrementalExecutionContract {
     override fun runIncrementalTest(
         module: EngineTestModule,
-        incrementalEnabled: Boolean,
         block: suspend CoroutineScope.(Engine) -> Unit,
-    ) = module.runIncrementalEngineTest(engine2Enabled = true, incrementalEnabled, block)
+    ) = module.runIncrementalEngineTest(engine2Enabled = true, block = block)
 }

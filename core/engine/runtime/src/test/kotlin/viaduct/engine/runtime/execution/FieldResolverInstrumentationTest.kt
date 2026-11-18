@@ -48,8 +48,6 @@ import viaduct.engine.runtime.execution.ExecutionTestHelpers.createSchema
 import viaduct.engine.runtime.execution.ExecutionTestHelpers.createViaductGraphQL
 import viaduct.engine.runtime.execution.ExecutionTestHelpers.executeViaductModernGraphQL
 import viaduct.engine.runtime.execution.ExecutionTestHelpers.runExecutionTest
-import viaduct.service.api.spi.FlagManager
-import viaduct.service.api.spi.mocks.MockFlagManager
 
 /**
  * Tests for FieldResolver instrumentation behavior.
@@ -166,8 +164,7 @@ class FieldResolverInstrumentationTest {
                 }
                 val graphQL = createViaductGraphQL(schema, instrumentations = instrumentations)
                 val query = "{ object { failure success } }"
-                val flags = if (incremental) MockFlagManager.create(FlagManager.Flags.ENABLE_INCREMENTAL_EXECUTION) else FlagManager.Disabled
-                val execution = async { graphQL.executeAsync(createExecutionInput(schema, query, flagManager = flags)).await() }
+                val execution = async { graphQL.executeAsync(createExecutionInput(schema, query, incrementalExecution = incremental)).await() }
                 started.forEach { it.await() }
                 success.complete("value")
                 assertFalse(execution.isCompleted)

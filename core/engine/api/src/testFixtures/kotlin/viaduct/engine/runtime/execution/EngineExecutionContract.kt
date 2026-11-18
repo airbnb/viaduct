@@ -22,7 +22,6 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.Timeout
 import org.junit.jupiter.params.ParameterizedTest
-import org.junit.jupiter.params.provider.CsvSource
 import org.junit.jupiter.params.provider.ValueSource
 import viaduct.engine.EngineConfiguration
 import viaduct.engine.api.ExecutionInput
@@ -33,8 +32,6 @@ import viaduct.engine.api.mocks.featureTestDefault
 import viaduct.engine.runtime.context.DispatcherLocalContext
 import viaduct.engine.runtime.context.updateCompositeLocalContext
 import viaduct.engine.runtime.execution.ExecutionTestHelpers.runExecutionTest
-import viaduct.service.api.spi.FlagManager
-import viaduct.service.api.spi.mocks.MockFlagManager
 
 @Timeout(10)
 interface EngineExecutionContract : QueryExecutionContract {
@@ -50,7 +47,7 @@ interface EngineExecutionContract : QueryExecutionContract {
                     }
                 }
             }
-        }.runContractTest(engineConfig = incrementalConfig) {
+        }.runContractTest {
             runExecutionTest {
                 try {
                     val result = assertInstanceOf(
@@ -92,7 +89,7 @@ interface EngineExecutionContract : QueryExecutionContract {
         EngineTestModule("extend type Query { value: Int }") {
             fieldWithValue("Query" to "value", 42)
         }.runContractTest(
-            engineConfig = incrementalConfig.copy(additionalInstrumentation = instrumentation),
+            engineConfig = EngineConfiguration.featureTestDefault.copy(additionalInstrumentation = instrumentation),
         ) {
             runExecutionTest {
                 val result = assertInstanceOf(
@@ -141,7 +138,7 @@ interface EngineExecutionContract : QueryExecutionContract {
                     }
                 }
             }
-        }.runContractTest(engineConfig = incrementalConfig) {
+        }.runContractTest {
             runExecutionTest {
                 try {
                     val result = assertInstanceOf(
@@ -165,12 +162,8 @@ interface EngineExecutionContract : QueryExecutionContract {
         }
     }
 
-    @ParameterizedTest
-    @CsvSource("false, false", "false, true", "true, false")
-    fun `execution waits for deferred fields unless both the option and feature flag allow incremental delivery`(
-        flagEnabled: Boolean,
-        incremental: Boolean,
-    ) {
+    @Test
+    fun `execution waits for deferred fields when the request requires a complete result`() {
         val started = CompletableDeferred<Unit>()
         val release = CompletableDeferred<Unit>()
         EngineTestModule("extend type Query { value: Int }") {
@@ -183,12 +176,12 @@ interface EngineExecutionContract : QueryExecutionContract {
                     }
                 }
             }
-        }.runContractTest(engineConfig = if (flagEnabled) incrementalConfig else EngineConfiguration.featureTestDefault.copy(flagManager = MockFlagManager.Disabled)) {
+        }.runContractTest {
             runExecutionTest {
                 try {
                     val request = async {
                         val input = ExecutionInput("{ __typename ... @defer { value } }", requestContext = Any())
-                        engine.execute(input, incrementalExecution = incremental)
+                        engine.execute(input, incrementalExecution = false)
                     }
                     withTimeout(2_000) { started.await() }
                     assertFalse(request.isCompleted)
@@ -209,7 +202,7 @@ interface EngineExecutionContract : QueryExecutionContract {
     fun `requests without active deferred selections return a complete result`(query: String) {
         EngineTestModule("extend type Query { value: Int }") {
             fieldWithValue("Query" to "value", 42)
-        }.runContractTest(engineConfig = incrementalConfig) {
+        }.runContractTest {
             runExecutionTest {
                 val result = withTimeout(2_000) { engine.execute(ExecutionInput(query, requestContext = Any())) }
                 assertFalse(result is IncrementalExecutionResult)
@@ -234,7 +227,7 @@ interface EngineExecutionContract : QueryExecutionContract {
                         builder.localContext(executionInput.updateCompositeLocalContext<DispatcherLocalContext> { DispatcherLocalContext(dispatcher) })
                     }
             }
-            val config = incrementalConfig.copy(
+            val config = EngineConfiguration.featureTestDefault.copy(
                 additionalInstrumentation = instrumentation,
             )
             EngineTestModule("extend type Query { initial: Int, later: Int }") {
@@ -278,9 +271,4 @@ interface EngineExecutionContract : QueryExecutionContract {
             }
         }
     }
-
-    private val incrementalConfig: EngineConfiguration
-        get() = EngineConfiguration.featureTestDefault.copy(
-            flagManager = MockFlagManager.create(FlagManager.Flags.ENABLE_INCREMENTAL_EXECUTION),
-        )
 }

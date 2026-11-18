@@ -24,11 +24,6 @@ class FlagManagerTest {
     }
 
     @Test
-    fun `FlagManager_default returns false for incremental execution`() {
-        assertFalse(FlagManager.Default.isEnabled(Flags.ENABLE_INCREMENTAL_EXECUTION))
-    }
-
-    @Test
     fun `FlagManager_default does not enable engine2`() {
         assertFalse(FlagManager.Default.isEnabled(Flags.ENGINE2_ENABLED))
     }

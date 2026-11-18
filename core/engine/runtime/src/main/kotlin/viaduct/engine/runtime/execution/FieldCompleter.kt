@@ -157,14 +157,10 @@ class FieldCompleter(
                     completeValueForNull(parameters)
                 } else {
                     val collectedFields = collected.collectedFieldsMap
-                    val completed = if (incremental) {
-                        val completionParameters = parameters.withNewDeferMap(
-                            GetNewDeferMap(collected.newDeferUsages, parameters.path, parameters.deferMap)
-                        )
-                        executeExecutionPlan(completionParameters, BuildExecutionPlan(collectedFields, parameters.deferUsageSet))
-                    } else {
-                        parameters.constants.fieldCompleter.completeCollectedFields(parameters, collectedFields)
-                    }
+                    val completionParameters = parameters.withNewDeferMap(
+                        GetNewDeferMap(collected.newDeferUsages, parameters.path, parameters.deferMap)
+                    )
+                    val completed = executeExecutionPlan(completionParameters, BuildExecutionPlan(collectedFields, parameters.deferUsageSet))
                     completed.map { result ->
                         ctxCompleteObject.onCompleted(result.data, null)
                         FieldCompletionResult.obj(result.data, parameters, result.work)

@@ -257,12 +257,13 @@ object ExecutionTestHelpers {
         context: GraphQLContext = GraphQLContext.getDefault(),
         dispatcherRegistry: DispatcherRegistry = DispatcherRegistry.Empty,
         flagManager: FlagManager = FlagManager.Default,
+        incrementalExecution: Boolean = false,
     ): ExecutionInput =
         ExecutionInput.newExecutionInput()
             .query(query)
             .apply { operationName?.let { operationName(it) } }
             .variables(variables)
-            .localContext(createLocalContext(schema, dispatcherRegistry, flagManager))
+            .localContext(createLocalContext(schema, dispatcherRegistry, flagManager, incrementalExecution))
             .graphQLContext { b ->
                 // executing large queries can trigger GJ's ddos prevention
                 // Configure ParserOptions to use the sdl configuration, which has
@@ -279,11 +280,13 @@ object ExecutionTestHelpers {
         schema: EngineSchema,
         dispatcherRegistry: DispatcherRegistry = DispatcherRegistry.Empty,
         flagManager: FlagManager = FlagManager.Default,
+        incrementalExecution: Boolean = false,
     ): CompositeLocalContext =
         ContextMocks(
             myFullSchema = schema,
             myFlagManager = flagManager,
-            myDispatcherRegistry = dispatcherRegistry
+            myDispatcherRegistry = dispatcherRegistry,
+            incrementalExecution = incrementalExecution,
         ).localContext
 
     fun <T> runExecutionTest(block: suspend CoroutineScope.() -> T): T =

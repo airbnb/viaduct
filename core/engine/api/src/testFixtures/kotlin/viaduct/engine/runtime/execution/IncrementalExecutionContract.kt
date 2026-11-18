@@ -31,13 +31,10 @@ import viaduct.engine.api.IncrementalExecutionResult
 import viaduct.engine.api.mocks.EngineTestModule
 import viaduct.engine.api.mocks.MockFieldUnbatchedResolverExecutor
 import viaduct.engine.api.mocks.runStandardViaductFeatureTest
-import viaduct.service.api.spi.FlagManager
-import viaduct.service.api.spi.mocks.MockFlagManager
 
 interface IncrementalExecutionContract {
     fun runIncrementalTest(
         module: EngineTestModule,
-        incrementalEnabled: Boolean = true,
         block: suspend CoroutineScope.(Engine) -> Unit,
     )
 
@@ -155,11 +152,10 @@ interface IncrementalExecutionContract {
 
     @ParameterizedTest
     @ValueSource(booleans = [false, true])
-    fun `absent defer or a disabled feature gate returns a complete result`(incrementalEnabled: Boolean) {
-        runIncrementalTest(incrementalModule { "value" }, incrementalEnabled) { engine ->
-            val query = if (incrementalEnabled) "{ test }" else "{ ... @defer { test } }"
-            assertComplete(engine.execute(input(query)), mapOf("test" to "value"))
-            if (!incrementalEnabled) assertFalse(engine.supportsIncrementalExecution)
+    fun `absent defer or a request opt out returns a complete result`(incrementalExecution: Boolean) {
+        runIncrementalTest(incrementalModule { "value" }) { engine ->
+            val query = if (incrementalExecution) "{ test }" else "{ ... @defer { test } }"
+            assertComplete(engine.execute(input(query), incrementalExecution), mapOf("test" to "value"))
         }
     }
 
@@ -282,12 +278,9 @@ interface IncrementalExecutionContract {
 
 fun EngineTestModule.runIncrementalEngineTest(
     engine2Enabled: Boolean,
-    incrementalEnabled: Boolean,
     block: suspend CoroutineScope.(Engine) -> Unit,
 ) {
-    val config = EngineConfiguration.default.copy(
-        flagManager = MockFlagManager(if (incrementalEnabled) setOf(FlagManager.Flags.ENABLE_INCREMENTAL_EXECUTION) else emptySet()),
-    )
+    val config = EngineConfiguration.default
     runStandardViaductFeatureTest(engine2Enabled = engine2Enabled, engineConfig = config) {
         val selectedEngine = engine
         runBlocking {

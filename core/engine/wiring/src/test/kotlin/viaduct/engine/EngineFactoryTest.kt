@@ -66,16 +66,8 @@ class EngineFactoryTest {
 
     @ParameterizedTest
     @ValueSource(booleans = [false, true])
-    fun `incremental capability follows the configured engine and current feature gate`(engine2: Boolean) {
-        var incrementalEnabled = false
-        val flags = object : FlagManager {
-            override fun isEnabled(flag: FlagManager.Flag): Boolean =
-                when (flag) {
-                    FlagManager.Flags.ENGINE2_ENABLED -> engine2
-                    FlagManager.Flags.ENABLE_INCREMENTAL_EXECUTION -> incrementalEnabled
-                    else -> false
-                }
-        }
+    fun `incremental capability follows the configured engine`(engine2: Boolean) {
+        val flags = MockFlagManager.forEngine(engine2)
         val schema = createSchemaWithWiring("extend type Query { value: String }")
         val registry = DispatcherRegistry.Impl(
             fieldResolverDispatchers = mapOf(
@@ -90,10 +82,7 @@ class EngineFactoryTest {
         val engine = EngineFactory(EngineConfiguration.default.copy(flagManager = flags), registry)
             .create(schema = schema, fullSchema = FullSchema(schema))
 
-        for (enabled in listOf(false, true, false)) {
-            incrementalEnabled = enabled
-            assertEquals(!engine2 && enabled, engine.supportsIncrementalExecution)
-        }
+        assertEquals(!engine2, engine.supportsIncrementalExecution)
     }
 
     @ParameterizedTest
@@ -173,7 +162,6 @@ class EngineFactoryTest {
                 flagManager =
                     MockFlagManager.create(
                         FlagManager.Flags.ENGINE2_ENABLED,
-                        FlagManager.Flags.ENABLE_INCREMENTAL_EXECUTION,
                     ),
             )
         val dispatcherRegistry =

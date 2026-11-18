@@ -18,7 +18,7 @@ interface Engine {
 
     /**
      * Executes a GraphQL operation, permitting incremental delivery when [incrementalExecution]
-     * and the engine's feature gate allow it. Otherwise, treats @defer as if it were absent.
+     * and the engine's capabilities allow it. Otherwise, treats @defer as if it were absent.
      * Engines without incremental support execute the operation to completion.
      * When an [IncrementalExecutionResult] is returned, collect its updates once or cancel it.
      *

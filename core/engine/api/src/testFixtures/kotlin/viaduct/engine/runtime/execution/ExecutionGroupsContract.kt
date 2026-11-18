@@ -10,15 +10,12 @@ import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.DynamicTest.dynamicTest
 import org.junit.jupiter.api.TestFactory
-import viaduct.engine.EngineConfiguration
 import viaduct.engine.api.IncrementalEntry
 import viaduct.engine.api.IncrementalExecutionResult
 import viaduct.engine.api.mocks.EngineTestModule
 import viaduct.engine.api.mocks.createEngineObjectData
-import viaduct.engine.api.mocks.featureTestDefault
 import viaduct.engine.runtime.execution.ExecutionTestHelpers.runExecutionTest
 import viaduct.graphql.test.assertJson
-import viaduct.service.api.spi.FlagManager
 
 interface ExecutionGroupsContract : QueryExecutionContract {
     val incrementalExecutionModes: List<Boolean>
@@ -26,7 +23,7 @@ interface ExecutionGroupsContract : QueryExecutionContract {
 
     @TestFactory
     fun `overlapping groups complete once including deferred list subfields`() =
-        withIncrementalExecutionModes { config ->
+        withIncrementalExecutionModes { incrementalExecution ->
             val calls = AtomicInteger()
             EngineTestModule("extend type Query { a: Int, b: Int, c: Int, d: Int, items: [Obj] } type Obj { x: Int, y: Int }") {
                 fieldWithValue("Query" to "a", 1)
@@ -50,7 +47,7 @@ interface ExecutionGroupsContract : QueryExecutionContract {
                         }
                     }
                 }
-            }.runContractTest(engineConfig = config) {
+            }.runContractTest {
                 val result = runIncremental(
                     """
                 {
@@ -59,9 +56,10 @@ interface ExecutionGroupsContract : QueryExecutionContract {
                     ... @defer(label: "B") { b shared: c }
                     items { ... @defer { y } x }
                 }
-                    """.trimIndent()
+                    """.trimIndent(),
+                    incrementalExecution = incrementalExecution,
                 )
-                if (config.flagManager.isEnabled(FlagManager.Flags.ENABLE_INCREMENTAL_EXECUTION)) {
+                if (incrementalExecution) {
                     val initial = result.shouldBeInstanceOf<IncrementalExecutionResult>()
                     assertEquals(mapOf("d" to 4, "items" to listOf(mapOf("x" to 1), mapOf("x" to 3))), initial.getData())
                     val updates = initial.collectUpdates()
@@ -87,12 +85,12 @@ interface ExecutionGroupsContract : QueryExecutionContract {
 
     @TestFactory
     fun `merged object occurrences retain nested defer results`() =
-        withIncrementalExecutionModes { config ->
+        withIncrementalExecutionModes { incrementalExecution ->
             EngineTestModule("extend type Query { obj: Obj } type Obj { x: Int, y: Int, z: Int }") {
                 field("Query" to "obj") {
                     resolver { fn { _, _, _, _, _ -> createEngineObjectData(schema.schema.getObjectType("Obj"), mapOf("x" to 1, "y" to 2, "z" to 3)) } }
                 }
-            }.runContractTest(engineConfig = config) {
+            }.runContractTest {
                 val result = runIncremental(
                     """
                         {
@@ -100,10 +98,11 @@ interface ExecutionGroupsContract : QueryExecutionContract {
                             ... @defer(label: "A") { obj { y ... @defer(label: "B") { last: z } } }
                             ... @defer(label: "C") { obj { first: x } }
                         }
-                    """.trimIndent()
+                    """.trimIndent(),
+                    incrementalExecution = incrementalExecution,
                 )
 
-                if (config.flagManager.isEnabled(FlagManager.Flags.ENABLE_INCREMENTAL_EXECUTION)) {
+                if (incrementalExecution) {
                     val initial = result.shouldBeInstanceOf<IncrementalExecutionResult>()
                     assertEquals(mapOf("obj" to mapOf("first" to 1)), initial.getData())
                     val updates = initial.collectUpdates()
@@ -122,13 +121,13 @@ interface ExecutionGroupsContract : QueryExecutionContract {
 
     @TestFactory
     fun `a deferred nullable field error belongs to its response`() =
-        withIncrementalExecutionModes { config ->
+        withIncrementalExecutionModes { incrementalExecution ->
             EngineTestModule("extend type Query { a: Int, b: Int }") {
                 fieldWithValue("Query" to "a", 1)
                 field("Query" to "b") { resolver { fn { _, _, _, _, _ -> throw IllegalStateException("failed") } } }
-            }.runContractTest(engineConfig = config) {
-                val result = runIncremental("{ a ... @defer { broken: b } }")
-                if (config.flagManager.isEnabled(FlagManager.Flags.ENABLE_INCREMENTAL_EXECUTION)) {
+            }.runContractTest {
+                val result = runIncremental("{ a ... @defer { broken: b } }", incrementalExecution = incrementalExecution)
+                if (incrementalExecution) {
                     val initial = result.shouldBeInstanceOf<IncrementalExecutionResult>()
                     assertEquals(mapOf("a" to 1), initial.getData())
                     assertTrue(initial.errors.isEmpty())
@@ -144,16 +143,16 @@ interface ExecutionGroupsContract : QueryExecutionContract {
 
     @TestFactory
     fun `a deferred non-null error respects its delivery boundary`() =
-        withIncrementalExecutionModes { config ->
+        withIncrementalExecutionModes { incrementalExecution ->
             EngineTestModule("extend type Query { a: Int, obj: Obj } type Obj { good: Int, broken: Int! }") {
                 fieldWithValue("Query" to "a", 1)
                 field("Query" to "obj") {
                     resolver { fn { _, _, _, _, _ -> createEngineObjectData(schema.schema.getObjectType("Obj"), mapOf("good" to 2)) } }
                 }
                 field("Obj" to "broken") { resolver { fn { _, _, _, _, _ -> throw IllegalStateException("failed") } } }
-            }.runContractTest(engineConfig = config) {
-                val result = runIncremental("{ a obj { good ... @defer { broken } } }")
-                if (config.flagManager.isEnabled(FlagManager.Flags.ENABLE_INCREMENTAL_EXECUTION)) {
+            }.runContractTest {
+                val result = runIncremental("{ a obj { good ... @defer { broken } } }", incrementalExecution = incrementalExecution)
+                if (incrementalExecution) {
                     val initial = result.shouldBeInstanceOf<IncrementalExecutionResult>()
                     assertEquals(mapOf("a" to 1, "obj" to mapOf("good" to 2)), initial.getData())
                     assertTrue(initial.errors.isEmpty())
@@ -184,14 +183,10 @@ interface ExecutionGroupsContract : QueryExecutionContract {
         }
     }
 
-    private fun withIncrementalExecutionModes(test: (EngineConfiguration) -> Unit) =
+    private fun withIncrementalExecutionModes(test: (Boolean) -> Unit) =
         incrementalExecutionModes.map { enabled ->
             dynamicTest("incrementalExecutionEnabled=$enabled") {
-                val defaults = EngineConfiguration.featureTestDefault
-                val flags = object : FlagManager {
-                    override fun isEnabled(flag: FlagManager.Flag): Boolean = if (flag == FlagManager.Flags.ENABLE_INCREMENTAL_EXECUTION) enabled else defaults.flagManager.isEnabled(flag)
-                }
-                test(defaults.copy(flagManager = flags))
+                test(enabled)
             }
         }
 }

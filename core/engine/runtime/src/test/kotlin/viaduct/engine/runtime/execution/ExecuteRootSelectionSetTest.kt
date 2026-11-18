@@ -23,8 +23,6 @@ import viaduct.engine.api.IncrementalEntry
 import viaduct.engine.api.IncrementalExecutionResult
 import viaduct.engine.runtime.execution.CompletionErrors.FieldCompletionException
 import viaduct.engine.runtime.mocks.ContextMocks
-import viaduct.service.api.spi.FlagManager
-import viaduct.service.api.spi.mocks.MockFlagManager
 
 class ExecuteRootSelectionSetTest {
     private val schema = EngineSchema("type Query { value: Int }".asSchema)
@@ -32,14 +30,14 @@ class ExecuteRootSelectionSetTest {
         base.copy(
             _engineExecutionContext = ContextMocks(
                 myFullSchema = base.engineExecutionContext.fullSchema,
-                myFlagManager = MockFlagManager.create(FlagManager.Flags.ENABLE_INCREMENTAL_EXECUTION),
+                incrementalExecution = true,
             ).engineExecutionContext,
         )
     }
     private val ordinaryParameters = parameters.copy(
         _engineExecutionContext = ContextMocks(
             myFullSchema = parameters.engineExecutionContext.fullSchema,
-            myFlagManager = MockFlagManager.Disabled,
+            incrementalExecution = false,
         ).engineExecutionContext,
     )
 

@@ -23,7 +23,6 @@ import viaduct.engine.runtime.Value
 import viaduct.engine.runtime.context.CompositeLocalContext
 import viaduct.engine.runtime.dfe.engineExecutionContext
 import viaduct.engine.runtime.mocks.ContextMocks
-import viaduct.service.api.spi.mocks.MockFlagManager
 
 class ExecuteExecutionPlanTest {
     private val completer = FieldCompleter(SimpleDataFetcherExceptionHandler(), false)
@@ -46,7 +45,7 @@ class ExecuteExecutionPlanTest {
                 base.copy(
                     _engineExecutionContext = ContextMocks(
                         myFullSchema = base.engineExecutionContext.fullSchema,
-                        myFlagManager = MockFlagManager.Disabled,
+                        incrementalExecution = false,
                     ).engineExecutionContext,
                 )
             }
@@ -119,7 +118,7 @@ class ExecuteExecutionPlanTest {
             val ctx = base.copy(
                 _engineExecutionContext = ContextMocks(
                     myFullSchema = base.engineExecutionContext.fullSchema,
-                    myFlagManager = MockFlagManager.Disabled,
+                    incrementalExecution = false,
                 ).engineExecutionContext,
                 deferMap = inheritedDeferMap,
             )

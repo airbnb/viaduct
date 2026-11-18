@@ -501,7 +501,6 @@ class StandardViaductTest {
                         .withFlagManager(
                             MockFlagManager(
                                 setOfNotNull(
-                                    FlagManager.Flags.ENABLE_INCREMENTAL_EXECUTION,
                                     FlagManager.Flags.ENGINE2_ENABLED.takeIf { engine2Enabled },
                                 ),
                             ),
@@ -803,7 +802,6 @@ class StandardViaductTest {
             .withFlagManager(
                 MockFlagManager(
                     setOfNotNull(
-                        FlagManager.Flags.ENABLE_INCREMENTAL_EXECUTION,
                         FlagManager.Flags.ENGINE2_ENABLED.takeIf { engine2Enabled },
                     ),
                 ),

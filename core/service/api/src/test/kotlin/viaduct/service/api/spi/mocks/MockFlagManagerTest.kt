@@ -96,9 +96,9 @@ class MockFlagManagerTest {
 
     @Test
     fun `engine selection preserves live runtime flags and field exclusions`() {
-        var incrementalEnabled = false
+        var matEnabled = false
         val delegate = object : FlagManager {
-            override fun isEnabled(flag: Flag): Boolean = flag == Flags.ENABLE_INCREMENTAL_EXECUTION && incrementalEnabled
+            override fun isEnabled(flag: Flag): Boolean = flag == Flags.ENABLE_MAT_RESOLUTION && matEnabled
 
             override fun isFieldMatResolutionDisabled(
                 typeName: String,
@@ -107,9 +107,9 @@ class MockFlagManagerTest {
         }
         val flags = MockFlagManager.forEngine(engine2Enabled = true, delegate = delegate)
 
-        assertFalse(flags.isEnabled(Flags.ENABLE_INCREMENTAL_EXECUTION))
-        incrementalEnabled = true
-        assertTrue(flags.isEnabled(Flags.ENABLE_INCREMENTAL_EXECUTION))
+        assertFalse(flags.isEnabled(Flags.ENABLE_MAT_RESOLUTION))
+        matEnabled = true
+        assertTrue(flags.isEnabled(Flags.ENABLE_MAT_RESOLUTION))
         assertTrue(flags.isFieldMatResolutionDisabled("Query", "excluded"))
         assertFalse(flags.isFieldMatResolutionDisabled("Query", "ordinary"))
         assertFalse(flags.isFieldMatResolutionDisabled("Other", "excluded"))
