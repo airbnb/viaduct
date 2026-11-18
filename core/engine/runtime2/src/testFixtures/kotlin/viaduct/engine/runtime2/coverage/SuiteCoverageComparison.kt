@@ -8,6 +8,8 @@ data class CandidateCoverage(
     val batchReports: Map<String, ResolverCoverageReport>,
     val preparationMillis: Long = 0,
     val inapplicableObligations: Set<String> = emptySet(),
+    val vectorD0: Int = 0,
+    val batchVectorD0: Map<String, Int> = emptyMap(),
 ) {
     init {
         require(report.metrics.map { it.id }.containsAll(inapplicableObligations)) { "Inapplicable obligations must name catalog metrics" }
@@ -16,12 +18,6 @@ data class CandidateCoverage(
     val cases: Int get() = report.executions.size
     val batches: Int get() = batchReports.size
     val schemas: Int get() = report.executions.map { it.test.schemaId }.distinct().size
-
-    /** Richness (D0): distinct obligation signatures among the candidate's cases. */
-    val richness: Int get() = report.analysis.suite.diversity.d0
-
-    /** Each batch's richness (D0) over its own cases, so richer batches can be told apart. */
-    val batchRichness: Map<String, Int> get() = batchReports.mapValues { (_, batchReport) -> batchReport.analysis.suite.diversity.d0 }
 
     /** Batches that support no metric add replay cost without coverage. */
     val idleBatches: List<String>
@@ -34,15 +30,24 @@ data class CandidateCoverage(
             measurement: ResolverCoverageMeasurement,
             preparationMillis: Long = 0,
             inapplicableObligations: Set<String> = emptySet(),
-        ): CandidateCoverage =
-            CandidateCoverage(
+        ): CandidateCoverage {
+            val vectorObservations = measurement.interactionVectorObservations()
+            val vectorsByBatch = vectorObservations.groupBy { it.test.batchId }
+                .mapValues { (_, observations) -> observations.mapTo(mutableSetOf()) { it.vector } }
+            val batchVectorD0 = measurement.executions.map { it.test.batchId }.distinct().associateWith { batchId ->
+                vectorsByBatch[batchId]?.size ?: 0
+            }
+            return CandidateCoverage(
                 label = label,
                 elapsedMillis = elapsedMillis,
                 preparationMillis = preparationMillis,
                 report = measurement.report(),
                 batchReports = measurement.executions.map { it.test.batchId }.distinct().associateWith { measurement.forBatch(it).report() },
                 inapplicableObligations = inapplicableObligations,
+                vectorD0 = vectorObservations.mapTo(mutableSetOf()) { it.vector }.size,
+                batchVectorD0 = batchVectorD0,
             )
+        }
     }
 }
 
@@ -78,6 +83,14 @@ data class MetricComparison(
         }
 }
 
+/** Descriptive resolver-attribute support; attributes are useful for inspection, not suite requirements. */
+data class AttributeComparison(
+    val id: String,
+    val description: String,
+    val left: CoverageSupport,
+    val right: CoverageSupport,
+)
+
 data class SuiteCoverageComparison(
     val left: CandidateCoverage,
     val right: CandidateCoverage,
@@ -88,13 +101,31 @@ data class SuiteCoverageComparison(
 
     /** Support counts grow with suite size, so the verdict compares coverage fairly only when both sides cost the same. */
     val sameCost: Boolean
-        get() = left.cases == right.cases && left.batches == right.batches
+        get() = left.cases == right.cases && left.batches == right.batches && left.schemas == right.schemas
 
     val metrics: List<MetricComparison>
         get() =
             left.report.metrics.zip(right.report.metrics) { l, r ->
                 MetricComparison(l.id, l.support, r.support, l.id !in left.inapplicableObligations, r.id !in right.inapplicableObligations)
             }
+
+    /** Uses the union so attributes seen by only one candidate remain visible in the comparison. */
+    val attributes: List<AttributeComparison>
+        get() {
+            val leftById = left.report.attributes.associateBy { it.id }
+            val rightById = right.report.attributes.associateBy { it.id }
+            val emptySupport = CoverageSupport(occurrences = 0, executions = 0, tests = 0, registries = 0, batches = 0, schemas = 0)
+            return (leftById.keys + rightById.keys).sorted().map { id ->
+                val leftAttribute = leftById[id]
+                val rightAttribute = rightById[id]
+                AttributeComparison(
+                    id = id,
+                    description = leftAttribute?.description ?: requireNotNull(rightAttribute).description,
+                    left = leftAttribute?.support ?: emptySupport,
+                    right = rightAttribute?.support ?: emptySupport,
+                )
+            }
+        }
 
     val verdict: CoverageVerdict
         get() {
@@ -122,14 +153,16 @@ data class SuiteCoverageComparison(
         output.appendLine(row("generation", "${left.preparationMillis}ms", "${right.preparationMillis}ms", ""))
         output.appendLine(row("replay (informational: A pays JVM warm-up)", "${left.elapsedMillis}ms", "${right.elapsedMillis}ms", ""))
         output.appendLine()
-        val leftDiversity = left.report.analysis.suite.diversity
-        val rightDiversity = right.report.analysis.suite.diversity
-        output.appendLine(row("richness (obligation signatures)", "A", "B", "Δ"))
-        output.appendLine(row("D0 distinct signatures", "${left.richness}", "${right.richness}", signed(right.richness - left.richness)))
-        output.appendLine(row("D1", "%.2f".format(leftDiversity.d1), "%.2f".format(rightDiversity.d1), ""))
-        output.appendLine(row("D2", "%.2f".format(leftDiversity.d2), "%.2f".format(rightDiversity.d2), ""))
-        output.appendLine(row("largest-signature share", "%.3f".format(leftDiversity.dominantSignatureShare), "%.3f".format(rightDiversity.dominantSignatureShare), ""))
-        output.appendLine(row("batch D0 min/median/max", left.batchRichness.values.spread(), right.batchRichness.values.spread(), ""))
+        output.appendLine(row("distinct RFC-271 interaction vectors (D0)", "${left.vectorD0}", "${right.vectorD0}", signed(right.vectorD0 - left.vectorD0)))
+        output.appendLine(row("batch vector D0 min/median/max", left.batchVectorD0.values.spread(), right.batchVectorD0.values.spread(), ""))
+        output.appendLine(
+            row(
+                "resolver-fingerprint diversity (diagnostic; mean batch D0/D1/D2)",
+                left.report.analysis.batchDiversity.diagnosticSummary(),
+                right.report.analysis.batchDiversity.diagnosticSummary(),
+                "",
+            ),
+        )
         output.appendLine()
         output.appendLine(row("metric (tests/batches; n/a = config cannot generate it; one n/a side = no verdict)", "A", "B", "verdict"))
         metrics.forEach { metric ->
@@ -138,11 +171,16 @@ data class SuiteCoverageComparison(
             output.appendLine(row(metric.id, a, b, if (metric.inapplicable) "n/a" else metric.verdict.label()))
         }
         output.appendLine()
+        output.appendLine(row("resolver attribute (cases/batches)", "A", "B", ""))
+        attributes.forEach { attribute ->
+            output.appendLine(row(attribute.id, attribute.left.summary(), attribute.right.summary(), ""))
+        }
+        output.appendLine()
         output.appendLine("verdict (raw coverage): ${verdict.label()}")
         if (!sameCost) {
             output.appendLine(
-                "warning: A and B differ in cost (${left.cases} vs ${right.cases} cases, ${left.batches} vs ${right.batches} batches); " +
-                    "raw coverage favors the larger candidate, so the verdict does not show which covers more for the same cost",
+                "warning: A and B differ in cost (${left.cases} vs ${right.cases} cases, ${left.batches} vs ${right.batches} batches, " +
+                    "${left.schemas} vs ${right.schemas} schemas); raw coverage is not compared at the same cost",
             )
         }
         output.appendLine()
@@ -150,10 +188,10 @@ data class SuiteCoverageComparison(
         listOf("A" to left, "B" to right).forEach { (side, candidate) ->
             output.appendLine()
             output.appendLine("$side batch contributions (occurrences per metric):")
-            output.appendLine("  batch     d0 " + metrics.indices.joinToString(" ") { "%6s".format("m${it + 1}") })
+            output.appendLine("  batch vectorD0 " + metrics.indices.joinToString(" ") { "%6s".format("m${it + 1}") })
             candidate.batchReports.forEach { (batchId, report) ->
                 output.appendLine(
-                    "  ${batchId.substringAfterLast('/')}  %4d ".format(report.analysis.suite.diversity.d0) +
+                    "  ${batchId.substringAfterLast('/')}  %7d ".format(candidate.batchVectorD0[batchId] ?: 0) +
                         report.metrics.joinToString(" ") { "%6d".format(it.support.occurrences) },
                 )
             }
@@ -167,6 +205,10 @@ data class SuiteCoverageComparison(
 private fun CoverageSupport.summary(): String = "$tests/$batches"
 
 private fun Collection<Int>.spread(): String = if (isEmpty()) "-" else sorted().let { "${it.first()}/${it[(it.size - 1) / 2]}/${it.last()}" }
+
+private fun List<ResolverBatchDiversity>.diagnosticSummary(): String = if (isEmpty()) "-" else "D0 %.2f / D1 %.2f / D2 %.2f".format(mean { it.d0.toDouble() }, mean { it.d1 }, mean { it.d2 })
+
+private fun <T> Collection<T>.mean(value: (T) -> Double): Double = if (isEmpty()) 0.0 else sumOf(value) / size
 
 private fun CoverageVerdict.label(): String =
     when (this) {

@@ -26,7 +26,8 @@ data class ConfigSweepVariant(val name: String, val overrides: String) {
 data class ConfigSweepResult(
     val variant: ConfigSweepVariant,
     val cases: Int,
-    val richness: Int,
+    val vectorD0: Int,
+    val resolverBatchDiversity: List<ResolverBatchDiversity>,
     val obligationTests: Map<String, Int>,
     val attributeTests: Map<String, Int>,
     val elapsedMillis: Long,
@@ -42,11 +43,13 @@ suspend fun ResolverContract.sweepConfigs(
     require(variants.map { it.name }.distinct().size == variants.size) { "Sweep variant names must be unique" }
     return variants.map { variant ->
         val candidate = CoverageCandidate.Generated(definition, counts = counts, configOverrides = variant.overrides)
-        val (report, elapsed) = measureTimedValue { measureCoverage(candidate).report() }
+        val (measurement, elapsed) = measureTimedValue { measureCoverage(candidate) }
+        val report = measurement.report()
         ConfigSweepResult(
             variant = variant,
             cases = report.executions.size,
-            richness = report.analysis.suite.diversity.d0,
+            vectorD0 = measurement.interactionVectorObservations().mapTo(mutableSetOf()) { it.vector }.size,
+            resolverBatchDiversity = report.analysis.batchDiversity,
             obligationTests = report.metrics.associate { it.id to it.support.tests },
             attributeTests = report.attributes.associate { it.id to it.support.tests },
             elapsedMillis = elapsed.inWholeMilliseconds,
@@ -54,7 +57,7 @@ suspend fun ResolverContract.sweepConfigs(
     }
 }
 
-/** One row per variant: cases, D0, distinct tests per obligation code, and how many attributes with [attributePrefix] it reaches. */
+/** One row per variant: cases, vector D0, distinct tests per obligation code, and attributes reached. */
 fun List<ConfigSweepResult>.render(
     output: Appendable,
     attributePrefix: String = "object_fragment",
@@ -69,11 +72,24 @@ fun List<ConfigSweepResult>.render(
     forEach { result ->
         val reached = prefixed.count { (result.attributeTests[it] ?: 0) > 0 }
         output.appendLine(
-            "%-${nameWidth}s %6d %4d ".format(result.variant.name, result.cases, result.richness) +
+            "%-${nameWidth}s %6d %4d ".format(result.variant.name, result.cases, result.vectorD0) +
                 codes.joinToString(" ") { (id, _) -> "%4d".format(result.obligationTests.getValue(id)) } +
                 "  $reached/${prefixed.size}",
         )
     }
     output.appendLine()
-    forEach { result -> output.appendLine("${result.variant.name} (${result.elapsedMillis}ms): ${result.variant.overrides.ifBlank { "(definition config)" }}") }
+    forEach { result ->
+        val diversity = result.resolverBatchDiversity
+        val diagnostic = if (diversity.isEmpty()) {
+            "-"
+        } else {
+            "D0 %.2f / D1 %.2f / D2 %.2f".format(
+                diversity.sumOf { it.d0.toDouble() } / diversity.size,
+                diversity.sumOf { it.d1 } / diversity.size,
+                diversity.sumOf { it.d2 } / diversity.size,
+            )
+        }
+        output.appendLine("${result.variant.name} (${result.elapsedMillis}ms): ${result.variant.overrides.ifBlank { "(definition config)" }}")
+        output.appendLine("  resolver-fingerprint diversity (diagnostic only; mean batch D0/D1/D2): $diagnostic")
+    }
 }

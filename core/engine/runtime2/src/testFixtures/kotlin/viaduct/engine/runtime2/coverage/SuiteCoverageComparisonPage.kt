@@ -24,8 +24,9 @@ object SuiteCoverageComparisonPage {
                 "a" to comparison.left.label,
                 "b" to comparison.right.label,
                 "sameCost" to comparison.sameCost,
+                "vectorD0" to mapOf("a" to comparison.left.vectorD0, "b" to comparison.right.vectorD0),
                 "inapplicable" to mapOf("a" to comparison.left.inapplicableObligations.sorted(), "b" to comparison.right.inapplicableObligations.sorted()),
-                "diversity" to mapOf("a" to comparison.left.diversityData(), "b" to comparison.right.diversityData()),
+                "resolverDiversity" to mapOf("a" to comparison.left.diversityData(), "b" to comparison.right.diversityData()),
                 "behaviors" to
                     comparison.left.report.metrics.map { metric ->
                         val definition = catalogById.getValue(metric.id)
@@ -45,12 +46,12 @@ object SuiteCoverageComparisonPage {
         batches: List<CandidateBatch>,
     ): Map<CandidateBatchKey, Map<String, Any>> {
         val casesByBatch = coverage.report.analysis.signatures.groupBy { it.test.batchId.substringAfterLast('/') }
-        val richnessByBatch = coverage.batchRichness.mapKeys { (batchId, _) -> batchId.substringAfterLast('/') }
+        val vectorD0ByBatch = coverage.batchVectorD0.mapKeys { (batchId, _) -> batchId.substringAfterLast('/') }
         return batches.associate { candidate ->
             CandidateBatchKey(candidate.id, candidate.ids) to
                 mapOf(
                     "id" to candidate.id,
-                    "d0" to (richnessByBatch[candidate.id] ?: 0),
+                    "d0" to (vectorD0ByBatch[candidate.id] ?: 0),
                     "schemaId" to candidate.ids.schema,
                     "sdl" to candidate.batch.schema.sdl,
                     "registry" to
@@ -70,11 +71,18 @@ object SuiteCoverageComparisonPage {
         }
     }
 
-    // Singletons are combinations one case carries; a regenerated schema can drop them, which D0 alone hides.
-    private fun CandidateCoverage.diversityData(): Map<String, Any> =
-        report.analysis.suite.diversity.let { diversity ->
-            mapOf("d0" to diversity.d0, "d1" to diversity.d1, "d2" to diversity.d2, "singletons" to diversity.frequencies.count { it.testCases == 1 })
-        }
+    /** Resolver-fingerprint D0-D2 are displayed as diagnostics; they do not drive vector D0 ranking. */
+    private fun CandidateCoverage.diversityData(): Map<String, Any> {
+        val batchDiversity = report.analysis.batchDiversity
+
+        fun average(value: (ResolverBatchDiversity) -> Double): Double = if (batchDiversity.isEmpty()) 0.0 else batchDiversity.sumOf(value) / batchDiversity.size
+        return mapOf(
+            "batchCount" to batchDiversity.size,
+            "d0" to average { it.d0.toDouble() },
+            "d1" to average { it.d1 },
+            "d2" to average { it.d2 },
+        )
+    }
 
     private data class CandidateBatchKey(val id: String, val ids: ResolverTestShardIds)
 }

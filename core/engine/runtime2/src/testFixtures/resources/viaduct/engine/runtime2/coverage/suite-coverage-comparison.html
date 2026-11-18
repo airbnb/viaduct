@@ -83,6 +83,14 @@ table.obligations tr.absent td { color: var(--text-muted); }
 table.obligations td.count { white-space: nowrap; font-variant-numeric: tabular-nums; }
 .minibar { display: inline-block; height: 8px; border-radius: 4px; margin-left: 6px; vertical-align: middle; }
 .delta-up { color: var(--added); font-weight: 600; } .delta-down { color: var(--dropped); font-weight: 600; }
+.matrix { border-collapse: separate; border-spacing: 2px; font-size: 12px; }
+.matrix th { color: var(--text-secondary); font-weight: 500; }
+.matrix th.item { white-space: nowrap; vertical-align: bottom; padding: 0 0 6px; width: 20px; }
+.matrix th.item div { writing-mode: vertical-rl; transform: rotate(180deg); margin: 0 auto; }
+.matrix th.count, .matrix td.num { text-align: right; padding: 0 8px; font-variant-numeric: tabular-nums; }
+.matrix td.dot { width: 18px; height: 18px; border-radius: 4px; background: var(--grid); }
+.matrix td.dot.on { background: var(--seq-550); }
+.matrix tr:hover td { filter: brightness(0.95); }
 details summary { cursor: pointer; color: var(--text-secondary); }
 </style>
 </head>
@@ -106,6 +114,12 @@ details summary { cursor: pointer; color: var(--text-secondary); }
     <div class="legend" id="attr-legend"></div>
     <div id="attr-bars"></div>
     <p class="muted" id="attr-never"></p>
+  </div>
+
+  <div class="card">
+    <h2>Obligation and resolver-attribute combinations</h2>
+    <p class="sub">Each row is the set of obligations and resolver attributes observed together in a case. Counts show cases on each side; this matrix is descriptive and does not affect D0 batch ranking.</p>
+    <div style="overflow:auto"><table class="matrix" id="matrix"></table></div>
   </div>
 
   <div class="card">
@@ -203,7 +217,7 @@ const kpis = document.getElementById('kpis');
 const byMembership = key => data.batches.filter(b => membership(b) === key);
 const combosA = combosOf(sets.sideA), combosB = combosOf(sets.sideB);
 const pct = (n, total) => total ? `${Math.round((100 * n) / total)}%` : '0%';
-function kpiTile(title, batches, parts, combos, comboNote, diversity) {
+function kpiTile(title, batches, parts, vectorD0, combos, comboNote, resolverDiversity) {
   const tile = el('div', { class: 'kpi' });
   tile.append(el('div', { class: 'label' }, title), el('div', { class: 'value' }, `${batches.length} batches`));
   const stack = el('div', { class: 'stack' });
@@ -216,17 +230,18 @@ function kpiTile(title, batches, parts, combos, comboNote, diversity) {
     split.append(sw, document.createTextNode(`${n} ${key} (${pct(n, batches.length)})`));
   });
   tile.append(split,
-    el('div', { class: 'detail' }, `D0 ${combos.size} of ${poolCombos.size} combinations seen in either candidate (${pct(combos.size, poolCombos.size)}) · ${comboNote}`),
-    el('div', { class: 'detail', title: 'D1 = exp(Shannon entropy), D2 = inverse Simpson over combination frequencies; singletons are combinations only one case carries' },
-      `D1 ${diversity.d1.toFixed(2)} · D2 ${diversity.d2.toFixed(2)} · ${diversity.singletons} singleton combination${diversity.singletons === 1 ? '' : 's'}`),
+    el('div', { class: 'detail' }, `D0 ${vectorD0} distinct RFC-271 interaction vectors`),
+    el('div', { class: 'detail' }, `${combos.size} of ${poolCombos.size} obligation combinations seen in either candidate (${pct(combos.size, poolCombos.size)}) · ${comboNote}`),
+    el('div', { class: 'detail', title: 'Resolver-fingerprint D0, D1 and D2 averaged across batches; diagnostic only, not used for D0 ranking' },
+      `Resolver diversity (diagnostic): D0 ${resolverDiversity.d0.toFixed(2)} · D1 ${resolverDiversity.d1.toFixed(2)} · D2 ${resolverDiversity.d2.toFixed(2)}`),
     el('div', { class: 'detail' }, `${casesOf(batches).length} cases · ${attrsOf(batches).size} of ${poolAttrs.size} resolver attributes`));
   kpis.append(tile);
 }
 const kept = byMembership('kept').length;
-kpiTile(`Original (A): ${data.a}`, sets.sideA, [['dropped', byMembership('dropped').length], ['kept', kept]], combosA,
-  `${[...combosA].filter(k => !combosB.has(k)).length} lost in the new suite`, data.diversity.a);
-kpiTile(`New (B): ${data.b}`, sets.sideB, [['kept', kept], ['added', byMembership('added').length]], combosB,
-  `${[...combosB].filter(k => !combosA.has(k)).length} not in the original`, data.diversity.b);
+kpiTile(`Original (A): ${data.a}`, sets.sideA, [['dropped', byMembership('dropped').length], ['kept', kept]],
+  data.vectorD0.a, combosA, `${[...combosA].filter(k => !combosB.has(k)).length} lost in the new suite`, data.resolverDiversity.a);
+kpiTile(`New (B): ${data.b}`, sets.sideB, [['kept', kept], ['added', byMembership('added').length]],
+  data.vectorD0.b, combosB, `${[...combosB].filter(k => !combosA.has(k)).length} not in the original`, data.resolverDiversity.b);
 
 const seen = behaviors.filter(id => supportOf(sets.pool, id) > 0);
 
@@ -309,6 +324,58 @@ attrGroups.forEach((ids, category) => {
 });
 drawBars('attr-bars', attrRows, 'Cases per resolver attribute, A versus B');
 document.getElementById('attr-never').textContent = attrNever.length ? `Produced by neither: ${attrNever.join('; ')}.` : '';
+
+// Show which obligations and resolver attributes occur together in each case.
+(function drawEvidenceMatrix() {
+  const evidence = [
+    ...data.behaviors.map(item => ({ key: `obligation:${item.id}`, label: item.code || short(item.id), description: item.description })),
+    ...(data.attributes || []).map(item => ({ key: `attribute:${item.id}`, label: `${attrCategory(item.id)}=${attrValue(item.id)}`, description: item.description })),
+  ];
+  const evidenceForCase = c => [
+    ...c.obligations.map(id => `obligation:${id}`),
+    ...c.attributes.map(id => `attribute:${id}`),
+  ].sort();
+  const counts = new Map();
+  const add = (side, batches) => casesOf(batches).forEach(c => {
+    const items = evidenceForCase(c);
+    const key = JSON.stringify(items);
+    const row = counts.get(key) || { items, sideA: 0, sideB: 0 };
+    row[side]++;
+    counts.set(key, row);
+  });
+  add('sideA', sets.sideA);
+  add('sideB', sets.sideB);
+  const rows = [...counts.values()].sort((a, b) => (b.sideA + b.sideB) - (a.sideA + a.sideB) || a.items.length - b.items.length);
+  const table = document.getElementById('matrix');
+  const head = el('tr');
+  evidence.forEach(item => {
+    const th = el('th', { class: 'item', title: item.description });
+    th.append(el('div', {}, item.label));
+    head.append(th);
+  });
+  ['A cases', 'B cases', ''].forEach(label => head.append(el('th', { class: 'count' }, label)));
+  table.append(head);
+  rows.forEach(row => {
+    const tr = el('tr');
+    evidence.forEach(item => tr.append(el('td', {
+      class: row.items.includes(item.key) ? 'dot on' : 'dot',
+      title: item.description,
+    })));
+    tr.append(el('td', { class: 'num' }, row.sideA), el('td', { class: 'num' }, row.sideB));
+    const note = el('td');
+    if (row.sideA === 0) note.append(el('span', { class: 'tag' }, 'only B'));
+    else if (row.sideB === 0) note.append(el('span', { class: 'tag' }, 'only A'));
+    if (!row.items.length) note.append(document.createTextNode(' no recorded evidence'));
+    tr.append(note);
+    tr.addEventListener('pointermove', event => showTip(event, tip => {
+      tip.append(el('div', { class: 'muted' }, row.items.length ? row.items.map(key => evidence.find(item => item.key === key)?.description || key).join(' + ') : 'No recorded evidence'));
+      tipRow(tip, 'var(--original)', row.sideA, 'A cases');
+      tipRow(tip, 'var(--new)', row.sideB, 'B cases');
+    }));
+    tr.addEventListener('pointerleave', hideTip);
+    table.append(tr);
+  });
+})();
 
 // What changed: behaviour mixes lost, gained, or carried by a single case, each with a case to open.
 (function drawChanges() {
@@ -398,7 +465,7 @@ function showDetail(b) {
 // Table view
 (function drawTable() {
   const table = document.getElementById('batch-table');
-  const columns = [['Batch', b => b.id], ['In', b => membershipLabel[membership(b)]], ['Cases', b => b.cases.length], ['D0 (richness)', b => b.d0], ['Only here', b => uniqueCombos.get(keyOf(b))], ['Attributes', b => attrsOf([b]).size], ...seen.map(id => [short(id), b => supportOf([b], id)])];
+  const columns = [['Batch', b => b.id], ['In', b => membershipLabel[membership(b)]], ['Cases', b => b.cases.length], ['D0 (vectors)', b => b.d0], ['Only here', b => uniqueCombos.get(keyOf(b))], ['Attributes', b => attrsOf([b]).size], ...seen.map(id => [short(id), b => supportOf([b], id)])];
   // Richest batches first; click any header to re-sort.
   let sortIndex = 3, ascending = false;
   function render() {

@@ -22,14 +22,14 @@ import viaduct.engine.runtime2.resolution.resolve
 /** Measures two candidate suites with production Resolution and prints their coverage side by side. */
 object ResolverTestSuiteComparer {
     private const val USAGE =
-        "Usage: ResolverTestSuiteComparer <candidate-a> <candidate-b> [--json <path>] [--html <path>]\n" +
+        "Usage: ResolverTestSuiteComparer <candidate-a> <candidate-b> [--json <path>] [--html <path>] [--resolver-metrics <path>]\n" +
             "  candidate: <suite-id> replays the stored suite; <suite-id>@seed=<n>,size=<S:Q>,config=<name:value;...> regenerates it with any override"
 
     @JvmStatic
     fun main(args: Array<String>) {
         val options = args.toList().chunkedOptions()
         val specs = options.getValue(null)
-        require(specs.size == 2 && options.keys.all { it == null || it in setOf("--json", "--html") }) { USAGE }
+        require(specs.size == 2 && options.keys.all { it == null || it in setOf("--json", "--html", "--resolver-metrics") }) { USAGE }
         val outputs = options.filterKeys { it != null }.mapValues { (_, values) -> workspaceRelativePath(requireNotNull(values.singleOrNull()) { USAGE }) }
         val left = CoverageCandidate.parse(specs[0])
         val right = CoverageCandidate.parse(specs[1])
@@ -37,6 +37,13 @@ object ResolverTestSuiteComparer {
         comparison.render(System.out)
         outputs["--json"]?.let { path -> writeOutput(path, PropertyTestJson.write(comparison)) }
         outputs["--html"]?.let { path -> writeOutput(path, runBlocking { SuiteCoverageComparisonPage.render(comparison, left.batches(), right.batches()) }) }
+        outputs["--resolver-metrics"]?.let { path ->
+            Files.createDirectories(path.toAbsolutePath().parent)
+            Files.newBufferedWriter(path).use { writer ->
+                ResolverMetricsCsv.writeAll(listOf(comparison.left.report.analysis, comparison.right.report.analysis), writer)
+            }
+            println("\nwrote $path")
+        }
     }
 
     private fun writeOutput(

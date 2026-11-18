@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import viaduct.engine.api.ResolverType
 import viaduct.engine.runtime2.coverage.ArgumentState
 import viaduct.engine.runtime2.coverage.CoverageEvidenceKind
 import viaduct.engine.runtime2.coverage.CoverageExecution
@@ -787,6 +788,8 @@ class ResolverCoverageMeasurementTest {
     @Test
     fun `CSV round trip preserves every row classification`() {
         val row = row("execution", "A", ALL_BINDING_SOURCES).copy(
+            resolverName = "Item.generatedResolver",
+            resolverType = ResolverType.FIELD,
             resultPath = "[{\"argument\":\"comma, quote \\\" and newline\n\"}]",
             listAncestorCount = 3,
             maxProviderPathDepth = 2,

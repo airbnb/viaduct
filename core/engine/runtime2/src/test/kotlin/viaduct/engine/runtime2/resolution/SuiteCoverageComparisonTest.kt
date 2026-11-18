@@ -31,6 +31,7 @@ import viaduct.engine.runtime2.coverage.SuiteCoverageComparison
 import viaduct.engine.runtime2.coverage.SuiteCoverageComparisonPage
 import viaduct.engine.runtime2.coverage.forBatch
 import viaduct.engine.runtime2.coverage.inapplicableObligationIds
+import viaduct.engine.runtime2.coverage.interactionVectorObservations
 import viaduct.engine.runtime2.coverage.measureCoverage
 import viaduct.engine.runtime2.coverage.render
 import viaduct.engine.runtime2.coverage.resolverCoverageMetricCodes
@@ -81,16 +82,19 @@ class SuiteCoverageComparisonTest : CorrectResolutionPostTestPolicy, ResolutionD
         }
 
     @Test
-    fun `richness counts distinct obligation signatures for the suite and for each batch`() {
-        val signatures = coverage.report.analysis.signatures
-        val byBatch = signatures.groupBy { it.test.batchId }.mapValues { (_, cases) -> cases.map { it.obligations }.distinct().size }
+    fun `D0 counts distinct RFC-271 interaction vectors across the suite and each batch`() {
+        val observations = measurement.interactionVectorObservations()
+        val observationsByBatch = observations.groupBy { it.test.batchId }
+        val byBatch = measurement.executions.map { it.test.batchId }.distinct().associateWith { batchId ->
+            observationsByBatch[batchId].orEmpty().map { it.vector }.distinct().size
+        }
 
-        assertEquals(signatures.map { it.obligations }.distinct().size, coverage.richness)
-        assertEquals(byBatch, coverage.batchRichness)
-        assertTrue(coverage.batchRichness.values.all { it in 1..coverage.richness })
+        assertEquals(observations.map { it.vector }.distinct().size, coverage.vectorD0)
+        assertEquals(byBatch, coverage.batchVectorD0)
+        assertTrue(coverage.batchVectorD0.values.all { it in 0..coverage.vectorD0 })
         val rendered = StringBuilder().also { SuiteCoverageComparison(coverage, coverage).render(it) }.toString()
-        assertTrue(Regex("D0 distinct signatures +${coverage.richness} +${coverage.richness} +0").containsMatchIn(rendered), rendered)
-        assertTrue(Regex("batch +d0").containsMatchIn(rendered), rendered)
+        assertTrue(Regex("distinct RFC-271 interaction vectors \\(D0\\) +${coverage.vectorD0} +${coverage.vectorD0} +0").containsMatchIn(rendered), rendered)
+        assertTrue("batch vector D0 min/median/max" in rendered, rendered)
     }
 
     @Test
@@ -181,9 +185,11 @@ class SuiteCoverageComparisonTest : CorrectResolutionPostTestPolicy, ResolutionD
             val embedded = data["inapplicable"] as Map<*, *>
             assertEquals(emptyList<String>(), embedded["a"])
             assertEquals(inapplicable.toList(), embedded["b"])
-            val diversity = (data["diversity"] as Map<*, *>)["a"] as Map<*, *>
-            assertEquals(coverage.richness, diversity["d0"])
-            assertEquals(coverage.report.analysis.suite.diversity.frequencies.count { it.testCases == 1 }, diversity["singletons"])
+            val vectorD0 = data["vectorD0"] as Map<*, *>
+            assertEquals(coverage.vectorD0, vectorD0["a"])
+            val resolverDiversity = (data["resolverDiversity"] as Map<*, *>)["a"] as Map<*, *>
+            assertEquals(coverage.report.analysis.batchDiversity.size, resolverDiversity["batchCount"])
+            assertTrue("diagnostic" in page)
             assertThrows<IllegalArgumentException> { CandidateCoverage.of("c", 0, measurement, inapplicableObligations = setOf("no_such_metric")) }
         }
 
@@ -293,7 +299,7 @@ class SuiteCoverageComparisonTest : CorrectResolutionPostTestPolicy, ResolutionD
             val results = sweepConfigs(definition, TestCaseCount(2, 2), variants)
 
             assertEquals(listOf("base", "errors"), results.map { it.variant.name })
-            assertTrue(results.all { it.cases in 1..4 && it.richness >= 1 })
+            assertTrue(results.all { it.cases in 1..4 && it.vectorD0 >= 1 })
             assertEquals(coverage.report.metrics.map { it.id }.toSet(), results.first().obligationTests.keys)
             val rendered = StringBuilder().also { results.render(it) }.toString()
             assertTrue(Regex("variant +cases +D0 +A +FO +FI +X +B ").containsMatchIn(rendered), rendered)

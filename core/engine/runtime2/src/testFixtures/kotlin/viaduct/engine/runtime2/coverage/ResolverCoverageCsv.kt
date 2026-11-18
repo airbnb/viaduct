@@ -3,6 +3,7 @@ package viaduct.engine.runtime2.coverage
 import java.io.Reader
 import org.apache.commons.csv.CSVFormat
 import org.apache.commons.csv.CSVPrinter
+import viaduct.engine.api.ResolverType
 
 /** RFC-4180 quoting preserves structured paths, including embedded quotes and line breaks. */
 object ResolverCoverageCsv {
@@ -16,6 +17,8 @@ object ResolverCoverageCsv {
         "occurrence_id",
         "result_path",
         "field_coordinate",
+        "resolver_name",
+        "resolver_type",
         "resolution_role",
         "locus",
         "stamp_class",
@@ -45,6 +48,8 @@ object ResolverCoverageCsv {
                         row.occurrenceId,
                         row.resultPath,
                         row.fieldCoordinate,
+                        row.resolverName,
+                        row.resolverType.name,
                         row.resolutionRole.name,
                         row.locus.name,
                         row.stampClass.name,
@@ -77,21 +82,23 @@ object ResolverCoverageCsv {
                     occurrenceId = record[6],
                     resultPath = record[7],
                     fieldCoordinate = record[8],
-                    resolutionRole = ResolutionRole.valueOf(record[9]),
-                    locus = ResolverLocus.valueOf(record[10]),
-                    stampClass = StampClass.valueOf(record[11]),
-                    listAncestorCount = record[12].toInt(),
-                    bindingSources = record[13]
+                    resolverName = record[9],
+                    resolverType = ResolverType.valueOf(record[10]),
+                    resolutionRole = ResolutionRole.valueOf(record[11]),
+                    locus = ResolverLocus.valueOf(record[12]),
+                    stampClass = StampClass.valueOf(record[13]),
+                    listAncestorCount = record[14].toInt(),
+                    bindingSources = record[15]
                         .takeIf(String::isNotEmpty)
                         ?.split('|')
                         ?.map(ResolverBindingSource::valueOf)
                         ?.toSet()
                         ?: emptySet(),
-                    maxProviderPathDepth = record[14].takeIf(String::isNotEmpty)?.toInt(),
-                    argumentState = ArgumentState.valueOf(record[15]),
-                    declaredOutputShape = DeclaredOutputShape.valueOf(record[16]),
-                    outputKind = OutputKind.valueOf(record[17]),
-                    objectFragment = ObjectFragmentShape.fromCsvValues((18 until header.size).map { record[it].toInt() }),
+                    maxProviderPathDepth = record[16].takeIf(String::isNotEmpty)?.toInt(),
+                    argumentState = ArgumentState.valueOf(record[17]),
+                    declaredOutputShape = DeclaredOutputShape.valueOf(record[18]),
+                    outputKind = OutputKind.valueOf(record[19]),
+                    objectFragment = ObjectFragmentShape.fromCsvValues((20 until header.size).map { record[it].toInt() }),
                 )
             }
         }

@@ -1,6 +1,6 @@
 package viaduct.engine.runtime2.coverage
 
-/** Compares saved cases and schemas without mixing diversity changes with obligation coverage. */
+/** Compares saved cases and schemas without mixing case counts with obligation coverage. */
 internal class ResolverCoverageCandidateComparator(
     private val baseline: ResolverCoverageAnalysis,
     private val candidate: ResolverCoverageAnalysis,
@@ -121,8 +121,8 @@ private object CoverageScopeChangeBuilder {
             batchId = batchId,
             registryId = registryId,
             schemaId = schemaId,
-            baseline = CoverageDiversityCalculator.summarize(baseline),
-            candidate = CoverageDiversityCalculator.summarize(candidate),
+            baselineTestCases = baseline.size,
+            candidateTestCases = candidate.size,
             baselineObligations = before,
             candidateObligations = after,
             newlyCovered = after - baselineSuiteObligations,

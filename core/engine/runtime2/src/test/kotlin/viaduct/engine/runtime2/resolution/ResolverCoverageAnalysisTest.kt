@@ -5,10 +5,8 @@ import org.junit.jupiter.api.Test
 import viaduct.engine.runtime2.coverage.ArgumentState
 import viaduct.engine.runtime2.coverage.CoverageCaseEditSummary
 import viaduct.engine.runtime2.coverage.CoverageCaseStatus
-import viaduct.engine.runtime2.coverage.CoverageDiversitySummary
 import viaduct.engine.runtime2.coverage.CoverageEvidenceLocation
 import viaduct.engine.runtime2.coverage.CoverageExecution
-import viaduct.engine.runtime2.coverage.CoverageSignatureFrequency
 import viaduct.engine.runtime2.coverage.CoverageTestId
 import viaduct.engine.runtime2.coverage.DeclaredOutputShape
 import viaduct.engine.runtime2.coverage.OutputKind
@@ -24,15 +22,17 @@ import viaduct.engine.runtime2.coverage.ResolverCoverageSignature
 import viaduct.engine.runtime2.coverage.ResolverDependencyOccurrence
 import viaduct.engine.runtime2.coverage.ResolverDependencyRow
 import viaduct.engine.runtime2.coverage.ResolverLocus
+import viaduct.engine.runtime2.coverage.ResolverMetricsCsv
 import viaduct.engine.runtime2.coverage.StampClass
 import viaduct.engine.runtime2.coverage.analyze
+import viaduct.engine.runtime2.coverage.assessTestCaseRemoval
 import viaduct.engine.runtime2.coverage.compareCandidate
 import viaduct.engine.runtime2.propertytest.PropertyTestJson
 import viaduct.engine.runtime2.resolution.framework.ProviderCellOutcome
 
 class ResolverCoverageAnalysisTest {
     @Test
-    fun `diversity counts distinct test signatures rather than occurrences`() {
+    fun `scope summaries count test cases and covered obligations`() {
         val localOne = localCase(test("schema-a", "query-a"), "local-one")
         val localTwo = localCase(test("schema-a", "query-b"), "local-two")
         val fanOutOne = fanOutCase(test("schema-b", "query-c"), "fan-out-one")
@@ -40,73 +40,10 @@ class ResolverCoverageAnalysisTest {
 
         val suite = measurement(localOne, localTwo, fanOutOne, fanOutTwo).analyze().suite
 
+        assertEquals(4, suite.testCases)
         assertEquals(
-            CoverageDiversitySummary(
-                testCases = 4,
-                distinctSignatures = 2,
-                d0 = 2,
-                d1 = 2.0,
-                d2 = 2.0,
-                dominantSignatureShare = 0.5,
-                frequencies =
-                    listOf(
-                        CoverageSignatureFrequency(
-                            obligations = setOf("both_sources_on_one_occurrence", "both_sources_within_one_execution"),
-                            testCases = 2,
-                            caseIds = listOf(test("schema-a", "query-a"), test("schema-a", "query-b")),
-                        ),
-                        CoverageSignatureFrequency(
-                            obligations = setOf("shared_provider_fan_out"),
-                            testCases = 2,
-                            caseIds = listOf(test("schema-b", "query-c"), test("schema-b", "query-d")),
-                        ),
-                    ),
-            ),
-            suite.diversity,
-        )
-    }
-
-    @Test
-    fun `diversity reports skew and disjoint obligation profiles`() {
-        val suite = measurement(
-            localCase(test("schema-a", "query-a"), "dominant-a"),
-            localCase(test("schema-a", "query-c"), "dominant-c"),
-            localCase(test("schema-a", "query-d"), "dominant-d"),
-            localCase(test("schema-a", "query-e"), "dominant-e"),
-            fanOutCase(test("schema-b", "query-b"), "minority"),
-        ).analyze().suite
-
-        assertEquals(
-            CoverageDiversitySummary(
-                testCases = 5,
-                distinctSignatures = 2,
-                d0 = 2,
-                d1 = 1.649384888466,
-                d2 = 1.470588235294,
-                dominantSignatureShare = 0.8,
-                frequencies =
-                    listOf(
-                        CoverageSignatureFrequency(
-                            obligations = setOf("both_sources_on_one_occurrence", "both_sources_within_one_execution"),
-                            testCases = 4,
-                            caseIds = listOf(
-                                test("schema-a", "query-a"),
-                                test("schema-a", "query-c"),
-                                test("schema-a", "query-d"),
-                                test("schema-a", "query-e"),
-                            ),
-                        ),
-                        CoverageSignatureFrequency(
-                            obligations = setOf("shared_provider_fan_out"),
-                            testCases = 1,
-                            caseIds = listOf(test("schema-b", "query-b")),
-                        ),
-                    ),
-            ),
-            suite.diversity.copy(
-                d1 = kotlin.math.round(suite.diversity.d1 * 1e12) / 1e12,
-                d2 = kotlin.math.round(suite.diversity.d2 * 1e12) / 1e12,
-            ),
+            setOf("both_sources_on_one_occurrence", "both_sources_within_one_execution", "shared_provider_fan_out"),
+            suite.coveredObligations,
         )
     }
 
@@ -154,12 +91,10 @@ class ResolverCoverageAnalysisTest {
                             ).sortedBy { it.obligationId },
                     ),
                 testCases = 1,
-                distinctSignatures = 1,
             ),
             CaseSignatureSummary(
                 signature = signature,
-                testCases = analysis.suite.diversity.testCases,
-                distinctSignatures = analysis.suite.diversity.distinctSignatures,
+                testCases = analysis.suite.testCases,
             ),
         )
     }
@@ -237,25 +172,8 @@ class ResolverCoverageAnalysisTest {
         val empty = Fixture(test("schema-a", "query-a"), emptyList())
         val suite = measurement(empty).analyze().suite
 
-        assertEquals(
-            CoverageDiversitySummary(
-                testCases = 1,
-                distinctSignatures = 1,
-                d0 = 1,
-                d1 = 1.0,
-                d2 = 1.0,
-                dominantSignatureShare = 1.0,
-                frequencies =
-                    listOf(
-                        CoverageSignatureFrequency(
-                            obligations = emptySet(),
-                            testCases = 1,
-                            caseIds = listOf(test("schema-a", "query-a")),
-                        )
-                    ),
-            ),
-            suite.diversity,
-        )
+        assertEquals(1, suite.testCases)
+        assertEquals(emptySet<String>(), suite.coveredObligations)
     }
 
     @Test
@@ -270,37 +188,6 @@ class ResolverCoverageAnalysisTest {
             ScopeGroups(
                 registries = analysis.registries.mapNotNull { it.registryId }.toSet(),
                 schemas = analysis.schemas.mapNotNull { it.schemaId }.toSet(),
-            ),
-        )
-    }
-
-    @Test
-    fun `similarity report shows shared and differing obligations`() {
-        val analysis = richAnalysis()
-        val similarity = analysis.highlySimilarProfiles.single()
-        val shared = setOf(
-            "both_sources_on_one_occurrence",
-            "both_sources_within_one_execution",
-            "multiple_provider_fan_in",
-            "successful_and_failing_branches_within_one_execution",
-        )
-
-        assertEquals(
-            SimilaritySummary(
-                threshold = 0.8,
-                jaccard = shared.size.toDouble() / (shared.size + 1),
-                shared = shared,
-                leftOnly = setOf("shared_provider_fan_out"),
-                rightOnly = emptySet(),
-                caseIds = setOf(test("schema-a", "query-a"), test("schema-b", "query-b")),
-            ),
-            SimilaritySummary(
-                threshold = analysis.similarityThreshold,
-                jaccard = similarity.jaccardSimilarity,
-                shared = similarity.sharedObligations,
-                leftOnly = similarity.leftOnlyObligations,
-                rightOnly = similarity.rightOnlyObligations,
-                caseIds = (similarity.left.caseIds + similarity.right.caseIds).toSet(),
             ),
         )
     }
@@ -334,6 +221,143 @@ class ResolverCoverageAnalysisTest {
                 allCoordinatesPresent = analysis.signatures.flatMap { it.evidence }.flatMap { it.locations }.all { it.fieldCoordinate.isNotBlank() },
             ),
         )
+    }
+
+    @Test
+    fun `resolver D metrics are computed per batch from resolver fingerprints`() {
+        val rows = mutableListOf<ResolverCoverageRow>()
+        val executions = mutableListOf<CoverageExecution>()
+
+        fun observe(
+            batchId: String,
+            queryId: String,
+            executionId: String,
+            occurrenceId: String,
+            resolverName: String,
+            depth: Int,
+        ) {
+            val test = CoverageTestId(batchId, "schema", "registry", queryId)
+            executions += CoverageExecution("run", executionId, test)
+            rows += row(test, executionId, occurrenceId, emptySet()).copy(
+                resolverName = resolverName,
+                fieldCoordinate = resolverName,
+                listAncestorCount = depth,
+            )
+        }
+
+        observe("suite/b001", "q1", "e1", "a1", "Item.a", 0)
+        observe("suite/b001", "q2", "e2", "a2", "Item.a", 1)
+        observe("suite/b001", "q3", "e3", "b1", "Item.b", 0)
+        observe("suite/b001", "q4", "e4", "b2", "Item.b", 1)
+        observe("suite/b001", "q5", "e5", "c1", "Item.c", 0)
+        executions += CoverageExecution("run", "empty-batch", CoverageTestId("suite/b002", "schema-empty", "registry", "q0"))
+
+        val analysis = ResolverCoverageMeasurement(executions, rows).analyze()
+        val scored = analysis.batchDiversity.single { it.batchId == "suite/b001" }
+        val empty = analysis.batchDiversity.single { it.batchId == "suite/b002" }
+
+        assertEquals(3, scored.resolverDefinitions)
+        assertEquals(2, scored.d0)
+        assertEquals(kotlin.math.exp(-(2.0 / 3 * kotlin.math.ln(2.0 / 3) + 1.0 / 3 * kotlin.math.ln(1.0 / 3))), scored.d1, 1e-12)
+        assertEquals(1.8, scored.d2, 1e-12)
+        assertEquals(0, empty.resolverDefinitions)
+        assertEquals(0, empty.d0)
+        assertEquals(0.0, empty.d1)
+        assertEquals(0.0, empty.d2)
+    }
+
+    @Test
+    fun `resolver Jaccard uses indexed candidates across batches and reports exact close pairs`() {
+        val executions = mutableListOf<CoverageExecution>()
+        val rows = mutableListOf<ResolverCoverageRow>()
+
+        fun addResolver(
+            batchId: String,
+            registryId: String,
+            resolverName: String,
+            depths: IntRange,
+        ) {
+            depths.forEachIndexed { index, depth ->
+                val test = CoverageTestId(batchId, "schema-$batchId", registryId, "q$index")
+                val executionId = "e-$batchId-$resolverName-$index"
+                executions += CoverageExecution("run", executionId, test)
+                rows += row(test, executionId, "occ-$index", emptySet()).copy(
+                    resolverName = resolverName,
+                    fieldCoordinate = resolverName,
+                    listAncestorCount = depth,
+                )
+            }
+        }
+
+        addResolver("suite/b001", "reg-a", "Item.left", 0..3)
+        addResolver("suite/b002", "reg-b", "Item.right", 0..4)
+        addResolver("suite/b003", "reg-c", "Item.other", 99..99)
+        addResolver("suite/b004", "reg-d", "Item.left", 0..3)
+
+        val analysis = ResolverCoverageMeasurement(executions, rows).analyze()
+        val pair = analysis.highlySimilarResolvers.single()
+
+        assertEquals(0.8, pair.jaccardSimilarity, 1e-12)
+        assertEquals("Item.left", pair.left.resolverName)
+        assertEquals(setOf("reg-a", "reg-d"), pair.left.supportingRegistries)
+        assertEquals(setOf("suite/b001", "suite/b004"), pair.left.supportingBatches)
+        assertEquals("Item.right", pair.right.resolverName)
+        assertEquals(setOf("reg-b"), pair.right.supportingRegistries)
+        assertEquals(setOf("suite/b002"), pair.right.supportingBatches)
+        assertEquals(1, analysis.resolverSimilarityComparisons)
+        assertEquals(4, analysis.resolverFingerprints.size)
+        assertEquals(3, analysis.suiteResolverFingerprints.size)
+        assertEquals(false, analysis.highlySimilarResolvers.any { it.left.resolverName == it.right.resolverName })
+
+        val csv = StringBuilder().also { ResolverMetricsCsv.write(analysis, it) }.toString()
+        assertEquals(4, csv.lineSequence().count { it.contains(",D0,") })
+        assertEquals(4, csv.lineSequence().count { it.contains(",D1,") })
+        assertEquals(4, csv.lineSequence().count { it.contains(",D2,") })
+        assertEquals(1, csv.lineSequence().count { it.contains(",Jaccard,") })
+    }
+
+    @Test
+    fun `resolver Jaccard prefix index skips pairs sharing only a common signature`() {
+        val executions = mutableListOf<CoverageExecution>()
+        val rows = mutableListOf<ResolverCoverageRow>()
+
+        repeat(32) { index ->
+            val batchId = "suite/b${index.toString().padStart(3, '0')}"
+            val registryId = "registry-$index"
+            val commonTest = CoverageTestId(batchId, "schema-$index", registryId, "common")
+            val uniqueTest = CoverageTestId(batchId, "schema-$index", registryId, "unique")
+            val commonExecution = "common-$index"
+            val uniqueExecution = "unique-$index"
+            executions += CoverageExecution("run", commonExecution, commonTest)
+            executions += CoverageExecution("run", uniqueExecution, uniqueTest)
+            rows += row(commonTest, commonExecution, "common-occurrence", emptySet()).copy(
+                resolverName = "Item.field$index",
+                fieldCoordinate = "Item.field$index",
+                listAncestorCount = 0,
+            )
+            rows += row(uniqueTest, uniqueExecution, "unique-occurrence", emptySet()).copy(
+                resolverName = "Item.field$index",
+                fieldCoordinate = "Item.field$index",
+                listAncestorCount = index + 1,
+            )
+        }
+
+        val analysis = ResolverCoverageMeasurement(executions, rows).analyze()
+
+        assertEquals(0, analysis.resolverSimilarityComparisons)
+        assertEquals(0, analysis.highlySimilarResolvers.size)
+    }
+
+    @Test
+    fun `test removal assessment rejects removing unique taxonomy or interaction coverage`() {
+        val duplicateOne = localCase(test("schema-a", "query-a"), "one")
+        val duplicateTwo = localCase(test("schema-a", "query-b"), "two")
+        val analysis = measurement(duplicateOne, duplicateTwo, fanOutCase(test("schema-b", "query-c"), "fan-out")).analyze()
+
+        assertEquals(true, analysis.assessTestCaseRemoval(duplicateOne.test).coveragePreserved)
+        val uniqueSupport = analysis.assessTestCaseRemoval(test("schema-b", "query-c"))
+        assertEquals(false, uniqueSupport.coveragePreserved)
+        assertEquals(setOf("shared_provider_fan_out"), uniqueSupport.noLongerCoveredObligations)
     }
 
     @Test
@@ -571,21 +595,11 @@ class ResolverCoverageAnalysisTest {
     private data class CaseSignatureSummary(
         val signature: ResolverCoverageSignature,
         val testCases: Int,
-        val distinctSignatures: Int,
     )
 
     private data class ScopeGroups(
         val registries: Set<String>,
         val schemas: Set<String>,
-    )
-
-    private data class SimilaritySummary(
-        val threshold: Double,
-        val jaccard: Double,
-        val shared: Set<String>,
-        val leftOnly: Set<String>,
-        val rightOnly: Set<String>,
-        val caseIds: Set<CoverageTestId>,
     )
 
     private data class SignatureEvidenceSummary(

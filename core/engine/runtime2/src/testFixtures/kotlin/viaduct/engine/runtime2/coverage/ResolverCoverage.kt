@@ -1,6 +1,7 @@
 package viaduct.engine.runtime2.coverage
 
 import java.io.Reader
+import viaduct.engine.api.ResolverType
 import viaduct.engine.runtime2.arbitrary.Config
 import viaduct.engine.runtime2.arbitrary.ListsEnabled
 import viaduct.engine.runtime2.arbitrary.ResolverFromArgumentVariablesEnabled
@@ -13,7 +14,7 @@ import viaduct.engine.runtime2.propertytest.ResolverTestShardIds
 import viaduct.engine.runtime2.resolution.framework.ProviderCellOutcome
 
 /** Version of the RFC-271 coverage data and companion report, independent of saved-suite storage versions. */
-const val RESOLVER_COVERAGE_MODEL_VERSION = 11
+const val RESOLVER_COVERAGE_MODEL_VERSION = 12
 
 enum class ResolutionRole { INVOKED, SOURCE_SUPPLIED, ARGUMENT_ERROR_NOT_INVOKED, UNKNOWN }
 
@@ -70,12 +71,14 @@ data class ResolverCoverageRow(
     val declaredOutputShape: DeclaredOutputShape,
     val outputKind: OutputKind,
     val objectFragment: ObjectFragmentShape = ObjectFragmentShape.EMPTY,
+    val resolverName: String = fieldCoordinate,
+    val resolverType: ResolverType = ResolverType.FIELD,
 ) {
     val test: CoverageTestId get() = CoverageTestId(batchId, schemaId, registryId, queryId)
     val execution: CoverageExecution get() = CoverageExecution(runId, executionId, test)
 
     init {
-        require(listOf(runId, executionId, batchId, schemaId, registryId, queryId, occurrenceId, resultPath, fieldCoordinate).none(String::isBlank))
+        require(listOf(runId, executionId, batchId, schemaId, registryId, queryId, occurrenceId, resultPath, fieldCoordinate, resolverName).none(String::isBlank))
         require(listAncestorCount >= 0 && (maxProviderPathDepth == null || maxProviderPathDepth > 0))
     }
 }
@@ -551,7 +554,7 @@ data class ResolverCoverageCandidateScore(
 
 enum class ResolverCoverageScoreRelation { INFEASIBLE, DOMINATES, DOMINATED, EQUIVALENT, INCOMPARABLE }
 
-/** Per-obligation score reasons and diversity changes for suite builders. */
+/** Per-obligation score reasons and case changes for suite builders. */
 data class ResolverCoverageCandidateComparison(
     val modelVersion: Int,
     val scoringCriteria: ResolverCoverageScoringCriteria,
@@ -642,10 +645,10 @@ data class ResolverCoverageSuiteSetComparison(
     val missingRequiredSuiteIds: Set<String> get() = criteria.requiredSuiteIds - candidateSuiteIds
 
     val baselineSize: ResolverCoverageSuiteSetSize
-        get() = size(coverage.analysis.suite.baseline, baselineSuiteIds.size, coverage.analysis.schemas.count { it.baseline.testCases > 0 })
+        get() = size(coverage.analysis.suite.baselineTestCases, baselineSuiteIds.size, coverage.analysis.schemas.count { it.baselineTestCases > 0 })
 
     val candidateSize: ResolverCoverageSuiteSetSize
-        get() = size(coverage.analysis.suite.candidate, candidateSuiteIds.size, coverage.analysis.schemas.count { it.candidate.testCases > 0 })
+        get() = size(coverage.analysis.suite.candidateTestCases, candidateSuiteIds.size, coverage.analysis.schemas.count { it.candidateTestCases > 0 })
 
     val candidateFeasible: Boolean
         get() = missingRequiredSuiteIds.isEmpty() && coverage.candidateScore.meetsRequirements
@@ -670,10 +673,10 @@ data class ResolverCoverageSuiteSetComparison(
         }
 
     private fun size(
-        diversity: CoverageDiversitySummary,
+        cases: Int,
         suiteCount: Int,
         schemaCount: Int,
-    ) = ResolverCoverageSuiteSetSize(suites = suiteCount, cases = diversity.testCases, schemas = schemaCount)
+    ) = ResolverCoverageSuiteSetSize(suites = suiteCount, cases = cases, schemas = schemaCount)
 }
 
 /** Compare aggregate reports when adding or removing saved suites from the retained set. */
@@ -965,6 +968,176 @@ data class ResolverCoverageMeasurement(
             analysis = analyze(),
         )
 }
+
+/** One category-qualified interaction pattern, without resolver or test identity in its key. */
+data class ResolverInteractionVector(
+    val categoryId: String,
+    val participants: List<ResolverInteractionParticipant>,
+    val relationships: List<ResolverInteractionRelationship> = emptyList(),
+) {
+    init {
+        require(categoryId.isNotBlank())
+        require(participants.isNotEmpty() || relationships.isNotEmpty())
+    }
+}
+
+/** A resolver's taxonomy values in its role within an interaction. */
+data class ResolverInteractionParticipant(
+    val role: String,
+    val taxonomy: ResolverOccurrenceSignature?,
+) {
+    init {
+        require(role.isNotBlank())
+    }
+}
+
+/** Existing provider-read properties that describe a relationship between participants. */
+data class ResolverInteractionRelationship(
+    val providerTaxonomy: ResolverOccurrenceSignature?,
+    val consumerTaxonomy: ResolverOccurrenceSignature?,
+    val providerSource: ResolverBindingSource,
+    val providerOutcome: ProviderCellOutcome,
+)
+
+/** One observed vector with its resolver, test, schema, and batch provenance. */
+data class ResolverInteractionVectorObservation(
+    val vector: ResolverInteractionVector,
+    val runId: String,
+    val executionId: String,
+    val test: CoverageTestId,
+    val resolverNames: Set<String>,
+    val fieldCoordinates: Set<String>,
+)
+
+/** Extracts vectors for every category in RFC-271's existing resolver coverage catalog. */
+fun ResolverCoverageMeasurement.interactionVectorObservations(): List<ResolverInteractionVectorObservation> {
+    val rowsByOccurrence = rows.associateBy { Triple(it.runId, it.executionId, it.occurrenceId) }
+    val observations = mutableListOf<ResolverInteractionVectorObservation>()
+
+    fun append(
+        vector: ResolverInteractionVector,
+        execution: CoverageExecution,
+        endpointRows: Collection<ResolverCoverageRow>,
+        edges: Collection<ResolverDependencyRow> = emptyList(),
+    ) {
+        observations += ResolverInteractionVectorObservation(
+            vector = vector,
+            runId = execution.runId,
+            executionId = execution.executionId,
+            test = execution.test,
+            resolverNames = endpointRows.mapTo(sortedSetOf(), ResolverCoverageRow::resolverName) +
+                edges.flatMapTo(sortedSetOf()) { listOf(it.providerFieldCoordinate, it.consumerFieldCoordinate) },
+            fieldCoordinates = endpointRows.mapTo(sortedSetOf(), ResolverCoverageRow::fieldCoordinate) +
+                edges.flatMapTo(sortedSetOf()) { listOf(it.providerFieldCoordinate, it.consumerFieldCoordinate) },
+        )
+    }
+
+    resolverCoverageMetricCatalog.forEach { definition ->
+        val evidence = definition.evidence(this)
+        when (definition.evidenceKind) {
+            CoverageEvidenceKind.LOCAL_COMBINATION -> evidence.rows.forEach { row ->
+                append(
+                    ResolverInteractionVector(
+                        categoryId = definition.id,
+                        participants = listOf(ResolverInteractionParticipant("occurrence", row.interactionTaxonomy())),
+                    ),
+                    row.execution,
+                    listOf(row),
+                )
+            }
+
+            CoverageEvidenceKind.EXECUTION_COEXISTENCE -> evidence.rows.groupBy { it.execution }.forEach { (execution, groupRows) ->
+                val participants = groupRows.map { ResolverInteractionParticipant("member", it.interactionTaxonomy()) }
+                    .sortedWith(compareBy<ResolverInteractionParticipant> { it.role }.thenBy { it.taxonomy?.interactionTaxonomyKey().orEmpty() })
+                append(ResolverInteractionVector(definition.id, participants), execution, groupRows)
+            }
+
+            CoverageEvidenceKind.RESULT_TREE_PATH -> {
+                val evidenceRows = evidence.rows
+                resultTreeDescendantPairs().filter { (ancestor, descendant) -> ancestor in evidenceRows && descendant in evidenceRows }
+                    .forEach { (ancestor, descendant) ->
+                        append(
+                            ResolverInteractionVector(
+                                categoryId = definition.id,
+                                participants = listOf(
+                                    ResolverInteractionParticipant("ancestor", ancestor.interactionTaxonomy()),
+                                    ResolverInteractionParticipant("descendant", descendant.interactionTaxonomy()),
+                                ),
+                            ),
+                            ancestor.execution,
+                            listOf(ancestor, descendant),
+                        )
+                    }
+            }
+
+            CoverageEvidenceKind.DEPENDENCY_RELATIONSHIP -> evidence.dependencyGroups.forEach { group ->
+                val sortedEdges = group.map { edge ->
+                    val provider = rowsByOccurrence[Triple(edge.runId, edge.executionId, edge.providerOccurrenceId)]
+                    val consumer = rowsByOccurrence[Triple(edge.runId, edge.executionId, edge.consumerOccurrenceId)]
+                    Triple(edge, provider, consumer)
+                }.sortedBy { (edge, provider, consumer) ->
+                    listOf(
+                        provider?.interactionTaxonomy()?.interactionTaxonomyKey().orEmpty(),
+                        consumer?.interactionTaxonomy()?.interactionTaxonomyKey().orEmpty(),
+                        edge.providerSource.name,
+                        edge.providerOutcome.name,
+                    ).joinToString("\u0000")
+                }
+                val relationships = sortedEdges.map { (edge, provider, consumer) ->
+                    ResolverInteractionRelationship(
+                        providerTaxonomy = provider?.interactionTaxonomy(),
+                        consumerTaxonomy = consumer?.interactionTaxonomy(),
+                        providerSource = edge.providerSource,
+                        providerOutcome = edge.providerOutcome,
+                    )
+                }
+                val edges = sortedEdges.map { it.first }
+                val endpointRows = sortedEdges.flatMap { listOfNotNull(it.second, it.third) }
+                append(
+                    ResolverInteractionVector(definition.id, emptyList(), relationships),
+                    edges.first().execution,
+                    endpointRows,
+                    edges,
+                )
+            }
+        }
+    }
+
+    return observations.sortedWith(
+        compareBy<ResolverInteractionVectorObservation> { it.vector.categoryId }
+            .thenBy { it.test.batchId }
+            .thenBy { it.test.schemaId }
+            .thenBy { it.test.registryId }
+            .thenBy { it.test.queryId }
+            .thenBy { it.vector.toString() }
+    )
+}
+
+private fun ResolverCoverageRow.interactionTaxonomy() =
+    ResolverOccurrenceSignature(
+        resolutionRole = resolutionRole,
+        locus = locus,
+        stampClass = stampClass,
+        listAncestorCount = listAncestorCount,
+        bindingSources = bindingSources,
+        maxProviderPathDepth = maxProviderPathDepth,
+        argumentState = argumentState,
+        declaredOutputShape = declaredOutputShape,
+        outputKind = outputKind,
+    )
+
+private fun ResolverOccurrenceSignature.interactionTaxonomyKey(): String =
+    listOf(
+        resolutionRole.name,
+        locus.name,
+        stampClass.name,
+        listAncestorCount.toString(),
+        bindingSources.map { it.name }.sorted().joinToString("|"),
+        maxProviderPathDepth?.toString().orEmpty(),
+        argumentState.name,
+        declaredOutputShape.name,
+        outputKind.name,
+    ).joinToString("\u0000")
 
 /** Combines completed suite measurements while preserving each saved case's suite-scoped identity. */
 fun combineCoverageMeasurements(measurements: Collection<ResolverCoverageMeasurement>): ResolverCoverageMeasurement {

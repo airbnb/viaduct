@@ -2,6 +2,7 @@ package viaduct.engine.runtime2.coverage
 
 import java.util.IdentityHashMap
 import viaduct.apiannotations.VisibleForTest
+import viaduct.engine.api.ResolverType
 import viaduct.engine.runtime2.arbitrary.ResolutionWitnessBoundExceededException
 import viaduct.engine.runtime2.arbitrary.ResolutionWitnessBounds
 import viaduct.engine.runtime2.arbitrary.resolutionFingerprint
@@ -264,6 +265,8 @@ private class ResolverCoverageExtractor(
             occurrenceId = paths.id(occurrenceId),
             resultPath = paths.path(occurrence.root, occurrence.path),
             fieldCoordinate = "${key.field.containingDef.name}.${key.field.name}",
+            resolverName = "${key.field.containingDef.name}.${key.field.name}",
+            resolverType = ResolverType.FIELD,
             resolutionRole = role,
             locus = when {
                 ownerPath.isEmpty() -> ResolverLocus.QUERY_ROOT
