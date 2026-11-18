@@ -3,6 +3,7 @@ package viaduct.engine.runtime2.model.registry
 import viaduct.engine.api.CheckerResult
 import viaduct.engine.runtime2.model.Arguments
 import viaduct.engine.runtime2.model.ResolverTarget
+import viaduct.engine.runtime2.model.isParentField
 import viaduct.graphql.schema.ViaductSchema
 
 /** Executes one field checker from its resolved arguments and named materialized input pairs. */
@@ -26,6 +27,12 @@ class FieldCheckerResolver private constructor(
     queryType: ViaductSchema.Object,
     private val function: FieldCheckerFunction,
 ) : CheckerResolverBase<ResolverTarget.FieldCheckerTarget>(target, fragmentTemplates, queryType) {
+    init {
+        require(!target.field.isParentField()) {
+            "@parent field ${target.field.containingDef.name}/${target.field.name} cannot have a field checker"
+        }
+    }
+
     /** Runs each named provider with this field occurrence's arguments. */
     public override suspend fun provideVariables(arguments: Arguments.Resolved): Map<String, viaduct.engine.runtime2.model.EngineInputData?> = super.provideVariables(arguments)
 

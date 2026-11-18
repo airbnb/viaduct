@@ -134,6 +134,23 @@ class FieldCheckerRuntimeVariablesTest {
     }
 
     @Test
+    fun `checker rejects a @parent field as its target`() {
+        val schemas = TestWorld.fromSDL(
+            """
+            directive @parent on FIELD_DEFINITION
+            type Query { root: Root }
+            type Root { child: Child }
+            type Child { parent: Root @parent }
+            """.trimIndent(),
+        ).schemas
+        val parent = schemas.loweredSchema.requireObjectField("Child", "parent")
+        val failure = assertFailsWith<IllegalArgumentException> {
+            FieldCheckerResolver.of(parent, schemas.loweredSchema.requireQueryTypeDef()) { _, _, _ -> CheckerResult.Success }
+        }
+        assertEquals("@parent field Child/parent cannot have a field checker", failure.message)
+    }
+
+    @Test
     fun `provider names remain independent between named pairs`(): Unit =
         runBlocking {
             fun pair(value: Int) =
