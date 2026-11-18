@@ -146,6 +146,27 @@ class ExecutorValidatorTest {
     }
 
     @ParameterizedTest
+    @ValueSource(booleans = [true, false])
+    fun `default set accepts a checker on a type with a @parent field`(fieldChecker: Boolean) {
+        val schema = MockSchema.mk(
+            """
+            extend type Query { empty: Int }
+            type User { id: ID, parent: Company @parent }
+            type Company { name: String }
+            """.trimIndent()
+        )
+        val checkerExecutorFactory = if (fieldChecker) {
+            MockCheckerExecutorFactory(mapOf(("User" to "id") to MockCheckerExecutor()), null)
+        } else {
+            MockCheckerExecutorFactory(null, mapOf("User" to MockCheckerExecutor()))
+        }
+        assertDoesNotThrow {
+            emptyList<MockTenantModuleBootstrapper>().toDispatcherRegistryFactory(ExecutorValidator(schema), checkerExecutorFactory)
+                .create(schema)
+        }
+    }
+
+    @ParameterizedTest
     @ValueSource(
         strings = [
             "nmae",
