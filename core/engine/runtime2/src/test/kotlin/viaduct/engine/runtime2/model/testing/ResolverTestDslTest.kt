@@ -45,6 +45,33 @@ import viaduct.graphql.schema.ViaductSchema
 
 class ResolverTestDslTest {
     @Test
+    fun `node object bodies retain their fields while explicit references invoke node resolvers`() {
+        val world = TestWorld.fromDSL(
+            """
+            extend type Query {
+              body: User @resolver(script: "{'id': 'body', 'score': 7, 'friend': {'id': 'friend', 'score': 8}}")
+              reference: User @resolver(script: "ref('node', {'id': 'one'})")
+              mixed: [Node] @resolver(script: "[{'__typename': 'User', 'id': 'body', 'score': 7}, ref('node', {'id': 'one'}), null]")
+            }
+            type User implements Node @nodeResolver(ids: ["one"], script: "{'score': 9}") {
+              id: ID!
+              score: Int
+              friend: User
+            }
+            """.trimIndent(),
+        )
+        val root = world.resolveQuery("{ body { score friend { score } } reference { score } mixed { ... on User { score } } }")
+
+        fun ObjectEngineResult.value(name: String) = getCell(keys.single { it.field.name == name }).value.get()
+        val body = assertIs<ObjectEngineResult>(root.value("body"))
+        assertEquals(7, body.value("score"))
+        assertEquals(8, assertIs<ObjectEngineResult>(body.value("friend")).value("score"))
+        assertEquals(9, assertIs<ObjectEngineResult>(root.value("reference")).value("score"))
+        val mixed = assertIs<ListEngineResult>(root.value("mixed"))
+        assertEquals(listOf(7, 9, null), mixed.map { cell -> (cell.value.get() as? ObjectEngineResult)?.value("score") })
+    }
+
+    @Test
     fun `malformed outputs conform to the shared DSL contract`() {
         ResolverTestDslConformance.rejectedOutputs.forEach { case ->
             val world = TestWorld.fromDSL(case.schemaSDL)
@@ -110,7 +137,7 @@ class ResolverTestDslTest {
         val helper = ScriptBindingHelper()
         val source = """
             extend type Query {
-              viewer: User @resolver(script: "{'id': 'one'}")
+              viewer: User @resolver(script: "ref('node', {'id': 'one'})")
               next(step: Int): Int @resolver(script: "helper(step) + helper.offset")
             }
             type User implements Node @nodeResolver(ids: ["one"], script: "{'score': helper.call(1)}") { id: ID! score: Int }
@@ -188,7 +215,7 @@ class ResolverTestDslTest {
             val world = TestWorld.fromDSL(
                 """
                 extend type Query {
-                  viewer: User @resolver(script: "{'id': 'one'}")
+                  viewer: User @resolver(script: "ref('node', {'id': 'one'})")
                   score(id: ID): Int @resolver(script: "id == 'one' ? 7 : 0") @checker(script: "allow")
                 }
                 type User implements Node @nodeResolver(ids: ["one"], isSelective: $selective, script: "{'score': query('fragment Main on Query { value: score(id: ${'$'}key) }', {'key': id}).value}") {
@@ -357,7 +384,7 @@ class ResolverTestDslTest {
         for ((metadata, selective) in listOf("" to true, ", isSelective: false" to false, ", isSelective: true" to true)) {
             val world = TestWorld.fromDSL(
                 """
-                extend type Query { viewer(id: ID!): User @resolver(script: "{'id': id}") }
+                extend type Query { viewer(id: ID!): User @resolver(script: "ref('node', {'id': id})") }
                 type User implements Node @nodeResolver(ids: ["one"], script: "error"$metadata) { id: ID! }
                 """.trimIndent(),
             )
@@ -376,7 +403,7 @@ class ResolverTestDslTest {
     fun `selective node scripts project owned demand and restore authoritative IDs`() {
         val world = TestWorld.fromDSL(
             """
-            extend type Query { viewer(id: ID!): User @resolver(script: "{'id': id}") }
+            extend type Query { viewer(id: ID!): User @resolver(script: "ref('node', {'id': id})") }
             type User implements Node @nodeResolver(
               ids: ["one", "two"]
               isSelective: true
@@ -411,7 +438,7 @@ class ResolverTestDslTest {
         for (script in listOf("null", "error")) {
             val world = TestWorld.fromDSL(
                 """
-                extend type Query { viewer: User @resolver(script: "{'id': 'one'}") }
+                extend type Query { viewer: User @resolver(script: "ref('node', {'id': 'one'})") }
                 type User implements Node @nodeResolver(ids: ["one"], isSelective: true, script: "$script") { id: ID! score: Int }
                 """.trimIndent(),
             )
@@ -458,8 +485,8 @@ class ResolverTestDslTest {
         val world = TestWorld.fromDSL(
             """
             extend type Query {
-              viewer(id: ID!): Node @resolver(script: "{'__typename': 'User', 'id': id}")
-              redirect: User @resolver(isSelective: true, script: "{'id': 'canonical'}")
+              viewer(id: ID!): Node @resolver(script: "ref('node', {'id': id})")
+              redirect: User @resolver(isSelective: true, script: "ref('node', {'id': 'canonical'})")
             }
             type User implements Node @nodeResolver(ids: ["alias", "canonical"], isSelective: true, script: "id == 'alias' ? ref('redirect') : {'score': 7}") {
               id: ID!
@@ -481,7 +508,7 @@ class ResolverTestDslTest {
             val world = TestWorld.fromDSL(
                 """
                 extend type Query {
-                  viewer(id: ID!): User @resolver(script: "{'id': id}")
+                  viewer(id: ID!): User @resolver(script: "ref('node', {'id': id})")
                 }
                 type User implements Node @nodeResolver(ids: ["known"], isSelective: $isSelective, script: "{'score': 7}") {
                   id: ID!
@@ -1118,7 +1145,7 @@ class ResolverTestDslTest {
                 """
                 extend type Query {
                   viewer(id: ID!): User!
-                    @resolver(script: "{'id': id}")
+                    @resolver(script: "ref('node', {'id': id})")
                 }
 
                 type User implements Node
@@ -1135,11 +1162,12 @@ class ResolverTestDslTest {
                 world.apply(viewer, arguments = mapOf("id" to "user-2")),
             )
         val node = schema.loweredSchema.requireObjectField("Query", "node")
+        val typedReference = assertIs<RootFieldReferenceData>(world.apply(node, arguments = reference.arguments.fieldValues))
         val user =
             assertIs<EngineObjectData.Sync>(
                 world.apply(
                     node,
-                    arguments = reference.arguments.fieldValues,
+                    arguments = typedReference.arguments.fieldValues,
                     selections = schema.fragmentFrom("fragment UserResult on User { id score }").subselections,
                 ),
             )

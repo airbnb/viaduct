@@ -187,7 +187,7 @@ class GraphQLExecuteSmokeTest : ExecutionTestFixtureResource {
                     """
                     extend type Query {
                       viewer(id: ID!): User!
-                        @resolver(script: "{'id': id}")
+                        @resolver(script: "ref('node', {'id': id})")
                     }
 
                     type User implements Node

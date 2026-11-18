@@ -208,7 +208,7 @@ private class PreparedJEXLResolver(
             withRuntime2ReadErrors {
                 script.evaluateJEXL(bindings) { output ->
                     requireJEXLResolverOutput(output, coordinate)
-                    sourceSchema.lowerOutput(field, outputAdapter.convert(sourceSchema.typeExpr(field), output, coordinate))
+                    outputAdapter.convert(sourceSchema.typeExpr(field), output, coordinate)
                 }
             }
         }
@@ -263,7 +263,7 @@ private class JEXLOutputAdapter(private val schemas: ViaductAndGJSchema) {
                     if (name != "__typename") {
                         val child = sourceSchema.field(concrete.name, name)
                         require(child.args.isEmpty()) { "$path must not supply argument-bearing field '$name'" }
-                        field(name) setTo sourceSchema.lowerOutput(child, convert(sourceSchema.typeExpr(child), item, "$path.$name"))
+                        field(name) setTo convert(sourceSchema.typeExpr(child), item, "$path.$name")
                     }
                 }
             }

@@ -534,7 +534,7 @@ private class ResolverReplayLogic(
                     ?: return@compute null
             if (candidates.isEmpty()) return@compute null
 
-            val authoritativeNodeIdentity = reference.nodeReferenceIdentityOrNull()
+            var authoritativeNodeIdentity = reference.nodeReferenceIdentityOrNull()
             var expectedReference = reference
             candidates.forEach { candidate ->
                 val observation = candidate.observation
@@ -544,6 +544,7 @@ private class ResolverReplayLogic(
                 resolverApplicationCache.acceptRootFieldReference(candidate)
                 val output = application.output
                 if (output is RootFieldReferenceData) {
+                    authoritativeNodeIdentity = authoritativeNodeIdentity ?: output.nodeReferenceIdentityOrNull()
                     expectedReference = output
                 } else {
                     return@compute ReappliedResolver(

@@ -2,6 +2,7 @@ package viaduct.engine.runtime2.model.testing
 
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.runtime2.model.Arguments
+import viaduct.engine.runtime2.model.EngineErrorData
 import viaduct.engine.runtime2.model.EngineObjectDataEntry
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.RootFieldReferenceData
@@ -10,9 +11,10 @@ import viaduct.engine.runtime2.model.nodeRootFieldReferenceOf
 import viaduct.engine.runtime2.model.registry.Assumptions
 import viaduct.engine.runtime2.model.requireObjectField
 import viaduct.engine.runtime2.model.requireType
-import viaduct.engine.runtime2.model.schemaType
+import viaduct.engine.runtime2.model.runtime2SchemaTypeOrNull
 import viaduct.engine.runtime2.schema.SourceSchemaAdapter
 import viaduct.graphql.schema.ViaductSchema
+import viaduct.graphql.schema.graphqljava.gjDef
 
 /** Constructs an object value by resolving type and field names in this reasoning world. */
 fun Assumptions.objectOf(
@@ -108,12 +110,48 @@ class ObjectValueScope internal constructor(
         require(fieldName !in fields) {
             "Duplicate object field ${type.name}/${key.field.name}"
         }
+        validateOutput(sourceSchema.typeExpr(key.field), value)
         fields[fieldName] =
             EngineObjectDataEntry.of(
                 selection = fieldName,
                 field = key.field,
-                value = sourceSchema.lowerOutput(key.field, value),
+                value = value,
             )
+    }
+
+    private fun validateOutput(
+        typeExpr: ViaductSchema.TypeExpr<ViaductSchema.OutputTypeDef>,
+        value: Any?,
+    ) {
+        if (value == null || value is EngineErrorData || value is RootFieldReferenceData) return
+        if (typeExpr.isList) {
+            require(value is List<*>) { "Output for $typeExpr must be a list" }
+            val elementType = checkNotNull(typeExpr.unwrapList())
+            value.forEach { validateOutput(elementType, it) }
+            return
+        }
+        val declaredType = typeExpr.baseTypeDef
+        if (declaredType !is ViaductSchema.CompositeTypeDef) return
+        require(value is EngineObjectData.Sync) { "Output for ${declaredType.name} must be an object" }
+        val concreteType = schema.requireType(value.type.name) as? ViaductSchema.Object
+            ?: throw IllegalArgumentException("Output type ${value.type.name} is not an object")
+        require(concreteType in declaredType.possibleObjectTypes) {
+            "Object ${value.type.name} is not valid for ${declaredType.name}"
+        }
+        if (value.runtime2SchemaTypeOrNull != null) return
+        value.getSelections().forEach { selection ->
+            requireNotNull(concreteType.gjDef.getFieldDefinition(selection)) {
+                "Object ${concreteType.name} has no field named $selection"
+            }
+            val field = sourceSchema.field(concreteType.name, selection)
+            require(field is ViaductSchema.ObjectField) {
+                "${concreteType.name}/$selection does not lower to an object field"
+            }
+            require(field.args.isEmpty()) {
+                "Passive object field ${concreteType.name}/$selection must be argumentless"
+            }
+            validateOutput(sourceSchema.typeExpr(field), value.get(selection))
+        }
     }
 
     /** Constructs a nested object value using the same schema. */

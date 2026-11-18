@@ -158,9 +158,7 @@ private class Compiler(
                     null -> null
                     is String ->
                         nodesById[id]?.let { entry ->
-                            schema.objectOf(entry.type.name) {
-                                ID_FIELD setTo id
-                            }
+                            schema.nodeReferenceOf(entry.type.name, id)
                         }
                     else -> throw IllegalArgumentException("Query.node id is not an ID")
                 }

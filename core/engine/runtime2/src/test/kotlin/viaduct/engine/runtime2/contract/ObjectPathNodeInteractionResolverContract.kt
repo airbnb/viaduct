@@ -15,7 +15,7 @@ interface ObjectPathNodeInteractionResolverContract : ResolverContract {
                     """
                     extend type Query {
                       item: Item!
-                        @resolver(script: "{'profile': {'__typename': 'Profile', 'id': 'profile'}}")
+                        @resolver(script: "{'profile': ref('node', {'id': 'profile'})}")
                       source: Int! @resolver(script: "7")
                       driver: Int!
                         @resolver(
@@ -93,13 +93,13 @@ interface ObjectPathNodeInteractionResolverContract : ResolverContract {
                     """
                     extend type Query {
                       item: Item!
-                        @resolver(script: "{'profile': {'__typename': 'Profile', 'id': 'profile'}}")
+                        @resolver(script: "{'profile': ref('node', {'id': 'profile'})}")
                       source: Int! @resolver(script: "7")
                       driver: Profile!
                         @resolver(
                           of: "source item { trigger(value: ${'$'}sourceValue) }"
                           pathVars: [{name: "sourceValue", path: ["source"]}]
-                          script: "{'__typename': 'Profile', 'id': 'driver'}"
+                          script: "ref('node', {'id': 'driver'})"
                         )
                     }
 
@@ -113,7 +113,7 @@ interface ObjectPathNodeInteractionResolverContract : ResolverContract {
                     }
 
                     type Profile implements Node
-                      @nodeResolver(ids: ["profile", "related", "driver"], script: "id == 'profile' ? {'details': {'related': {'id': 'related'}}} : id == 'related' ? {:} : {:}") {
+                      @nodeResolver(ids: ["profile", "related", "driver"], script: "id == 'profile' ? {'details': {'related': ref('node', {'id': 'related'})}} : id == 'related' ? {:} : {:}") {
                       id: ID!
                       details: Details!
                     }

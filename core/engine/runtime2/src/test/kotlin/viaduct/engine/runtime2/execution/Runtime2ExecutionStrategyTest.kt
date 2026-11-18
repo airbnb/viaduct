@@ -212,7 +212,7 @@ class Runtime2ExecutionStrategyTest : ExecutionTestFixtureResource {
             """
             extend type Query {
               viewer(id: ID!): User!
-                @resolver(script: "{'id': id}")
+                @resolver(script: "ref('node', {'id': id})")
             }
 
             type User implements Node

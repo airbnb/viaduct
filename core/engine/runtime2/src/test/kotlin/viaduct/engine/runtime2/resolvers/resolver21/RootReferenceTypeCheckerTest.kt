@@ -24,7 +24,7 @@ class RootReferenceTypeCheckerTest {
                 schemaSDL =
                     """
                     extend type Query {
-                      viewer: User! @resolver(script: "{'__typename': 'User', 'id': 'user-1'}")
+                      viewer: User! @resolver(script: "ref('node', {'id': 'user-1'})")
                     }
 
                     type User implements Node

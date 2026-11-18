@@ -1,5 +1,6 @@
 package viaduct.engine.runtime2.contract
 
+import java.util.concurrent.ConcurrentLinkedQueue
 import kotlin.test.assertEquals
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.Timeout
@@ -12,13 +13,14 @@ interface ProductionDeadlockResolverContract : ResolverContract {
     @Test
     @Timeout(5)
     fun `resolves mixed argument and object path node demand within a shared branch`() {
+        val nodeIds = ConcurrentLinkedQueue<String>()
         val testWorld =
             TestWorld.fromDSL(
                 schemaSDL =
                     """
                     extend type Query {
                       foo: Foo!
-                        @resolver(script: "{'__typename': 'Foo', 'id': 'foo'}")
+                        @resolver(script: "ref('node', {'id': 'foo'})")
                       a(value: Int!): Int!
                         @resolver(
                           of: "source: foo { y(value: ${'$'}value) } target: foo { y(value: ${'$'}fromY) }"
@@ -28,12 +30,14 @@ interface ProductionDeadlockResolverContract : ResolverContract {
                     }
 
                     type Foo implements Node
-                      @nodeResolver(ids: ["foo"], script: "{:}") {
+                      @nodeResolver(ids: ["foo"], script: "nodeIds.add(id); {'offset': 0}") {
                       id: ID!
+                      offset: Int!
                       y(value: Int!): Int!
-                        @resolver(script: "value")
+                        @resolver(of: "offset", script: "value + objectValue.offset")
                     }
                     """.trimIndent(),
+                scriptBindings = mapOf("nodeIds" to nodeIds),
             )
 
         val resolved = resolveAndValidate(testWorld, "query { a(value: 5) }")
@@ -43,5 +47,6 @@ interface ProductionDeadlockResolverContract : ResolverContract {
         )
 
         assertEquals(10, resolved.getCell(key).get())
+        assertEquals(setOf("foo"), nodeIds.toSet())
     }
 }

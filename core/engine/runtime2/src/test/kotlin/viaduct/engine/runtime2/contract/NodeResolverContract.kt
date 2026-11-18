@@ -41,8 +41,8 @@ interface NodeResolverContract : ResolverContract {
         val world = TestWorld.fromDSL(
             """
             extend type Query {
-              viewer: User @resolver(script: "{'__typename': 'User', 'id': 'alias'}")
-              redirect: User @resolver(script: "{'__typename': 'User', 'id': 'canonical'}")
+              viewer: User @resolver(script: "ref('node', {'id': 'alias'})")
+              redirect: User @resolver(script: "ref('node', {'id': 'canonical'})")
             }
             type User implements Node
               @nodeResolver(ids: ["alias", "canonical"], script: "id == 'alias' ? ref('redirect') : {'score': 7}") {
@@ -59,9 +59,9 @@ interface NodeResolverContract : ResolverContract {
         assertEquals(7, viewer.getCell(world.schema.contractKey("User", "score")).get())
         assertEquals(8, viewer.getCell(world.schema.contractKey("User", "extra")).get())
         val hops = (resolution.operation.resolutionObserver as CorrectnessResolverObserver).rootFieldReferenceInvocations()
-        assertEquals(listOf("node", "redirect", "node"), hops.map { it.invocationKey.field.name })
+        assertEquals(listOf("node", "node", "redirect", "node", "node"), hops.map { it.invocationKey.field.name })
         assertEquals(1, hops.map { it.publicationRoot to it.publicationPath }.distinct().size)
-        assertEquals(3, hops.map { it.invocationRoot }.distinct().size)
+        assertEquals(5, hops.map { it.invocationRoot }.distinct().size)
         assertEquals(1, hops.map { it.suppliedDemand }.distinct().size)
     }
 
@@ -128,7 +128,7 @@ interface NodeResolverContract : ResolverContract {
                 schemaSDL =
                     """
                     extend type Query {
-                      viewer: Viewer! @resolver(script: "{'item': {'__typename': 'Item', 'id': 'item-1'}}")
+                      viewer: Viewer! @resolver(script: "{'item': ref('node', {'id': 'item-1'})}")
                     }
                     type Viewer {
                       item: Item!
@@ -243,7 +243,7 @@ interface NodeResolverContract : ResolverContract {
                     """
                     extend type Query {
                       viewer(id: ID!): User!
-                        @resolver(script: "{'id': id}")
+                        @resolver(script: "ref('node', {'id': id})")
                     }
 
                     type User implements Node
@@ -294,7 +294,7 @@ interface NodeResolverContract : ResolverContract {
                 schemaSDL =
                     """
                     extend type Query {
-                      viewer: Viewer! @resolver(script: "{'card': {'profile': {'__typename': 'Profile', 'id': 'profile-1'}}}")
+                      viewer: Viewer! @resolver(script: "{'card': {'profile': ref('node', {'id': 'profile-1'})}}")
                     }
                     type Viewer { card: Card! }
                     type Card { profile: Profile! }
@@ -432,7 +432,7 @@ interface NodeResolverContract : ResolverContract {
                 schemaSDL =
                     """
                     extend type Query {
-                      matrix: [[User!]!]! @resolver(script: "[[{'__typename': 'User', 'id': 'a'}, {'__typename': 'User', 'id': 'b'}], [{'__typename': 'User', 'id': 'c'}]]")
+                      matrix: [[User!]!]! @resolver(script: "[[ref('node', {'id': 'a'}), ref('node', {'id': 'b'})], [ref('node', {'id': 'c'})]]")
                     }
                     type User implements Node
                       @nodeResolver(ids: ["a", "b", "c"], script: "id == 'a' ? {'name': 1} : id == 'b' ? {'name': 2} : {'name': 3}") {
@@ -456,6 +456,6 @@ interface NodeResolverContract : ResolverContract {
             }.flatten()
 
         assertEquals(listOf("User", "User", "User"), resolvedTypes)
-        assertEquals(3, observedFields.count { it == "node" })
+        assertEquals(6, observedFields.count { it == "node" })
     }
 }

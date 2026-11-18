@@ -255,7 +255,7 @@ query(
 ).selected.score
 ```
 
-Scripts can return integers, IDs, strings, Booleans, Float values, enum names, ordinary objects, lists, null, and root-field references. JEXL maps become partial Runtime2 objects, and lists or arrays become Runtime2 lists. Concrete output types can be inferred; abstract outputs require a string `__typename`. Both integer results and execution variable bindings accept `Int`, `Long`, and `BigInteger` values within GraphQL Int's signed 32-bit range and normalize them to `Int`. ID results accept strings or integer values and normalize them to strings. Float results accept numbers and normalize them to finite `Double` values; numeric strings and nonfinite values are rejected. String and Boolean results require their corresponding JVM types, and enum results require a string naming a declared member. These checks also apply within lists, returned objects, and Node bodies. Custom scalar results remain outside the scripted output domain.
+Scripts can return integers, IDs, strings, Booleans, Float values, enum names, ordinary objects, lists, null, and root-field references. JEXL maps become partial Runtime2 objects, including Node bodies, and lists or arrays become Runtime2 lists. Both field and Node resolvers may return object bodies or explicit root-field references. A map at a node-typed field remains an object body; it is never converted to a node reference. Concrete output types can be inferred; abstract outputs require a string `__typename`. Both integer results and execution variable bindings accept `Int`, `Long`, and `BigInteger` values within GraphQL Int's signed 32-bit range and normalize them to `Int`. ID results accept strings or integer values and normalize them to strings. Float results accept numbers and normalize them to finite `Double` values; numeric strings and nonfinite values are rejected. String and Boolean results require their corresponding JVM types, and enum results require a string naming a declared member. These checks also apply within lists, returned objects, and Node bodies. Custom scalar results remain outside the scripted output domain.
 
 Output object keys are schema field names. Field and Node resolvers cannot return RSS objects, directly or nested inside fresh maps or lists. The presence of `"**FROM_RSS**"` rejects an output map regardless of its value, before output conversion, Node ID injection, or selective projection. The marker belongs only to script views; it does not modify engine objects. GraphQL input-object arguments and explicit query/mutation results are unmarked. Copy scalar values into fresh output maps: an input selected with `renamed: n` can become `{'n': objectValue.renamed}`.
 
@@ -319,7 +319,7 @@ The shared state used by this entry path supports concurrent access: `ObjectCell
 
 The `publicationCycleTask` passed as the subquery's reader identifies the consuming parent field resolver by its result-root identity and publication path. It has no thread identity: materialization records the parent's dependencies on the nested result's writers even when the read runs on a script thread. Coroutine scope ownership and cycle-reader identity therefore survive the dispatcher change. Focused tests force overlapping real nested queries with both one and four engine threads.
 
-`ref(path)` or `ref(path, arguments)` constructs a root-field reference, including at nested object fields and list elements. The path starts at Query, for example `ref('namespace.number', {'value': seed})`; arguments are ordinary error-free input values. The existing reference factory validates the connected namespace path, singular target, and schema argument types. A reference is an instruction for the engine to follow, not a subquery executed while the script runs. Node-typed output maps contain an `id`; abstract Node outputs also specify `__typename`, for example `{'__typename': 'User', 'id': userId}`. The source-schema adapter lowers these maps to the existing Node reference representation.
+`ref(path)` or `ref(path, arguments)` constructs a root-field reference, including at nested object fields and list elements. The path starts at Query, for example `ref('namespace.number', {'value': seed})`; arguments are ordinary error-free input values. The existing reference factory validates the connected namespace path, singular target, and schema argument types. A reference is an instruction for the engine to follow, not a subquery executed while the script runs. Use `ref('node', {'id': userId})` to request Node resolution explicitly, including at abstract Node fields, nested object fields, and list elements. Node-shaped maps return object bodies directly instead. A Node resolver can return an object-body map, with its authoritative `id` supplied by the fixture, or a reference to follow.
 
 ## Selective Output
 
@@ -344,8 +344,8 @@ The Engine API adapter requires an object result, following `NodeResolverExecuto
 
 ```graphql
 extend type Query {
-  viewer(id: ID!): User @resolver(script: "{'id': id}")
-  redirect: User @resolver(script: "{'id': 'canonical'}")
+  viewer(id: ID!): User @resolver(script: "ref('node', {'id': id})")
+  redirect: User @resolver(script: "ref('node', {'id': 'canonical'})")
 }
 
 type User implements Node

@@ -43,8 +43,8 @@ class RecordingResolutionObserverTest : ResolutionDispatcherResource {
         val world = TestWorld.fromDSL(
             """
             extend type Query {
-              container: Container @resolver(script: "{'viewer': {'__typename': 'User', 'id': 'alias'}}")
-              redirect: User @resolver(script: "{'__typename': 'User', 'id': 'canonical'}")
+              container: Container @resolver(script: "{'viewer': ref('node', {'id': 'alias'})}")
+              redirect: User @resolver(script: "ref('node', {'id': 'canonical'})")
             }
             type Container { viewer: User }
             type User implements Node
@@ -60,11 +60,11 @@ class RecordingResolutionObserverTest : ResolutionDispatcherResource {
 
         val recording = recorder.snapshot()
         val hops = recording.events.filter { it.kind == "ROOT_FIELD_REFERENCE_INVOCATION" }.map { it.facts }
-        assertEquals(listOf("Query.node", "Query.redirect", "Query.node"), hops.map { it["reference"]["path"].single().asText() })
-        assertEquals(listOf("alias", null, "canonical"), hops.map { it["reference"]["nodeIdentity"]["id"]?.asText() })
-        assertEquals("User", hops.first()["reference"]["nodeIdentity"]["type"].asText())
+        assertEquals(listOf("Query.node", "Query.node", "Query.redirect", "Query.node", "Query.node"), hops.map { it["reference"]["path"].single().asText() })
+        assertEquals(listOf(null, "alias", null, null, "canonical"), hops.map { it["reference"]["nodeIdentity"]["id"]?.asText() })
+        assertEquals("User", hops[1]["reference"]["nodeIdentity"]["type"].asText())
         assertEquals(1, hops.map { it["publication"] }.distinct().size)
-        assertEquals(3, hops.map { it["invocation"]["rootId"] }.distinct().size)
+        assertEquals(5, hops.map { it["invocation"]["rootId"] }.distinct().size)
         val invocations = recording.events.filter { it.kind == "RESOLVER_INVOCATION" }.associateBy { it.facts["resolverOccurrenceId"] }
         hops.forEach { hop ->
             val invocation = invocations.getValue(hop["resolverOccurrenceId"])

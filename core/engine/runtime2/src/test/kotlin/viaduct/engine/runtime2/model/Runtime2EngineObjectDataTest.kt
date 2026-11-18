@@ -15,6 +15,8 @@ import kotlinx.coroutines.runBlocking
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.ResolvedEngineObjectData
 import viaduct.engine.runtime2.model.testing.fromSDL
+import viaduct.engine.runtime2.model.testing.nodeReferenceOf
+import viaduct.engine.runtime2.model.testing.objectOf
 import viaduct.engine.runtime2.schema.ViaductAndGJSchema
 import viaduct.errors.ErroneousFieldException
 import viaduct.errors.FieldError
@@ -27,6 +29,59 @@ class Runtime2EngineObjectDataTest {
     private val schema: ViaductSchema = fixture.loweredSchema
     private val userType = schema.requireType("User") as ViaductSchema.Object
     private val graphQLUserType = requireNotNull(fixture.graphQLSchema.getObjectType("User"))
+
+    @Test
+    fun `object DSL preserves node object bodies including nested list elements`() {
+        val nodes = nodeSchema()
+        val body = nodes.objectOf("User") { "id" setTo "one" }
+        for ((field, value) in listOf("viewer" to body, "viewers" to listOf(listOf(body)))) {
+            assertSame(value, nodes.objectOf("Query") { field setTo value }.get(field))
+        }
+    }
+
+    @Test
+    fun `object DSL preserves explicit node references nulls errors and lists`() {
+        val nodes = nodeSchema()
+        val reference = nodes.nodeReferenceOf("User", "one")
+        val error = EngineErrorData.of()
+        for (value in listOf(reference, null, error)) {
+            assertSame(value, nodes.objectOf("Query") { "viewer" setTo value }.outputValue("viewer"))
+        }
+        val references = listOf(listOf(reference, null, error), null)
+        assertSame(references, nodes.objectOf("Query") { "viewers" setTo references }.outputValue("viewers"))
+    }
+
+    @Test
+    fun `object DSL rejects incompatible concrete object types`() {
+        val failure = assertFailsWith<IllegalArgumentException> {
+            schema.objectOf("Query") { "viewer" setTo objectOf("Query") }
+        }
+        assertTrue(failure.message.orEmpty().contains("not valid for User"), failure.message)
+        val value = schema.objectOf("User") { "name" setTo "Ada" }
+        assertSame(value, schema.objectOf("Query") { "viewer" setTo value }.outputValue("viewer"))
+    }
+
+    @Test
+    fun `object DSL validates external object field names and argumentless fields`() {
+        for ((field, expected) in listOf("missing" to "no field", "friend" to "argumentless")) {
+            val value = ResolvedEngineObjectData(graphQLUserType, mapOf(field to null))
+            val failure = assertFailsWith<IllegalArgumentException> {
+                schema.objectOf("Query") { "viewer" setTo value }
+            }
+            assertTrue(failure.message.orEmpty().contains(expected), failure.message)
+        }
+        val value = ResolvedEngineObjectData(graphQLUserType, mapOf("name" to "Ada"))
+        assertSame(value, schema.objectOf("Query") { "viewer" setTo value }.outputValue("viewer"))
+    }
+
+    private fun nodeSchema(): ViaductSchema =
+        ViaductAndGJSchema.fromSDL(
+            """
+            interface Node { id: ID! }
+            type User implements Node { id: ID! }
+            type Query { node(id: ID!): Node viewer: User viewers: [[Node]] }
+            """.trimIndent(),
+        ).loweredSchema
 
     @Test
     fun `retains integration context outside GraphQL selections`() {
