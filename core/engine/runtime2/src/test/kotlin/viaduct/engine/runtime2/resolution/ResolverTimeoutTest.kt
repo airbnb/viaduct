@@ -23,7 +23,6 @@ import viaduct.engine.runtime2.model.requireObjectField
 import viaduct.engine.runtime2.model.requireQueryTypeDef
 import viaduct.engine.runtime2.model.testing.TestWorld
 import viaduct.engine.runtime2.model.testing.fragmentFrom
-import viaduct.engine.runtime2.model.toCanonicalMaterializeSelectionForest
 import viaduct.engine.runtime2.resolution.framework.ResolverReadCycleException
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
 import viaduct.engine.runtime2.schema.operationSelectionsFrom
@@ -110,13 +109,12 @@ class ResolverTimeoutTest {
                 )
             },
         )
-        val first = world.schema.requireObjectField("Query", "first")
         val second = world.schema.requireObjectField("Query", "second")
         val selfDependent = FieldValueResolver.of(
             field = second,
             fragmentTemplates = ResolverFragmentTemplates(
-                objectFragmentTemplate = world.resolverRegistry.resolver(first).declaredDependencies.objectFragment.toCanonicalMaterializeSelectionForest(),
-                queryFragmentTemplate = world.resolverRegistry.resolver(second).declaredDependencies.queryFragment.toCanonicalMaterializeSelectionForest(),
+                objectFragmentTemplate = world.schemas.fragmentFrom("fragment Input on Query { second }").subselections,
+                queryFragmentTemplate = world.schema.emptyFragmentOf("Query").subselections,
             ),
             queryType = world.schema.requireQueryTypeDef(),
             function = { _, _, _, _, _ -> 2 },

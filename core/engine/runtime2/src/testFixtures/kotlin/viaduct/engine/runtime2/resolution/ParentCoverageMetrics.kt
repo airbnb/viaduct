@@ -2,10 +2,10 @@ package viaduct.engine.runtime2.resolution
 
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.runtime2.model.EngineOutputData
-import viaduct.engine.runtime2.model.MaterializeSelectionForest
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.ResolverTarget
 import viaduct.engine.runtime2.model.SelectionForest
+import viaduct.engine.runtime2.model.collect
 import viaduct.engine.runtime2.model.objectKey
 import viaduct.engine.runtime2.model.outputValue
 import viaduct.engine.runtime2.model.registry.Assumptions
@@ -86,7 +86,7 @@ class ParentCoverageAnalyzer(
     }
 
     private fun EngineOutputData?.collectParentCoverage(
-        selections: MaterializeSelectionForest,
+        selections: SelectionForest,
         activeParents: List<MutableParentSelectionSetCoverage>,
         consecutiveParentDepth: Int,
         selectionDepth: Int,

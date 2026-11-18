@@ -11,13 +11,13 @@ import viaduct.engine.runtime2.model.Promise
 import viaduct.engine.runtime2.model.ResolverOccurrenceId
 import viaduct.engine.runtime2.model.ResolverTarget
 import viaduct.engine.runtime2.model.emptyFragmentOf
-import viaduct.engine.runtime2.model.materializeSelectionForestOf
 import viaduct.engine.runtime2.model.registry.ResolverFragmentTemplates
 import viaduct.engine.runtime2.model.registry.TypeCheckerResolver
 import viaduct.engine.runtime2.model.registry.fieldResolverOf
 import viaduct.engine.runtime2.model.requireObjectField
 import viaduct.engine.runtime2.model.requireQueryTypeDef
 import viaduct.engine.runtime2.model.requireType
+import viaduct.engine.runtime2.model.selectionForestOf
 import viaduct.engine.runtime2.model.testing.TestWorld
 import viaduct.engine.runtime2.model.testing.emptyFragmentOf
 import viaduct.engine.runtime2.model.testing.fragmentFrom
@@ -42,8 +42,8 @@ class TypeCheckerCorrectResolutionTest {
                         schemas.loweredSchema.requireQueryTypeDef(),
                         mapOf(
                             "input" to ResolverFragmentTemplates(
-                                schemas.fragmentFrom("fragment Input on Item { policy }").materializeSelections,
-                                materializeSelectionForestOf(),
+                                schemas.fragmentFrom("fragment Input on Item { policy }").subselections,
+                                selectionForestOf(),
                             )
                         ),
                         isApplicable = { _, _ -> false },
@@ -94,8 +94,8 @@ class TypeCheckerCorrectResolutionTest {
                         schema.loweredSchema.requireQueryTypeDef(),
                         mapOf(
                             "input" to ResolverFragmentTemplates(
-                                schema.fragmentFrom("fragment Input on Item { alias: policy }").materializeSelections,
-                                materializeSelectionForestOf(),
+                                schema.fragmentFrom("fragment Input on Item { alias: policy }").subselections,
+                                selectionForestOf(),
                             )
                         ),
                     ) { inputs, _ ->
@@ -158,8 +158,8 @@ class TypeCheckerCorrectResolutionTest {
                         schema.loweredSchema.requireQueryTypeDef(),
                         mapOf(
                             "input" to ResolverFragmentTemplates(
-                                materializeSelectionForestOf(),
-                                schema.fragmentFrom("fragment Input on Query { alias: marker }").materializeSelections,
+                                selectionForestOf(),
+                                schema.fragmentFrom("fragment Input on Query { alias: marker }").subselections,
                             )
                         ),
                     ) { inputs, _ ->

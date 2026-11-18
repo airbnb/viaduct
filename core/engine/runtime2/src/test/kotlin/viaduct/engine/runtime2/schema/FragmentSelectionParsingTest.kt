@@ -85,11 +85,11 @@ class FragmentSelectionParsingTest {
 
         val fragment = schemas.specFragmentFromDocument(document).fragment
 
-        assertEquals(2, fragment.materializeSelections.size)
+        assertEquals(2, fragment.subselections.size)
         assertEquals(
             setOf("__typename", "kind"),
             buildSet {
-                fragment.materializeSelections.forEach { selection ->
+                fragment.subselections.forEach { selection ->
                     add(selection.responseKey)
                     assertEquals("_viaduct_internal__typename", selection.key.field.name)
                 }

@@ -56,9 +56,9 @@ import viaduct.engine.runtime2.arbitrary.FieldCoordinate
 import viaduct.engine.runtime2.model.Arguments
 import viaduct.engine.runtime2.model.EngineErrorData
 import viaduct.engine.runtime2.model.InclusionCondition
-import viaduct.engine.runtime2.model.MaterializeSelectionForest
 import viaduct.engine.runtime2.model.ResolverOccurrenceId
 import viaduct.engine.runtime2.model.RootFieldReferenceData
+import viaduct.engine.runtime2.model.SelectionForest
 import viaduct.engine.runtime2.model.argumentsOfGround
 import viaduct.engine.runtime2.model.fieldExpressions
 import viaduct.engine.runtime2.model.nodeReferenceIdentityOrNull
@@ -241,10 +241,10 @@ class BenchmarkExecutorAdapter(
         return required(objectSelections) to required(querySelections)
     }
 
-    private fun MaterializeSelectionForest.parsed(typeName: String): ParsedSelections? =
+    private fun SelectionForest.parsed(typeName: String): ParsedSelections? =
         if (isEmpty()) null else SelectionsParser.parse(typeName, "fragment Main on $typeName ${AstPrinter.printAst(selectionSet())}")
 
-    private fun MaterializeSelectionForest.selectionSet(): SelectionSet {
+    private fun SelectionForest.selectionSet(): SelectionSet {
         val fields = mutableListOf<graphql.language.Selection<*>>()
         forEach { selection ->
             val name = if (selection.key.field.name == LOWERED_TYPENAME_FIELD) "__typename" else selection.key.field.name

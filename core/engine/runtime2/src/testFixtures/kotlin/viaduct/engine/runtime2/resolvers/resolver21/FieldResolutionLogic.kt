@@ -14,12 +14,12 @@ import viaduct.engine.runtime2.model.SelectionForest
 import viaduct.engine.runtime2.model.conformsToResolverOutputSchemaType
 import viaduct.engine.runtime2.model.engineObjectDataOf
 import viaduct.engine.runtime2.model.groundKey
-import viaduct.engine.runtime2.model.materializeSelectionForestOf
 import viaduct.engine.runtime2.model.nodeReferenceIdentityOrNull
 import viaduct.engine.runtime2.model.registry.FieldValueResolver
 import viaduct.engine.runtime2.model.registry.ResolutionExecutionContext
 import viaduct.engine.runtime2.model.registry.ResolverFragment
 import viaduct.engine.runtime2.model.requireQueryTypeDef
+import viaduct.engine.runtime2.model.selectionForestOf
 import viaduct.engine.runtime2.resolution.framework.CycleTask
 import viaduct.engine.runtime2.resolution.framework.ResolverInvocationObservation
 import viaduct.engine.runtime2.resolution.framework.RootFieldReferenceInvocationObservation
@@ -217,7 +217,7 @@ internal class FieldResolutionLogic(
                 occurrencePath = invocation.invocationPath,
                 field = invocation.invocationKey.field,
                 input = input,
-                inputSelections = materializeSelectionForestOf(),
+                inputSelections = selectionForestOf(),
                 queryValue = queryValue,
                 queryInputSelections = queryMaterializationSelections,
                 arguments = reference.arguments,

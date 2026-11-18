@@ -11,7 +11,7 @@ import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import viaduct.engine.api.EngineObjectData
-import viaduct.engine.runtime2.model.MaterializeSelectionForest
+import viaduct.engine.runtime2.model.SelectionForest
 import viaduct.engine.runtime2.model.registry.ResolutionExecutionContext
 
 class VariablesProviderExecutionContextTest {
@@ -57,6 +57,6 @@ class VariablesProviderExecutionContextTest {
 
     private val resolutionContext =
         object : ResolutionExecutionContext {
-            override suspend fun resolveSelectionSet(selections: MaterializeSelectionForest): EngineObjectData.Sync = error("Selection execution is not used by this test")
+            override suspend fun resolveSelectionSet(selections: SelectionForest): EngineObjectData.Sync = error("Selection execution is not used by this test")
         }
 }

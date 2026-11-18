@@ -1,13 +1,11 @@
 package viaduct.engine.runtime2.model.spec
 
 import viaduct.engine.runtime2.model.InclusionCondition
-import viaduct.engine.runtime2.model.MaterializeSelection
-import viaduct.engine.runtime2.model.MaterializeSelectionForest
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.Selection
 import viaduct.engine.runtime2.model.SelectionForest
-import viaduct.engine.runtime2.model.flatMapToMaterializeSelectionForest
-import viaduct.engine.runtime2.model.materializeSelectionForestOf
+import viaduct.engine.runtime2.model.flatMapToSelectionForest
+import viaduct.engine.runtime2.model.selectionForestOf
 import viaduct.graphql.schema.ViaductSchema
 
 /**
@@ -15,8 +13,8 @@ import viaduct.graphql.schema.ViaductSchema
  *
  * Fields become [Selection] values, while inline fragments are removed after contributing their
  * type conditions to the fields they contain. At each selection-set level, every source field
- * occurrence contributes one member to the corresponding [SelectionForest], which erases source
- * order while preserving occurrences and does not define semantic equality for [Selection]. This
+ * occurrence contributes one member to the corresponding [SelectionForest], which retains source
+ * order and occurrences and does not define semantic equality for [Selection]. This
  * one-to-one correspondence is a postcondition of this translation; later normalization with
  * [viaduct.engine.runtime2.model.merge] may combine members that produce equal concrete-object keys.
  */
@@ -24,25 +22,7 @@ fun flatten(
     schema: ViaductSchema,
     typeInScope: ViaductSchema.CompositeTypeDef,
     selectionSet: List<SpecSelection>,
-): SelectionForest =
-    flattenForMaterialization(
-        schema = schema,
-        typeInScope = typeInScope,
-        selectionSet = selectionSet,
-    ).constructionSelections()
-
-/**
- * Flattens a spec selection set while retaining each field occurrence's GraphQL response key.
- *
- * Inline fragments contribute applicability guards without becoming materialize selections.
- * Source occurrences remain uncollected until a concrete parent type is supplied to
- * [MaterializeSelectionForest.collect].
- */
-fun flattenForMaterialization(
-    schema: ViaductSchema,
-    typeInScope: ViaductSchema.CompositeTypeDef,
-    selectionSet: List<SpecSelection>,
-): MaterializeSelectionForest {
+): SelectionForest {
     val initialContext =
         SelectionContext(
             nominalType = typeInScope,
@@ -56,11 +36,11 @@ private fun flattenSelectionSet(
     schema: ViaductSchema,
     selections: List<SpecSelection>,
     context: SelectionContext,
-): MaterializeSelectionForest =
-    selections.flatMapToMaterializeSelectionForest { selection ->
+): SelectionForest =
+    selections.flatMapToSelectionForest { selection ->
         when (selection) {
             is SpecSelection.Field ->
-                materializeSelectionForestOf(selection.flattenField(schema, context))
+                selectionForestOf(selection.flattenField(schema, context))
             is SpecSelection.InlineFragment -> {
                 val fragmentContext =
                     selection.typeCondition?.let { typeCondition ->
@@ -85,11 +65,11 @@ private fun flattenSelectionSet(
 private fun SpecSelection.Field.flattenField(
     schema: ViaductSchema,
     context: SelectionContext,
-): MaterializeSelection {
+): Selection {
     val field = schemaField
     val flattenedSubselections =
         when (val resultType = field.type.baseTypeDef) {
-            is ViaductSchema.SimpleTypeDef -> materializeSelectionForestOf()
+            is ViaductSchema.SimpleTypeDef -> selectionForestOf()
 
             is ViaductSchema.CompositeTypeDef ->
                 flattenSelectionSet(
@@ -104,7 +84,7 @@ private fun SpecSelection.Field.flattenField(
             else -> error("Output field has a non-output type")
         }
 
-    return MaterializeSelection.of(
+    return Selection.of(
         responseKey = alias ?: fieldName,
         key =
             ObjectEngineResult.Key.of(

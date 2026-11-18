@@ -28,8 +28,8 @@ import viaduct.engine.runtime2.model.EngineErrorData
 import viaduct.engine.runtime2.model.EngineErrorDataReadException
 import viaduct.engine.runtime2.model.EngineObjectDataEntry
 import viaduct.engine.runtime2.model.ListEngineResult
-import viaduct.engine.runtime2.model.MaterializeSelectionForest
 import viaduct.engine.runtime2.model.MutationSelectionForest
+import viaduct.engine.runtime2.model.SelectionForest
 import viaduct.engine.runtime2.model.emptyFragmentOf
 import viaduct.engine.runtime2.model.engineObjectDataOf
 import viaduct.engine.runtime2.model.outputValue
@@ -50,7 +50,7 @@ class JEXLNonselectiveFieldResolverFunctionTest {
         runBlocking {
             var calls = 0
             val context = object : ResolutionExecutionContext {
-                override suspend fun resolveSelectionSet(selections: MaterializeSelectionForest): EngineObjectData.Sync {
+                override suspend fun resolveSelectionSet(selections: SelectionForest): EngineObjectData.Sync {
                     calls++
                     return world.schema.objectOf("Query")
                 }
@@ -81,7 +81,7 @@ class JEXLNonselectiveFieldResolverFunctionTest {
             val fixture = nestedExecutionWorld()
             val failure = IllegalStateException("nested execution failed")
             val context = object : ResolutionExecutionContext {
-                override suspend fun resolveSelectionSet(selections: MaterializeSelectionForest): EngineObjectData.Sync = throw failure
+                override suspend fun resolveSelectionSet(selections: SelectionForest): EngineObjectData.Sync = throw failure
             }
             for ((coordinate, function) in fixture.executionFunctions("var n = 1;\nquery('{ remote }');")) {
                 val error = assertThrows<JexlException>(coordinate) { function(context) }
@@ -110,10 +110,10 @@ class JEXLNonselectiveFieldResolverFunctionTest {
                             }
                         }
                         val context = object : ResolutionExecutionContext {
-                            override suspend fun resolveSelectionSet(selections: MaterializeSelectionForest): EngineObjectData.Sync = suspendChild()
+                            override suspend fun resolveSelectionSet(selections: SelectionForest): EngineObjectData.Sync = suspendChild()
 
                             override suspend fun resolveMutationSelectionSet(
-                                selections: MaterializeSelectionForest,
+                                selections: SelectionForest,
                                 mutations: MutationSelectionForest,
                             ): EngineObjectData.Sync = suspendChild()
                         }
@@ -320,7 +320,7 @@ class JEXLNonselectiveFieldResolverFunctionTest {
             assertEquals(9, output.get("n"))
             val input = world.schema.objectOf("Other") { "n" setTo 11 }
             val context = object : ResolutionExecutionContext {
-                override suspend fun resolveSelectionSet(selections: MaterializeSelectionForest): EngineObjectData.Sync = world.schema.objectOf("Query") { "abstract" setTo input }
+                override suspend fun resolveSelectionSet(selections: SelectionForest): EngineObjectData.Sync = world.schema.objectOf("Query") { "abstract" setTo input }
             }
             val returned = assertIs<EngineObjectData.Sync>(invoke(function("query('{ abstract { __typename n } }').abstract", "abstract"), context = context))
             assertEquals("Other", returned.type.name)
@@ -389,7 +389,7 @@ class JEXLNonselectiveFieldResolverFunctionTest {
                 listOf(EngineObjectDataEntry.of("absent", world.schema.requireObjectField("Item", "n"), 7)),
             )
             val context = object : ResolutionExecutionContext {
-                override suspend fun resolveSelectionSet(selections: MaterializeSelectionForest): EngineObjectData.Sync = world.schema.objectOf("Query") { "item" setTo input }
+                override suspend fun resolveSelectionSet(selections: SelectionForest): EngineObjectData.Sync = world.schema.objectOf("Query") { "item" setTo input }
             }
             for ((script, path) in listOf(
                 "query('{ item { absent: n } }').item" to "Query/item",
@@ -520,7 +520,7 @@ class JEXLNonselectiveFieldResolverFunctionTest {
         runBlocking {
             val failure = IllegalStateException("subquery failed")
             val failing = object : ResolutionExecutionContext {
-                override suspend fun resolveSelectionSet(selections: MaterializeSelectionForest): EngineObjectData.Sync = throw failure
+                override suspend fun resolveSelectionSet(selections: SelectionForest): EngineObjectData.Sync = throw failure
             }
             val exception = assertThrows<JexlException> { invoke(function("var n = 1;\nreturn query('{ numbers }').numbers[0];"), context = failing) }
             assertEquals("Query/result", exception.info.name)
@@ -529,7 +529,7 @@ class JEXLNonselectiveFieldResolverFunctionTest {
 
             val error = EngineErrorData.of(failure)
             val errorValue = object : ResolutionExecutionContext {
-                override suspend fun resolveSelectionSet(selections: MaterializeSelectionForest): EngineObjectData.Sync = world.schema.objectOf("Query") { "numbers" setTo listOf(error) }
+                override suspend fun resolveSelectionSet(selections: SelectionForest): EngineObjectData.Sync = world.schema.objectOf("Query") { "numbers" setTo listOf(error) }
             }
             val read = assertThrows<EngineErrorDataReadException> { invoke(function("query('{ numbers }').numbers[0]"), context = errorValue) }
             assertSame(error, read.errorData)
@@ -545,7 +545,7 @@ class JEXLNonselectiveFieldResolverFunctionTest {
             val item = fixture.schema.objectOf("Item") { "n" setTo error }
             val root = engineObjectDataOf(field.containingDef, mapOf("item" to item))
             val context = object : ResolutionExecutionContext {
-                override suspend fun resolveSelectionSet(selections: MaterializeSelectionForest): EngineObjectData.Sync = root
+                override suspend fun resolveSelectionSet(selections: SelectionForest): EngineObjectData.Sync = root
             }
             for (script in listOf(
                 "query('{ item { n } }').item",
@@ -577,7 +577,7 @@ class JEXLNonselectiveFieldResolverFunctionTest {
                 val entered = AtomicInteger()
                 val allEntered = CompletableDeferred<Unit>()
                 val context = object : ResolutionExecutionContext {
-                    override suspend fun resolveSelectionSet(selections: MaterializeSelectionForest): EngineObjectData.Sync {
+                    override suspend fun resolveSelectionSet(selections: SelectionForest): EngineObjectData.Sync {
                         if (entered.incrementAndGet() == invocations) allEntered.complete(Unit)
                         allEntered.await()
                         return world.schema.objectOf("Query") { "numbers" setTo listOf(7) }
@@ -668,7 +668,7 @@ class JEXLNonselectiveFieldResolverFunctionTest {
                 val started = CompletableDeferred<Unit>()
                 val finished = CompletableDeferred<Unit>()
                 val context = object : ResolutionExecutionContext {
-                    override suspend fun resolveSelectionSet(selections: MaterializeSelectionForest): EngineObjectData.Sync {
+                    override suspend fun resolveSelectionSet(selections: SelectionForest): EngineObjectData.Sync {
                         started.complete(Unit)
                         try {
                             awaitCancellation()
@@ -683,7 +683,7 @@ class JEXLNonselectiveFieldResolverFunctionTest {
                 finished.await()
                 val spinningStarted = CompletableDeferred<Unit>()
                 val signal = object : ResolutionExecutionContext {
-                    override suspend fun resolveSelectionSet(selections: MaterializeSelectionForest): EngineObjectData.Sync {
+                    override suspend fun resolveSelectionSet(selections: SelectionForest): EngineObjectData.Sync {
                         spinningStarted.complete(Unit)
                         return world.schema.objectOf("Query")
                     }

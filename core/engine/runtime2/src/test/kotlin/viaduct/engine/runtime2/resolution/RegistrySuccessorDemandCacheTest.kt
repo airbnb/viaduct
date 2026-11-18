@@ -13,7 +13,6 @@ import viaduct.engine.api.CheckerResult
 import viaduct.engine.runtime2.model.InclusionCondition
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.SelectionForest
-import viaduct.engine.runtime2.model.materializeSelectionForestOf
 import viaduct.engine.runtime2.model.merge
 import viaduct.engine.runtime2.model.registry.Assumptions
 import viaduct.engine.runtime2.model.registry.FieldCheckerResolver
@@ -23,6 +22,7 @@ import viaduct.engine.runtime2.model.registry.TypeCheckerResolver
 import viaduct.engine.runtime2.model.requireObjectField
 import viaduct.engine.runtime2.model.requireQueryTypeDef
 import viaduct.engine.runtime2.model.requireType
+import viaduct.engine.runtime2.model.selectionForestOf
 import viaduct.engine.runtime2.model.testing.TestWorld
 import viaduct.engine.runtime2.model.testing.fragmentFrom
 import viaduct.engine.runtime2.resolution.framework.Demand
@@ -64,8 +64,8 @@ class RegistrySuccessorDemandCacheTest {
                 world.schema.requireQueryTypeDef(),
                 mapOf(
                     "raw" to ResolverFragmentTemplates(
-                        fixture.schemas.fragmentFrom("fragment F on Query { checkerOnly }").materializeSelections,
-                        materializeSelectionForestOf(),
+                        fixture.schemas.fragmentFrom("fragment F on Query { checkerOnly }").subselections,
+                        selectionForestOf(),
                     ),
                 ),
             ) { _, _, _ -> CheckerResult.Success }
@@ -159,8 +159,8 @@ private fun recursiveFixture(): TestWorld =
                     schemas.loweredSchema.requireQueryTypeDef(),
                     mapOf(
                         "raw" to ResolverFragmentTemplates(
-                            schemas.fragmentFrom("fragment F on Item { marker raw }").materializeSelections,
-                            materializeSelectionForestOf(),
+                            schemas.fragmentFrom("fragment F on Item { marker raw }").subselections,
+                            selectionForestOf(),
                         ),
                     ),
                 ) { _, _ -> CheckerResult.Success },

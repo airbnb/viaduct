@@ -1,10 +1,13 @@
 package viaduct.engine.runtime2.model
 
+import java.util.concurrent.ConcurrentHashMap
 import viaduct.engine.api.EngineObjectData
+import viaduct.engine.api.FieldDirectives
 import viaduct.graphql.schema.ViaductSchema
 
 /**
- * A collection of opaque [Selection] members, commutative except for [MutationSelectionForest].
+ * An immutable source graph of opaque [Selection] occurrences. Construction is commutative;
+ * projection retains source order, and [MutationSelectionForest] stipulates execution order.
  * Ordinary forest construction and concatenation require coherent selections without mutation
  * members or mutation subselections; callers preserve this precondition without another check.
  *
@@ -17,8 +20,7 @@ import viaduct.graphql.schema.ViaductSchema
  *
  * ### Equality And Observation
  *
- * Selection and forest equality are undefined, and no operation compares whole [Selection] values
- * or exposes member order except for [MutationSelectionForest]. [merge] is the explicit normalization boundary that compares structural
+ * Selection and forest equality are undefined, and no operation compares whole [Selection] values. Traversal retains source order for projection. [merge] is the explicit construction boundary that compares structural
  * object keys and coalesces forest members.
  */
 sealed interface SelectionForest {
@@ -65,7 +67,8 @@ internal fun SelectionForest.forEachPossibleObjectField(action: (ViaductSchema.O
  * ### Invariant: object-selection-forest-normalization
  *
  * Every selection is an [ObjectSelection] whose key field belongs to [type], whose
- * `possibleTypes == setOf(type)`, and whose key occurs exactly once.
+ * `possibleTypes == setOf(type)`, and whose key occurs exactly once. These are construction
+ * results: their response keys and field directives are null and they cannot be projected.
  */
 sealed interface ObjectSelectionForest : SelectionForest {
     val type: ViaductSchema.Object
@@ -105,7 +108,7 @@ sealed interface ObjectSelectionForest : SelectionForest {
             type: ViaductSchema.Object,
             selections: Iterable<ObjectSelection>,
         ): ObjectSelectionForest {
-            val occurrences = selections.toList()
+            val occurrences = selections.map { it.withoutProjectionMetadata() }
             val byKey =
                 buildMap(occurrences.size) {
                     occurrences.forEach { selection ->
@@ -215,7 +218,7 @@ private fun SelectionForest.mergeSlowPath(type: ViaductSchema.Object): ObjectSel
                             selection is ObjectSelection &&
                             (selection.inclusionCondition === InclusionCondition.Always || selection.subselections.isEmpty())
                         ) {
-                            put(key, selection)
+                            put(key, selection.withoutProjectionMetadata())
                         } else {
                             put(key, ObjectSelectionBuilder(key, possibleTypes, selection, guardChildren = true))
                         }
@@ -284,7 +287,7 @@ private fun normalizedSingletonSelection(
         occurrence is ObjectSelection &&
         (occurrence.inclusionCondition === InclusionCondition.Always || occurrence.subselections.isEmpty())
     ) {
-        occurrence
+        occurrence.withoutProjectionMetadata()
     } else {
         ObjectSelectionImpl(
             key = key,
@@ -328,6 +331,8 @@ private class ObjectSelectionBuilder(
             selection.subselections.forEach { child ->
                 target.add(
                     Selection.of(
+                        responseKey = child.responseKey,
+                        fieldDirectives = child.fieldDirectives,
                         key = child.key,
                         possibleTypes = child.possibleTypes,
                         subselections = child.subselections,
@@ -385,9 +390,10 @@ fun Selection.objectKey(type: ViaductSchema.Object): ObjectEngineResult.ObjectKe
 /**
  * A post-validation field-selection occurrence used for Viaduct field resolution.
  *
- * This is not a GraphQL AST selection or a description of field completion. Ordinary selections
- * omit aliases, response keys, source order, named fragments, inline-fragment nodes, and raw directives.
- * [MutationSelection] retains its response key, and [MutationSelectionForest] stipulates execution order. Inline
+ * A source occurrence retains its response key and field directives for projection. Construction
+ * results have a null response key and no field directives; they are not projectable. Construction
+ * groups occurrences by canonical invocation; projection groups source occurrences by response key.
+ * [MutationSelectionForest] stipulates mutation execution order. Inline
  * fragments have already been flattened into the field coordinate in [key], the applicability
  * guard in [possibleTypes], and [inclusionCondition].
  *
@@ -410,6 +416,12 @@ fun Selection.objectKey(type: ViaductSchema.Object): ObjectEngineResult.ObjectKe
  * requirement is established.
  */
 sealed interface Selection {
+    /** Alias or field name on a source occurrence; null on a construction-only selection. */
+    val responseKey: String? get() = null
+
+    /** Projection metadata retained on source occurrences. */
+    val fieldDirectives: FieldDirectives? get() = null
+
     /**
      * Exact alias-free output-field coordinate being selected.
      *
@@ -494,7 +506,11 @@ sealed interface Selection {
             possibleTypes: Set<ViaductSchema.Object>,
             subselections: SelectionForest,
             inclusionCondition: InclusionCondition = InclusionCondition.Always,
+            responseKey: String? = null,
+            fieldDirectives: FieldDirectives? = null,
         ): Selection {
+            require(responseKey == null || responseKey.isNotEmpty()) { "A source selection requires a non-empty response key" }
+            require(responseKey != null || fieldDirectives == null) { "A construction-only selection cannot have field directives" }
             return when (key) {
                 is ObjectEngineResult.ObjectKey ->
                     ObjectSelectionImpl(
@@ -502,6 +518,8 @@ sealed interface Selection {
                         possibleTypes = possibleTypes,
                         subselections = subselections,
                         inclusionCondition = inclusionCondition,
+                        responseKey = responseKey,
+                        fieldDirectives = fieldDirectives,
                     )
                 else ->
                     SelectionImpl(
@@ -509,6 +527,8 @@ sealed interface Selection {
                         possibleTypes = possibleTypes,
                         subselections = subselections,
                         inclusionCondition = inclusionCondition,
+                        responseKey = responseKey,
+                        fieldDirectives = fieldDirectives,
                     )
             }
         }
@@ -519,7 +539,9 @@ sealed interface Selection {
             possibleTypes: Set<ViaductSchema.Object>,
             subselections: SelectionForest,
             inclusionCondition: InclusionCondition = InclusionCondition.Always,
-        ): ObjectSelection = ObjectSelection.of(key, possibleTypes, subselections, inclusionCondition)
+            responseKey: String? = null,
+            fieldDirectives: FieldDirectives? = null,
+        ): ObjectSelection = ObjectSelection.of(key, possibleTypes, subselections, inclusionCondition, responseKey, fieldDirectives)
     }
 }
 
@@ -534,8 +556,12 @@ sealed interface ObjectSelection : Selection {
             possibleTypes: Set<ViaductSchema.Object>,
             subselections: SelectionForest,
             inclusionCondition: InclusionCondition = InclusionCondition.Always,
+            responseKey: String? = null,
+            fieldDirectives: FieldDirectives? = null,
         ): ObjectSelection {
-            return ObjectSelectionImpl(key, possibleTypes, inclusionCondition, subselections)
+            require(responseKey == null || responseKey.isNotEmpty()) { "A source selection requires a non-empty response key" }
+            require(responseKey != null || fieldDirectives == null) { "A construction-only selection cannot have field directives" }
+            return ObjectSelectionImpl(key, possibleTypes, inclusionCondition, subselections, responseKey, fieldDirectives)
         }
     }
 }
@@ -562,6 +588,8 @@ private class SelectionImpl(
     override val possibleTypes: Set<ViaductSchema.Object>,
     override val inclusionCondition: InclusionCondition,
     override val subselections: SelectionForest,
+    override val responseKey: String? = null,
+    override val fieldDirectives: FieldDirectives? = null,
 ) : Selection
 
 private class ObjectSelectionImpl(
@@ -569,7 +597,14 @@ private class ObjectSelectionImpl(
     override val possibleTypes: Set<ViaductSchema.Object>,
     override val inclusionCondition: InclusionCondition,
     override val subselections: SelectionForest,
+    override val responseKey: String? = null,
+    override val fieldDirectives: FieldDirectives? = null,
 ) : ObjectSelection
+
+/** Clears only this occurrence's projection metadata; its child forest remains shared. */
+internal fun Selection.withoutProjectionMetadata(): Selection = if (responseKey == null) this else Selection.of(key, possibleTypes, subselections, inclusionCondition)
+
+private fun ObjectSelection.withoutProjectionMetadata(): ObjectSelection = if (responseKey == null) this else ObjectSelectionImpl(key, possibleTypes, inclusionCondition, subselections)
 
 /** Conjunctively guards each occurrence while retaining a compact condition graph. */
 fun SelectionForest.guardedBy(condition: InclusionCondition): SelectionForest =
@@ -578,6 +613,8 @@ fun SelectionForest.guardedBy(condition: InclusionCondition): SelectionForest =
     } else {
         mapSelections { selection ->
             Selection.of(
+                responseKey = selection.responseKey,
+                fieldDirectives = selection.fieldDirectives,
                 key = selection.key,
                 possibleTypes = selection.possibleTypes,
                 subselections = selection.subselections,
@@ -638,6 +675,8 @@ private interface CachedSelectionForest : SelectionForest {
     var merged: ObjectSelectionForest?
     var containsVariables: Boolean?
     var containsParentKeys: Boolean?
+    var unconditional: Boolean?
+    val projectionLayouts: ConcurrentHashMap<ViaductSchema.Object, ObjectMaterializeSelectionForest>
 }
 
 private class SingletonSelectionForest(
@@ -646,6 +685,8 @@ private class SingletonSelectionForest(
     @Volatile override var merged: ObjectSelectionForest? = null
     @Volatile override var containsVariables: Boolean? = null
     @Volatile override var containsParentKeys: Boolean? = null
+    @Volatile override var unconditional: Boolean? = null
+    override val projectionLayouts by lazy { ConcurrentHashMap<ViaductSchema.Object, ObjectMaterializeSelectionForest>() }
     override val size: Int get() = 1
 
     override fun isEmpty(): Boolean = false
@@ -669,6 +710,8 @@ private abstract class AbstractSelectionForest(
     @Volatile override var merged: ObjectSelectionForest? = null
     @Volatile override var containsVariables: Boolean? = null
     @Volatile override var containsParentKeys: Boolean? = null
+    @Volatile override var unconditional: Boolean? = null
+    override val projectionLayouts by lazy { ConcurrentHashMap<ViaductSchema.Object, ObjectMaterializeSelectionForest>() }
 
     init {
         SelectionForest.requireSupportedSize(occurrences.size)
@@ -705,6 +748,8 @@ private class ConcatenatedSelectionForest(
     @Volatile override var merged: ObjectSelectionForest? = null
     @Volatile override var containsVariables: Boolean? = null
     @Volatile override var containsParentKeys: Boolean? = null
+    @Volatile override var unconditional: Boolean? = null
+    override val projectionLayouts by lazy { ConcurrentHashMap<ViaductSchema.Object, ObjectMaterializeSelectionForest>() }
     override val size: Int = left.size + right.size
 
     init {
@@ -743,12 +788,7 @@ private class ConcatenatedSelectionForest(
 
     override fun plus(other: SelectionForest): SelectionForest {
         if (other.isEmpty()) return this
-        // Ordinary forests are unordered; keep an added leaf on the left for chain traversal.
-        return if (other is ConcatenatedSelectionForest) {
-            ConcatenatedSelectionForest(this, other)
-        } else {
-            ConcatenatedSelectionForest(other, this)
-        }
+        return ConcatenatedSelectionForest(this, other)
     }
 }
 
@@ -821,4 +861,19 @@ private class ObjectSelectionForestImpl(
         }
 
     override fun get(key: ObjectEngineResult.ObjectKey): ObjectSelection = selectionsByKey.getValue(key)
+}
+
+internal fun SelectionForest.cachedProjection(
+    type: ViaductSchema.Object,
+    collect: () -> ObjectMaterializeSelectionForest
+): ObjectMaterializeSelectionForest {
+    if (this !is CachedSelectionForest || !isUnconditional()) return collect()
+    return projectionLayouts.computeIfAbsent(type) { collect() }
+}
+
+/** Reuses the immutable source forest's inclusion classification across materializations. */
+internal fun SelectionForest.isUnconditional(): Boolean {
+    val cached = this as? CachedSelectionForest
+    cached?.unconditional?.let { return it }
+    return all { it.inclusionCondition === InclusionCondition.Always }.also { cached?.unconditional = it }
 }

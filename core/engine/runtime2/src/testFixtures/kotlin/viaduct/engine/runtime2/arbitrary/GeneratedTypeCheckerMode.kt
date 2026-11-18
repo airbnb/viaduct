@@ -3,10 +3,8 @@ package viaduct.engine.runtime2.arbitrary
 import viaduct.engine.api.CheckerResult
 import viaduct.engine.api.CheckerResultContext
 import viaduct.engine.runtime2.model.Arguments
-import viaduct.engine.runtime2.model.MaterializeSelectionForest
 import viaduct.engine.runtime2.model.ResolverTarget
 import viaduct.engine.runtime2.model.SelectionForest
-import viaduct.engine.runtime2.model.materializeSelectionForestOf
 import viaduct.engine.runtime2.model.objectKey
 import viaduct.engine.runtime2.model.registry.ProviderFragment
 import viaduct.engine.runtime2.model.registry.ResolverFragmentTemplates
@@ -14,6 +12,7 @@ import viaduct.engine.runtime2.model.registry.TypeCheckerResolver
 import viaduct.engine.runtime2.model.registry.VariableDefinition
 import viaduct.engine.runtime2.model.requireObjectField
 import viaduct.engine.runtime2.model.requireQueryTypeDef
+import viaduct.engine.runtime2.model.selectionForestOf
 import viaduct.engine.runtime2.model.testing.fragmentFrom
 import viaduct.engine.runtime2.model.usedVariables
 import viaduct.engine.runtime2.schema.ViaductAndGJSchema
@@ -67,8 +66,8 @@ internal fun ArbitraryRegistry.generatedTypeCheckers(
             val queryInput = "rootKind: __typename " +
                 activeFields(query).mapIndexed { index, field -> "query$index: ${field.name}" }.joinToString(" ")
             val pair = ResolverFragmentTemplates(
-                schema.fragmentFrom("fragment Input on ${type.name} { $objectInput }").materializeSelections,
-                schema.fragmentFrom("fragment Input on Query { $queryInput }").materializeSelections,
+                schema.fragmentFrom("fragment Input on ${type.name} { $objectInput }").subselections,
+                schema.fragmentFrom("fragment Input on Query { $queryInput }").subselections,
             )
             // Reuse sampled fragment/provider plans, just as field checkers do, but give every
             // variable the type-checker target. No field argument tuple belongs to this owner.
@@ -102,7 +101,7 @@ internal fun ArbitraryRegistry.generatedTypeCheckers(
                         put(if (index == 0) "left" else "left$index", templates)
                         put(if (index == 0) "right" else "right$index", templates)
                     }
-                    put("empty", ResolverFragmentTemplates(materializeSelectionForestOf(), materializeSelectionForestOf()))
+                    put("empty", ResolverFragmentTemplates(selectionForestOf(), selectionForestOf()))
                 },
             ) { inputs, _ ->
                 if (!validateInputs) return@of result
@@ -127,12 +126,12 @@ private fun ArbitraryRegistry.runtimeTypeCheckerPair(
 ): ResolverFragmentTemplates {
     val field = schema.loweredSchema.requireObjectField(coordinate.typeName, coordinate.fieldName)
     val target = ResolverTarget.TypeCheckerTarget(type)
-    val objectInput = objectFragments.getValue(coordinate).materialize(schema, field, target).materializeSelections
-    val queryInput = queryFragments.getValue(coordinate).materialize(schema, field, target).materializeSelections
+    val objectInput = objectFragments.getValue(coordinate).materialize(schema, field, target).subselections
+    val queryInput = queryFragments.getValue(coordinate).materialize(schema, field, target).subselections
     check(objectInput.selectsNoParentField() && queryInput.selectsNoParentField()) {
         "Generated type checker on ${type.name} reuses $coordinate, which selects a @parent field"
     }
-    val usedNames = (objectInput.constructionSelections().usedVariables() + queryInput.constructionSelections().usedVariables())
+    val usedNames = (objectInput.usedVariables() + queryInput.usedVariables())
         .mapTo(linkedSetOf(), Arguments.Variable::variableName)
     val providers = variableProviders.filter { it.owner == coordinate && it.variableName in usedNames }
     val variables = providers.associate { provider ->
@@ -140,7 +139,7 @@ private fun ArbitraryRegistry.runtimeTypeCheckerPair(
             is FromProviderVariableProviderPlan -> VariableDefinition.FromProvider
             is FromArgumentVariableProviderPlan -> error("Type checkers have no field arguments")
             is FromFieldVariableProviderPlan -> {
-                var selections: MaterializeSelectionForest = if (provider.providerFragment == ProviderFragment.OBJECT) objectInput else queryInput
+                var selections: SelectionForest = if (provider.providerFragment == ProviderFragment.OBJECT) objectInput else queryInput
                 val path = provider.responsePath().map { responseKey ->
                     val selected = selections.filter { it.responseKey == responseKey }
                     val keys = mutableListOf<viaduct.engine.runtime2.model.ObjectEngineResult.Key>()

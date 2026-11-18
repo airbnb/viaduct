@@ -26,7 +26,7 @@ class ArgumentsTestingTest {
                     """.trimIndent(),
                 variableField = field,
             )
-        val materializeSelection = fragment.materializeSelections.single()
+        val materializeSelection = fragment.subselections.single()
         val selection = fragment.subselections.single()
 
         assertSame(

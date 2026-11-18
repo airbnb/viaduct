@@ -15,11 +15,11 @@ import viaduct.engine.runtime2.model.EngineErrorData
 import viaduct.engine.runtime2.model.EngineObjectOrErrorData
 import viaduct.engine.runtime2.model.EngineResultCell
 import viaduct.engine.runtime2.model.InclusionCondition
-import viaduct.engine.runtime2.model.MaterializeSelectionForest
 import viaduct.engine.runtime2.model.MutationSelectionForest
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.ObjectSelection
 import viaduct.engine.runtime2.model.ResolverOccurrenceId
+import viaduct.engine.runtime2.model.SelectionForest
 import viaduct.engine.runtime2.model.VariableBinding
 import viaduct.engine.runtime2.model.engineObjectDataOf
 import viaduct.engine.runtime2.model.guardedBy
@@ -348,9 +348,9 @@ internal class FieldResolverTask(
      * This is distinct from the resolver's declared Query fragment. Startup installs the selected
      * result cells; [materializeResult] projects their values for the caller and can await them.
      */
-    override suspend fun resolveSelectionSet(selections: MaterializeSelectionForest): EngineObjectData.Sync {
+    override suspend fun resolveSelectionSet(selections: SelectionForest): EngineObjectData.Sync {
         val childOperation = publication.operation.forChildScope(fieldTaskScope)
-        val result = childOperation.startResolve(selections.constructionSelections(), creator = this)
+        val result = childOperation.startResolve(selections, creator = this)
         return result.materializeResult(
             operation = childOperation,
             selections = selections,
@@ -361,7 +361,7 @@ internal class FieldResolverTask(
 
     /** Finishes every nested mutation before materialization can fail or return to the caller. */
     override suspend fun resolveMutationSelectionSet(
-        selections: MaterializeSelectionForest,
+        selections: SelectionForest,
         mutations: MutationSelectionForest,
     ): EngineObjectData.Sync {
         val result = coroutineScope {

@@ -7,7 +7,6 @@ import viaduct.engine.api.EngineObjectData
 import viaduct.engine.runtime2.model.Arguments
 import viaduct.engine.runtime2.model.EngineErrorData
 import viaduct.engine.runtime2.model.ErrorEngineResult
-import viaduct.engine.runtime2.model.MaterializeSelectionForest
 import viaduct.engine.runtime2.model.NodeReferenceIdentity
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.ObjectSelection
@@ -18,12 +17,12 @@ import viaduct.engine.runtime2.model.SelectionForest
 import viaduct.engine.runtime2.model.conformsToResolverOutputSchemaType
 import viaduct.engine.runtime2.model.engineObjectDataOf
 import viaduct.engine.runtime2.model.groundKey
-import viaduct.engine.runtime2.model.materializeSelectionForestOf
 import viaduct.engine.runtime2.model.nodeReferenceIdentityOrNull
 import viaduct.engine.runtime2.model.registry.FieldValueResolver
 import viaduct.engine.runtime2.model.registry.ResolutionExecutionContext
 import viaduct.engine.runtime2.model.registry.ResolverFragment
 import viaduct.engine.runtime2.model.requireQueryTypeDef
+import viaduct.engine.runtime2.model.selectionForestOf
 import viaduct.engine.runtime2.resolution.framework.CycleCheckState
 import viaduct.engine.runtime2.resolution.framework.CycleTask
 import viaduct.engine.runtime2.resolution.framework.OEROccurrence
@@ -233,7 +232,7 @@ class DepthFirstFieldResolverTask private constructor(
                         occurrencePath = invocation.invocationPath,
                         field = invocation.invocationKey.field,
                         input = input,
-                        inputSelections = materializeSelectionForestOf(),
+                        inputSelections = selectionForestOf(),
                         queryValue = queryValue,
                         queryInputSelections = queryMaterializationSelections,
                         arguments = reference.arguments,
@@ -280,7 +279,7 @@ class DepthFirstFieldResolverTask private constructor(
 
     /** Materializes one already-prepared depth-first input through the shared suspend API. */
     private fun ObjectEngineResult.materializeInput(
-        selections: MaterializeSelectionForest,
+        selections: SelectionForest,
         reader: CycleTask,
     ): EngineObjectData.Sync =
         runBlocking {

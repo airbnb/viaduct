@@ -1,0 +1,9 @@
+{
+  "time_reduction_percent": 10.472193666534269,
+  "allocation_reduction_percent": 25.34500422657985,
+  "jmh_elapsed": {
+    "baseline": "00:08:29",
+    "candidate": "00:08:28"
+  },
+  "jmh_elapsed_total_seconds": 1017
+}

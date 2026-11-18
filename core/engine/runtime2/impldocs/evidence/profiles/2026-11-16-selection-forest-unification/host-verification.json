@@ -1,0 +1,28 @@
+{
+  "verified_at_utc": "2026-11-16T01:24:25.721810+00:00",
+  "runner_exit_code": 0,
+  "original_matches_restored_record": true,
+  "governors": {
+    "/sys/devices/system/cpu/cpufreq/policy0/scaling_governor": "powersave",
+    "/sys/devices/system/cpu/cpufreq/policy1/scaling_governor": "powersave",
+    "/sys/devices/system/cpu/cpufreq/policy10/scaling_governor": "powersave",
+    "/sys/devices/system/cpu/cpufreq/policy11/scaling_governor": "powersave",
+    "/sys/devices/system/cpu/cpufreq/policy2/scaling_governor": "powersave",
+    "/sys/devices/system/cpu/cpufreq/policy3/scaling_governor": "powersave",
+    "/sys/devices/system/cpu/cpufreq/policy4/scaling_governor": "powersave",
+    "/sys/devices/system/cpu/cpufreq/policy5/scaling_governor": "powersave",
+    "/sys/devices/system/cpu/cpufreq/policy6/scaling_governor": "powersave",
+    "/sys/devices/system/cpu/cpufreq/policy7/scaling_governor": "powersave",
+    "/sys/devices/system/cpu/cpufreq/policy8/scaling_governor": "powersave",
+    "/sys/devices/system/cpu/cpufreq/policy9/scaling_governor": "powersave"
+  },
+  "services": {
+    "apt-daily.timer": "active",
+    "apt-daily-upgrade.timer": "active",
+    "unattended-upgrades.service": "active"
+  },
+  "live_governors_match_original": true,
+  "live_services_match_original": true,
+  "benchmark_lock_free": true,
+  "remaining_java_processes": []
+}

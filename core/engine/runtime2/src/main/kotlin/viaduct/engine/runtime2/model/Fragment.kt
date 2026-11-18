@@ -7,13 +7,12 @@ import viaduct.graphql.schema.ViaductSchema
  *
  * ### Invariant: fragment-selection-context
  *
- * [materializeSelections] are the response-key-preserving flattened field occurrences of a
- * post-validation selection set interpreted with [nominalType]. [subselections] is their ordinary
- * construction view.
+ * [subselections] are the response-key-preserving flattened field occurrences of a
+ * post-validation selection set interpreted with [nominalType], shared by construction and projection.
  *
  * ### Invariant: fragment-well-foundedness
  *
- * A fragment and its [materializeSelections] form a finite, well-founded value. The selections may
+ * A fragment and its [subselections] form a finite, well-founded value. The selections may
  * be empty.
  *
  * Source field-resolver definitions use fragments while registry preparation preserves source
@@ -25,32 +24,19 @@ sealed interface Fragment {
     val nominalType: ViaductSchema.CompositeTypeDef
 
     /** The response-key-preserving selections nested within this fragment. */
-    val materializeSelections: MaterializeSelectionForest
-
-    /** The ordinary construction view of [materializeSelections]. */
     val subselections: SelectionForest
-        get() = materializeSelections.constructionSelections()
 
     companion object {
         fun of(
             nominalType: ViaductSchema.CompositeTypeDef,
-            materializeSelections: MaterializeSelectionForest,
-        ): Fragment = FragmentImpl(nominalType, materializeSelections)
-
-        fun of(
-            nominalType: ViaductSchema.CompositeTypeDef,
-            subselections: SelectionForest,
-        ): Fragment =
-            FragmentImpl(
-                nominalType,
-                subselections.toCanonicalMaterializeSelectionForest(),
-            )
+            subselections: SelectionForest
+        ): Fragment = FragmentImpl(nominalType, subselections)
     }
 }
 
 private class FragmentImpl(
     override val nominalType: ViaductSchema.CompositeTypeDef,
-    override val materializeSelections: MaterializeSelectionForest,
+    override val subselections: SelectionForest,
 ) : Fragment
 
 /** Constructs an empty requirement that GraphQL fragment text cannot express. */

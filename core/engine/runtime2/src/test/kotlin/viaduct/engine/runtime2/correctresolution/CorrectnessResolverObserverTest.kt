@@ -17,7 +17,6 @@ import viaduct.engine.runtime2.model.requireObjectField
 import viaduct.engine.runtime2.model.requireQueryTypeDef
 import viaduct.engine.runtime2.model.testing.TestWorld
 import viaduct.engine.runtime2.model.testing.emptyFragmentOf
-import viaduct.engine.runtime2.model.toCanonicalMaterializeSelectionForest
 import viaduct.engine.runtime2.resolution.framework.CheckerInvocationObservation
 import viaduct.engine.runtime2.resolution.framework.CheckerKind
 import viaduct.engine.runtime2.resolution.framework.OEROccurrence
@@ -156,9 +155,9 @@ class CorrectnessResolverObserverTest {
                 occurrencePath = path,
                 field = field,
                 input = engineObjectDataOf(world.schema.requireQueryTypeDef()),
-                inputSelections = world.emptyFragmentOf("Query").subselections.toCanonicalMaterializeSelectionForest(),
+                inputSelections = world.emptyFragmentOf("Query").subselections,
                 queryValue = engineObjectDataOf(world.schema.requireQueryTypeDef()),
-                queryInputSelections = world.emptyFragmentOf("Query").materializeSelections,
+                queryInputSelections = world.emptyFragmentOf("Query").subselections,
                 arguments = Arguments.Resolved.of(field, emptyMap()),
                 suppliedDemand = null,
                 resolverOccurrenceId = ResolverOccurrenceId.at(root, path),

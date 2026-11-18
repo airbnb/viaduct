@@ -14,11 +14,11 @@ import viaduct.engine.runtime2.model.Arguments
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.ResolverTarget
 import viaduct.engine.runtime2.model.arg
-import viaduct.engine.runtime2.model.materializeSelectionForestOf
 import viaduct.engine.runtime2.model.merge
 import viaduct.engine.runtime2.model.requireObjectField
 import viaduct.engine.runtime2.model.requireQueryTypeDef
 import viaduct.engine.runtime2.model.requireType
+import viaduct.engine.runtime2.model.selectionForestOf
 import viaduct.engine.runtime2.model.testing.TestWorld
 import viaduct.engine.runtime2.model.testing.fragmentFrom
 import viaduct.engine.runtime2.model.usedVariables
@@ -61,11 +61,11 @@ class TypeCheckerResolverTest {
                                     objectFragmentTemplate =
                                         schema
                                             .fragmentFrom("fragment Input on Item { owner }")
-                                            .materializeSelections,
+                                            .subselections,
                                     queryFragmentTemplate =
                                         schema
                                             .fragmentFrom("fragment Input on Query { viewer }")
-                                            .materializeSelections,
+                                            .subselections,
                                 ),
                         ),
                 ) { inputs, executionContext ->
@@ -110,13 +110,13 @@ class TypeCheckerResolverTest {
                         .fragmentFrom(
                             "fragment Input on Item { id owner(seed: ${'$'}viewerId) }",
                             variableTarget = target,
-                        ).materializeSelections,
+                        ).subselections,
                 queryFragmentTemplate =
                     schema
                         .fragmentFrom(
                             "fragment Input on Query { viewer echo(value: ${'$'}ownerId) }",
                             variableTarget = target,
-                        ).materializeSelections,
+                        ).subselections,
                 variables =
                     mapOf(
                         ownerVariable to
@@ -188,13 +188,13 @@ class TypeCheckerResolverTest {
             val variable = Arguments.Variable.of(target, "provided")
             val templates =
                 ResolverFragmentTemplates(
-                    objectFragmentTemplate = materializeSelectionForestOf(),
+                    objectFragmentTemplate = selectionForestOf(),
                     queryFragmentTemplate =
                         schema
                             .fragmentFrom(
                                 "fragment Input on Query { echo(value: ${'$'}provided) }",
                                 variableTarget = target,
-                            ).materializeSelections,
+                            ).subselections,
                     variables = mapOf(variable to VariableDefinition.FromProvider),
                     variablesProvider = { arguments ->
                         assertEquals(emptyMap(), arguments.fieldValues)
@@ -227,8 +227,8 @@ class TypeCheckerResolverTest {
                         .fragmentFrom(
                             "fragment Input on Item { owner(seed: ${'$'}seed) }",
                             variableTarget = target,
-                        ).materializeSelections,
-                queryFragmentTemplate = materializeSelectionForestOf(),
+                        ).subselections,
+                queryFragmentTemplate = selectionForestOf(),
                 variables = mapOf(variable to VariableDefinition.FromArgument.of(argument)),
             )
         }
@@ -251,8 +251,8 @@ class TypeCheckerResolverTest {
                         .fragmentFrom(
                             "fragment Input on Item { owner(seed: ${'$'}seed) }",
                             variableTarget = typeTarget,
-                        ).materializeSelections,
-                queryFragmentTemplate = materializeSelectionForestOf(),
+                        ).subselections,
+                queryFragmentTemplate = selectionForestOf(),
                 variables = mapOf(variable to VariableDefinition.FromArgument.of(argument)),
             )
         assertFailsWith<IllegalArgumentException> {

@@ -30,7 +30,6 @@ import viaduct.engine.runtime2.model.ResolverTarget
 import viaduct.engine.runtime2.model.RootFieldReferenceData
 import viaduct.engine.runtime2.model.emptyFragmentOf
 import viaduct.engine.runtime2.model.engineObjectDataOf
-import viaduct.engine.runtime2.model.materializeSelectionForestOf
 import viaduct.engine.runtime2.model.materializedEngineObjectDataOf
 import viaduct.engine.runtime2.model.merge
 import viaduct.engine.runtime2.model.outputType
@@ -539,8 +538,8 @@ class CorrectResolutionTest : ResolutionDispatcherResource {
                                                     schema
                                                         .fragmentFrom(
                                                             "fragment Input on Query { objectSource }",
-                                                        ).materializeSelections,
-                                                queryFragmentTemplate = materializeSelectionForestOf(),
+                                                        ).subselections,
+                                                queryFragmentTemplate = selectionForestOf(),
                                             ),
                                     ),
                             ) { _, _, _ -> CheckerResult.Success },
@@ -683,12 +682,12 @@ class CorrectResolutionTest : ResolutionDispatcherResource {
                                     mapOf(
                                         "input" to
                                             ResolverFragmentTemplates(
-                                                objectFragmentTemplate = materializeSelectionForestOf(),
+                                                objectFragmentTemplate = selectionForestOf(),
                                                 queryFragmentTemplate =
                                                     schema
                                                         .fragmentFrom(
                                                             "fragment Input on Query { querySource: source }",
-                                                        ).materializeSelections,
+                                                        ).subselections,
                                             ),
                                     ),
                             ) { _, inputs, _ ->
@@ -783,7 +782,7 @@ class CorrectResolutionTest : ResolutionDispatcherResource {
         fun operation(inputValue: Any): SharedOperationContext<*> {
             val observer = CorrectnessResolverObserver()
             val emptyInput = engineObjectDataOf(world.schema.requireQueryTypeDef())
-            val emptySelections = world.emptyFragmentOf("Query").materializeSelections
+            val emptySelections = world.emptyFragmentOf("Query").subselections
             observer.onResolverInvocation(
                 ResolverInvocationObservation(
                     occurrencePath = listOf(deniedKey),
@@ -808,7 +807,7 @@ class CorrectResolutionTest : ResolutionDispatcherResource {
                         ),
                     inputSelections = inputSelections,
                     queryValue = engineObjectDataOf(world.schema.requireQueryTypeDef()),
-                    queryInputSelections = world.emptyFragmentOf("Query").materializeSelections,
+                    queryInputSelections = world.emptyFragmentOf("Query").subselections,
                     arguments = Arguments.Resolved.of(consumer, emptyMap()),
                     suppliedDemand = null,
                     resolverOccurrenceId = occurrenceId,

@@ -77,7 +77,7 @@ class TypenameLoweringTest {
         assertEquals("_viaduct_internal__typename", objectSelection.key.field.name)
         assertEquals(
             "_viaduct_internal__typename",
-            objectFragment.materializeSelections.single().responseKey,
+            objectFragment.subselections.single().responseKey,
         )
 
         val interfaceSelection =
@@ -94,7 +94,7 @@ class TypenameLoweringTest {
         assertEquals("_viaduct_internal__AllSourceObjects", unionSelection.key.field.containingDef.name)
         assertEquals(
             "kind",
-            unionFragment.materializeSelections.single().responseKey,
+            unionFragment.subselections.single().responseKey,
         )
 
         val nodeSelection =

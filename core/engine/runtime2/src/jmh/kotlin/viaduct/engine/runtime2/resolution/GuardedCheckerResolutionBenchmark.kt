@@ -20,13 +20,13 @@ import org.openjdk.jmh.infra.Blackhole
 import viaduct.engine.api.CheckerResult
 import viaduct.engine.runtime2.model.SelectionForest
 import viaduct.engine.runtime2.model.emptyFragmentOf
-import viaduct.engine.runtime2.model.materializeSelectionForestOf
 import viaduct.engine.runtime2.model.registry.Assumptions
 import viaduct.engine.runtime2.model.registry.FieldCheckerResolver
 import viaduct.engine.runtime2.model.registry.ResolverFragmentTemplates
 import viaduct.engine.runtime2.model.registry.fieldResolverOf
 import viaduct.engine.runtime2.model.requireObjectField
 import viaduct.engine.runtime2.model.requireQueryTypeDef
+import viaduct.engine.runtime2.model.selectionForestOf
 import viaduct.engine.runtime2.model.testing.TestWorld
 import viaduct.engine.runtime2.model.testing.fragmentFrom
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
@@ -114,8 +114,8 @@ private fun guardedCheckerWorld(depth: Int): TestWorld {
             val checked = schema.loweredSchema.requireObjectField("Query", "field$depth")
             val inputs =
                 ResolverFragmentTemplates(
-                    schema.fragmentFrom("fragment CheckerInput on Query { audit }").materializeSelections,
-                    materializeSelectionForestOf(),
+                    schema.fragmentFrom("fragment CheckerInput on Query { audit }").subselections,
+                    selectionForestOf(),
                 )
             mapOf(
                 checked to

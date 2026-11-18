@@ -41,7 +41,7 @@ class SelectionDocumentTest {
         assertEquals("_viaduct_internal__typename", selection.key.field.name)
         assertSame(InclusionCondition.Always, selection.inclusionCondition)
         assertTrue(
-            fragment.materializeSelections.all { materializeSelection ->
+            fragment.subselections.all { materializeSelection ->
                 materializeSelection.responseKey == "__typename"
             },
         )
@@ -75,7 +75,7 @@ class SelectionDocumentTest {
             )
 
         assertEquals("value", fragment.subselections.single().key.field.name)
-        assertEquals("renamed", fragment.materializeSelections.single().responseKey)
+        assertEquals("renamed", fragment.subselections.single().responseKey)
     }
 
     @Test
@@ -105,7 +105,7 @@ class SelectionDocumentTest {
                 ),
             ).fragment
 
-        val selection = fragment.materializeSelections.single()
+        val selection = fragment.subselections.single()
         assertEquals("renamed", selection.responseKey)
         assertTrue(checkNotNull(selection.fieldDirectives).hasDirective("consumerPolicy"))
     }

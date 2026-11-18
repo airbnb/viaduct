@@ -15,7 +15,6 @@ import viaduct.engine.runtime2.model.Arguments
 import viaduct.engine.runtime2.model.Fragment
 import viaduct.engine.runtime2.model.ResolverTarget
 import viaduct.engine.runtime2.model.emptyFragmentOf
-import viaduct.engine.runtime2.model.materializeSelectionForestOf
 import viaduct.engine.runtime2.model.outputType
 import viaduct.engine.runtime2.model.registry.FieldCheckerResolver
 import viaduct.engine.runtime2.model.registry.FieldResolverDefinition
@@ -31,11 +30,12 @@ import viaduct.engine.runtime2.model.registry.fieldResolverOf
 import viaduct.engine.runtime2.model.registry.fromArgument
 import viaduct.engine.runtime2.model.registry.selectiveFieldResolverOf
 import viaduct.engine.runtime2.model.registry.selectiveNodeResolverOf
-import viaduct.engine.runtime2.model.registry.usedVariables
 import viaduct.engine.runtime2.model.requireOutputType
 import viaduct.engine.runtime2.model.requireQueryTypeDef
 import viaduct.engine.runtime2.model.requireType
-import viaduct.engine.runtime2.model.spec.flattenForMaterialization
+import viaduct.engine.runtime2.model.selectionForestOf
+import viaduct.engine.runtime2.model.spec.flatten
+import viaduct.engine.runtime2.model.usedVariables
 import viaduct.engine.runtime2.schema.GJSelectionParser
 import viaduct.engine.runtime2.schema.ParsedSpecFragment
 import viaduct.engine.runtime2.schema.SourceSchemaAdapter
@@ -204,10 +204,10 @@ private class Compiler(
                 source: String,
                 typeName: String
             ) = if (source.isBlank()) {
-                materializeSelectionForestOf()
+                selectionForestOf()
             } else {
                 val parsed = parseFragment(target, "fragment CheckerInput on $typeName { $source }")
-                flattenForMaterialization(schema, parsed.nominalType, parsed.selections)
+                flatten(schema, parsed.nominalType, parsed.selections)
             }
             val objectSelections = selections(input.of, checker.typeName)
             val querySelections = selections(input.qf, "Query")
@@ -354,7 +354,7 @@ private class Compiler(
             val parsed = parseFragment(field, fragmentSource(field, source, typeName))
             Fragment.of(
                 nominalType = parsed.nominalType,
-                materializeSelections = flattenForMaterialization(schema, parsed.nominalType, parsed.selections),
+                subselections = parsed.fragment.subselections,
             )
         }
 

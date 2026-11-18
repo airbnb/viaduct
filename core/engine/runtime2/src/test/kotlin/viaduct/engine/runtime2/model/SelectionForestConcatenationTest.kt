@@ -108,7 +108,7 @@ class SelectionForestConcatenationTest {
     }
 
     @Test
-    fun `concatenation prefers a leaf on the left and all short circuits`() {
+    fun `concatenation preserves projection order and all short circuits`() {
         val world = TestWorld.fromSDL("type Query { value: Int }")
         val query = requireNotNull(world.assumptions.schema.queryTypeDef)
         val key = ObjectEngineResult.Key.of(query.requireField("value"), emptyMap())
@@ -120,13 +120,13 @@ class SelectionForestConcatenationTest {
         }
         val leaf = selectionForestOf(added)
 
-        // Ordinary forest order is unspecified; this checks the leaf-left optimization only.
-        for (forest in listOf(accumulated + leaf, leaf + accumulated)) {
+        // Source order is retained for projection; construction remains order-independent.
+        for ((forest, first) in listOf((accumulated + leaf) to previous, (leaf + accumulated) to added)) {
             var visits = 0
             assertFalse(
                 forest.all { selection ->
                     visits++
-                    assertSame(added, selection)
+                    assertSame(first, selection)
                     false
                 },
             )

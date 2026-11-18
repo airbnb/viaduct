@@ -6,7 +6,6 @@ import viaduct.engine.runtime2.arbitrary.ResolverBenchmarkCorpus
 import viaduct.engine.runtime2.model.Arguments
 import viaduct.engine.runtime2.model.ResolverTarget
 import viaduct.engine.runtime2.model.emptyFragmentOf
-import viaduct.engine.runtime2.model.materializeSelectionForestOf
 import viaduct.engine.runtime2.model.registry.FieldCheckerResolver
 import viaduct.engine.runtime2.model.registry.FieldResolverDefinition
 import viaduct.engine.runtime2.model.registry.ProviderFragment
@@ -17,6 +16,7 @@ import viaduct.engine.runtime2.model.registry.fieldResolverOf
 import viaduct.engine.runtime2.model.requireObjectField
 import viaduct.engine.runtime2.model.requireQueryTypeDef
 import viaduct.engine.runtime2.model.requireType
+import viaduct.engine.runtime2.model.selectionForestOf
 import viaduct.engine.runtime2.model.testing.fragmentFrom
 import viaduct.engine.runtime2.model.testing.fromSDL
 import viaduct.engine.runtime2.model.testing.objectOf
@@ -196,11 +196,11 @@ class ChinaActiveBenchmarkCheckers(corpus: ResolverBenchmarkCorpus, private val 
     ): ResolverFragmentTemplates =
         ResolverFragmentTemplates(
             objectFragmentTemplate = objectSelection?.let {
-                schema.fragmentFrom("fragment Input on $typeName { $it }", variableTarget = target).materializeSelections
-            } ?: materializeSelectionForestOf(),
+                schema.fragmentFrom("fragment Input on $typeName { $it }", variableTarget = target).subselections
+            } ?: selectionForestOf(),
             queryFragmentTemplate = query?.let {
-                schema.fragmentFrom("fragment Input on Query { $it }", variableTarget = target).materializeSelections
-            } ?: materializeSelectionForestOf(),
+                schema.fragmentFrom("fragment Input on Query { $it }", variableTarget = target).subselections
+            } ?: selectionForestOf(),
         )
 
     private fun chinaTemplate(
@@ -213,7 +213,7 @@ class ChinaActiveBenchmarkCheckers(corpus: ResolverBenchmarkCorpus, private val 
         val objectTemplate = schema.fragmentFrom(
             "fragment Input on $typeName { policyId: $identifier @skip(if: ${'$'}$skip) }",
             variableTarget = target,
-        ).materializeSelections
+        ).subselections
         val index = typeName.removePrefix("Object").toInt()
         val selection = when (index % 4) {
             0 -> "country allowed dataScope { synthetic }"
@@ -224,7 +224,7 @@ class ChinaActiveBenchmarkCheckers(corpus: ResolverBenchmarkCorpus, private val 
         val queryTemplate = schema.fragmentFrom(
             "fragment Input on Query { benchmarkChina$typeName(id: ${'$'}id) @skip(if: ${'$'}$skip) { $selection } __typename }",
             variableTarget = target,
-        ).materializeSelections
+        ).subselections
         return ResolverFragmentTemplates(
             objectFragmentTemplate = objectTemplate,
             queryFragmentTemplate = queryTemplate,

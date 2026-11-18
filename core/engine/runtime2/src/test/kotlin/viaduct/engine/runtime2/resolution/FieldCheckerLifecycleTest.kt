@@ -152,8 +152,8 @@ open class FieldCheckerLifecycleTest : ResolutionDispatcherResource {
                                 objectFragmentTemplate = schema.fragmentFrom(
                                     "fragment Input on Query { dependency(value: ${'$'}v) }",
                                     variableTarget = ResolverTarget.FieldCheckerTarget(field)
-                                ).materializeSelections,
-                                queryFragmentTemplate = viaduct.engine.runtime2.model.materializeSelectionForestOf(),
+                                ).subselections,
+                                queryFragmentTemplate = viaduct.engine.runtime2.model.selectionForestOf(),
                                 variables = mapOf(Arguments.Variable.of(ResolverTarget.FieldCheckerTarget(field), "v") to VariableDefinition.FromProvider),
                                 variablesProvider = provider,
                             )

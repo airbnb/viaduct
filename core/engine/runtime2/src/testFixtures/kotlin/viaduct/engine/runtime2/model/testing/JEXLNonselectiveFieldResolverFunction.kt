@@ -328,7 +328,7 @@ private suspend fun executeSelections(
     require(fragment.nominalType == root) {
         "Cannot execute selections with type ${fragment.nominalType.name} on schema root type ${root.name}"
     }
-    val forest = fragment.materializeSelections
+    val forest = fragment.subselections
     return if (mutation) {
         executionContext.resolveMutationSelectionSet(forest, forest.mutationSelections(schemas.loweredSchema, root))
     } else {

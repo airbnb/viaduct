@@ -1,0 +1,468 @@
+{
+  "commands": [
+    "./gradlew :core:engine:runtime2:ktlintFormat :core:engine:runtime2:test --tests \"*ConstructionSelectionProjectionTest\" --tests \"*UnifiedSelectionForestTest\" --tests \"*SelectionMergeTest\" --tests \"*Materialize*\" --tests \"*ResolverVariableInstantiationTest\" :core:engine:runtime2:jmhJar --no-configuration-cache --console=plain",
+    "./gradlew :core:engine:runtime2:test --tests \"*ConstructionSelectionProjectionTest\" --tests \"*MaterializeResolverInputTest\" --tests \"*CoroutineResolveTest\" --tests \"*ResolverTimeoutTest\" --tests \"*SiblingDependencyLogicTest\" --no-configuration-cache --console=plain",
+    "./gradlew :gradle-plugins:application:test --no-configuration-cache --console=plain",
+    "./gradlew test :core:engine:runtime2:check --no-configuration-cache --console=plain --continue"
+  ],
+  "initial_focused": {
+    "tests": 80,
+    "skipped": 0,
+    "failures": 0,
+    "errors": 0
+  },
+  "fixture_retry": {
+    "tests": 330,
+    "skipped": 0,
+    "failures": 0,
+    "errors": 0
+  },
+  "corrected_fixtures": "CoroutineResolverContract, ResolverTimeoutTest and SiblingDependencyLogicTest deliberately bypass cycle validation. They previously reused merged construction demand as projection templates; they now use source selections.",
+  "unrelated_retry": "The first root run hit a pre-existing Gradle application TestKit build-cache assertion (expected SUCCESS, got FROM_CACHE). The disposable worktree-local application build/tmp/test/work/.gradle-test-kit/caches/build-cache-1 was archived outside the repository. All 51 application tests then passed unchanged.",
+  "website": {
+    "baseline_diagnostics": 349,
+    "candidate_diagnostics": 349,
+    "new_diagnostic_signatures": 0,
+    "note": "The standalone HTML validator is not part of Gradle check. Existing stale citations remain; moved citations from this change were corrected."
+  },
+  "tasks": [
+    {
+      "module": "core/engine/api",
+      "tests": 391,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0
+    },
+    {
+      "module": "core/engine/runtime",
+      "tests": 3957,
+      "skipped": 45,
+      "failures": 0,
+      "errors": 0
+    },
+    {
+      "module": "core/engine/runtime2",
+      "tests": 4611,
+      "skipped": 157,
+      "failures": 0,
+      "errors": 0
+    },
+    {
+      "module": "core/engine/wiring",
+      "tests": 75,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0
+    },
+    {
+      "module": "core/javaapi/api",
+      "tests": 171,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0
+    },
+    {
+      "module": "core/javaapi/codegen",
+      "tests": 186,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0
+    },
+    {
+      "module": "core/javaapi/registry-apt",
+      "tests": 29,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0
+    },
+    {
+      "module": "core/javaapi/runtime",
+      "tests": 326,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0
+    },
+    {
+      "module": "core/service/api",
+      "tests": 83,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0
+    },
+    {
+      "module": "core/service/runtime",
+      "tests": 209,
+      "skipped": 3,
+      "failures": 0,
+      "errors": 0
+    },
+    {
+      "module": "core/service/wiring",
+      "tests": 48,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0
+    },
+    {
+      "module": "core/shared/arbitrary",
+      "tests": 540,
+      "skipped": 4,
+      "failures": 0,
+      "errors": 0
+    },
+    {
+      "module": "core/shared/arbitrary-cli",
+      "tests": 8,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0
+    },
+    {
+      "module": "core/shared/bootstrap",
+      "tests": 12,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0
+    },
+    {
+      "module": "core/shared/codegen",
+      "tests": 250,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0
+    },
+    {
+      "module": "core/shared/dataloader",
+      "tests": 274,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0
+    },
+    {
+      "module": "core/shared/deferred",
+      "tests": 131,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0
+    },
+    {
+      "module": "core/shared/graphql",
+      "tests": 409,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0
+    },
+    {
+      "module": "core/shared/invariants",
+      "tests": 35,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0
+    },
+    {
+      "module": "core/shared/mapping",
+      "tests": 65,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0
+    },
+    {
+      "module": "core/shared/scoping",
+      "tests": 73,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0
+    },
+    {
+      "module": "core/shared/utils",
+      "tests": 171,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0
+    },
+    {
+      "module": "core/shared/viaductschema",
+      "tests": 1258,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0
+    },
+    {
+      "module": "core/tenant/api",
+      "tests": 501,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0
+    },
+    {
+      "module": "core/tenant/codegen",
+      "tests": 495,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0
+    },
+    {
+      "module": "core/tenant/ksp",
+      "tests": 73,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0
+    },
+    {
+      "module": "core/tenant/runtime",
+      "tests": 425,
+      "skipped": 6,
+      "failures": 0,
+      "errors": 0
+    },
+    {
+      "module": "core/tenant/shared",
+      "tests": 67,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0
+    },
+    {
+      "module": "core/tenant/tutorials",
+      "tests": 48,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0
+    },
+    {
+      "module": "core/x/federation/validation",
+      "tests": 42,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0
+    },
+    {
+      "module": "gradle-plugins/apollo",
+      "tests": 39,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0
+    },
+    {
+      "module": "gradle-plugins/application",
+      "tests": 51,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0
+    },
+    {
+      "module": "gradle-plugins/common",
+      "tests": 55,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0
+    },
+    {
+      "module": "gradle-plugins/conventions",
+      "tests": 63,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0
+    },
+    {
+      "module": "gradle-plugins/federation",
+      "tests": 2,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0
+    },
+    {
+      "module": "gradle-plugins/federation-validation",
+      "tests": 5,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0
+    },
+    {
+      "module": "gradle-plugins/gradletestapps/apollo-schema",
+      "tests": 2,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0
+    },
+    {
+      "module": "gradle-plugins/gradletestapps/java-one-project",
+      "tests": 7,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0
+    },
+    {
+      "module": "gradle-plugins/gradletestapps/multi-project",
+      "tests": 7,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0
+    },
+    {
+      "module": "gradle-plugins/gradletestapps/one-project",
+      "tests": 6,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0
+    },
+    {
+      "module": "gradle-plugins/gradletestapps/two-project",
+      "tests": 6,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0
+    },
+    {
+      "module": "gradle-plugins/gradletestapps/two-project/resolvers",
+      "tests": 1,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0
+    },
+    {
+      "module": "gradle-plugins/metamodule",
+      "tests": 5,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0
+    },
+    {
+      "module": "gradle-plugins/module",
+      "tests": 28,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0
+    },
+    {
+      "module": "gradle-plugins/module-java",
+      "tests": 7,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0
+    },
+    {
+      "module": "gradle-plugins/settings",
+      "tests": 18,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0
+    }
+  ],
+  "totals": {
+    "tests": 15265,
+    "skipped": 215,
+    "failures": 0,
+    "errors": 0
+  },
+  "runtime2": {
+    "module": "core/engine/runtime2",
+    "tests": 4611,
+    "skipped": 157,
+    "failures": 0,
+    "errors": 0
+  },
+  "runtime2_check": "BUILD SUCCESSFUL in 6m 29s",
+  "full_check": "BUILD SUCCESSFUL in 6s; 474 actionable tasks: 7 executed, 467 up-to-date; follows successful complete Runtime2 and root test executions.",
+  "final_task_states": [
+    ":gradle-plugins:apollo:test UP-TO-DATE",
+    ":gradle-plugins:application:test UP-TO-DATE",
+    ":gradle-plugins:common:test UP-TO-DATE",
+    ":gradle-plugins:conventions:test UP-TO-DATE",
+    ":gradle-plugins:federation:test UP-TO-DATE",
+    ":gradle-plugins:gradletestapps:validation-rule-support:test NO-SOURCE",
+    ":gradle-plugins:gradletestapps:validation-rules:test NO-SOURCE",
+    ":gradle-plugins:metamodule:test UP-TO-DATE",
+    ":gradle-plugins:settings:test UP-TO-DATE",
+    ":core:engine:runtime2:checkKotlinGradlePluginConfigurationErrors SKIPPED",
+    ":core:engine:runtime2:compileKotlin UP-TO-DATE",
+    ":core:engine:runtime2:compileJava NO-SOURCE",
+    ":core:engine:runtime2:processResources NO-SOURCE",
+    ":core:engine:runtime2:classes UP-TO-DATE",
+    ":core:engine:runtime2:jar UP-TO-DATE",
+    ":publications:api:test NO-SOURCE",
+    ":core:engine:api:test UP-TO-DATE",
+    ":publications:runtime:test NO-SOURCE",
+    ":core:engine:runtime:test UP-TO-DATE",
+    ":core:engine:runtime2:checkDocumentationLabels",
+    ":core:engine:runtime2:compileTestFixturesKotlin UP-TO-DATE",
+    ":core:engine:runtime2:compileTestFixturesJava NO-SOURCE",
+    ":core:engine:runtime2:processTestFixturesResources UP-TO-DATE",
+    ":core:engine:runtime2:testFixturesClasses UP-TO-DATE",
+    ":core:engine:runtime2:compileTestKotlin UP-TO-DATE",
+    ":core:engine:runtime2:compileTestJava NO-SOURCE",
+    ":core:engine:runtime2:processTestResources UP-TO-DATE",
+    ":core:engine:runtime2:testClasses UP-TO-DATE",
+    ":core:engine:runtime2:test UP-TO-DATE",
+    ":core:engine:wiring:test UP-TO-DATE",
+    ":publications:javaapi-api:test NO-SOURCE",
+    ":publications:javaapi-runtime:test NO-SOURCE",
+    ":gradle-plugins:module-java:test UP-TO-DATE",
+    ":core:javaapi:api:test UP-TO-DATE",
+    ":publications:test-fixtures:test NO-SOURCE",
+    ":core:javaapi:codegen:test UP-TO-DATE",
+    ":core:javaapi:registry-apt:test UP-TO-DATE",
+    ":publications:buildtime:test NO-SOURCE",
+    ":publications:javaapi-buildtime:test NO-SOURCE",
+    ":gradle-plugins:module:test UP-TO-DATE",
+    ":gradle-plugins:gradletestapps:apollo-schema:test UP-TO-DATE",
+    ":gradle-plugins:gradletestapps:java-one-project:test UP-TO-DATE",
+    ":gradle-plugins:gradletestapps:one-project:test UP-TO-DATE",
+    ":gradle-plugins:gradletestapps:two-project:test UP-TO-DATE",
+    ":gradle-plugins:gradletestapps:apollo-schema:catalog:test NO-SOURCE",
+    ":gradle-plugins:gradletestapps:apollo-schema:users:test NO-SOURCE",
+    ":gradle-plugins:gradletestapps:two-project:resolvers:test UP-TO-DATE",
+    ":core:javaapi:runtime:test UP-TO-DATE",
+    ":core:service:api:test UP-TO-DATE",
+    ":core:service:runtime:test UP-TO-DATE",
+    ":core:service:wiring:test UP-TO-DATE",
+    ":core:shared:arbitrary:test UP-TO-DATE",
+    ":core:shared:arbitrary-cli:test UP-TO-DATE",
+    ":core:shared:bootstrap:test UP-TO-DATE",
+    ":core:shared:codegen:test UP-TO-DATE",
+    ":core:shared:dataloader:test UP-TO-DATE",
+    ":core:shared:deferred:test UP-TO-DATE",
+    ":core:shared:graphql:test UP-TO-DATE",
+    ":core:shared:invariants:test UP-TO-DATE",
+    ":core:shared:mapping:test UP-TO-DATE",
+    ":core:shared:scoping:test UP-TO-DATE",
+    ":core:shared:utils:test UP-TO-DATE",
+    ":core:shared:viaductschema:test UP-TO-DATE",
+    ":core:tenant:api:test UP-TO-DATE",
+    ":core:tenant:codegen:test UP-TO-DATE",
+    ":core:tenant:ksp:test UP-TO-DATE",
+    ":core:tenant:runtime:test UP-TO-DATE",
+    ":core:tenant:shared:test UP-TO-DATE",
+    ":core:tenant:tutorials:test UP-TO-DATE",
+    ":core:tenant:validation:test NO-SOURCE",
+    ":core:tenant:wiring:test NO-SOURCE",
+    ":core:x:federation:validation:test UP-TO-DATE",
+    ":gradle-plugins:federation-validation:test UP-TO-DATE",
+    ":core:engine:runtime2:checkPackageLayers",
+    ":core:engine:runtime2:compileJmhKotlin UP-TO-DATE",
+    ":core:engine:runtime2:compileJmhJava NO-SOURCE",
+    ":core:engine:runtime2:processJmhResources UP-TO-DATE",
+    ":core:engine:runtime2:jmhClasses UP-TO-DATE",
+    ":core:engine:runtime2:checkProductionBoundary",
+    ":core:engine:runtime2:detekt UP-TO-DATE",
+    ":core:engine:runtime2:loadKtlintReporters UP-TO-DATE",
+    ":core:engine:runtime2:runKtlintCheckOverJmhSourceSet UP-TO-DATE",
+    ":core:engine:runtime2:ktlintJmhSourceSetCheck UP-TO-DATE",
+    ":core:engine:runtime2:runKtlintCheckOverKotlinScripts UP-TO-DATE",
+    ":core:engine:runtime2:ktlintKotlinScriptCheck UP-TO-DATE",
+    ":core:engine:runtime2:runKtlintCheckOverMainSourceSet UP-TO-DATE",
+    ":core:engine:runtime2:ktlintMainSourceSetCheck UP-TO-DATE",
+    ":core:engine:runtime2:runKtlintCheckOverTestFixturesSourceSet UP-TO-DATE",
+    ":core:engine:runtime2:ktlintTestFixturesSourceSetCheck UP-TO-DATE",
+    ":gradle-plugins:gradletestapps:multi-project:test UP-TO-DATE",
+    ":core:engine:runtime2:runKtlintCheckOverTestSourceSet UP-TO-DATE",
+    ":core:engine:runtime2:ktlintTestSourceSetCheck UP-TO-DATE",
+    ":gradle-plugins:gradletestapps:multi-project:alpha:test NO-SOURCE",
+    ":gradle-plugins:gradletestapps:multi-project:beta:test NO-SOURCE",
+    ":test",
+    ":core:engine:runtime2:spotlessJava UP-TO-DATE",
+    ":core:engine:runtime2:spotlessJavaCheck UP-TO-DATE",
+    ":core:engine:runtime2:spotlessCheck UP-TO-DATE",
+    ":core:engine:runtime2:check"
+  ]
+}

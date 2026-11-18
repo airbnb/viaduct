@@ -16,7 +16,6 @@ import viaduct.engine.runtime2.model.IDEngineResult
 import viaduct.engine.runtime2.model.InclusionCondition
 import viaduct.engine.runtime2.model.JSONEngineResult
 import viaduct.engine.runtime2.model.ListEngineResult
-import viaduct.engine.runtime2.model.MaterializeSelectionForest
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.PathComponent
 import viaduct.engine.runtime2.model.ResolverOccurrenceId
@@ -296,7 +295,7 @@ class RecordingResolutionObserver(
             }
         }
 
-    private fun materializeSelections(forest: MaterializeSelectionForest): List<Any> =
+    private fun materializeSelections(forest: SelectionForest): List<Any> =
         buildList {
             forest.forEach { selection ->
                 add(

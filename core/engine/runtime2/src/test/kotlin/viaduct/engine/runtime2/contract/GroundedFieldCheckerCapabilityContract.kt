@@ -13,12 +13,12 @@ import viaduct.engine.runtime2.model.EngineResultCell
 import viaduct.engine.runtime2.model.ErrorEngineResult
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.emptyFragmentOf
-import viaduct.engine.runtime2.model.materializeSelectionForestOf
 import viaduct.engine.runtime2.model.registry.FieldCheckerResolver
 import viaduct.engine.runtime2.model.registry.ResolverFragmentTemplates
 import viaduct.engine.runtime2.model.registry.fieldResolverOf
 import viaduct.engine.runtime2.model.requireObjectField
 import viaduct.engine.runtime2.model.requireQueryTypeDef
+import viaduct.engine.runtime2.model.selectionForestOf
 import viaduct.engine.runtime2.model.testing.TestWorld
 import viaduct.engine.runtime2.model.testing.emptyFragmentOf
 import viaduct.engine.runtime2.model.testing.fragmentFrom
@@ -122,8 +122,8 @@ interface GroundedFieldCheckerCapabilityContract {
                         schemas.loweredSchema.requireQueryTypeDef(),
                         fragmentTemplates = mapOf(
                             "input" to ResolverFragmentTemplates(
-                                objectFragmentTemplate = schemas.fragmentFrom("fragment Input on Child { audited }").materializeSelections,
-                                queryFragmentTemplate = materializeSelectionForestOf(),
+                                objectFragmentTemplate = schemas.fragmentFrom("fragment Input on Child { audited }").subselections,
+                                queryFragmentTemplate = selectionForestOf(),
                             )
                         ),
                     ) { _, inputs, _ ->
@@ -201,8 +201,8 @@ interface GroundedFieldCheckerCapabilityContract {
                             objectFragmentTemplate =
                                 schema
                                     .fragmentFrom("fragment Input on Item { $alias: b }")
-                                    .materializeSelections,
-                            queryFragmentTemplate = materializeSelectionForestOf(),
+                                    .subselections,
+                            queryFragmentTemplate = selectionForestOf(),
                         )
                     mapOf(
                         a to

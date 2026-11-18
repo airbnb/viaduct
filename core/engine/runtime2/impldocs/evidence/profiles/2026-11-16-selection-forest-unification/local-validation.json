@@ -1,0 +1,492 @@
+{
+  "recorded_at_utc": "2026-11-16T01:26:07.456728+00:00",
+  "implementation_commit": "a67771769507fa4ee518169d00dc2de5a3f9eee5",
+  "initial_command": "./gradlew :core:engine:runtime2:ktlintFormat :core:engine:runtime2:jmhJar test :core:engine:runtime2:check --no-configuration-cache --console=plain --continue",
+  "final_command": "./gradlew :core:engine:runtime2:ktlintFormat test :core:engine:runtime2:check --no-configuration-cache --console=plain --continue",
+  "build_outcomes": {
+    "all-tests.log": "BUILD SUCCESSFUL in 11m 10s",
+    "final-check.log": "BUILD SUCCESSFUL in 9m 5s"
+  },
+  "totals": {
+    "tests": 14973,
+    "skipped": 202,
+    "failures": 0,
+    "errors": 0
+  },
+  "test_tasks": [
+    {
+      "task": ":core:engine:api:test",
+      "initial_state": "EXECUTED",
+      "final_state": "EXECUTED",
+      "report_files": 50,
+      "tests": 342,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0
+    },
+    {
+      "task": ":core:engine:runtime2:test",
+      "initial_state": "EXECUTED",
+      "final_state": "EXECUTED",
+      "report_files": 287,
+      "tests": 4462,
+      "skipped": 144,
+      "failures": 0,
+      "errors": 0
+    },
+    {
+      "task": ":core:engine:runtime:test",
+      "initial_state": "EXECUTED",
+      "final_state": "EXECUTED",
+      "report_files": 278,
+      "tests": 3949,
+      "skipped": 45,
+      "failures": 0,
+      "errors": 0
+    },
+    {
+      "task": ":core:engine:wiring:test",
+      "initial_state": "EXECUTED",
+      "final_state": "EXECUTED",
+      "report_files": 7,
+      "tests": 71,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0
+    },
+    {
+      "task": ":core:javaapi:api:test",
+      "initial_state": "EXECUTED",
+      "final_state": "EXECUTED",
+      "report_files": 10,
+      "tests": 171,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0
+    },
+    {
+      "task": ":core:javaapi:codegen:test",
+      "initial_state": "EXECUTED",
+      "final_state": "UP-TO-DATE",
+      "report_files": 20,
+      "tests": 186,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0
+    },
+    {
+      "task": ":core:javaapi:registry-apt:test",
+      "initial_state": "EXECUTED",
+      "final_state": "UP-TO-DATE",
+      "report_files": 1,
+      "tests": 29,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0
+    },
+    {
+      "task": ":core:javaapi:runtime:test",
+      "initial_state": "EXECUTED",
+      "final_state": "EXECUTED",
+      "report_files": 50,
+      "tests": 326,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0
+    },
+    {
+      "task": ":core:service:api:test",
+      "initial_state": "EXECUTED",
+      "final_state": "UP-TO-DATE",
+      "report_files": 13,
+      "tests": 76,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0
+    },
+    {
+      "task": ":core:service:runtime:test",
+      "initial_state": "EXECUTED",
+      "final_state": "EXECUTED",
+      "report_files": 18,
+      "tests": 185,
+      "skipped": 3,
+      "failures": 0,
+      "errors": 0
+    },
+    {
+      "task": ":core:service:wiring:test",
+      "initial_state": "EXECUTED",
+      "final_state": "EXECUTED",
+      "report_files": 7,
+      "tests": 44,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0
+    },
+    {
+      "task": ":core:shared:arbitrary-cli:test",
+      "initial_state": "EXECUTED",
+      "final_state": "EXECUTED",
+      "report_files": 1,
+      "tests": 8,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0
+    },
+    {
+      "task": ":core:shared:arbitrary:test",
+      "initial_state": "EXECUTED",
+      "final_state": "EXECUTED",
+      "report_files": 48,
+      "tests": 493,
+      "skipped": 4,
+      "failures": 0,
+      "errors": 0
+    },
+    {
+      "task": ":core:shared:bootstrap:test",
+      "initial_state": "FROM-CACHE",
+      "final_state": "UP-TO-DATE",
+      "report_files": 1,
+      "tests": 12,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0
+    },
+    {
+      "task": ":core:shared:codegen:test",
+      "initial_state": "EXECUTED",
+      "final_state": "UP-TO-DATE",
+      "report_files": 42,
+      "tests": 250,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0
+    },
+    {
+      "task": ":core:shared:dataloader:test",
+      "initial_state": "EXECUTED",
+      "final_state": "UP-TO-DATE",
+      "report_files": 14,
+      "tests": 274,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0
+    },
+    {
+      "task": ":core:shared:deferred:test",
+      "initial_state": "FROM-CACHE",
+      "final_state": "UP-TO-DATE",
+      "report_files": 20,
+      "tests": 131,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0
+    },
+    {
+      "task": ":core:shared:graphql:test",
+      "initial_state": "EXECUTED",
+      "final_state": "UP-TO-DATE",
+      "report_files": 30,
+      "tests": 409,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0
+    },
+    {
+      "task": ":core:shared:invariants:test",
+      "initial_state": "FROM-CACHE",
+      "final_state": "UP-TO-DATE",
+      "report_files": 2,
+      "tests": 35,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0
+    },
+    {
+      "task": ":core:shared:mapping:test",
+      "initial_state": "EXECUTED",
+      "final_state": "EXECUTED",
+      "report_files": 6,
+      "tests": 65,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0
+    },
+    {
+      "task": ":core:shared:scoping:test",
+      "initial_state": "FROM-CACHE",
+      "final_state": "UP-TO-DATE",
+      "report_files": 4,
+      "tests": 73,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0
+    },
+    {
+      "task": ":core:shared:utils:test",
+      "initial_state": "EXECUTED",
+      "final_state": "UP-TO-DATE",
+      "report_files": 16,
+      "tests": 171,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0
+    },
+    {
+      "task": ":core:shared:viaductschema:test",
+      "initial_state": "EXECUTED",
+      "final_state": "EXECUTED",
+      "report_files": 99,
+      "tests": 1258,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0
+    },
+    {
+      "task": ":core:tenant:api:test",
+      "initial_state": "EXECUTED",
+      "final_state": "EXECUTED",
+      "report_files": 42,
+      "tests": 501,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0
+    },
+    {
+      "task": ":core:tenant:codegen:test",
+      "initial_state": "EXECUTED",
+      "final_state": "EXECUTED",
+      "report_files": 44,
+      "tests": 495,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0
+    },
+    {
+      "task": ":core:tenant:ksp:test",
+      "initial_state": "EXECUTED",
+      "final_state": "UP-TO-DATE",
+      "report_files": 9,
+      "tests": 73,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0
+    },
+    {
+      "task": ":core:tenant:runtime:test",
+      "initial_state": "EXECUTED",
+      "final_state": "EXECUTED",
+      "report_files": 84,
+      "tests": 425,
+      "skipped": 6,
+      "failures": 0,
+      "errors": 0
+    },
+    {
+      "task": ":core:tenant:shared:test",
+      "initial_state": "EXECUTED",
+      "final_state": "EXECUTED",
+      "report_files": 8,
+      "tests": 67,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0
+    },
+    {
+      "task": ":core:tenant:tutorials:test",
+      "initial_state": "EXECUTED",
+      "final_state": "EXECUTED",
+      "report_files": 15,
+      "tests": 48,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0
+    },
+    {
+      "task": ":core:x:federation:validation:test",
+      "initial_state": "EXECUTED",
+      "final_state": "UP-TO-DATE",
+      "report_files": 1,
+      "tests": 42,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0
+    },
+    {
+      "task": ":gradle-plugins:apollo:test",
+      "initial_state": "EXECUTED",
+      "final_state": "UP-TO-DATE",
+      "report_files": 4,
+      "tests": 39,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0
+    },
+    {
+      "task": ":gradle-plugins:application:test",
+      "initial_state": "EXECUTED",
+      "final_state": "UP-TO-DATE",
+      "report_files": 5,
+      "tests": 51,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0
+    },
+    {
+      "task": ":gradle-plugins:common:test",
+      "initial_state": "EXECUTED",
+      "final_state": "UP-TO-DATE",
+      "report_files": 5,
+      "tests": 55,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0
+    },
+    {
+      "task": ":gradle-plugins:conventions:test",
+      "initial_state": "EXECUTED",
+      "final_state": "UP-TO-DATE",
+      "report_files": 5,
+      "tests": 63,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0
+    },
+    {
+      "task": ":gradle-plugins:federation-validation:test",
+      "initial_state": "EXECUTED",
+      "final_state": "UP-TO-DATE",
+      "report_files": 1,
+      "tests": 5,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0
+    },
+    {
+      "task": ":gradle-plugins:federation:test",
+      "initial_state": "EXECUTED",
+      "final_state": "UP-TO-DATE",
+      "report_files": 1,
+      "tests": 2,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0
+    },
+    {
+      "task": ":gradle-plugins:gradletestapps:apollo-schema:test",
+      "initial_state": "EXECUTED",
+      "final_state": "EXECUTED",
+      "report_files": 1,
+      "tests": 2,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0
+    },
+    {
+      "task": ":gradle-plugins:gradletestapps:java-one-project:test",
+      "initial_state": "EXECUTED",
+      "final_state": "EXECUTED",
+      "report_files": 1,
+      "tests": 7,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0
+    },
+    {
+      "task": ":gradle-plugins:gradletestapps:multi-project:test",
+      "initial_state": "EXECUTED",
+      "final_state": "EXECUTED",
+      "report_files": 1,
+      "tests": 7,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0
+    },
+    {
+      "task": ":gradle-plugins:gradletestapps:one-project:test",
+      "initial_state": "EXECUTED",
+      "final_state": "EXECUTED",
+      "report_files": 1,
+      "tests": 6,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0
+    },
+    {
+      "task": ":gradle-plugins:gradletestapps:two-project:resolvers:test",
+      "initial_state": "EXECUTED",
+      "final_state": "EXECUTED",
+      "report_files": 1,
+      "tests": 1,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0
+    },
+    {
+      "task": ":gradle-plugins:gradletestapps:two-project:test",
+      "initial_state": "EXECUTED",
+      "final_state": "EXECUTED",
+      "report_files": 1,
+      "tests": 6,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0
+    },
+    {
+      "task": ":gradle-plugins:metamodule:test",
+      "initial_state": "EXECUTED",
+      "final_state": "UP-TO-DATE",
+      "report_files": 1,
+      "tests": 5,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0
+    },
+    {
+      "task": ":gradle-plugins:module-java:test",
+      "initial_state": "EXECUTED",
+      "final_state": "UP-TO-DATE",
+      "report_files": 1,
+      "tests": 7,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0
+    },
+    {
+      "task": ":gradle-plugins:module:test",
+      "initial_state": "EXECUTED",
+      "final_state": "UP-TO-DATE",
+      "report_files": 3,
+      "tests": 28,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0
+    },
+    {
+      "task": ":gradle-plugins:settings:test",
+      "initial_state": "EXECUTED",
+      "final_state": "UP-TO-DATE",
+      "report_files": 2,
+      "tests": 18,
+      "skipped": 0,
+      "failures": 0,
+      "errors": 0
+    }
+  ],
+  "focused_run": {
+    "scope": "Runtime2 model, schema, materialization and mutation tests",
+    "tests": 632,
+    "skipped": 1,
+    "failures": 0,
+    "errors": 0
+  },
+  "standalone_tour_validator": {
+    "included_in_gradle_check": false,
+    "base_diagnostics": 372,
+    "candidate_diagnostics": 333,
+    "signature_normalization": "Replace integer line/range positions with # before comparing diagnostic strings.",
+    "new_diagnostic_signatures": []
+  }
+}

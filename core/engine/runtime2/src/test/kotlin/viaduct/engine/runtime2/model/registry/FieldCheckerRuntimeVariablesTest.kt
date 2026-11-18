@@ -14,9 +14,10 @@ import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.ResolverOccurrenceId
 import viaduct.engine.runtime2.model.ResolverTarget
 import viaduct.engine.runtime2.model.arg
-import viaduct.engine.runtime2.model.materializeSelectionForestOf
+import viaduct.engine.runtime2.model.collect
 import viaduct.engine.runtime2.model.requireObjectField
 import viaduct.engine.runtime2.model.requireQueryTypeDef
+import viaduct.engine.runtime2.model.selectionForestOf
 import viaduct.engine.runtime2.model.testing.TestWorld
 import viaduct.engine.runtime2.model.testing.fragmentFrom
 import viaduct.engine.runtime2.model.testing.testRoot
@@ -33,11 +34,11 @@ class FieldCheckerRuntimeVariablesTest {
                 schema.fragmentFrom(
                     "fragment Input on Query { always: flag conditional: flag @include(if: ${'$'}v) echo(value: ${'$'}vInt) }",
                     variableTarget = ResolverTarget.FieldCheckerTarget(field)
-                ).materializeSelections,
+                ).subselections,
                 schema.fragmentFrom(
                     "fragment Input on Query { always: flag conditional: flag @include(if: ${'$'}v) echo(value: ${'$'}vInt) }",
                     variableTarget = ResolverTarget.FieldCheckerTarget(field)
-                ).materializeSelections,
+                ).subselections,
                 mapOf(
                     Arguments.Variable.of(ResolverTarget.FieldCheckerTarget(field), "v") to VariableDefinition.FromProvider,
                     Arguments.Variable.of(ResolverTarget.FieldCheckerTarget(field), "vInt") to VariableDefinition.FromProvider,
@@ -93,8 +94,8 @@ class FieldCheckerRuntimeVariablesTest {
                 val input = mixed.fragmentFrom(
                     "fragment Input on Query { nodes { edge { ... on $type { localized(locale: ${'$'}locale) $directive } } } }",
                     variableTarget = ResolverTarget.FieldCheckerTarget(checked),
-                ).materializeSelections
-                val empty = materializeSelectionForestOf()
+                ).subselections
+                val empty = selectionForestOf()
                 val pair = ResolverFragmentTemplates(
                     if (root == ProviderFragment.OBJECT) input else empty,
                     if (root == ProviderFragment.QUERY) input else empty,
@@ -119,9 +120,9 @@ class FieldCheckerRuntimeVariablesTest {
             """.trimIndent(),
         ).schemas
         val checked = schemas.loweredSchema.requireObjectField("Query", "checked")
-        val input = schemas.fragmentFrom("fragment Input on Query { root { child { parent { id } } } }").materializeSelections
+        val input = schemas.fragmentFrom("fragment Input on Query { root { child { parent { id } } } }").subselections
         for (root in ProviderFragment.entries) {
-            val empty = materializeSelectionForestOf()
+            val empty = selectionForestOf()
             val pair = ResolverFragmentTemplates(
                 if (root == ProviderFragment.OBJECT) input else empty,
                 if (root == ProviderFragment.QUERY) input else empty,
@@ -138,8 +139,8 @@ class FieldCheckerRuntimeVariablesTest {
         runBlocking {
             fun pair(value: Int) =
                 ResolverFragmentTemplates(
-                    schema.fragmentFrom("fragment Input on Query { echo(value: ${'$'}v) }", variableTarget = ResolverTarget.FieldCheckerTarget(field)).materializeSelections,
-                    materializeSelectionForestOf(),
+                    schema.fragmentFrom("fragment Input on Query { echo(value: ${'$'}v) }", variableTarget = ResolverTarget.FieldCheckerTarget(field)).subselections,
+                    selectionForestOf(),
                     mapOf(Arguments.Variable.of(ResolverTarget.FieldCheckerTarget(field), "v") to VariableDefinition.FromProvider),
                     variablesProvider = { mapOf("v" to value) },
                 )
@@ -151,8 +152,8 @@ class FieldCheckerRuntimeVariablesTest {
     fun `checker rejects cycles through provider inclusion conditions`() {
         val variable = Arguments.Variable.of(ResolverTarget.FieldCheckerTarget(field), "flag")
         val pair = ResolverFragmentTemplates(
-            schema.fragmentFrom("fragment Input on Query { flag @include(if: ${'$'}flag) }", variableTarget = ResolverTarget.FieldCheckerTarget(field)).materializeSelections,
-            materializeSelectionForestOf(),
+            schema.fragmentFrom("fragment Input on Query { flag @include(if: ${'$'}flag) }", variableTarget = ResolverTarget.FieldCheckerTarget(field)).subselections,
+            selectionForestOf(),
             mapOf(
                 variable to VariableDefinition.FromField.of(
                     ProviderFragment.OBJECT,
@@ -170,8 +171,8 @@ class FieldCheckerRuntimeVariablesTest {
     fun `provider must return exactly its declared names`(): Unit =
         runBlocking {
             val pair = ResolverFragmentTemplates(
-                schema.fragmentFrom("fragment Input on Query { echo(value: ${'$'}v) }", variableTarget = ResolverTarget.FieldCheckerTarget(field)).materializeSelections,
-                materializeSelectionForestOf(),
+                schema.fragmentFrom("fragment Input on Query { echo(value: ${'$'}v) }", variableTarget = ResolverTarget.FieldCheckerTarget(field)).subselections,
+                selectionForestOf(),
                 mapOf(Arguments.Variable.of(ResolverTarget.FieldCheckerTarget(field), "v") to VariableDefinition.FromProvider),
                 variablesProvider = { mapOf("wrong" to 1) },
             )

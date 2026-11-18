@@ -86,8 +86,8 @@ open class TypeCheckerDemandOracleConditionTest : ResolutionDispatcherResource {
                         schema.loweredSchema.requireQueryTypeDef(),
                         mapOf(
                             "input" to ResolverFragmentTemplates(
-                                viaduct.engine.runtime2.model.materializeSelectionForestOf(),
-                                schema.fragmentFrom("fragment Input on Query { raw { active } }").materializeSelections,
+                                viaduct.engine.runtime2.model.selectionForestOf(),
+                                schema.fragmentFrom("fragment Input on Query { raw { active } }").subselections,
                             )
                         ),
                     ) { _, _, _ -> error("Error-valued arguments must prevent invocation") }
@@ -146,8 +146,8 @@ open class TypeCheckerDemandOracleConditionTest : ResolutionDispatcherResource {
                                 mapOf(
                                     "raw" to
                                         ResolverFragmentTemplates(
-                                            schema.fragmentFrom("fragment Raw on Query { raw { token } }").materializeSelections,
-                                            viaduct.engine.runtime2.model.materializeSelectionForestOf(),
+                                            schema.fragmentFrom("fragment Raw on Query { raw { token } }").subselections,
+                                            viaduct.engine.runtime2.model.selectionForestOf(),
                                         ),
                                 ),
                             ) { _, _, _ -> CheckerResult.Success },
