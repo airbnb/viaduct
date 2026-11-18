@@ -10,6 +10,8 @@ Most of `engine/api` pertains to the intra-operation API used by the engine to i
 
 When adding or changing a contract or helper used by both `runtime` and `runtime2`, check the affected callers and implementations across both runtimes. Define shared contracts by the operations callers need, allowing each engine to supply its own mechanics. Do not require one engine to expose or imitate the other's concrete implementation. If shared callers need an engine-type branch to work around that coupling, correct the affected contract.
 
+Selecting and wiring engine implementations and dependencies can remain shared; aim to minimize branches that distinguish `runtime` from `runtime2` in the affected wiring. For runtime behavior beyond that selection and wiring, aim to avoid shared conditionals that always choose one behavior for `runtime` and another for `runtime2`. Consider whether that behavior belongs in the engine implementations, preferably through a suitable existing interface. Apply that check also to engine operations mixed with wiring or performed only during construction or startup. For such behavior, a boolean fixed to opposite values for the two engines warrants the same check, including when combined with request-dependent conditions. The conditional alone does not establish a defect or require its removal or a new interface.
+
 Shared infrastructure can live under `runtime/`; determine scope from its users. Keep any resulting contract repair scoped to the affected integration.
 
 ## Engine API regression tests
