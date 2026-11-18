@@ -269,7 +269,7 @@ style:
     active: false
   ForbiddenImport:
     active: true
-    imports: ['kotlinx.coroutines.runBlocking']
+    imports: ['kotlinx.coroutines.runBlocking', 'graphql.com.google', 'graphql.com.google.*']
   ForbiddenVoid:
     active: false
     ignoreOverridden: false

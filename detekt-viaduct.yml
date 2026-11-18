@@ -3,6 +3,10 @@ style:
     active: true
     imports:
       - value: 'kotlinx.coroutines.runBlocking'
+      - value: 'graphql.com.google'
+        reason: 'Use the original library package with an explicit dependency'
+      - value: 'graphql.com.google.*'
+        reason: 'Use the original library package with an explicit dependency'
       - value: 'com.google.inject.Inject'
         reason: 'Use javax.inject.Inject instead for portability'
       - value: 'com.google.inject.Singleton'

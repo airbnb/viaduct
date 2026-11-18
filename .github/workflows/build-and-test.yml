@@ -54,6 +54,17 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      - name: Reject GraphQL Java repackaged imports
+        run: |
+          if git grep -n -F 'graphql.com.google.' -- '*.java' '*.kt' '*.scala'; then
+            echo 'Use the original library package instead of GraphQL Java repackaged classes.'
+            exit 1
+          else
+            scan_exit=$?
+            test "$scan_exit" -eq 1
+          fi
+        shell: bash
+
       - uses: actions/setup-python@v6
         with:
           python-version: '3.x'
