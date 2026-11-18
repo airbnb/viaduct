@@ -6,6 +6,12 @@ This directory contains four subprojects: `api/` defines the top-level and intra
 
 Most of `engine/api` pertains to the intra-operation API used by the engine to invoke resolvers.  At the core of this API are the _executor_ Kotlin interfaces, for example [`viaduct.engine.api.spi.FieldResolverExecutor`](api/src/main/kotlin/viaduct/engine/api/spi/FieldResolverExecutor.kt).  The Tenant API (found in `../tenant`) is responsible for producing an implementation of this interface for each field resolver written by application developers.  When it's time to invoke a resolver, the engine calls the `FieldResolverExecutor.batchResolve` function to do so.
 
+## Contracts shared by runtime and runtime2
+
+When adding or changing a contract or helper used by both `runtime` and `runtime2`, check the affected callers and implementations across both runtimes. Define shared contracts by the operations callers need, allowing each engine to supply its own mechanics. Do not require one engine to expose or imitate the other's concrete implementation. If shared callers need an engine-type branch to work around that coupling, correct the affected contract.
+
+Shared infrastructure can live under `runtime/`; determine scope from its users. Keep any resulting contract repair scoped to the affected integration.
+
 ## Engine API regression tests
 
 For FER (`runtime2`) regressions in behavior observable through the Engine API, prefer the [shared Engine API feature-test contracts](api/src/testFixtures/kotlin/viaduct/engine/runtime/execution/). These contracts keep regression coverage reusable across engine implementations and future resolution rewrites. Extend the narrowest existing contract that covers the behavior; if none fits, add a contract with corresponding engine runners.
