@@ -43,6 +43,11 @@ open class SymbolicTypeCheckerTest : ResolutionDispatcherResource {
                 val world = TestWorld.fromDSL(
                     """
                     extend type Query {
+                      item: Item! @resolver(script: "{:}")
+                      source: Source @resolver(script: "$source")
+                      echo(value: [Int]): Int @resolver(script: "1")
+                    }
+                    type Item {
                       checked: Int! @resolver(script: "1")
                       source: Source @resolver(script: "$source")
                       echo(value: [Int]): Int @resolver(script: "1")
@@ -50,9 +55,9 @@ open class SymbolicTypeCheckerTest : ResolutionDispatcherResource {
                     type Source { token: [Int] }
                     """.trimIndent(),
                     typeCheckers = { schema ->
-                        val field = schema.loweredSchema.requireQueryTypeDef()
+                        val field = schema.loweredSchema.requireType("Item") as ViaductSchema.Object
                         val input = schema.fragmentFrom(
-                            "fragment Input on Query { source { token } echo(value: ${'$'}v) }",
+                            "fragment Input on ${if (providerRoot == ProviderFragment.OBJECT) "Item" else "Query"} { source { token } echo(value: ${'$'}v) }",
                             variableTarget = ResolverTarget.TypeCheckerTarget(field),
                         ).materializeSelections
                         val empty = viaduct.engine.runtime2.model.materializeSelectionForestOf()
@@ -63,7 +68,7 @@ open class SymbolicTypeCheckerTest : ResolutionDispatcherResource {
                                 Arguments.Variable.of(ResolverTarget.TypeCheckerTarget(field), "v") to VariableDefinition.FromField.of(
                                     providerRoot,
                                     listOf(
-                                        ObjectEngineResult.Key.of(schema.loweredSchema.requireObjectField("Query", "source"), emptyMap()),
+                                        ObjectEngineResult.Key.of(schema.loweredSchema.requireObjectField(if (providerRoot == ProviderFragment.OBJECT) "Item" else "Query", "source"), emptyMap()),
                                         ObjectEngineResult.Key.of(schema.loweredSchema.requireObjectField("Source", "token"), emptyMap()),
                                     ),
                                     listOf("source", "token"),
@@ -73,9 +78,11 @@ open class SymbolicTypeCheckerTest : ResolutionDispatcherResource {
                         mapOf(field to TypeCheckerResolver.of(field, schema.loweredSchema.requireQueryTypeDef(), mapOf("input" to pair)) { _, _ -> CheckerResult.Success })
                     },
                 )
-                val resolution = resolveChecked(world, "{ checked }")
-                val fragments = checkNotNull(world.assumptions.resolverRegistry.typeChecker(resolution.result.type))
-                    .instantiateFragmentsAt(resolution.result, emptyList())
+                val resolution = resolveChecked(world, "{ item { checked } }")
+                val itemKey = resolution.result.keys.single()
+                val item = resolution.result.getCell(itemKey).value.get() as ObjectEngineResult
+                val fragments = checkNotNull(world.assumptions.resolverRegistry.typeChecker(item.type))
+                    .instantiateFragmentsAt(resolution.result, listOf(itemKey))
                 val variable = (fragments.objectFragment.variableDefinitions + fragments.queryFragment.variableDefinitions)
                     .distinctBy { it.variable }.single().variable
                 val expected = if ("error" in source) VariableBinding.Error else VariableBinding.of(null)
@@ -409,27 +416,28 @@ open class SymbolicTypeCheckerTest : ResolutionDispatcherResource {
     fun `independent replay rejects wrong target binding values even when resolver output agrees`() {
         val world = TestWorld.fromDSL(
             """
-            extend type Query {
+            extend type Query { item: Item! @resolver(script: "{:}") }
+            type Item {
               value: Int! @resolver(script: "1")
               source: Int! @resolver(script: "7")
               echo(value: Int): Int @resolver(script: "1")
             }
             """.trimIndent(),
             typeCheckers = { schema ->
-                val type = schema.loweredSchema.requireQueryTypeDef()
+                val type = schema.loweredSchema.requireType("Item") as ViaductSchema.Object
                 val target = ResolverTarget.TypeCheckerTarget(type)
                 mapOf(
                     type to TypeCheckerResolver.of(
                         type,
-                        type,
+                        schema.loweredSchema.requireQueryTypeDef(),
                         mapOf(
                             "input" to ResolverFragmentTemplates(
-                                schema.fragmentFrom("fragment Input on Query { source echo(value: ${'$'}v) }", variableTarget = target).materializeSelections,
+                                schema.fragmentFrom("fragment Input on Item { source echo(value: ${'$'}v) }", variableTarget = target).materializeSelections,
                                 viaduct.engine.runtime2.model.materializeSelectionForestOf(),
                                 mapOf(
                                     Arguments.Variable.of(target, "v") to VariableDefinition.FromField.of(
                                         ProviderFragment.OBJECT,
-                                        listOf(ObjectEngineResult.Key.of(schema.loweredSchema.requireObjectField("Query", "source"), emptyMap())),
+                                        listOf(ObjectEngineResult.Key.of(schema.loweredSchema.requireObjectField("Item", "source"), emptyMap())),
                                         listOf("source"),
                                     )
                                 ),
@@ -439,9 +447,11 @@ open class SymbolicTypeCheckerTest : ResolutionDispatcherResource {
                 )
             },
         )
-        val resolution = resolveChecked(world, "{ value }")
-        val definition = world.assumptions.resolverRegistry.typeChecker(resolution.result.type)!!
-            .instantiateFragmentsAt(resolution.result, emptyList()).objectFragment.variableDefinitions.single()
+        val resolution = resolveChecked(world, "{ item { value } }")
+        val itemKey = resolution.result.keys.single()
+        val item = resolution.result.getCell(itemKey).value.get() as ObjectEngineResult
+        val definition = world.assumptions.resolverRegistry.typeChecker(item.type)!!
+            .instantiateFragmentsAt(resolution.result, listOf(itemKey)).objectFragment.variableDefinitions.single()
         val forgedBindings = viaduct.engine.runtime2.resolution.framework.VariableBindingsState().apply {
             bindVariable(definition.variable.instanceId!!, VariableBinding.of(99))
         }
@@ -450,11 +460,11 @@ open class SymbolicTypeCheckerTest : ResolutionDispatcherResource {
             variableBindings = forgedBindings,
             resolutionObserver = resolution.observer,
         )
-        assertFalse(resolution.result.correctResolution(forged, world.schemas.operationSelectionsFrom("{ value }").merge(resolution.result.type)))
+        assertFalse(resolution.result.correctResolution(forged, world.schemas.operationSelectionsFrom("{ item { value } }").merge(resolution.result.type)))
     }
 
     @Test
-    fun `reference target Query roots prepare their own registered type result`() {
+    fun `reference target Query roots have no type checker result`() {
         val world = TestWorld.fromSDL(
             """
             type Query { reference: Int! target: Int! dependency: Int! policy: Int! }
@@ -474,32 +484,13 @@ open class SymbolicTypeCheckerTest : ResolutionDispatcherResource {
                     schema.loweredSchema.requireObjectField("Query", "policy") to fieldResolverOf(empty) { _, _ -> 11 },
                 )
             },
-            typeCheckers = { schema ->
-                val type = schema.loweredSchema.requireQueryTypeDef()
-                mapOf(
-                    type to TypeCheckerResolver.of(
-                        type,
-                        type,
-                        mapOf(
-                            "input" to ResolverFragmentTemplates(
-                                schema.fragmentFrom("fragment Input on Query { policy }").materializeSelections,
-                                viaduct.engine.runtime2.model.materializeSelectionForestOf(),
-                            ),
-                        )
-                    ) { inputs, _ ->
-                        assertEquals(11, inputs.getValue("input").objectValue.get("policy"))
-                        CheckerResult.Success
-                    }
-                )
-            },
         )
         val resolution = resolveChecked(world, "{ reference }")
         val key = resolution.result.keys.single { it.field.name == "reference" }
         assertEquals(7, resolution.result.getCell(key).value.get())
         val calls = resolution.recorder.checkerApplications()
-        assertEquals(2, calls.size)
-        assertTrue(calls.all { it.occurrencePath.isEmpty() && it.checkedType.name == "Query" })
-        assertEquals(2, calls.map { it.logicalQueryRoot }.toSet().size)
+        assertTrue(calls.isEmpty())
+        assertEquals(null, resolution.result.typeCheckerResult.get())
     }
 
     private fun resolveChecked(

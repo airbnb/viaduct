@@ -1183,10 +1183,13 @@ internal fun ObjectEngineResult.ObjectKey.hasSameRootRelativeStructureAs(other: 
         field == other.field && arguments.hasSameRootRelativeStructureAs(other.arguments)
     }
 
-internal fun mutationObjectEngineResultOf(selections: MutationSelectionForest): MutationObjectEngineResult = MutationObjectEngineResultImpl(selections.type)
+internal fun mutationObjectEngineResultOf(
+    selections: MutationSelectionForest,
+    typeCheckerResult: Promise<CheckerResult?>,
+): MutationObjectEngineResult = MutationObjectEngineResultImpl(selections.type, typeCheckerResult)
 
-private class MutationObjectEngineResultImpl(type: ViaductSchema.Object) :
-    ObjectResultImpl(type, emptyMap(), Promise.of(null), mutable = true), MutationObjectEngineResult {
+private class MutationObjectEngineResultImpl(type: ViaductSchema.Object, typeCheckerResult: Promise<CheckerResult?>) :
+    ObjectResultImpl(type, emptyMap(), typeCheckerResult, mutable = true), MutationObjectEngineResult {
     override val keys: Set<ObjectEngineResult.MutationKey>
         get() = super.keys.mapTo(linkedSetOf()) { it as ObjectEngineResult.MutationKey }
 

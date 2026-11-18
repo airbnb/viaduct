@@ -22,9 +22,12 @@ import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.mocks.EngineTestModule
 import viaduct.engine.api.mocks.MockCheckerExecutorFactory
 import viaduct.engine.api.mocks.MockExecutorCodeInjector
+import viaduct.engine.api.mocks.fetchAs
 import viaduct.engine.api.spi.CoroutineInterop
 import viaduct.engine.runtime.execution.AccessCheckExecutionContract
 import viaduct.engine.runtime.execution.DefaultCoroutineInterop
+import viaduct.engine.runtime.execution.mutation
+import viaduct.engine.runtime2.execution.testing.runRuntime2FeatureTest
 import viaduct.service.api.ExecutionInput
 import viaduct.service.api.SchemaId
 import viaduct.service.api.spi.FlagManager
@@ -33,6 +36,154 @@ import viaduct.service.runtime.StandardViaduct
 
 @ExperimentalCoroutinesApi
 class Engine2AccessCheckExecutionContractTest : AccessCheckExecutionContract, Engine2QueryExecutionContract {
+    @Test
+    fun `mutation namespace checks finish before effects and denied namespaces preserve siblings`() =
+        runTest(timeout = 10.seconds) {
+            for (typeCheck in listOf(false, true)) {
+                val pending = PendingAccessCheck()
+                val effects = mutableListOf<String>()
+                val module = EngineTestModule(
+                    """
+                    extend type Query { idle: Int @resolver }
+                    extend type Mutation { group: Group, later: Int @resolver }
+                    type Group @namespaceType { update: Int @resolver }
+                    """.trimIndent(),
+                ) {
+                    field("Query" to "idle") {
+                        resolver { fn { _, _, _, _, _ -> 0 } }
+                    }
+                    field("Group" to "update") {
+                        resolver {
+                            fn { _, _, _, _, _ ->
+                                effects += "update"
+                                1
+                            }
+                        }
+                    }
+                    field("Mutation" to "later") {
+                        resolver {
+                            fn { _, _, _, _, _ ->
+                                effects += "later"
+                                2
+                            }
+                        }
+                    }
+                    if (typeCheck) {
+                        type("Group") {
+                            checker { fn { _, _ -> if (!pending.awaitDecision()) throw SecurityException("namespace denied") } }
+                        }
+                    } else {
+                        field("Mutation" to "group") {
+                            checker { fn { _, _ -> if (!pending.awaitDecision()) throw SecurityException("namespace denied") } }
+                        }
+                    }
+                }
+                val execution = backgroundScope.async {
+                    executeEngine2Query(module, StandardTestDispatcher(testScheduler), "mutation { group { update } later }")
+                }
+                pending.started.await()
+                runCurrent()
+                assertTrue(effects.isEmpty())
+                assertFalse(execution.isCompleted)
+                pending.decision.complete(false)
+                val result = execution.await()
+                assertEquals(mapOf("group" to null, "later" to 2), result.getData())
+                assertEquals(listOf(listOf("group")), result.errors.map { it.path })
+                assertEquals(listOf("later"), effects)
+            }
+        }
+
+    @Test
+    fun `mutation checker failures preserve namespace error paths and later effects`() {
+        val events = mutableListOf<String>()
+        var typeCalls = 0
+        val module = EngineTestModule(
+            """
+            extend type Mutation { group: Group, update(value: Int): Int @resolver }
+            type Group @namespaceType { update(value: Int): Int @resolver }
+            """.trimIndent(),
+        ) {
+            field("Mutation" to "group") {
+                checker { fn { _, _ -> events += "group" } }
+            }
+            type("Group") {
+                checker {
+                    fn { _, _ ->
+                        events += "type:${++typeCalls}"
+                        if (typeCalls == 2) throw SecurityException("namespace denied")
+                    }
+                }
+            }
+            for (owner in listOf("Mutation", "Group")) {
+                field(owner to "update") {
+                    checker {
+                        fn { arguments, _ ->
+                            val value = arguments.getValue("value") as Int
+                            events += "check:$value"
+                            if (value < 0) throw SecurityException("field denied")
+                        }
+                    }
+                    resolver {
+                        fn { arguments, _, _, _, _ ->
+                            val value = arguments.getValue("value") as Int
+                            events += "effect:$value"
+                            value
+                        }
+                    }
+                }
+            }
+        }
+        module.runRuntime2FeatureTest {
+            val result = runQuery("mutation { first: group { blocked: update(value: -1) ok: update(value: 1) } denied: group { update(value: 99) } update(value: 2) }")
+            assertEquals(mapOf("first" to mapOf("blocked" to null, "ok" to 1), "denied" to null, "update" to 2), result.getData())
+            assertEquals(setOf(listOf("first", "blocked"), listOf("denied")), result.errors.map { it.path }.toSet())
+        }
+        assertEquals(listOf("group", "type:1", "check:-1", "check:1", "effect:1", "group", "type:2", "check:2", "effect:2"), events)
+    }
+
+    @Test
+    fun `nested mutation calls check each fresh alias before its effect`() {
+        val checks = mutableListOf<Int>()
+        val effects = mutableListOf<Int>()
+        EngineTestModule(
+            """
+            extend type Query { trigger: Int @resolver }
+            extend type Mutation { update(value: Int): Int @resolver }
+            """.trimIndent(),
+        ) {
+            field("Mutation" to "update") {
+                checker {
+                    fn { arguments, _ ->
+                        val value = arguments.getValue("value") as Int
+                        checks += value
+                        if (value == 0) throw SecurityException("denied")
+                    }
+                }
+                resolver {
+                    fn { arguments, _, _, _, _ ->
+                        (arguments.getValue("value") as Int).also { effects += it }
+                    }
+                }
+            }
+            field("Query" to "trigger") {
+                resolver {
+                    fn { _, _, _, _, ctx ->
+                        val selections = ctx.engineSelectionSetFactory.engineSelectionSet("Mutation", "denied: update(value: 0) allowed: update(value: 7)", emptyMap())
+                        var sum = 0
+                        repeat(2) { sum += ctx.mutation(selections).fetchAs<Int>("allowed") }
+                        sum
+                    }
+                }
+            }
+        }.runRuntime2FeatureTest {
+            val result = runQuery("{ trigger }")
+            assertEquals(mapOf("trigger" to 14), result.getData())
+            assertTrue(result.errors.isEmpty())
+        }
+        assertEquals(listOf(0, 7, 0, 7), checks)
+        assertEquals(listOf(7, 7), effects)
+    }
+
     @Test
     fun `secret reads wait for field checks and respect denial`() =
         runTest(timeout = 10.seconds) {
@@ -186,11 +337,6 @@ class Engine2AccessCheckExecutionContractTest : AccessCheckExecutionContract, En
     @Engine2Disabled(Engine2DisabledKind.TODO, "CheckerVarsRSS: Checker variables resolvers with their own required selections are unsupported")
     override fun `checker with rss - access checks skipped`() {
         super<AccessCheckExecutionContract>.`checker with rss - access checks skipped`()
-    }
-
-    @Engine2Disabled(Engine2DisabledKind.TODO, "MutationChk: Mutation namespace field checkers are unsupported")
-    override fun `mutation field with checker`() {
-        super<AccessCheckExecutionContract>.`mutation field with checker`()
     }
 
     @Engine2Disabled(Engine2DisabledKind.TODO, "CheckerErrorData: Checker errors do not reach the configured error builder")

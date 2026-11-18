@@ -444,21 +444,33 @@ private class ResolverRegistryImpl(
         } + variablesProviderTemplates.associateWith { VariableDefinition.FromProvider }
 
     init {
+        val mutationNamespaces = schema.mutationNamespaceTypes()
+        val rootTypes = setOfNotNull(schema.queryTypeDef, schema.mutationTypeDef, schema.subscriptionTypeDef)
         fieldCheckers.forEach { (field, checker) ->
             require(checker.target.field == field) {
                 "Field checker ${checker.target.field.containingDef.name}/${checker.target.field.name} does not belong to " +
                     "${field.containingDef.name}/${field.name}"
             }
         }
+        fieldCheckers.filterKeys { it.containingDef in mutationNamespaces }.forEach { (field, checker) ->
+            require(checker.objectFragment.isEmpty() && checker.queryFragment.isEmpty()) {
+                "Mutation field checker ${field.containingDef.name}/${field.name} cannot declare object or Query fragments"
+            }
+        }
         typeCheckers.forEach { (type, checker) ->
             require(schema.requireType(type.name) == type) {
                 "${type.name} is not the canonical type-checker type in this registry's schema"
+            }
+            require(type !in rootTypes) { "Root type ${type.name} cannot have a type checker" }
+            if (type in mutationNamespaces) {
+                require(checker.objectFragment.isEmpty() && checker.queryFragment.isEmpty()) {
+                    "Mutation type checker ${type.name} cannot declare object or Query fragments"
+                }
             }
             require(checker.target.type == type) {
                 "Type checker ${checker.target.type.name} does not belong to ${type.name}"
             }
         }
-        val mutationNamespaces = schema.mutationNamespaceTypes()
         fieldResolverDefinitions.forEach { (field, resolver) ->
             resolver.objectFragment.materializeSelections.requireNoErroneousArguments()
             resolver.queryFragment?.materializeSelections?.requireNoErroneousArguments()

@@ -255,13 +255,13 @@ Supplied-demand witnesses cover selected contracts and profiles but are not a co
 
 ## GraphQL Mutation And Nested Execution Tests
 
-The focused mutation gate covers response-key collection, the full maintained-family ladder, engine/service integration, independent `ctx.query()` and `ctx.mutation()`, continued effects after nullable and non-null failures, response null propagation through namespaces and payloads, inactive payload dependencies, cancellation before task entry and during suspended mutations, and sequencing of suspended work. These are tests of GraphQL mutation execution; the deliberate corruption tests described in [Testing Strategy](strategy.md#correctness-oracles) serve a different purpose.
+The focused mutation gate covers response-key collection, the full maintained-family ladder, engine/service integration, independent `ctx.query()` and `ctx.mutation()`, continued effects after nullable and non-null failures, response null propagation through namespaces and payloads, inactive payload dependencies, cancellation before task entry and during suspended mutations, sequencing of suspended work, field and namespace type checker gating, alias-specific applicability, checker-local failure, and cancellation during suspended checks. These are tests of GraphQL mutation execution; the deliberate corruption tests described in [Testing Strategy](strategy.md#correctness-oracles) serve a different purpose.
 
 ```shell
 ./gradlew :core:engine:runtime2:test --tests '*MutationSelectionParsingTest' --tests '*MutationObjectEngineResultTest' --tests '*MutationRegistryTest' --tests '*MutationResolutionTest' --tests '*MutationOrchestrationTaskTest' --tests '*MutationExecutionTest' --tests '*ResolverStartTest' --tests '*RequestScopeOwnershipTest'
 ```
 
-`MutationResolutionTest` asserts effect traces and completed payload values independently of Query replay. Its delayed payload resolver checks that an active mutation's output finishes before the next mutation changes shared state. Mutation lifecycle tests use controlled scheduling to verify that later mutations remain undispatched while the preceding task is suspended and that cancellation terminates all synchronously prepared cells.
+`MutationResolutionTest` asserts effect traces and completed payload values independently of Query replay. Its delayed payload resolver checks that an active mutation's output finishes before the next mutation changes shared state. Checker tests compare exact alias paths and grounded arguments independently of result values, verify suppressed effects and continuing siblings, and exercise fresh raw Query reads before effects. Engine API access-check tests additionally verify pending-check barriers and GraphQL namespace error paths. Mutation lifecycle tests use controlled scheduling to verify that later mutations remain undispatched while the preceding task is suspended and that cancellation terminates all synchronously prepared cells.
 
 Run the service-backed nested execution and lifetime gate with:
 

@@ -34,11 +34,12 @@ import viaduct.service.runtime.StandardViaduct
  * to increase the resolver density with [UndeclaredFieldResolverWeight] and [UndeclaredNodeResolverWeight].
  *
  * For all configurations, generated Viaduct instances are guaranteed to be free of illegal RSS cycles.
- * Runtime2 defaults to [RequiredSelectionSetWeight] with maximum depth one and disables
- * [AppliedDirectiveWeight]. Variables callbacks with their own required selections are unsupported,
+ * Runtime2 defaults to [RequiredSelectionSetWeight] with maximum depth one, disables
+ * [AppliedDirectiveWeight], and omits type checkers on schema roots.
+ * Variables callbacks with their own required selections are unsupported,
  * and declarations used only in statically eliminated selections are currently rejected by runtime2.
  * Explicit configurations that can generate nested callbacks are rejected before sampling.
- * Use the same explicit configuration and seed for both engines when comparing generated fixtures;
+ * Use the same portable configuration and seed for both engines when comparing generated fixtures;
  * runtime retains its existing defaults.
  *
  * # Configuration
@@ -171,7 +172,7 @@ private class ViaductGen(private val env: ViaductGenEnv, private val engine2Enab
             .withTenantModuleInjectorFactory(ArbitraryExecutorCodeInjector(executors))
             .withExecutorRegistryConfigSources(listOf(executors.moduleConfigSource(GENERATED_TENANT_NAME)))
             .withCheckerExecutorFactory(genCheckerExecutorFactory(fieldCheckerExecutors, typeCheckerExecutors))
-            // Engine selection consumes no randomness; identical fixtures require the same explicit configuration and seed.
+            // Identical fixtures require the same portable configuration and seed.
             .withFlagManager(object : FlagManager {
                 override fun isEnabled(flag: FlagManager.Flag): Boolean =
                     when (flag) {
@@ -217,14 +218,17 @@ private class ViaductGen(private val env: ViaductGenEnv, private val engine2Enab
             }
         }.toMap()
 
-    private fun genTypeCheckerExecutors(): Map<String, CheckerExecutor> =
-        env.schemas.viaductSchema.objects.mapNotNull { obj ->
-            if (env.rs.sampleWeight(env.cfg[TypeCheckerWeight])) {
+    private fun genTypeCheckerExecutors(): Map<String, CheckerExecutor> {
+        val schema = env.schemas.schema
+        val rootTypes = setOfNotNull(schema.queryType, schema.mutationType, schema.subscriptionType)
+        return env.schemas.viaductSchema.objects.mapNotNull { obj ->
+            if ((!engine2Enabled || obj !in rootTypes) && env.rs.sampleWeight(env.cfg[TypeCheckerWeight])) {
                 obj.name to env.checkerExecutorGen.gen(obj.name to null)
             } else {
                 null
             }
         }.toMap()
+    }
 
     private fun genCheckerExecutorFactory(
         fieldCheckerExecutors: Map<Coordinate, CheckerExecutor>,

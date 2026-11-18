@@ -6,6 +6,7 @@ import viaduct.engine.runtime2.model.MutationSelectionForest
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.ResolverOccurrenceId
 import viaduct.engine.runtime2.model.SelectionForest
+import viaduct.engine.runtime2.model.registry.ResolutionExecutionContext
 import viaduct.engine.runtime2.model.schemaType
 import viaduct.engine.runtime2.resolution.framework.CycleCheckState
 import viaduct.engine.runtime2.resolution.framework.Demand
@@ -53,6 +54,7 @@ fun CoroutineOperationContext.startResolve(
             operation = this,
             selections = selections,
             creator = creator,
+            checkerExecutionContext = { _, _, _ -> ResolutionExecutionContext.Unsupported },
             prepareField = { task, occurrence, selection -> CoroutineFieldResolverTask.prepareMutation(this, occurrence, selection, task) },
         )
         dispatcher.dispatchMutationOrchestration(task)

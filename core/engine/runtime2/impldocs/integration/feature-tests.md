@@ -41,7 +41,7 @@ Alignment is a claim about the behavior observed by a particular test, not about
 | Passive field ownership | Ownership is source-sensitive for argumentless registered fields: an ancestor that actually supplies the field owns that occurrence; otherwise its standard resolver owns it. Argument-bearing fields are always active. A selective node's supplied value suppresses the standard resolver even if it is stale or a placeholder; migrating tenants must omit such values unless they intend them to win. | Selective node output cannot override a registered field resolver. Materialization may route argument-bearing or consumer-shaped values through a producer's passive output. |
 | Selective output | A selective producer receives closed one-shot demand. Undemanded output is ignored; demanded argumentless registered fields supplied by the producer are passive for that occurrence. | Materialization can ignore, reconcile, or reuse surplus output from covering results. |
 | Directives and checks | Source occurrences retain generic field-directive context. Runtime2 assigns no built-in meaning to a policy-specific directive spelling. | Production policy integrations may interpret particular directives directly. |
-| Mutation dependencies | Mutation resolvers use `ctx.query()` for dependent reads; each nested `ctx.mutation()` preserves its own order while independent calls may overlap. | Mutation resolvers may declare Query required selections. |
+| Mutation dependencies | Mutation resolvers and namespace checkers require empty object and Query required selections. Production uses `ctx.query()` for dependent reads; each nested `ctx.mutation()` preserves its own order while independent calls may overlap. | Mutation resolvers may declare Query required selections. |
 | Error evidence | Compatibility establishes corresponding error outcomes and meaningful consumer paths. Runtime2's correctness oracle does not yet prove exact `EngineErrorData` carrier identity or metadata equality at every derived boundary. | Tests may inspect `runtime` engine wrapper, materialization-source, or carrier details that are not part of Runtime2's semantic claim. |
 
 The `ALT` plus `@Engine2Alternate` pairing is especially important for these differences. The disabled source form keeps the `runtime` engine expectation reviewable, while the alternative prevents an intentional difference from becoming an untested exemption.
@@ -51,7 +51,7 @@ The `ALT` plus `@Engine2Alternate` pairing is especially important for these dif
 The following differences are gaps in the present Engine API integration rather than permanent semantic incompatibilities:
 
 - physical batching and any compatible expansion of production data-loader reuse outside semantic occurrence scheduling;
-- mutation namespace checkers, subscriptions, application-defined custom scalars, `@stream`, and asynchronous EOD variants;
+- streaming subscriptions, application-defined custom scalars, `@stream`, and asynchronous EOD variants;
 - direct `Engine.resolveRootFieldReference` calls and `EngineExecutionContext.completeSelectionSet`; and
 - opaque checker variables providers with their own required selections, checker enforcement on reference target paths, and other resolver and checker combinations listed as unsupported by [Engine API integration](engine-api.md).
 

@@ -2,9 +2,8 @@ package viaduct.engine.runtime2.resolution
 
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.currentCoroutineContext
-import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
+import viaduct.engine.api.CheckerResult
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.runtime2.model.Arguments
 import viaduct.engine.runtime2.model.EngineResultCell
@@ -27,7 +26,7 @@ import viaduct.engine.runtime2.resolution.framework.SharedOERContext
 import viaduct.engine.runtime2.resolution.framework.fetchGroundedArguments
 import viaduct.engine.runtime2.resolution.framework.fieldCheckerCycleTask
 import viaduct.engine.runtime2.resolution.framework.materializeResult
-import viaduct.errors.isJvmSignal
+import viaduct.engine.runtime2.resolution.framework.publishCheckerResult
 
 /** A checker writer retains its original symbolic address independently of its late arguments. */
 internal class SymbolicFieldCheckerPublicationOccurrence private constructor(
@@ -165,21 +164,19 @@ internal class FieldCheckerTask(
 
     suspend fun run(scope: CoroutineScope) {
         this.scope = scope
-        try {
-            executeAndPublish()
-        } catch (cause: Exception) {
-            if (cause.isJvmSignal()) throw cause
-            currentCoroutineContext().ensureActive()
-            completePendingBindings(VariableBinding.Error)
-            check(publication.publicationCell.fieldCheckerResult.fail(cause)) { "Field-checker failure was published twice" }
+        publishCheckerResult(
+            publication.publicationCell.fieldCheckerResult,
+            onFailure = { completePendingBindings(VariableBinding.Error) },
+        ) {
+            if (!publication.publicationCell.fetchActivated()) {
+                completePendingBindings(VariableBinding.of(null))
+                return
+            }
+            execute()
         }
     }
 
-    private suspend fun executeAndPublish() {
-        if (!publication.publicationCell.fetchActivated()) {
-            completePendingBindings(VariableBinding.of(null))
-            return
-        }
+    private suspend fun execute(): CheckerResult? {
         val included = occurrence.selection.inclusionCondition.includeAnyReadyAlternative { variable ->
             when (val binding = operation.variableBindings.fetchBinding(requireNotNull(variable.instanceId))) {
                 VariableBinding.Error -> error("Checker inclusion-condition variable failed")
@@ -188,8 +185,7 @@ internal class FieldCheckerTask(
         }
         if (!included) {
             completePendingBindings(VariableBinding.of(null))
-            check(publication.publicationCell.fieldCheckerResult.complete(null))
-            return
+            return null
         }
         val arguments = key.fetchGroundedArguments(operation)
         occurrence.variableDefinitions.forEach { variableDefinition ->
@@ -200,8 +196,7 @@ internal class FieldCheckerTask(
         }
         if (arguments !is Arguments.Resolved) {
             completePendingBindings(VariableBinding.Error)
-            check(publication.publicationCell.fieldCheckerResult.complete(null))
-            return
+            return null
         }
         if (occurrence.providerReads.isNotEmpty()) {
             scope.launch { completeProviderBindings(operation, occurrence.providerReads) }
@@ -257,8 +252,7 @@ internal class FieldCheckerTask(
             ),
             inputs,
         )
-        val result = occurrence.checker(arguments, inputs, this)
-        check(publication.publicationCell.fieldCheckerResult.complete(result)) { "Field-checker result was completed twice" }
+        return occurrence.checker(arguments, inputs, this)
     }
 
     private fun completePendingBindings(binding: VariableBinding) {

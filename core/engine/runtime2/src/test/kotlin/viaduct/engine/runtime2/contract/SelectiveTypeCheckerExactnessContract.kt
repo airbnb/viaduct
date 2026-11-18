@@ -321,7 +321,7 @@ interface SelectiveTypeCheckerExactnessContract {
                     }
                 },
                 typeCheckers = { schema ->
-                    listOf("Query", "Item").associate { name ->
+                    listOf("Item").associate { name ->
                         val type = schema.loweredSchema.requireType(name) as ViaductSchema.Object
                         type to TypeCheckerResolver.of(
                             type,
@@ -349,7 +349,6 @@ interface SelectiveTypeCheckerExactnessContract {
         assertEquals(3, run.invocations.count { it.field.name == "marker" })
         run.validate(
             buildList {
-                add(run.type("Query", emptyList()))
                 for (id in 1..2) {
                     val key = world.t4Key("Query", "item", mapOf("id" to id))
                     add(run.field(listOf(key)))

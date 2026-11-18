@@ -5,12 +5,15 @@ package viaduct.engine.runtime2.resolution
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.suspendCancellableCoroutine
 import viaduct.engine.api.EngineObjectData
+import viaduct.engine.runtime2.model.MaterializeSelectionForest
 import viaduct.engine.runtime2.model.MutationSelectionForest
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.SelectionForest
 import viaduct.engine.runtime2.model.engineObjectDataOf
+import viaduct.engine.runtime2.model.registry.ResolutionExecutionContext
 import viaduct.engine.runtime2.model.requireQueryTypeDef
 import viaduct.engine.runtime2.model.schemaType
 import viaduct.engine.runtime2.resolution.framework.CycleCheckState
@@ -19,6 +22,9 @@ import viaduct.engine.runtime2.resolution.framework.MutationOrchestrationTask
 import viaduct.engine.runtime2.resolution.framework.OEROccurrence
 import viaduct.engine.runtime2.resolution.framework.ResolutionTask
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
+import viaduct.engine.runtime2.resolution.framework.fieldCheckerCycleTask
+import viaduct.engine.runtime2.resolution.framework.materializeResult
+import viaduct.engine.runtime2.resolution.framework.typeCheckerCycleTask
 import viaduct.graphql.schema.ViaductSchema
 
 /**
@@ -89,6 +95,7 @@ internal fun OperationContext.startResolve(
             selections = selections,
             prepareField = { task, occurrence, selection -> FieldResolverTask.prepareMutation(this, occurrence, selection, task) },
             namespacePrepared = { bindingsState.markBindingsDeclared(it.target) },
+            checkerExecutionContext = { task, occurrence, key -> mutationCheckerExecutionContext(task, occurrence, key) },
             creator = creator,
         )
         dispatcher.dispatchMutationOrchestration(task)
@@ -126,3 +133,23 @@ internal fun OperationContext.startResolve(
     dispatcher.dispatchOrchestration(orchestration)
     return result
 }
+
+private fun OperationContext.mutationCheckerExecutionContext(
+    creator: ResolutionTask,
+    occurrence: OEROccurrence,
+    key: ObjectEngineResult.MutationKey?,
+): ResolutionExecutionContext =
+    object : ResolutionExecutionContext {
+        override val engineExecutionContext get() = this@mutationCheckerExecutionContext.engineExecutionContext
+
+        override suspend fun interopAncestors() = occurrence.interopAncestors(this@mutationCheckerExecutionContext)
+
+        override suspend fun resolveSelectionSet(selections: MaterializeSelectionForest): EngineObjectData.Sync =
+            coroutineScope {
+                // Mutation checkers run inline, so their Query work must be owned by the orchestration coroutine.
+                val operation = this@mutationCheckerExecutionContext.forChildScope(this)
+                val reader = if (key == null) occurrence.typeCheckerCycleTask() else occurrence.fieldCheckerCycleTask(key)
+                val result = operation.startResolve(Demand.unchecked(selections.constructionSelections()), creator = creator)
+                result.materializeResult(operation, selections, reader, operation.cycleChecker, checked = false)
+            }
+    }

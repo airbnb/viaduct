@@ -577,12 +577,13 @@ class RegistryConstructionTest {
 
     @Test
     fun `preserves field and type checker registrations`() {
-        val schemas = schemas("type Query { value: String }")
+        val schemas = schemas("type Query { value: String } type Item { value: String }")
         val schema = schemas.loweredSchema
         val query = schema.requireQueryTypeDef()
         val field = schema.requireObjectField("Query", "value")
         val fieldChecker = FieldCheckerResolver.of(field, query) { _, _, _ -> CheckerResult.Success }
-        val typeChecker = TypeCheckerResolver.of(query, query) { _, _ -> CheckerResult.Success }
+        val item = schema.requireType("Item") as ViaductSchema.Object
+        val typeChecker = TypeCheckerResolver.of(item, query) { _, _ -> CheckerResult.Success }
 
         val registry =
             resolverRegistryOf(
@@ -590,12 +591,12 @@ class RegistryConstructionTest {
                 nodeResolvers = emptyMap(),
                 fieldResolvers = mapOf(field to fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ -> "value" }),
                 fieldCheckers = mapOf(field to fieldChecker),
-                typeCheckers = mapOf(query to typeChecker),
+                typeCheckers = mapOf(item to typeChecker),
                 variableProviders = emptyMap(),
             )
 
         assertSame(fieldChecker, registry.fieldChecker(field))
-        assertSame(typeChecker, registry.typeChecker(query))
+        assertSame(typeChecker, registry.typeChecker(item))
     }
 
     @Test

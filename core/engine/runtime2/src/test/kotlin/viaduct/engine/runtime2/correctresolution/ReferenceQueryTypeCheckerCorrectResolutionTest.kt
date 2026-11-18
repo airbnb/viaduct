@@ -1,7 +1,6 @@
 package viaduct.engine.runtime2.correctresolution
 
 import kotlin.test.Test
-import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import viaduct.engine.api.CheckerResult
@@ -11,10 +10,7 @@ import viaduct.engine.runtime2.model.Promise
 import viaduct.engine.runtime2.model.ResolverOccurrenceId
 import viaduct.engine.runtime2.model.RootFieldReferenceData
 import viaduct.engine.runtime2.model.emptyFragmentOf
-import viaduct.engine.runtime2.model.materializeSelectionForestOf
 import viaduct.engine.runtime2.model.merge
-import viaduct.engine.runtime2.model.registry.ResolverFragmentTemplates
-import viaduct.engine.runtime2.model.registry.TypeCheckerResolver
 import viaduct.engine.runtime2.model.registry.fieldResolverOf
 import viaduct.engine.runtime2.model.requireObjectField
 import viaduct.engine.runtime2.model.requireQueryTypeDef
@@ -30,69 +26,20 @@ import viaduct.engine.runtime2.schema.operationSelectionsFrom
 /** Mutates the independent Query result without changing the reference's published value. */
 class ReferenceQueryTypeCheckerCorrectResolutionTest {
     @Test
-    fun `reference Query root requires its own type result`() {
-        assertTrue(accepted(CheckerResult.Success))
-        assertFalse(accepted(null), "The primary root's successful check cannot cover an independently executed Query root")
+    fun `reference Query roots require no type checker result`() {
+        assertTrue(accepted(null, includePolicy = false))
+        assertFalse(accepted(CheckerResult.Success, includePolicy = false))
+        assertFalse(accepted(QueryDenial(), includePolicy = false))
     }
 
     @Test
-    fun `reference Query root requires its checker inputs even when its type result is missing`() {
-        assertFalse(accepted(null, includePolicy = false))
-    }
-
-    @Test
-    fun `reference Query root must agree with its checker relation`() {
-        assertFalse(accepted(QueryDenial()), "Correct selected field values cannot justify a forged root type result")
-    }
-
-    @Test
-    fun `associated Query root has no incoming type-check requirement`() {
+    fun `associated Query roots have no type checker result`() {
         assertTrue(accepted(null, includePolicy = false, reference = false))
     }
 
     @Test
-    fun `independent Query root remains checked when all its input fields are excluded`() {
-        assertTrue(accepted(CheckerResult.Success, excludeDependency = true))
-        assertFalse(accepted(null, includePolicy = false, excludeDependency = true))
-    }
-
-    @Test
-    fun `cached raw validation cannot discharge an independent root check`() {
-        var checkerReplays = 0
-        val worldFixture = TestWorld.fromSDL(
-            "type Query { dependency: Int! }",
-            fieldResolvers = { schema ->
-                mapOf(schema.loweredSchema.requireObjectField("Query", "dependency") to fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ -> 7 })
-            },
-            typeCheckers = { schema ->
-                val query = schema.loweredSchema.requireQueryTypeDef()
-                mapOf(
-                    query to TypeCheckerResolver.of(query, query) { _, _ ->
-                        checkerReplays++
-                        CheckerResult.Success
-                    },
-                )
-            },
-        )
-        val world = worldFixture.assumptions
-        val query = worldFixture.schema.requireQueryTypeDef()
-        val operation = SharedOperationContext.create(world)
-        val primary = ObjectEngineResult.of(query)
-        val witness = operation.rootFieldReferenceWitness(primary)
-        val state = QueryOERValidationState()
-        val cache = state.replayCache(primary, witness)
-        val key = ObjectEngineResult.GroundKey.of(world.schema.requireObjectField("Query", "dependency"), emptyMap())
-        val selections = worldFixture.schemas.operationSelectionsFrom("{ dependency }").merge(query)
-        for (typeResult in listOf(null, CheckerResult.Success)) {
-            val nested = ObjectEngineResult.of(query, values = mapOf(key to 7), typeCheckerResult = Promise.of(typeResult))
-            assertTrue(cache.queryResultConforms(operation, nested, selections, selectionsAreChecked = false))
-            assertEquals(typeResult != null, cache.queryResultConforms(operation, nested, selections, rootIsChecked = true))
-            // Exercise the recursion path where the cached result is also the replay cache's root.
-            val nestedCache = state.replayCache(nested, witness)
-            assertEquals(typeResult != null, nestedCache.queryResultConforms(operation, nested, selections, rootIsChecked = true))
-            assertTrue(cache.queryResultConforms(operation, nested, selections), "Associated-root obligations stay independent")
-        }
-        assertEquals(1, checkerReplays, "Repeated checked reads share one relation replay per OER")
+    fun `independent Query roots with excluded inputs need no type check`() {
+        assertTrue(accepted(null, includePolicy = false, excludeDependency = true))
     }
 
     private fun accepted(
@@ -121,21 +68,6 @@ class ReferenceQueryTypeCheckerCorrectResolutionTest {
                     put(schema.loweredSchema.requireObjectField("Query", "policy"), fieldResolverOf(empty) { _, _ -> 11 })
                 }
             },
-            typeCheckers = { schema ->
-                val query = schema.loweredSchema.requireQueryTypeDef()
-                mapOf(
-                    query to TypeCheckerResolver.of(
-                        query,
-                        query,
-                        mapOf(
-                            "input" to ResolverFragmentTemplates(
-                                schema.fragmentFrom("fragment Input on Query { policy }").materializeSelections,
-                                materializeSelectionForestOf(),
-                            ),
-                        ),
-                    ) { _, _ -> CheckerResult.Success },
-                )
-            },
         )
         val world = worldFixture.assumptions
         val query = worldFixture.schema.requireQueryTypeDef()
@@ -145,7 +77,7 @@ class ReferenceQueryTypeCheckerCorrectResolutionTest {
         val root = ObjectEngineResult.of(
             query,
             values = mapOf(selected to 7, key("policy") to 11),
-            typeCheckerResult = Promise.of(CheckerResult.Success),
+            typeCheckerResult = Promise.of(null),
         )
         val nested = ObjectEngineResult.of(
             query,

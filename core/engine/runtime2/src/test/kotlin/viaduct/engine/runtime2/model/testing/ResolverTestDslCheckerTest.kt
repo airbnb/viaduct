@@ -29,6 +29,8 @@ import viaduct.engine.runtime2.model.registry.VariableDefinition
 import viaduct.engine.runtime2.model.requireObjectField
 import viaduct.engine.runtime2.model.requireQueryTypeDef
 import viaduct.engine.runtime2.model.requireType
+import viaduct.engine.runtime2.resolution.FieldCheckerTask
+import viaduct.engine.runtime2.resolution.TypeCheckerTask
 import viaduct.engine.runtime2.resolution.framework.CheckerInvocationObservation
 import viaduct.engine.runtime2.resolution.framework.ResolutionObserver
 import viaduct.engine.runtime2.resolution.framework.ResolverInvocationObservation
@@ -122,11 +124,14 @@ class ResolverTestDslCheckerTest {
     }
 
     @Test
-    fun `type and Query checkers support zero inputs and explicit empty named pairs`() {
+    fun `type checkers support zero inputs and explicit empty named pairs`() {
         for (outcome in listOf("allow", "deny")) {
             val world = TestWorld.fromDSL(
                 """
-                extend type Query @checker(script: "inputs.isEmpty() ? allow : deny") {
+                extend type Query {
+                  wrapper: Wrapper @resolver(script: "{:}")
+                }
+                type Wrapper @checker(script: "inputs.isEmpty() ? allow : deny") {
                   item: Item @resolver(script: "{'value': 3}")
                   consume: Int @resolver(of: "item { value }", script: "objectValue.item.value")
                 }
@@ -135,7 +140,7 @@ class ResolverTestDslCheckerTest {
                 }
                 """.trimIndent(),
             )
-            val result = resolve(world, "{ consume }")
+            val result = assertIs<ObjectEngineResult>(resolve(world, "{ wrapper { consume } }").value("wrapper"))
             assertSame(CheckerResult.Success, result.typeCheckerResult.get())
             val item = assertIs<ObjectEngineResult>(result.value("item"))
             if (outcome == "allow") {
@@ -309,12 +314,15 @@ class ResolverTestDslCheckerTest {
             val checker = "@checker(script: \"$script\")"
             val world = TestWorld.fromDSL(
                 """
-                extend type Query ${if (typeChecker) checker else ""} {
-                  checked: Int @resolver(script: "1") ${if (typeChecker) "" else checker}
+                extend type Query {
+                  checked: Checked @resolver(script: "{:}")
                   raw: Int @resolver(script: "4") @checker(script: "deny")
                   item: Item @resolver(script: "{'value': 7}") @checker(script: "deny")
                   protected: Int @resolver(script: "3") @checker(script: "deny")
                   derived: Int @resolver(of: "protected", script: "objectValue.protected") @checker(script: "deny")
+                }
+                type Checked ${if (typeChecker) checker else ""} {
+                  value: Int @resolver(script: "1") ${if (typeChecker) "" else checker}
                 }
                 type Item @checker(script: "deny") { value: Int }
                 """.trimIndent(),
@@ -322,11 +330,13 @@ class ResolverTestDslCheckerTest {
             val nested = ConcurrentLinkedQueue<ObjectEngineResult>()
             val observer = object : ResolutionObserver {
                 override val onQueryOERPrepared: (SharedOrchestrationTask<*>, Int?) -> Unit = { task, _ ->
-                    if (task.creator != null && task.objectOER.occurrence.target.type.name == "Query") nested += task.objectOER.occurrence.target
+                    if ((task.creator is FieldCheckerTask || task.creator is TypeCheckerTask) && task.objectOER.occurrence.target.type.name == "Query") {
+                        nested += task.objectOER.occurrence.target
+                    }
                 }
             }
-            val result = resolve(world, "{ checked }", observer)
-            assertSame(CheckerResult.Success, if (typeChecker) result.typeCheckerResult.get() else result.cell("checked").fieldCheckerResult.get())
+            val result = assertIs<ObjectEngineResult>(resolve(world, "{ checked { value } }", observer).value("checked"))
+            assertSame(CheckerResult.Success, if (typeChecker) result.typeCheckerResult.get() else result.cell("value").fieldCheckerResult.get())
             val child = nested.single()
             assertNull(child.cell("raw").fieldCheckerResult.get())
             assertNull(child.cell("item").fieldCheckerResult.get())
@@ -343,8 +353,11 @@ class ResolverTestDslCheckerTest {
             val checker = "@checker(script: \"mutation('{ update }'); allow\")"
             val world = TestWorld.fromDSL(
                 """
-                extend type Query ${if (typeChecker) checker else ""} {
-                  checked: Int @resolver(script: "1") ${if (typeChecker) "" else checker}
+                extend type Query {
+                  checked: Checked @resolver(script: "{:}")
+                }
+                type Checked ${if (typeChecker) checker else ""} {
+                  value: Int @resolver(script: "1") ${if (typeChecker) "" else checker}
                 }
                 type Mutation { update: Int @resolver(script: "7") }
                 """.trimIndent(),
@@ -355,9 +368,9 @@ class ResolverTestDslCheckerTest {
                     invocations += invocation.field.containingDef.name
                 }
             }
-            val result = resolve(world, "{ checked }", observer)
+            val result = assertIs<ObjectEngineResult>(resolve(world, "{ checked { value } }", observer).value("checked"))
             val failure = assertThrows<JexlException> {
-                if (typeChecker) result.typeCheckerResult.get() else result.cell("checked").fieldCheckerResult.get()
+                if (typeChecker) result.typeCheckerResult.get() else result.cell("value").fieldCheckerResult.get()
             }
             assertIs<UnsupportedOperationException>(failure.cause)
             assertTrue("Mutation" !in invocations)
@@ -465,12 +478,13 @@ class ResolverTestDslCheckerTest {
                 mapOf(field to FieldCheckerResolver.of(field, schemas.loweredSchema.requireQueryTypeDef()) { _, _, _ -> CheckerResult.Success })
             })
         }
-        assertThrows<IllegalArgumentException> {
-            TestWorld.fromDSL("extend type Query @checker(script: \"allow\") { value: Int }", typeCheckers = { schemas ->
-                val type = schemas.loweredSchema.requireQueryTypeDef()
-                mapOf(type to TypeCheckerResolver.of(type, type) { _, _ -> CheckerResult.Success })
+        val duplicate = assertThrows<IllegalArgumentException> {
+            TestWorld.fromDSL("extend type Query { item: Item } type Item @checker(script: \"allow\") { value: Int }", typeCheckers = { schemas ->
+                val type = schemas.loweredSchema.requireType("Item") as ViaductSchema.Object
+                mapOf(type to TypeCheckerResolver.of(type, schemas.loweredSchema.requireQueryTypeDef()) { _, _ -> CheckerResult.Success })
             })
         }
+        assertEquals("A type checker is declared by both DSL and Kotlin", duplicate.message)
     }
 
     private fun assertNotNullFieldChecker(

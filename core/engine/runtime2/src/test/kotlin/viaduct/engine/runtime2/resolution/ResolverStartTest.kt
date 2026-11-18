@@ -49,6 +49,7 @@ import viaduct.engine.runtime2.model.registry.fieldResolverOf
 import viaduct.engine.runtime2.model.requireField
 import viaduct.engine.runtime2.model.requireObjectField
 import viaduct.engine.runtime2.model.requireQueryTypeDef
+import viaduct.engine.runtime2.model.requireType
 import viaduct.engine.runtime2.model.testing.TestWorld
 import viaduct.engine.runtime2.model.testing.emptyFragmentOf
 import viaduct.engine.runtime2.model.testing.fragmentFrom
@@ -725,14 +726,21 @@ class ResolverStartTest : ResolutionDispatcherResource {
     fun `interruption from a type checker fails resolution instead of becoming a checker failure`() {
         val interruption = InterruptedException("interrupted")
         val world = TestWorld.fromSDL(
-            SCHEMA,
+            "type Query { item: Item } type Item { value: Int }",
+            fieldResolvers = { schema ->
+                mapOf(
+                    schema.loweredSchema.requireObjectField("Query", "item") to fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
+                        viaduct.engine.runtime2.model.engineObjectDataOf(schema.loweredSchema.requireType("Item") as ViaductSchema.Object)
+                    }
+                )
+            },
             typeCheckers = { schema ->
-                val query = schema.loweredSchema.requireQueryTypeDef()
-                mapOf(query to TypeCheckerResolver.of(query, query) { _, _ -> throw interruption })
+                val query = schema.loweredSchema.requireType("Item") as ViaductSchema.Object
+                mapOf(query to TypeCheckerResolver.of(query, schema.loweredSchema.requireQueryTypeDef()) { _, _ -> throw interruption })
             },
         )
 
-        val thrown = assertFailsWith<InterruptedException> { resolveFastAndSlow(world) }
+        val thrown = assertFailsWith<InterruptedException> { SharedOperationContext.create(world.assumptions).resolveWithTestDispatcher(world.schemas.operationSelectionsFrom("{ item { value } }")) }
         assertSame(interruption, thrown.originalBeforeStackTraceRecovery())
     }
 

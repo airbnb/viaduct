@@ -22,6 +22,7 @@ import viaduct.engine.runtime2.model.registry.VariableDefinition
 import viaduct.engine.runtime2.model.registry.fieldResolverOf
 import viaduct.engine.runtime2.model.requireObjectField
 import viaduct.engine.runtime2.model.requireQueryTypeDef
+import viaduct.engine.runtime2.model.requireType
 import viaduct.engine.runtime2.model.testing.TestWorld
 import viaduct.engine.runtime2.model.testing.emptyFragmentOf
 import viaduct.engine.runtime2.model.testing.fragmentFrom
@@ -51,7 +52,7 @@ class CheckerProviderCorrectResolutionTest {
         ): Map<String, ResolverFragmentTemplates> =
             listOf("object", "query").associateWith { name ->
                 val input = schema.fragmentFrom(
-                    "fragment Input on Query { echo(value: ${'$'}v) }",
+                    "fragment Input on ${if (name == "object") "Item" else "Query"} { echo(value: ${'$'}v) }",
                     variableTarget = target,
                 ).materializeSelections
                 ResolverFragmentTemplates(
@@ -67,17 +68,22 @@ class CheckerProviderCorrectResolutionTest {
             }
 
         val worldFixture = TestWorld.fromSDL(
-            "type Query { value(id: Int!): Int! echo(value: [Int]): Int! }",
+            "type Query { item: Item! echo(value: [Int]): Int! } type Item { value(id: Int!): Int! echo(value: [Int]): Int! }",
             fieldResolvers = { schema ->
-                listOf("value", "echo").associate { name ->
-                    schema.loweredSchema.requireObjectField("Query", name) to fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ -> 1 }
+                mapOf(
+                    schema.loweredSchema.requireObjectField("Query", "item") to fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
+                        viaduct.engine.runtime2.model.engineObjectDataOf(schema.loweredSchema.requireType("Item") as viaduct.graphql.schema.ViaductSchema.Object)
+                    },
+                    schema.loweredSchema.requireObjectField("Query", "echo") to fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ -> 1 },
+                ) + listOf("value", "echo").associate { name ->
+                    schema.loweredSchema.requireObjectField("Item", name) to fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Item")) { _, _ -> 1 }
                 }
             },
             fieldCheckers = { schema ->
                 if (typeChecker) {
                     emptyMap()
                 } else {
-                    val field = schema.loweredSchema.requireObjectField("Query", "value")
+                    val field = schema.loweredSchema.requireObjectField("Item", "value")
                     mapOf(
                         field to FieldCheckerResolver.of(
                             field,
@@ -92,32 +98,36 @@ class CheckerProviderCorrectResolutionTest {
                     emptyMap()
                 } else {
                     val query = schema.loweredSchema.requireQueryTypeDef()
-                    mapOf(query to TypeCheckerResolver.of(query, query, templates(schema, ResolverTarget.TypeCheckerTarget(query))) { _, _ -> CheckerResult.Success })
+                    val item = schema.loweredSchema.requireType("Item") as viaduct.graphql.schema.ViaductSchema.Object
+                    mapOf(item to TypeCheckerResolver.of(item, query, templates(schema, ResolverTarget.TypeCheckerTarget(item))) { _, _ -> CheckerResult.Success })
                 }
             },
         )
         val world = worldFixture.assumptions
         val query = worldFixture.schema.requireQueryTypeDef()
-        val value = ObjectEngineResult.GroundKey.of(world.schema.requireObjectField("Query", "value"), mapOf("id" to 7))
-        val root = ObjectEngineResult.of(query, typeCheckerResult = Promise.of(if (typeChecker) CheckerResult.Success else null), mutable = true)
-        root.reserveCell(value).apply {
+        val value = ObjectEngineResult.GroundKey.of(world.schema.requireObjectField("Item", "value"), mapOf("id" to 7))
+        val itemType = worldFixture.schema.requireType("Item") as viaduct.graphql.schema.ViaductSchema.Object
+        val item = ObjectEngineResult.of(itemType, typeCheckerResult = Promise.of(if (typeChecker) CheckerResult.Success else null), mutable = true)
+        val itemKey = ObjectEngineResult.GroundKey.of(world.schema.requireObjectField("Query", "item"), emptyMap())
+        val root = ObjectEngineResult.of(query, values = mapOf(itemKey to item))
+        item.reserveCell(value).apply {
             this.value.set(1)
             fieldCheckerResult.complete(if (typeChecker) null else CheckerResult.Success)
         }
         val checker: CheckerResolverBase<*> = if (typeChecker) {
-            world.resolverRegistry.typeChecker(query)!!
+            world.resolverRegistry.typeChecker(itemType)!!
         } else {
             world.resolverRegistry.fieldChecker(value.field)!!
         }
-        val path = if (typeChecker) emptyList() else listOf(value)
+        val path = if (typeChecker) listOf(itemKey) else listOf(itemKey, value)
         val fragments = checker.instantiateFragmentsAt(root, path)
-        fragments.objectFragment.constructionSelections.merge(query).byKey().keys.forEach { key ->
-            root.reserveCell(key).apply {
+        fragments.objectFragment.constructionSelections.merge(itemType).byKey().keys.forEach { key ->
+            item.reserveCell(key).apply {
                 this.value.set(1)
                 fieldCheckerResult.complete(null)
             }
         }
-        root.freeze()
+        item.freeze()
         val associatedQuery = ObjectEngineResult.of(
             query,
             values = fragments.queryFragment.constructionSelections.merge(query).byKey().keys.associateWith { 1 },
@@ -139,7 +149,7 @@ class CheckerProviderCorrectResolutionTest {
                 bindings.bindVariable(definition.variable.instanceId!!, VariableBinding.of(bindingValue))
             }
             val operation = SharedOperationContext.create(world, variableBindings = bindings, resolutionObserver = observer)
-            val selections = worldFixture.schemas.operationSelectionsFrom("{ value(id: 7) }").merge(query)
+            val selections = worldFixture.schemas.operationSelectionsFrom("{ item { value(id: 7) } }").merge(query)
             return root.correctResolution(operation, selections)
         }
 

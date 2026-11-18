@@ -171,8 +171,7 @@ interface GroundedTypeCheckerFragmentContract {
     }
 
     @Test
-    fun `checked parent reads inside a Query fragment do not check its Query root`() {
-        val queryChecks = AtomicInteger()
+    fun `checked parent reads inside a Query fragment reuse the ancestor type check`() {
         val wrapperChecks = AtomicInteger()
         val worldFixture =
             TestWorld.fromSDL(
@@ -205,10 +204,6 @@ interface GroundedTypeCheckerFragmentContract {
                     val query = schema.loweredSchema.requireQueryTypeDef()
                     val wrapper = schema.loweredSchema.requireType("Wrapper") as ViaductSchema.Object
                     mapOf(
-                        query to TypeCheckerResolver.of(query, query) { _, _ ->
-                            queryChecks.incrementAndGet()
-                            CheckerResult.Success
-                        },
                         wrapper to TypeCheckerResolver.of(wrapper, query) { _, _ ->
                             wrapperChecks.incrementAndGet()
                             CheckerResult.Success
@@ -224,7 +219,7 @@ interface GroundedTypeCheckerFragmentContract {
         )
 
         assertEquals(7, result.t3Value(world, "Query", "consume"))
-        assertEquals(1, queryChecks.get(), "Only the primary checked Query root needs a type check")
+        assertEquals(null, result.typeCheckerResult.get())
         assertEquals(1, wrapperChecks.get(), "The child parent read reuses the wrapper's check")
     }
 

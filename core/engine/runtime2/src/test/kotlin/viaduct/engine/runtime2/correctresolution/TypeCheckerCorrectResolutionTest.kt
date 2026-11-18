@@ -204,20 +204,16 @@ class TypeCheckerCorrectResolutionTest {
     }
 
     @Test
-    fun `primary Query root is checked even with no selected fields`() {
+    fun `primary Query root requires a null type result even with no selected fields`() {
         val worldFixture = TestWorld.fromSDL(
             schemaSDL = "type Query { value: Int! }",
             fieldResolvers = { schema -> mapOf(schema.loweredSchema.requireObjectField("Query", "value") to fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ -> 1 }) },
-            typeCheckers = { schema ->
-                val query = schema.loweredSchema.requireQueryTypeDef()
-                mapOf(query to TypeCheckerResolver.of(query, query) { _, _ -> CheckerResult.Success })
-            },
         )
         val world = worldFixture.assumptions
         val selections = worldFixture.schema.emptyFragmentOf("Query")
         val operation = SharedOperationContext.create(world)
-        assertFalse(ObjectEngineResult.of(world.schema.requireQueryTypeDef()).correctResolution(operation, selections))
-        assertTrue(ObjectEngineResult.of(world.schema.requireQueryTypeDef(), typeCheckerResult = Promise.of(CheckerResult.Success)).correctResolution(operation, selections))
+        assertTrue(ObjectEngineResult.of(world.schema.requireQueryTypeDef()).correctResolution(operation, selections))
+        assertFalse(ObjectEngineResult.of(world.schema.requireQueryTypeDef(), typeCheckerResult = Promise.of(CheckerResult.Success)).correctResolution(operation, selections))
     }
 }
 

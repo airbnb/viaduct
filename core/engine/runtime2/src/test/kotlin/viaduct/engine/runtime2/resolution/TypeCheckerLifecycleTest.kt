@@ -29,6 +29,7 @@ import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.PathComponent
 import viaduct.engine.runtime2.model.ResolverTarget
 import viaduct.engine.runtime2.model.VariableBinding
+import viaduct.engine.runtime2.model.engineObjectDataOf
 import viaduct.engine.runtime2.model.registry.ResolverFragmentTemplates
 import viaduct.engine.runtime2.model.registry.TypeCheckerResolver
 import viaduct.engine.runtime2.model.registry.VariableDefinition
@@ -38,6 +39,8 @@ import viaduct.engine.runtime2.model.requireQueryTypeDef
 import viaduct.engine.runtime2.model.requireType
 import viaduct.engine.runtime2.model.testing.TestWorld
 import viaduct.engine.runtime2.model.testing.fragmentFrom
+import viaduct.engine.runtime2.resolution.framework.Demand
+import viaduct.engine.runtime2.resolution.framework.OEROccurrence
 import viaduct.engine.runtime2.resolution.framework.ResolutionObserver
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
 import viaduct.engine.runtime2.resolution.framework.SharedOrchestrationTask
@@ -52,9 +55,12 @@ open class TypeCheckerLifecycleTest : ResolutionDispatcherResource {
         val orchestrations = ConcurrentLinkedQueue<SharedOrchestrationTask<*>>()
         val fixture = TestWorld.fromDSL(
             """
-            extend type Query @checker(script: "query('{ dependency }').dependency == 7 ? allow : deny") {
-              checked: Int @resolver(script: "1")
+            extend type Query {
+              checked: Checked @resolver(script: "{:}")
               dependency: Int @resolver(script: "7")
+            }
+            type Checked @checker(script: "query('{ dependency }').dependency == 7 ? allow : deny") {
+              value: Int @resolver(script: "1")
             }
             """.trimIndent(),
         )
@@ -66,14 +72,15 @@ open class TypeCheckerLifecycleTest : ResolutionDispatcherResource {
         val result = SharedOperationContext.create(
             fixture.newAssumptions(usePrecomputedConstructionDemand = precomputedConstructionDemand),
             resolutionObserver = observer,
-        ).resolveWithTestDispatcher(fixture.schemas.operationSelectionsFrom("{ checked }"))
-        assertEquals(CheckerResult.Success, result.typeCheckerResult.get())
-        assertEquals(2, orchestrations.size)
-        val root = orchestrations.single { it.creator == null }
-        val checker = assertIs<TypeCheckerTask>(orchestrations.single { it !== root }.creator)
+        ).resolveWithTestDispatcher(fixture.schemas.operationSelectionsFrom("{ checked { value } }"))
+        val checked = assertIs<ObjectEngineResult>(result.getCell(result.keys.single()).value.get())
+        assertEquals(CheckerResult.Success, checked.typeCheckerResult.get())
+        assertEquals(3, orchestrations.size)
+        val root = orchestrations.single { it.objectOER.occurrence.target === checked }
+        val checker = assertIs<TypeCheckerTask>(orchestrations.single { it.creator is TypeCheckerTask }.creator)
         assertSame(root, checker.creator)
         assertSame(checker, checker.publication.task)
-        assertSame(checker, orchestrations.single { it !== root }.creator)
+        assertSame(checker, orchestrations.single { it.creator === checker }.creator)
     }
 
     @Test
@@ -132,7 +139,8 @@ open class TypeCheckerLifecycleTest : ResolutionDispatcherResource {
         val recorder = CheckerApplicationRecorder()
         val operation = SharedOperationContext.create(world.newAssumptions(usePrecomputedConstructionDemand = precomputedConstructionDemand), resolutionObserver = recorder)
 
-        val result = operation.resolveWithTestDispatcher(world.schemas.operationSelectionsFrom("{ checked }"))
+        val root = operation.resolveWithTestDispatcher(world.schemas.operationSelectionsFrom("{ subject { checked } }"))
+        val result = providerResult(root)
 
         assertEquals(setOf("checked"), result.keys.map { it.field.name }.toSet())
         assertEquals(null, result.typeCheckerResult.get())
@@ -145,12 +153,13 @@ open class TypeCheckerLifecycleTest : ResolutionDispatcherResource {
         val world = providerWorld { throw failure }
         val recorder = CheckerApplicationRecorder()
         val operation = SharedOperationContext.create(world.newAssumptions(usePrecomputedConstructionDemand = precomputedConstructionDemand), resolutionObserver = recorder)
-        val result = operation.resolveWithTestDispatcher(world.schemas.operationSelectionsFrom("{ checked }"))
-        val key = ObjectEngineResult.GroundKey.of(world.schema.requireObjectField("Query", "checked"), emptyMap())
+        val root = operation.resolveWithTestDispatcher(world.schemas.operationSelectionsFrom("{ subject { checked } }"))
+        val result = providerResult(root)
+        val key = ObjectEngineResult.GroundKey.of(world.schema.requireObjectField("Checked", "checked"), emptyMap())
         assertEquals(1, result.getCell(key).value.get())
         assertSame(failure, assertFailsWith<IllegalStateException> { result.typeCheckerResult.get() })
         val fragments = checkNotNull(world.assumptions.resolverRegistry.typeChecker(result.type))
-            .instantiateFragmentsAt(result, emptyList())
+            .instantiateFragmentsAt(root, listOf(root.keys.single()))
         fragments.objectFragment.variableDefinitions.forEach { definition ->
             assertSame(VariableBinding.Error, operation.variableBindings.getBinding(requireNotNull(definition.variable.instanceId)))
         }
@@ -165,12 +174,28 @@ open class TypeCheckerLifecycleTest : ResolutionDispatcherResource {
             val world = providerWorld { error("Canceled provider must not run") }
             val queued = QueuedDispatcher()
             val job = Job()
-            val operation = SharedOperationContext.create(world.newAssumptions(usePrecomputedConstructionDemand = precomputedConstructionDemand))
-            val result = operation.startResolve(world.schemas.operationSelectionsFrom("{ checked }"), CoroutineScope(job + queued))
+            val operation = OperationContext.create(
+                base = SharedOperationContext.create(world.newAssumptions(usePrecomputedConstructionDemand = precomputedConstructionDemand)),
+                requestScope = CoroutineScope(job + queued),
+            )
+            val selections = Demand.checked(world.schemas.fragmentFrom("fragment CheckedInput on Checked { checked }").materializeSelections.constructionSelections())
+            val type = world.schema.requireType("Checked") as ViaductSchema.Object
+            val checked = OrchestrationTask.createObjectResult(operation, type, selections)
+            val root = ObjectEngineResult.of(world.schema.requireQueryTypeDef(), mutable = true)
+            val key = ObjectEngineResult.GroundKey.of(world.schema.requireObjectField("Query", "subject"), emptyMap())
+            root.setCellValue(key, checked)
+            root.freeze()
+            val task = OrchestrationTask.create(
+                operation,
+                OEROccurrence(root, listOf(key), checked),
+                engineObjectDataOf(type),
+                selections,
+            )
+            operation.dispatcher.dispatchOrchestration(task)
             job.cancel()
             queued.drain()
             withTimeout(2_000) { job.join() }
-            assertCanceled(world, operation, result)
+            assertCanceled(world, operation, root)
         }
 
     @Test
@@ -183,7 +208,7 @@ open class TypeCheckerLifecycleTest : ResolutionDispatcherResource {
             }
             val operation = SharedOperationContext.create(world.newAssumptions(usePrecomputedConstructionDemand = precomputedConstructionDemand))
             val job = Job()
-            val result = operation.startResolve(world.schemas.operationSelectionsFrom("{ checked }"), CoroutineScope(job + resolverDispatcher))
+            val result = operation.startResolve(world.schemas.operationSelectionsFrom("{ subject { checked } }"), CoroutineScope(job + resolverDispatcher))
             withTimeout(2_000) { entered.await() }
             assertFailsWith<TimeoutCancellationException> { withTimeout(50) { job.join() } }
             withTimeout(2_000) { job.cancelAndJoin() }
@@ -196,13 +221,14 @@ open class TypeCheckerLifecycleTest : ResolutionDispatcherResource {
     ): TestWorld =
         TestWorld.fromDSL(
             """
-        extend type Query {
+        extend type Query { subject: Checked @resolver(script: "{:}") }
+        type Checked {
           checked: Int! @resolver(script: "1")
           dependency(value: Int): Int @resolver(script: "value")
         }
             """.trimIndent(),
             typeCheckers = { schema ->
-                val field = schema.loweredSchema.requireQueryTypeDef()
+                val field = schema.loweredSchema.requireType("Checked") as ViaductSchema.Object
                 mapOf(
                     field to TypeCheckerResolver.of(
                         field,
@@ -210,7 +236,7 @@ open class TypeCheckerLifecycleTest : ResolutionDispatcherResource {
                         mapOf(
                             "input" to ResolverFragmentTemplates(
                                 objectFragmentTemplate = schema.fragmentFrom(
-                                    "fragment Input on Query { dependency(value: ${'$'}v) }",
+                                    "fragment Input on Checked { dependency(value: ${'$'}v) }",
                                     variableTarget = ResolverTarget.TypeCheckerTarget(field)
                                 ).materializeSelections,
                                 queryFragmentTemplate = viaduct.engine.runtime2.model.materializeSelectionForestOf(),
@@ -224,13 +250,16 @@ open class TypeCheckerLifecycleTest : ResolutionDispatcherResource {
             },
         )
 
+    private fun providerResult(root: ObjectEngineResult): ObjectEngineResult = assertIs<ObjectEngineResult>(root.getCell(root.keys.single()).value.get())
+
     private fun assertCanceled(
         world: TestWorld,
         operation: SharedOperationContext<*>,
-        result: ObjectEngineResult
+        root: ObjectEngineResult,
+        result: ObjectEngineResult = providerResult(root),
     ) {
         assertFailsWith<CancellationException> { result.typeCheckerResult.get() }
-        val fragments = checkNotNull(world.assumptions.resolverRegistry.typeChecker(result.type)).instantiateFragmentsAt(result, emptyList())
+        val fragments = checkNotNull(world.assumptions.resolverRegistry.typeChecker(result.type)).instantiateFragmentsAt(root, listOf(root.keys.single()))
         fragments.objectFragment.variableDefinitions.forEach { definition ->
             val id = requireNotNull(definition.variable.instanceId)
             assertTrue(operation.variableBindings.isBound(id))

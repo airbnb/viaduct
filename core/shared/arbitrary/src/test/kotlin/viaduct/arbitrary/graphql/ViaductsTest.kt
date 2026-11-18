@@ -125,8 +125,7 @@ class ViaductsTest : KotestPropertyBase(seed = paritySeed, iterations = 100) {
         val config = cfg +
             (VariableWeight to 1.0) +
             (RequiredSelectionSetWeight to CompoundingWeight(.5, 1)) +
-            (FieldCheckerWeight to 1.0) +
-            (TypeCheckerWeight to 1.0)
+            (FieldCheckerWeight to 1.0)
         for (seed in 0L until 10L) {
             val fixtures = listOf(false, true).map { engine2Enabled ->
                 Arb.viaduct(schema, config, engine2Enabled).next(RandomSource.seeded(seed)).dump()
@@ -138,7 +137,10 @@ class ViaductsTest : KotestPropertyBase(seed = paritySeed, iterations = 100) {
     @ParameterizedTest
     @ValueSource(booleans = [false, true])
     fun `custom checker callbacks cannot bypass runtime2 configuration validation`(typeChecker: Boolean) {
-        val schema = "extend type Query { value: Int @resolver, policy(value: Int): Int @resolver, source: Int @resolver }".asViaductSchema
+        val schema = """
+            extend type Query { value: Int @resolver, policy(value: Int): Int @resolver, source: Int @resolver, obj: Obj @resolver }
+            type Obj { value: Int }
+        """.asViaductSchema
         val nested = RequiredSelectionSet(SelectionsParser.parse("Query", "source"), emptyList(), forChecker = true)
         val variables = object : EngineVariablesResolver {
             override val variableNames = setOf("provided")
@@ -154,7 +156,7 @@ class ViaductsTest : KotestPropertyBase(seed = paritySeed, iterations = 100) {
             listOf(variables),
             forChecker = true,
         )
-        val key = "Query" to if (typeChecker) null else "value"
+        val key = if (typeChecker) "Obj" to null else "Query" to "value"
         val checkers = CheckerExecutor.Factory { params ->
             CheckerExecutor.Factory.Arbitrary.createCheckerExecutor(
                 params.copy(requiredSelectionSets = if (params.key == key) mapOf("input" to required) else emptyMap()),
@@ -168,7 +170,7 @@ class ViaductsTest : KotestPropertyBase(seed = paritySeed, iterations = 100) {
         val failure = assertThrows<IllegalArgumentException> {
             Arb.viaduct(schema, config, engine2Enabled = true).next(RandomSource.seeded(0))
         }
-        val location = if (typeChecker) "type checker Query" else "field checker Query.value"
+        val location = if (typeChecker) "type checker Obj" else "field checker Query.value"
         assertTrue(failure.message.orEmpty().contains(location), failure.message)
         assertTrue(failure.message.orEmpty().contains("variables callbacks with their own required selection sets"), failure.message)
     }
@@ -1045,6 +1047,27 @@ class ViaductsTest : KotestPropertyBase(seed = paritySeed, iterations = 100) {
                     ("Bar" to "parent") !in instr.checkers && ("Bar" to "x") in instr.checkers
                 }
             }
+
+        @ParameterizedTest
+        @ValueSource(booleans = [false, true])
+        fun `type checker generation omits schema roots only for runtime2`(engine2Enabled: Boolean) {
+            val schema = """
+                extend type Query { obj: Obj @resolver }
+                extend type Mutation { update: Obj @resolver }
+                type Obj { x: Int }
+            """.asViaductSchema
+            val checkers = CheckerExecutor.Factory.Instrumented()
+            Arb.viaduct(
+                schema,
+                cfg + (TypeCheckerWeight to 1.0) + (CheckerExecutorFactory to checkers),
+                engine2Enabled,
+            ).next(RandomSource.seeded(paritySeed))
+
+            for (root in listOf("Query", "Mutation")) {
+                assertEquals(!engine2Enabled, (root to null) in checkers.checkers, root)
+            }
+            assertTrue(("Obj" to null) in checkers.checkers)
+        }
 
         @ParameterizedTest
         @ValueSource(booleans = [false, true])

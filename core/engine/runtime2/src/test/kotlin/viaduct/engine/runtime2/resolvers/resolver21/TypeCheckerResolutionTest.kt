@@ -253,14 +253,14 @@ class TypeCheckerResolutionTest {
                 TestWorld.fromDSL(
                     schemaSDL =
                         """
-                        extend type Query {
+                        type Checked {
                           value: Int! @resolver(script: "1")
                         }
                         """.trimIndent(),
                     typeCheckers = { schema ->
-                        val query = schema.loweredSchema.requireQueryTypeDef()
+                        val query = schema.loweredSchema.requireType("Checked") as ViaductSchema.Object
                         mapOf(
-                            query to TypeCheckerResolver.of(query, query) { _, _ ->
+                            query to TypeCheckerResolver.of(query, schema.loweredSchema.requireQueryTypeDef()) { _, _ ->
                                 invoked.set(true)
                                 CheckerResult.Success
                             },
@@ -272,12 +272,11 @@ class TypeCheckerResolutionTest {
             val job = Job()
             val operation = SharedOperationContext.create(world)
             val result =
-                startCoroutineResolution(
-                    operation = operation,
-                    requestScope = CoroutineScope(job + queued),
-                    selections = worldFixture.schemas.operationSelectionsFrom("{ value }"),
-                    cycleChecker = CycleCheckState.create(),
-                )
+                CoroutineOperationContext(operation, CoroutineScope(job + queued), { demand, _ -> demand.values }, CycleCheckState.create(), false)
+                    .startResolve(
+                        source = viaduct.engine.runtime2.model.engineObjectDataOf(world.schema.requireType("Checked") as ViaductSchema.Object),
+                        demand = viaduct.engine.runtime2.resolution.framework.Demand.checked(worldFixture.schemas.fragmentFrom("fragment Selected on Checked { value }").subselections),
+                    )
 
             job.cancel(CancellationException("cancelled before type-checker entry"))
             queued.runUntilIdle()

@@ -6,13 +6,13 @@ The production field-resolution implementation is [`Resolution`](src/main/kotlin
 
 ## Alpha Scope
 
-Runtime2 executes queries and ordered mutations with selective and non-selective field and node resolvers, field and type access checks, object- and Query-rooted required selections, resolver variables, root-field references, nested `ctx.query()` and `ctx.mutation()` execution, and GraphQL completion. Mutation namespace checkers and mutation resolver required selections remain excluded. The detailed supported and rejected surface is maintained in [Engine API integration](impldocs/integration/engine-api.md).
+Runtime2 executes queries and ordered mutations with selective and non-selective field and node resolvers, field and type access checks, object- and Query-rooted required selections, resolver variables, root-field references, nested `ctx.query()` and `ctx.mutation()` execution, and GraphQL completion. Mutation field and namespace type checks gate protected effects. Mutation resolvers and namespace checkers require empty object and Query required selections; schema roots cannot have type checkers. The detailed supported and rejected surface is maintained in [Engine API integration](impldocs/integration/engine-api.md).
 
 `Engine2.execute` returns complete results for both values of `incrementalExecution`, including queries containing `@defer`. The lower-level Runtime2 integration supports incremental delivery when GraphQL Java's incremental support is explicitly enabled for the execution. Runtime2 uses graphql-java's v0.1, path-based payload format, where deferred entries carry `path` and an optional `label`. The `runtime` engine uses Viaduct's v0.2, ID-based format, where deferred entries refer to work by `id`.
 
 Subscription operations execute one result from the Subscription root when subscriptions are enabled by the service. This permits subscription resolver guards to run; it is not streaming subscription support.
 
-Major exclusions from the current Engine API integration include batching, mutation namespace checkers, streaming subscriptions, application-defined custom scalars, `@stream`, and some resolver combinations documented with the integration boundary. Runtime2 reuses the production dispatcher bootstrap and service wiring behind an opt-in feature flag; that path is not yet the default.
+Major exclusions from the current Engine API integration include batching, streaming subscriptions, application-defined custom scalars, `@stream`, and some resolver combinations documented with the integration boundary. Runtime2 reuses the production dispatcher bootstrap and service wiring behind an opt-in feature flag; that path is not yet the default.
 
 ## Source Layout
 

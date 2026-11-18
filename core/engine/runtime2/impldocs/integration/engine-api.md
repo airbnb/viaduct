@@ -89,7 +89,7 @@ Production checker dispatchers expose the same normalized variable-definition ca
 
 ### Mutation Execution
 
-`Engine2` installs `Runtime2ExecutionStrategy` for both query and mutation operations. Mutation operation decoding grounds arguments and conditions, collects fields by response key in source order, and constructs ordered mutation forests through structural namespace edges. Completion reads response-key-qualified mutation cells from `MutationObjectEngineResult`; payload completion uses ordinary OERs and wiring. Every selected mutation executes regardless of earlier failures or nullability. The strategy calls `StartedResolution.await()` for mutation operations before ordinary asynchronous GraphQL completion; null propagation changes response shape without suppressing later effects. Mutation resolvers cannot declare object or Query required selections and use `ctx.query()` for dependent reads. Mutation namespace field and type checkers are excluded; payload checkers retain ordinary semantics.
+`Engine2` installs `Runtime2ExecutionStrategy` for both query and mutation operations. Mutation operation decoding grounds arguments and conditions, collects fields by response key in source order, and constructs ordered mutation forests through structural namespace edges. Completion reads response-key-qualified mutation cells from `MutationObjectEngineResult`; payload completion uses ordinary OERs and wiring. Every authorized selected mutation executes regardless of earlier failures or nullability. The strategy calls `StartedResolution.await()` for mutation operations before ordinary asynchronous GraphQL completion; null propagation changes response shape without suppressing later effects. Mutation resolvers cannot declare object or Query required selections and use `ctx.query()` for dependent reads. Mutation field and namespace type checkers finish before their protected effects and require empty object and Query required selections. Denials and checker failures suppress protected effects while later siblings continue. Root Query, Mutation, and Subscription type checkers are rejected; payload checkers retain ordinary semantics.
 
 ### Subscription-Root Execution
 
@@ -138,7 +138,7 @@ The execution layer rejects or does not provide:
 - physically batched dispatch, regardless of the value of `ENGINE2_BATCHING`;
 - checker variables resolvers with their own required selection sets and other legacy checker input graphs that cannot be losslessly converted to Runtime2's variable definitions;
 - field-checker enforcement along `RootFieldReference` target paths;
-- mutation namespace field and type checkers, and object or Query required selections on mutation resolvers;
+- type checkers on schema roots, and object or Query required selections on mutation resolvers or mutation namespace checkers;
 - inline object materialization for Node-valued fields;
 - object required selections or `FromObjectField` variables on reference targets;
 - function variables providers with their own required selections;

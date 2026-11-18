@@ -2,9 +2,8 @@ package viaduct.engine.runtime2.resolution
 
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.currentCoroutineContext
-import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
+import viaduct.engine.api.CheckerResult
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.runtime2.model.MaterializeSelectionForest
 import viaduct.engine.runtime2.model.ResolverTarget
@@ -20,8 +19,8 @@ import viaduct.engine.runtime2.resolution.framework.OEROccurrence
 import viaduct.engine.runtime2.resolution.framework.ResolutionTask
 import viaduct.engine.runtime2.resolution.framework.SharedOERContext
 import viaduct.engine.runtime2.resolution.framework.materializeResult
+import viaduct.engine.runtime2.resolution.framework.publishCheckerResult
 import viaduct.engine.runtime2.resolution.framework.typeCheckerCycleTask
-import viaduct.errors.isJvmSignal
 
 /** One concrete OER owns this publication and all of its runtime checker bindings. */
 internal class SymbolicTypeCheckerPublicationOccurrence private constructor(
@@ -111,17 +110,15 @@ internal class TypeCheckerTask(
 
     suspend fun run(scope: CoroutineScope) {
         this.scope = scope
-        try {
-            executeAndPublish()
-        } catch (cause: Exception) {
-            if (cause.isJvmSignal()) throw cause
-            currentCoroutineContext().ensureActive()
-            completePendingBindings(VariableBinding.Error)
-            check(publication.oerOccurrence.target.typeCheckerResult.fail(cause)) { "Type-checker failure was published twice" }
+        publishCheckerResult(
+            publication.oerOccurrence.target.typeCheckerResult,
+            onFailure = { completePendingBindings(VariableBinding.Error) },
+        ) {
+            execute()
         }
     }
 
-    private suspend fun executeAndPublish() {
+    private suspend fun execute(): CheckerResult? {
         val included = occurrence.inclusionCondition.includeAnyReadyAlternative { variable ->
             when (val binding = operation.variableBindings.fetchBinding(requireNotNull(variable.instanceId))) {
                 VariableBinding.Error -> error("Checker inclusion-condition variable failed")
@@ -130,8 +127,7 @@ internal class TypeCheckerTask(
         }
         if (!included) {
             completePendingBindings(VariableBinding.of(null))
-            check(publication.oerOccurrence.target.typeCheckerResult.complete(null))
-            return
+            return null
         }
         if (occurrence.providerReads.isNotEmpty()) {
             scope.launch { completeProviderBindings(operation, occurrence.providerReads) }
@@ -187,8 +183,7 @@ internal class TypeCheckerTask(
             ),
             inputs,
         )
-        val result = occurrence.checker(inputs, this)
-        check(publication.oerOccurrence.target.typeCheckerResult.complete(result)) { "Type-checker result was completed twice" }
+        return occurrence.checker(inputs, this)
     }
 
     private fun completePendingBindings(binding: VariableBinding) {

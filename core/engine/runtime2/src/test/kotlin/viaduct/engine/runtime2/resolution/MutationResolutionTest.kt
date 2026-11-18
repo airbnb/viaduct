@@ -2,26 +2,50 @@
 
 package viaduct.engine.runtime2.resolution
 
+import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.atomic.AtomicInteger
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.yield
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertInstanceOf
+import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.DynamicTest
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestFactory
+import org.junit.jupiter.api.assertThrows
+import viaduct.engine.api.CheckerResult
+import viaduct.engine.api.CheckerResultContext
+import viaduct.engine.runtime2.contract.CheckerApplicationRecorder
+import viaduct.engine.runtime2.model.Arguments
 import viaduct.engine.runtime2.model.EngineErrorData
 import viaduct.engine.runtime2.model.MutationObjectEngineResult
 import viaduct.engine.runtime2.model.ObjectEngineResult
+import viaduct.engine.runtime2.model.ResolverTarget
 import viaduct.engine.runtime2.model.SelectionForest
 import viaduct.engine.runtime2.model.emptyFragmentOf
 import viaduct.engine.runtime2.model.engineObjectDataOf
+import viaduct.engine.runtime2.model.materializeSelectionForestOf
+import viaduct.engine.runtime2.model.registry.FieldCheckerResolver
+import viaduct.engine.runtime2.model.registry.ResolverFragmentTemplates
+import viaduct.engine.runtime2.model.registry.TypeCheckerResolver
 import viaduct.engine.runtime2.model.registry.fieldResolverOf
 import viaduct.engine.runtime2.model.requireObjectField
+import viaduct.engine.runtime2.model.requireQueryTypeDef
 import viaduct.engine.runtime2.model.requireType
 import viaduct.engine.runtime2.model.testing.TestWorld
 import viaduct.engine.runtime2.model.testing.fragmentFrom
+import viaduct.engine.runtime2.resolution.framework.CheckerInvocationObservation
+import viaduct.engine.runtime2.resolution.framework.CheckerKind
+import viaduct.engine.runtime2.resolution.framework.MutationOrchestrationTask
+import viaduct.engine.runtime2.resolution.framework.ResolutionObserver
+import viaduct.engine.runtime2.resolution.framework.ResolutionTask
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
 import viaduct.engine.runtime2.resolvers.resolver06.resolve as resolve06
 import viaduct.engine.runtime2.resolvers.resolver07.resolve as resolve07
@@ -289,6 +313,422 @@ class MutationResolutionTest : ResolutionDispatcherResource {
                 }
             }
         }
+
+    @TestFactory
+    fun `mutation field checks gate aliased effects and isolate failures`(): List<DynamicTest> =
+        families.filter { it.name.substringBefore(" ") in setOf("21", "22", "23", "Resolution") }.map { family ->
+            DynamicTest.dynamicTest(family.name) {
+                val effects = mutableListOf<Int>()
+                val checks = mutableListOf<Int>()
+                val recorder = CheckerApplicationRecorder()
+                val failure = IllegalStateException("checker failed")
+                val fixture = TestWorld.fromSDL(
+                    "type Query { idle: Int } type Mutation { update(value: Int): Int }",
+                    fieldResolvers = { schemas ->
+                        val schema = schemas.loweredSchema
+                        mapOf(
+                            schema.requireObjectField("Mutation", "update") to fieldResolverOf(schema.emptyFragmentOf("Mutation")) { _, args ->
+                                (args.fieldValues.getValue("value") as Int).also { effects += it }
+                            }
+                        )
+                    },
+                    fieldCheckers = { schemas ->
+                        val schema = schemas.loweredSchema
+                        val field = schema.requireObjectField("Mutation", "update")
+                        val empty = ResolverFragmentTemplates(materializeSelectionForestOf(), materializeSelectionForestOf())
+                        mapOf(
+                            field to FieldCheckerResolver.of(field, schema.requireQueryTypeDef(), mapOf("left" to empty, "right" to empty)) { args, inputs, _ ->
+                                assertEquals(setOf("left", "right"), inputs.keys)
+                                inputs.values.forEach {
+                                    assertEquals("Mutation", it.objectValue.type.name)
+                                    assertEquals("Query", it.queryValue.type.name)
+                                    assertTrue(it.objectValue.getSelections().none())
+                                    assertTrue(it.queryValue.getSelections().none())
+                                }
+                                val value = args.fieldValues.getValue("value") as Int
+                                checks += value
+                                when (value) {
+                                    -1 -> MutationDenial
+                                    0 -> throw failure
+                                    else -> CheckerResult.Success
+                                }
+                            }
+                        )
+                    },
+                )
+                val result = family.resolve(
+                    SharedOperationContext.create(fixture.newAssumptions(usePrecomputedConstructionDemand = family.precomputed), resolutionObserver = recorder),
+                    fixture.schemas.operationSelectionsFrom("mutation { a: update(value: 1) denied: update(value: -1) failed: update(value: 0) b: update(value: 2) }"),
+                )
+                val field = fixture.schema.requireObjectField("Mutation", "update")
+                val expected = listOf("a" to 1, "denied" to -1, "failed" to 0, "b" to 2).map { (alias, value) ->
+                    val key = ObjectEngineResult.MutationKey.of(ObjectEngineResult.GroundKey.of(field, mapOf("value" to value)), alias)
+                    CheckerInvocationObservation(CheckerKind.FIELD, result, listOf(key), key.arguments as Arguments.Resolved, ResolverTarget.FieldCheckerTarget(field))
+                }
+                assertEquals(expected, recorder.checkerApplications())
+                assertEquals(listOf(1, -1, 0, 2), checks)
+                assertEquals(listOf(1, 2), effects)
+                assertEquals(mapOf("a" to 1, "denied" to null, "failed" to null, "b" to 2), result.completedData())
+                val cells = result.keys.associate { (it as ObjectEngineResult.MutationKey).responseKey to result.getCell(it) }
+                assertSame(MutationDenial, cells.getValue("denied").fieldCheckerResult.get())
+                assertSame(failure, assertThrows<IllegalStateException> { cells.getValue("failed").fieldCheckerResult.get() })
+            }
+        }
+
+    @TestFactory
+    fun `nested namespace checks gate descendants and retain sibling effects`(): List<DynamicTest> =
+        families.filter { it.name.substringBefore(" ") in setOf("21", "22", "23", "Resolution") }.map { family ->
+            DynamicTest.dynamicTest(family.name) {
+                val events = mutableListOf<String>()
+                val preparedPaths = mutableListOf<List<String>>()
+                var groupTypeCalls = 0
+                val fixture = TestWorld.fromSDL(
+                    """
+                    directive @namespaceType on OBJECT
+                    type Query { idle: Int }
+                    type Mutation { group: Group, hidden: Group, update: Int }
+                    type Group @namespaceType { nested: Nested, update: Int, blocked: Int }
+                    type Nested @namespaceType { update: Int }
+                    """.trimIndent(),
+                    fieldResolvers = { schemas ->
+                        val schema = schemas.loweredSchema
+                        listOf("Mutation", "Group").associate { owner ->
+                            schema.requireObjectField(owner, "update") to fieldResolverOf(schema.emptyFragmentOf(owner)) { _, _ ->
+                                events += "effect:$owner"
+                                7
+                            }
+                        } + listOf("Group" to "blocked", "Nested" to "update").associate { (owner, name) ->
+                            schema.requireObjectField(owner, name) to fieldResolverOf(schema.emptyFragmentOf(owner)) { _, _ -> error("Denied field ran") }
+                        }
+                    },
+                    fieldCheckers = { schemas ->
+                        val schema = schemas.loweredSchema
+                        listOf("Mutation" to "group", "Mutation" to "hidden", "Group" to "blocked", "Group" to "nested", "Nested" to "update").associate { (owner, name) ->
+                            val field = schema.requireObjectField(owner, name)
+                            field to FieldCheckerResolver.of(field, schema.requireQueryTypeDef()) { _, _, _ ->
+                                events += "field:$owner.$name"
+                                if (name == "group" || name == "nested") CheckerResult.Success else MutationDenial
+                            }
+                        }
+                    },
+                    typeCheckers = { schemas ->
+                        val schema = schemas.loweredSchema
+                        listOf("Group", "Nested").associate { name ->
+                            val type = schema.requireType(name) as ViaductSchema.Object
+                            type to TypeCheckerResolver.of(type, schema.requireQueryTypeDef()) { _, _ ->
+                                events += "type:$name"
+                                if (name == "Group" && ++groupTypeCalls == 1) CheckerResult.Success else MutationDenial
+                            }
+                        }
+                    },
+                )
+                val observer = object : ResolutionObserver {
+                    override val onTaskPrepared: (ResolutionTask) -> Unit = { task ->
+                        if (task is MutationOrchestrationTask<*>) {
+                            preparedPaths += task.occurrence.path.map { (it as ObjectEngineResult.MutationKey).responseKey }
+                        }
+                    }
+                }
+                val result = family.resolve(
+                    SharedOperationContext.create(fixture.newAssumptions(usePrecomputedConstructionDemand = family.precomputed), resolutionObserver = observer),
+                    fixture.schemas.operationSelectionsFrom("mutation { first: group { blocked nested { update } update } hidden { update } denied: group { nested { update } update } update }"),
+                )
+                assertEquals(
+                    listOf(
+                        "field:Mutation.group",
+                        "type:Group",
+                        "field:Group.blocked",
+                        "field:Group.nested",
+                        "type:Nested",
+                        "effect:Group",
+                        "field:Mutation.hidden",
+                        "field:Mutation.group",
+                        "type:Group",
+                        "effect:Mutation",
+                    ),
+                    events,
+                )
+                assertEquals(listOf(emptyList(), listOf("first"), listOf("first", "nested"), listOf("denied")), preparedPaths)
+                val groups = result.keys.filter { it.field.name == "group" }.associate { key ->
+                    (key as ObjectEngineResult.MutationKey).responseKey to assertInstanceOf(ObjectEngineResult::class.java, result.getCell(key).value.get())
+                }
+                val first = groups.getValue("first")
+                assertSame(CheckerResult.Success, first.typeCheckerResult.get())
+                assertSame(MutationDenial, groups.getValue("denied").typeCheckerResult.get())
+                val nestedKey = first.keys.single { it.field.name == "nested" }
+                assertSame(CheckerResult.Success, first.getCell(nestedKey).fieldCheckerResult.get())
+                val nested = assertInstanceOf(ObjectEngineResult::class.java, first.getCell(nestedKey).value.get())
+                assertSame(MutationDenial, nested.typeCheckerResult.get())
+                nested.keys.forEach { key ->
+                    val cell = nested.getCell(key)
+                    assertTrue(cell.isCompleted)
+                    assertEquals(null, cell.fieldCheckerResult.get())
+                    assertEquals(null, cell.value.get())
+                }
+                assertEquals(
+                    mapOf(
+                        "first" to mapOf("blocked" to null, "nested" to mapOf("update" to null), "update" to 7),
+                        "hidden" to null,
+                        "denied" to mapOf("nested" to null, "update" to null),
+                        "update" to 7,
+                    ),
+                    result.completedData(),
+                )
+            }
+        }
+
+    @Test
+    fun `mutation checkers query fresh raw state before namespace effects`() {
+        var current = 0
+        val events = mutableListOf<String>()
+        val fixture = TestWorld.fromSDL(
+            """
+            directive @namespaceType on OBJECT
+            type Query { current: Int }
+            type Mutation { group: Group }
+            type Group @namespaceType { update: Int }
+            """.trimIndent(),
+            fieldResolvers = { schemas ->
+                val schema = schemas.loweredSchema
+                mapOf(
+                    schema.requireObjectField("Query", "current") to fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ -> current },
+                    schema.requireObjectField("Group", "update") to fieldResolverOf(schema.emptyFragmentOf("Group")) { _, _ ->
+                        (++current).also { events += "effect:$it" }
+                    },
+                )
+            },
+            fieldCheckers = { schemas ->
+                val schema = schemas.loweredSchema
+                listOf("Query" to "current", "Group" to "update").associate { (owner, name) ->
+                    val field = schema.requireObjectField(owner, name)
+                    field to FieldCheckerResolver.of(field, schema.requireQueryTypeDef()) { _, _, ctx ->
+                        check(owner == "Group") { "Checker queries must read raw values" }
+                        val value = ctx.resolveSelectionSet(schemas.fragmentFrom("fragment Current on Query { current }").materializeSelections).get("current")
+                        events += "field:$value"
+                        CheckerResult.Success
+                    }
+                }
+            },
+            typeCheckers = { schemas ->
+                val schema = schemas.loweredSchema
+                val type = schema.requireType("Group") as ViaductSchema.Object
+                mapOf(
+                    type to TypeCheckerResolver.of(type, schema.requireQueryTypeDef()) { _, ctx ->
+                        val value = ctx.resolveSelectionSet(schemas.fragmentFrom("fragment Current on Query { current }").materializeSelections).get("current")
+                        events += "type:$value"
+                        CheckerResult.Success
+                    }
+                )
+            },
+        )
+        val result = SharedOperationContext.create(fixture.assumptions).resolveWithTestDispatcher(
+            fixture.schemas.operationSelectionsFrom("mutation { first: group { update } second: group { update } }"),
+        )
+        assertEquals(listOf("type:0", "field:0", "effect:1", "type:1", "field:1", "effect:2"), events)
+        assertEquals(mapOf("first" to mapOf("update" to 1), "second" to mapOf("update" to 2)), result.completedData())
+    }
+
+    @TestFactory
+    fun `namespace applicability and checker exceptions remain local to each alias`(): List<DynamicTest> =
+        families.filter { it.name.substringBefore(" ") in setOf("21", "22", "23", "Resolution") }.map { family ->
+            DynamicTest.dynamicTest(family.name) {
+                val effects = mutableListOf<String>()
+                val calls = mutableListOf<String>()
+                val failure = CancellationException("checker-local cancellation")
+                val fixture = TestWorld.fromSDL(
+                    """
+                    directive @namespaceType on OBJECT
+                    type Query { idle: Int }
+                    type Mutation { group: Group, later: Int }
+                    type Group @namespaceType { update: Int }
+                    """.trimIndent(),
+                    fieldResolvers = { schemas ->
+                        val schema = schemas.loweredSchema
+                        listOf("Group" to "update", "Mutation" to "later").associate { (owner, name) ->
+                            schema.requireObjectField(owner, name) to fieldResolverOf(schema.emptyFragmentOf(owner)) { _, _ ->
+                                effects += name
+                                7
+                            }
+                        }
+                    },
+                    typeCheckers = { schemas ->
+                        val schema = schemas.loweredSchema
+                        val type = schema.requireType("Group") as ViaductSchema.Object
+                        mapOf(
+                            type to TypeCheckerResolver.of(
+                                type,
+                                schema.requireQueryTypeDef(),
+                                isApplicable = { _, path ->
+                                    val alias = (path.single() as ObjectEngineResult.MutationKey).responseKey
+                                    calls += "applicable:$alias"
+                                    alias != "skipped"
+                                },
+                            ) { _, _ ->
+                                calls += "checker"
+                                throw failure
+                            }
+                        )
+                    },
+                )
+                val result = family.resolve(
+                    SharedOperationContext.create(fixture.newAssumptions(usePrecomputedConstructionDemand = family.precomputed)),
+                    fixture.schemas.operationSelectionsFrom("mutation { skipped: group { update } failed: group { update } later }"),
+                )
+                assertEquals(listOf("applicable:skipped", "applicable:failed", "checker"), calls)
+                assertEquals(listOf("update", "later"), effects)
+                val namespaces = result.keys.filter { it.field.name == "group" }.associate { key ->
+                    (key as ObjectEngineResult.MutationKey).responseKey to assertInstanceOf(ObjectEngineResult::class.java, result.getCell(key).value.get())
+                }
+                assertEquals(null, namespaces.getValue("skipped").typeCheckerResult.get())
+                assertSame(failure, assertThrows<CancellationException> { namespaces.getValue("failed").typeCheckerResult.get() })
+                assertTrue(namespaces.getValue("failed").isCompleted)
+                assertTrue(result.isCompleted)
+            }
+        }
+
+    @Test
+    fun `cancelling mutation checks terminates prepared namespace promises`() =
+        runBlocking {
+            for (checkedType in listOf("Mutation", "Group", "Nested")) {
+                val typeCheck = checkedType != "Mutation"
+                val entered = CompletableDeferred<Unit>()
+                val prepared = ConcurrentLinkedQueue<ObjectEngineResult>()
+                val fixture = TestWorld.fromSDL(
+                    """
+                directive @namespaceType on OBJECT
+                type Query { idle: Int }
+                type Mutation { group: Group, later: Int }
+                type Group @namespaceType { nested: Nested, update: Int }
+                type Nested @namespaceType { update: Int }
+                    """.trimIndent(),
+                    fieldResolvers = { schemas ->
+                        val schema = schemas.loweredSchema
+                        listOf("Group" to "update", "Nested" to "update", "Mutation" to "later").associate { (owner, name) ->
+                            schema.requireObjectField(owner, name) to fieldResolverOf(schema.emptyFragmentOf(owner)) { _, _ -> error("Cancelled mutation ran") }
+                        }
+                    },
+                    fieldCheckers = { schemas ->
+                        val schema = schemas.loweredSchema
+                        val field = schema.requireObjectField("Mutation", "group")
+                        if (typeCheck) {
+                            emptyMap()
+                        } else {
+                            mapOf(
+                                field to FieldCheckerResolver.of(field, schema.requireQueryTypeDef()) { _, _, _ ->
+                                    entered.complete(Unit)
+                                    awaitCancellation()
+                                }
+                            )
+                        }
+                    },
+                    typeCheckers = { schemas ->
+                        val schema = schemas.loweredSchema
+                        val type = schema.requireType(checkedType) as ViaductSchema.Object
+                        if (!typeCheck) {
+                            emptyMap()
+                        } else {
+                            mapOf(
+                                type to TypeCheckerResolver.of(type, schema.requireQueryTypeDef()) { _, _ ->
+                                    entered.complete(Unit)
+                                    awaitCancellation()
+                                }
+                            )
+                        }
+                    },
+                )
+                val observer = object : ResolutionObserver {
+                    override val onTaskPrepared: (ResolutionTask) -> Unit = { task ->
+                        if (task is MutationOrchestrationTask<*>) prepared += assertInstanceOf(MutationObjectEngineResult::class.java, task.occurrence.target)
+                    }
+                }
+                val operation = SharedOperationContext.create(fixture.assumptions, resolutionObserver = observer)
+                val job = Job()
+                operation.startResolve(
+                    fixture.schemas.operationSelectionsFrom("mutation { group { nested { update } update } later }"),
+                    CoroutineScope(job + resolverDispatcher),
+                )
+                try {
+                    withTimeout(2_000) { entered.await() }
+                } finally {
+                    job.cancel()
+                    withTimeout(2_000) { job.join() }
+                }
+                val expectedNamespaces = when (checkedType) {
+                    "Mutation" -> listOf("Mutation")
+                    "Group" -> listOf("Mutation", "Group")
+                    else -> listOf("Mutation", "Group", "Nested")
+                }
+                assertEquals(expectedNamespaces, prepared.map { it.type.name })
+                prepared.forEach { namespace ->
+                    assertTrue(namespace.typeCheckerResult.isCompleted)
+                    if (typeCheck && namespace.type.name == checkedType) {
+                        assertThrows<CancellationException> { namespace.typeCheckerResult.get() }
+                    } else {
+                        assertEquals(null, namespace.typeCheckerResult.get())
+                    }
+                    namespace.keys.forEach { key ->
+                        val cell = namespace.getCell(key)
+                        assertTrue(cell.isCompleted)
+                        assertThrows<CancellationException> { cell.value.get() }
+                    }
+                }
+            }
+        }
+
+    @Test
+    fun `cancellation after namespace preparation prevents type checker entry`() =
+        runBlocking {
+            val calls = AtomicInteger()
+            val prepared = CompletableDeferred<MutationObjectEngineResult>()
+            val job = Job()
+            val fixture = TestWorld.fromSDL(
+                """
+            directive @namespaceType on OBJECT
+            type Query { idle: Int }
+            type Mutation { group: Group }
+            type Group @namespaceType { update: Int }
+                """.trimIndent(),
+                fieldResolvers = { schemas ->
+                    val schema = schemas.loweredSchema
+                    mapOf(schema.requireObjectField("Group", "update") to fieldResolverOf(schema.emptyFragmentOf("Group")) { _, _ -> error("Cancelled mutation ran") })
+                },
+                typeCheckers = { schemas ->
+                    val schema = schemas.loweredSchema
+                    val type = schema.requireType("Group") as ViaductSchema.Object
+                    mapOf(
+                        type to TypeCheckerResolver.of(type, schema.requireQueryTypeDef()) { _, _ ->
+                            calls.incrementAndGet()
+                            CheckerResult.Success
+                        }
+                    )
+                },
+            )
+            val observer = object : ResolutionObserver {
+                override val onTaskPrepared: (ResolutionTask) -> Unit = { task ->
+                    if (task is MutationOrchestrationTask<*> && task.occurrence.target.type.name == "Group") {
+                        prepared.complete(assertInstanceOf(MutationObjectEngineResult::class.java, task.occurrence.target))
+                        job.cancel()
+                    }
+                }
+            }
+            SharedOperationContext.create(fixture.assumptions, resolutionObserver = observer).startResolve(
+                fixture.schemas.operationSelectionsFrom("mutation { group { update } }"),
+                CoroutineScope(job + resolverDispatcher),
+            )
+            withTimeout(2_000) { job.join() }
+            val namespace = withTimeout(2_000) { prepared.await() }
+            assertEquals(0, calls.get())
+            assertThrows<CancellationException> { namespace.typeCheckerResult.get() }
+            assertTrue(namespace.isCompleted)
+        }
+
+    private object MutationDenial : CheckerResult.Error {
+        override val error = SecurityException("denied")
+
+        override fun isErrorForResolver(ctx: CheckerResultContext): Boolean = false
+
+        override fun combine(fieldResult: CheckerResult.Error): CheckerResult.Error = this
+    }
 
     private fun payload(value: Int) = mapOf("value" to value, "observed" to value)
 
