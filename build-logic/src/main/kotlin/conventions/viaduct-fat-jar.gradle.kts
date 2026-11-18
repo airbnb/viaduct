@@ -54,6 +54,9 @@ tasks.named<ShadowJar>("shadowJar") {
     exclude("META-INF/*.RSA")
     exclude("META-INF/INDEX.LIST")
 
+    // Shadow filters entries inside its input jars, so Gradle sees no input change when an exclude pattern changes.
+    inputs.property("excludePatterns", provider { excludes.sorted() })
+
     // Bundled libraries keep their META-INF/maven descriptors, which CVE scanners identify them by;
     // the exclude below drops only those a lower fat jar ships.
 

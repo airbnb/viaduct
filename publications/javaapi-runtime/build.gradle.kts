@@ -23,6 +23,7 @@ tasks.named<ShadowJar>("shadowJar") {
     // (e.g. NoSuchMethodError) when the consumer's versions differ from the bundled ones.
     // Stable APIs (javax, jakarta, micrometer, etc.) are intentionally kept bundled.
     exclude("kotlin/**")
+    exclude("META-INF/versions/*/kotlin/**")
     exclude("kotlinx/**")
     exclude("io/kotest/**")
     exclude("org/jetbrains/**")
