@@ -100,7 +100,7 @@ class Engine2(
     private val graphql =
         GraphQL
             .newGraphQL(Runtime2WiringFactory(schemas.loweredSchema).wire(schema.schema))
-            .preparsedDocumentProvider(IncrementalDirectiveValidation(documentProvider))
+            .preparsedDocumentProvider(IncrementalDirectiveValidation(documentProvider, schema))
             .queryExecutionStrategy(createExecutionStrategy())
             .mutationExecutionStrategy(createExecutionStrategy())
             .subscriptionExecutionStrategy(createExecutionStrategy())

@@ -146,7 +146,7 @@ class EngineImpl(
     )
 
     private val graphql = GraphQL.newGraphQL(schema.schema)
-        .preparsedDocumentProvider(IntrospectionRestrictingPreparsedDocumentProvider(IncrementalDirectiveValidation(documentProvider)))
+        .preparsedDocumentProvider(IntrospectionRestrictingPreparsedDocumentProvider(IncrementalDirectiveValidation(documentProvider, schema)))
         .queryExecutionStrategy(queryExecutionStrategy)
         .mutationExecutionStrategy(mutationExecutionStrategy)
         .subscriptionExecutionStrategy(subscriptionExecutionStrategy)
