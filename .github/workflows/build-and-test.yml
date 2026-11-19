@@ -238,6 +238,10 @@ jobs:
         run: ./gradlew -p publications checkFatJarLayers --scan --continue
         shell: bash
 
+      - name: Check that buildtime ships only relocated or allowed packages
+        run: ./gradlew -p publications checkBundledPackages --scan --continue
+        shell: bash
+
   coverage-reports:
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: ${{ matrix.os }}

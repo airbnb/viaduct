@@ -8,7 +8,7 @@ viaductPublishing {
 }
 
 viaductFatJar {
-    relocateCommonDependencies.set(false)
+    relocations.set(conventions.FatJarRelocations.BUILD_TIME)
 }
 
 dependencies {
