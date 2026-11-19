@@ -1,6 +1,5 @@
 package viaduct.tenant.codegen.kotlingen.bytecode
 
-import getEscapedFieldName
 import viaduct.apiannotations.VisibleForTest
 import viaduct.codegen.SchemaAnalysis
 import viaduct.codegen.km.kotlinTypeString
