@@ -9,8 +9,10 @@ import viaduct.engine.api.ResolverMetadata
  *
  * @property attribution The attribution of the current execution.
  * @property resolverMetadata Metadata of the resolver that resolved the field
+ * @property isChildPlan Whether execution belongs to an internal selection plan rather than the client operation
  */
 data class ExecutionObservabilityContext(
     val attribution: ExecutionAttribution? = null,
-    val resolverMetadata: ResolverMetadata? = null
+    val resolverMetadata: ResolverMetadata? = null,
+    val isChildPlan: Boolean = false,
 )

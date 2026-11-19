@@ -2,10 +2,13 @@
 
 package viaduct.engine.runtime.execution
 
+import graphql.ExecutionInput
 import graphql.GraphQLContext
 import graphql.Scalars.GraphQLID
 import graphql.execution.CoercedVariables
 import graphql.execution.ExecutionContext
+import graphql.execution.ExecutionContextBuilder
+import graphql.execution.ExecutionId
 import graphql.execution.ExecutionStepInfo
 import graphql.execution.MergedField
 import graphql.execution.ResultPath
@@ -246,6 +249,46 @@ class ExecutionParametersTest {
         assertEquals(root.deferUsageSet, objectParameters.deferUsageSet)
         assertEquals(emptyMap<DeferUsage, DeferDeliveryGroup>(), child.deferMap)
         assertSame(group, objectParameters.deferMap.getValue(usage))
+    }
+
+    @Test
+    fun `completion contexts distinguish client traversal from child plans without relying on attribution`() {
+        val executionInput = ExecutionInput.newExecutionInput().query("{ foo { id } }").build()
+        val executionContext = ExecutionContextBuilder.newExecutionContextBuilder()
+            .executionId(ExecutionId.generate())
+            .instrumentation(mockk<ViaductModernGJInstrumentation>(relaxed = true))
+            .executionInput(executionInput)
+            .graphQLContext(executionInput.graphQLContext)
+            .graphQLSchema(schema)
+            .localContext(defaultLocalContext)
+            .build()
+        val base = createExecutionParameters(
+            source = defaultRootValue,
+            executionStepInfo = ExecutionStepInfo.newExecutionStepInfo().type(queryType).path(ResultPath.rootPath()).build(),
+            queryPlan = queryPlanFor(queryType),
+        )
+        val root = base.copy(constants = base.constants.copy(executionContext = executionContext))
+        val field = collectedFooField(mergedField("foo", selectionSet("id")))
+
+        fun traverse(parameters: ExecutionParameters) =
+            parameters.forField(queryType, field).forObjectTraversal(
+                field,
+                ObjectEngineResultImpl.newForType(fooType),
+                defaultLocalContext,
+                null,
+            )
+
+        val child = root.forChildPlan(queryPlanFor(queryType), emptyVariables, ChildQueryPlanTarget.CurrentQueryResult)
+        val attributedChild = root.forChildPlan(
+            queryPlanFor(queryType, attribution = ExecutionAttribution.fromOperation("Internal")),
+            emptyVariables,
+            ChildQueryPlanTarget.CurrentQueryResult,
+        )
+        assertEquals(false, root.executionContextWithLocalContext.getLocalContextForType<ExecutionObservabilityContext>()?.isChildPlan)
+        assertEquals(false, traverse(root).executionContextWithLocalContext.getLocalContextForType<ExecutionObservabilityContext>()?.isChildPlan)
+        listOf(child, traverse(child), attributedChild).forEach {
+            assertEquals(true, it.executionContextWithLocalContext.getLocalContextForType<ExecutionObservabilityContext>()?.isChildPlan)
+        }
     }
 
     @Test

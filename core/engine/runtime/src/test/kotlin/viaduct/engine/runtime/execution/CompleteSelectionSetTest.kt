@@ -1,16 +1,29 @@
 package viaduct.engine.runtime.execution
 
+import graphql.execution.instrumentation.InstrumentationContext
+import graphql.execution.instrumentation.InstrumentationState
+import graphql.execution.instrumentation.SimpleInstrumentationContext
+import graphql.execution.instrumentation.parameters.InstrumentationExecutionStrategyParameters
+import graphql.schema.GraphQLObjectType
+import io.kotest.matchers.collections.shouldContain
+import java.util.concurrent.CopyOnWriteArrayList
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import viaduct.engine.EngineConfiguration
 import viaduct.engine.api.CompleteSelectionSetOptions
+import viaduct.engine.api.instrumentation.IViaductInstrumentation
+import viaduct.engine.api.instrumentation.ViaductInstrumentationBase
 import viaduct.engine.api.mocks.EngineTestModule
 import viaduct.engine.api.mocks.createEngineObjectData
 import viaduct.engine.api.mocks.createRSS
+import viaduct.engine.api.mocks.featureTestDefault
 import viaduct.engine.api.mocks.runFeatureTest
 import viaduct.engine.runtime.CheckerSyncEngineObjectData
 import viaduct.engine.runtime.EngineExecutionContextExtensions.asImpl
 import viaduct.engine.runtime.ObjectEngineResultImpl
+import viaduct.engine.runtime.context.getLocalContextForType
+import viaduct.engine.runtime.observability.ExecutionObservabilityContext
 import viaduct.engine.runtime.result.ObjectEngineResult
 
 /**
@@ -141,6 +154,80 @@ class CompleteSelectionSetTest {
                     errorMessage.contains("Failed to build QueryPlan"),
                 "Expected error about missing targetResult or QueryPlan build failure, got: $errorMessage"
             )
+        }
+    }
+
+    // ==================== Query-typed completions ====================
+    // These exercise child-plan parameter creation where isRootQueryQueryPlan=true,
+    // which uses queryEngineResult. Some DFPs have querySelections that follow this path.
+
+    @Test
+    fun `query-typed completion distinguishes client and child-plan instrumentation`() {
+        val completions = CopyOnWriteArrayList<Triple<List<Any>, String, Boolean>>()
+        val instrumentation = object : ViaductInstrumentationBase(), IViaductInstrumentation.WithBeginCompleteObject {
+            override fun beginCompleteObject(
+                parameters: InstrumentationExecutionStrategyParameters,
+                state: InstrumentationState?
+            ): InstrumentationContext<Any> {
+                val step = parameters.executionStrategyParameters.executionStepInfo
+                val type = step.unwrappedNonNullType as GraphQLObjectType
+                val isChildPlan = parameters.executionContext.getLocalContextForType<ExecutionObservabilityContext>()?.isChildPlan == true
+                completions.add(Triple(step.path.toList(), type.name, isChildPlan))
+                return SimpleInstrumentationContext.noOp()
+            }
+        }
+
+        EngineTestModule(
+            """
+            extend type Query {
+                rootValue: Int
+                name: String
+                container: Container
+            }
+
+            type Container {
+                completedResult: String
+            }
+            """.trimIndent()
+        ) {
+            fieldWithValue("Query" to "rootValue", 42)
+            fieldWithValue("Query" to "name", "Alice")
+
+            field("Query" to "container") {
+                resolver {
+                    fn { _, _, _, _, _ ->
+                        createEngineObjectData(
+                            schema.schema.getObjectType("Container"),
+                            mapOf()
+                        )
+                    }
+                }
+            }
+
+            field("Container" to "completedResult") {
+                resolver {
+                    // Targets "Query" type, so isRootQueryQueryPlan = true
+                    querySelections("rootValue name")
+                    fn { _, _, _, _, ctx ->
+                        val requiredSS = createRSS("Query", "rootValue name")
+                        val result = ctx.completeSelectionSet(requiredSS)
+
+                        val data = result.getData<Map<String, Any?>>()
+                        "rootValue=${data["rootValue"]}, name=${data["name"]}"
+                    }
+                }
+            }
+        }.runFeatureTest(
+            engineConfig = EngineConfiguration.featureTestDefault.copy(
+                additionalInstrumentation = instrumentation.asStandardInstrumentation,
+                chainInstrumentationWithDefaults = true,
+            )
+        ) {
+            runQuery("{ container { completedResult } }")
+                .assertJson("""{"data": {"container": {"completedResult": "rootValue=42, name=Alice"}}}""")
+
+            completions shouldContain Triple(emptyList<Any>(), "Query", false)
+            completions shouldContain Triple(emptyList<Any>(), "Query", true)
         }
     }
 

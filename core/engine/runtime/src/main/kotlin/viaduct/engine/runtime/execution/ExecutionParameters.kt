@@ -154,6 +154,7 @@ sealed interface ExecutionOrigin {
  *   together keep the same depth and can still share a batch.
  * @property isShadowFieldExecution Whether this scope belongs to the temporary shadow execution
  *   subtree
+ * @property isChildPlan Whether this scope belongs to an internal selection plan
  */
 data class ExecutionParameters(
     @Suppress("ConstructorParameterNaming")
@@ -178,6 +179,7 @@ data class ExecutionParameters(
     val attribution: ExecutionAttribution? = ExecutionAttribution.DEFAULT,
     val matBatchDepth: Int = 0,
     val isShadowFieldExecution: Boolean = false,
+    val isChildPlan: Boolean = false,
     @Suppress("ConstructorParameterNaming")
     private val _caller: Caller? = null,
 ) : EngineExecutionContext.ExecutionHandle {
@@ -200,7 +202,7 @@ data class ExecutionParameters(
     /** The ExecutionContext with the current local context applied */
     val executionContextWithLocalContext: ExecutionContext by lazy(LazyThreadSafetyMode.PUBLICATION) {
         constants.executionContext.transform {
-            it.localContext(localContext.addOrUpdate(ExecutionObservabilityContext(attribution = attribution)))
+            it.localContext(localContext.addOrUpdate(ExecutionObservabilityContext(attribution = attribution, isChildPlan = isChildPlan)))
         }
     }
 
@@ -732,6 +734,7 @@ data class ExecutionParameters(
             field = null,
             executionOrigin = ExecutionOrigin.ChildQueryPlan(this, target),
             attribution = childPlan.attribution,
+            isChildPlan = true,
         )
     }
 
