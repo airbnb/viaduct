@@ -35,8 +35,7 @@ jobs:
         java: ["17", "21", "25"]
     name: Full Check (Windows, Java ${{ matrix.java }})
     env:
-      # fromEnv lets Gradle's daemon JVM discovery find Java 21 via JAVA_HOME_21_X64 when JAVA_HOME != Java 21.
-      GRADLE_OPTS: "-Dorg.gradle.parallel=true -Dorg.gradle.caching=true -Dorg.gradle.daemon=false -Dorg.gradle.java.installations.fromEnv=JAVA_HOME_21_X64"
+      GRADLE_OPTS: "-Dorg.gradle.parallel=true -Dorg.gradle.caching=true -Dorg.gradle.daemon=false"
       BUILDSCAN_PUBLISH: "true"
       BUILDSCAN_AUTOACCEPTTERMS: "true"
     steps:
@@ -74,8 +73,7 @@ jobs:
         java: ["17", "21", "25"]
     name: Demoapps Standalone (Windows, Java ${{ matrix.java }})
     env:
-      # fromEnv lets Gradle's daemon JVM discovery find Java 21 via JAVA_HOME_21_X64 when JAVA_HOME != Java 21.
-      GRADLE_OPTS: "-Dorg.gradle.parallel=true -Dorg.gradle.caching=true -Dorg.gradle.daemon=false -Dorg.gradle.java.installations.fromEnv=JAVA_HOME_21_X64"
+      GRADLE_OPTS: "-Dorg.gradle.parallel=true -Dorg.gradle.caching=true -Dorg.gradle.daemon=false"
       BUILDSCAN_PUBLISH: "true"
       BUILDSCAN_AUTOACCEPTTERMS: "true"
     steps:
