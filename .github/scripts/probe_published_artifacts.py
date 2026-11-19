@@ -12,6 +12,10 @@ repository its coordinate names.
 With --require-unpublished, checks once that no coordinate is published yet,
 so a release candidate is never overwritten.
 
+Once a release's artifacts are visible, warns about each plugin the Plugin
+Portal does not host itself. The Portal redirects requests for those to Maven
+Central, so the visibility probe cannot tell them apart.
+
 Usage: probe_published_artifacts.py --version 2.0.0 [--root .] [--require-unpublished]
 
 Exit codes:
@@ -153,14 +157,42 @@ def find_published(urls, fetch):
     return found
 
 
-def http_status(url):
+def http_status(url, open_url=None):
     try:
-        with urllib.request.urlopen(url, timeout=30) as response:
+        with (open_url or urllib.request.urlopen)(url, timeout=30) as response:
             return response.status
     except urllib.error.HTTPError as error:
+        if error.fp is not None:
+            error.close()
         return error.code
     except (OSError, http.client.HTTPException):
         return 0
+
+
+class RefuseRedirects(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
+def http_status_without_redirects(url):
+    return http_status(url, urllib.request.build_opener(RefuseRedirects).open)
+
+
+def check_portal_hosting(coordinates, fetch):
+    """Sorts Plugin Portal URLs into hosted, redirected and unknown, the last two with their status."""
+    hosted, redirected, unknown = [], [], []
+    for coordinate in coordinates:
+        if coordinate.repository != "portal":
+            continue
+        url = artifact_url(coordinate)
+        status = fetch(url)
+        if status == 200:
+            hosted.append(url)
+        elif 300 <= status < 400:
+            redirected.append((url, status))
+        else:
+            unknown.append((url, status))
+    return hosted, redirected, unknown
 
 
 def probe(
@@ -203,7 +235,7 @@ def probe(
         sleep(min(sleep_seconds, remaining))
 
 
-def main(argv=None, fetch=http_status):
+def main(argv=None, fetch=http_status, fetch_without_redirects=http_status_without_redirects):
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument(
         "--version", required=True, help="version the release published"
@@ -272,6 +304,19 @@ def main(argv=None, fetch=http_status):
             )
         return 1
     print(f"✅ all {len(urls)} artifacts are visible")
+    if args.version.endswith("-SNAPSHOT"):
+        return 0
+    hosted, redirected, unknown = check_portal_hosting(coordinates, fetch_without_redirects)
+    for url, status in redirected:
+        print(
+            f"::warning::the Plugin Portal does not host {url} (HTTP {status});"
+            " builds get it from Maven Central through the Portal's redirect,"
+            " and a new plugin ID stays off the Portal until the Portal approves it"
+        )
+    for url, status in unknown:
+        print(f"::warning::could not check whether the Plugin Portal hosts {url} (HTTP {status})")
+    plugins = len(hosted) + len(redirected) + len(unknown)
+    print(f"The Plugin Portal hosts {len(hosted)} of {plugins} plugins")
     return 0
 
 
