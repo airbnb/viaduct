@@ -164,7 +164,7 @@ Demo apps have `gradle.properties` files with a `viaductVersion` property that *
 
 During the team meeting, a release manager is selected for the week.
 
-> **Before every push to `release/v${RELEASE_VER}`:** confirm no release is running. The `release.yml` jobs that build, publish and push demo apps check out the branch by name, so a push during a run can mix commits. This must print nothing (a run can also be `queued` or `waiting`, not only `in_progress`):
+> **Before every push to `release/v${RELEASE_VER}`:** confirm no release is running. `publish-branch.yml` builds and publishes the commit the branch points at when it starts, and `push-demoapps` copies that commit. A push during a run still leaves the release branch ahead of what was published and tagged. This must print nothing (a run can also be `queued` or `waiting`, not only `in_progress`):
 >
 > ```bash
 > gh run list --repo airbnb/viaduct --workflow=release.yml --limit 20 \
@@ -654,7 +654,7 @@ gh run list --workflow=release.yml --repo airbnb/viaduct --limit 3
 
 A run takes about 1h10–1h30.
 
-The run lists main's SHA as its head because it is dispatched from main; `publish-branch.yml` checks out `release/v${RELEASE_VER}` to build and publish.
+The run lists main's SHA as its head because it is dispatched from main; `publish-branch.yml` builds and publishes the commit `release/v${RELEASE_VER}` points at when it starts.
 
 The workflow runs these steps in sequence:
 
@@ -811,7 +811,7 @@ Artifacts are already on Maven Central, but no tag or GitHub release exists yet.
 - **`not visible after 30m of polling`** — the error names each missing `.pom` URL and its last HTTP status. A `429` or `503` means retry. A persistent `404` means that coordinate is not on the CDN: either the derivation lists something the release does not publish, or the publication dropped it.
 - **`no coordinates found` / `no '<repository>' coordinates found`** — the `published-coordinates` artifact arrived with nothing the probe could use. The derivation itself runs in `publish`, so this points at the artifact hand-off rather than at the Gradle task.
 - **A signature error** (RC mode), such as `missing signature: <url>.asc` or `BADSIG: <url>` — the RC is published but a file is unsigned, altered, or signed by another key. `NO_PUBKEY` means the signing secret holds a key other than `.github/release-signing-key.asc`; `EXPKEYSIG` means the key has expired. Fix the secret or the key file before the final release. When the release key is rotated, replace `.github/release-signing-key.asc` with the new public key in the same change.
-- **`coordinates carry version X, expected Y`** — the published `VERSION` disagrees with the version being probed. `validate` catches an `rc_ver` mismatch before publication, so reaching this points at the release branch moving between `validate` and `publish` rather than at a bad `rc_ver`. Check the branch's history for a push mid-release.
+- **`coordinates carry version X, expected Y`** — the published `VERSION` disagrees with the version being probed. `validate` reads `VERSION` from the commit `publish` builds and catches an `rc_ver` mismatch before publication, so reaching this points at the coordinate derivation rather than at the branch. Reproduce it with `./gradlew writePublishedCoordinates` at the published SHA.
 
 ### Demo app tests fail after push
 
