@@ -20,11 +20,44 @@ inputs:
 runs:
   using: composite
   steps:
-    - name: Setup JDK
+    - name: Resolve patched JDK
+      id: jdk
+      shell: bash
+      env:
+        REQUESTED_JAVA: ${{ inputs.java-version }}
+      run: |
+        # setup-java represents OpenJDK 21.0.13.1+2 as SemVer 21.0.13+1.2.
+        case "$REQUESTED_JAVA" in
+          17) version=17.0.21+1.2 ;;
+          21) version=21.0.13+1.2 ;;
+          25) version=25.0.5+1.2 ;;
+          *) echo "::error::Unsupported Java version: $REQUESTED_JAVA"; exit 1 ;;
+        esac
+        echo "version=$version" >> "$GITHUB_OUTPUT"
+
+    - name: Setup patched compiler and requested JDK
       uses: actions/setup-java@v5
       with:
-        distribution: 'temurin'
-        java-version: ${{ inputs.java-version }}
+        distribution: 'zulu'
+        # Every job needs compiler JDK 17 and daemon JDK 21. The last entry
+        # becomes JAVA_HOME; Gradle discovers all installed versions via fromEnv.
+        java-version: |
+          17.0.21+1.2
+          21.0.13+1.2
+          ${{ steps.jdk.outputs.version }}
+
+    - name: Exclude preinstalled unpatched toolchains
+      shell: bash
+      run: |
+        jdk_envs=JAVA_HOME_17_X64,JAVA_HOME_17_ARM64
+        jdk_envs+=,JAVA_HOME_21_X64,JAVA_HOME_21_ARM64
+        jdk_envs+=,JAVA_HOME_25_X64,JAVA_HOME_25_ARM64
+        gradle_opts="${GRADLE_OPTS:-}"
+        gradle_opts+=" -Dorg.gradle.project.org.gradle.java.installations.auto-detect=false"
+        gradle_opts+=" -Dorg.gradle.project.org.gradle.java.installations.auto-download=false"
+        # Apply to standalone demo-app builds as well as the composite builds.
+        gradle_opts+=" -Dorg.gradle.project.org.gradle.java.installations.fromEnv=$jdk_envs"
+        echo "GRADLE_OPTS=$gradle_opts" >> "$GITHUB_ENV"
 
     - name: Configure dependency mirror
       shell: bash

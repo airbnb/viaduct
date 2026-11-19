@@ -3,6 +3,7 @@ package conventions
 import buildroot.registerForOrchestrationAggregate
 
 plugins {
+    id("conventions.jdk-security")
     idea
     java
     id("conventions.java-static-analysis")

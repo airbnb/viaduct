@@ -6,6 +6,7 @@ import org.jetbrains.kotlin.gradle.dsl.KotlinVersion
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
+    id("conventions.jdk-security")
     idea
     id("org.jetbrains.kotlin.jvm")
     id("conventions.java-static-analysis")

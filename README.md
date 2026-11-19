@@ -72,4 +72,11 @@ information about reporting vulnerabilities.
 ## Build requirements
 
 * Linux, macOS or Windows
-* JDK 17+, 64-bit
+* 64-bit JDK 17.0.21.1+2, 21.0.13.1+2, or 25.0.5.1+2 (or a later update in the same release line).
+  Install a patched JDK 17 for compilation, plus a patched JDK matching `-PtestJavaVersion`
+  when testing on Java 21 or 25. Remove older competing JDK installations or set
+  `org.gradle.java.installations.paths`, `org.gradle.java.installations.auto-detect=false`,
+  and `org.gradle.java.installations.auto-download=false` to expose only patched JDKs.
+  Gradle rejects older selected compiler and test toolchains;
+  daemon provisioning alone does not upgrade cached JDKs. These minimums include the
+  Java4Shell and compromised-CA fixes. GitHub Actions installs the pinned versions automatically.

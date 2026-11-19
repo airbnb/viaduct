@@ -16,6 +16,11 @@ detekt {
 
 dependencies {
     detektPlugins(project(":build-common"))
+    testImplementation(gradleTestKit())
+    testImplementation(libs.junit)
+    testRuntimeOnly(libs.junit.engine)
+    testRuntimeOnly(libs.junit.launcher)
+
     // conventions dependencies
     implementation(libs.kotlinx.binary.compatibility.validator)
     implementation(plugin(libs.plugins.kotlin.jvm))
@@ -44,3 +49,7 @@ dependencies {
  */
 fun plugin(plugin: Provider<PluginDependency>) =
     plugin.map { "${it.pluginId}:${it.pluginId}.gradle.plugin:${it.version}" }
+
+tasks.test {
+    useJUnitPlatform()
+}

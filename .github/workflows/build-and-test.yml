@@ -160,7 +160,8 @@ jobs:
         id: run_tests
         run: |
           echo "🧪 Running tests..."
-          if ./gradlew test --scan --continue -PtestJavaVersion=${{ matrix.java }}; then
+          # The root test aggregate does not include build-logic's own tests.
+          if ./gradlew :build-logic:test test --scan --continue -PtestJavaVersion=${{ matrix.java }}; then
             echo "✅ Test execution completed"
           else
             echo "⚠️ Some tests failed"

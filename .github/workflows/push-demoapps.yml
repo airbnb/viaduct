@@ -94,8 +94,8 @@ jobs:
 
       - uses: actions/setup-java@v5
         with:
-          distribution: temurin
-          java-version: '25'
+          distribution: zulu
+          java-version: '25.0.5+1.2'
 
       - name: Push ${{ matrix.demoapp }} via Copybara
         env:

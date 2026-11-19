@@ -53,8 +53,19 @@ jobs:
 
       - uses: actions/setup-java@v5
         with:
-          distribution: temurin
-          java-version: '21'
+          distribution: zulu
+          java-version: |
+            17.0.21+1.2
+            21.0.13+1.2
+
+      - name: Use only patched toolchains
+        shell: bash
+        run: |
+          gradle_opts="${GRADLE_OPTS:-}"
+          gradle_opts+=" -Dorg.gradle.project.org.gradle.java.installations.auto-detect=false"
+          gradle_opts+=" -Dorg.gradle.project.org.gradle.java.installations.auto-download=false"
+          gradle_opts+=" -Dorg.gradle.project.org.gradle.java.installations.fromEnv=JAVA_HOME_17_X64,JAVA_HOME_21_X64"
+          echo "GRADLE_OPTS=$gradle_opts" >> "$GITHUB_ENV"
 
       - uses: gradle/actions/setup-gradle@v5
 

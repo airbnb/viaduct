@@ -1,5 +1,5 @@
 [tools]
-java = "corretto-21.0.4.7.1"
+java = "corretto-21.0.13.1.2"
 "github:tlaplus/tlaplus" = { version = "1.7.4", asset_pattern = "tla2tools.jar", bin = "tla2tools.jar" }
 "github:tlaplus/tlapm" = { version = "202210041448", os = ["linux/x64"], asset_pattern = "tlaps-1.5.0-x86_64-linux-gnu-inst.bin", bin_path = "bin", postinstall = '"$MISE_TOOL_INSTALL_PATH/bin/tlaps-1.5.0-x86_64-linux-gnu-inst.bin" -d "$MISE_TOOL_INSTALL_PATH"' }
 

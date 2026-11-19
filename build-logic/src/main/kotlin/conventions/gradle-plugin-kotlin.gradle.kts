@@ -30,6 +30,7 @@ import buildroot.registerForOrchestrationAggregate
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
+    id("conventions.jdk-security")
     java // idempotent — both kotlin-dsl and kotlin-jvm already apply this
     id("conventions.jacoco")
     id("conventions.test-retry")
