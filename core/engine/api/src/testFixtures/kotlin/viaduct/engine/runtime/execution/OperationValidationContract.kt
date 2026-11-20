@@ -3,6 +3,7 @@
 package viaduct.engine.runtime.execution
 
 import graphql.ErrorType
+import graphql.ExecutionResult
 import graphql.GraphQLError
 import graphql.language.SourceLocation
 import java.util.concurrent.atomic.AtomicInteger
@@ -13,7 +14,10 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.CsvSource
 import org.junit.jupiter.params.provider.ValueSource
+import viaduct.engine.api.Engine
 import viaduct.engine.api.EngineSchema
+import viaduct.engine.api.ExecutionInput
+import viaduct.engine.api.IncrementalExecutionResult
 import viaduct.engine.api.mocks.EngineTestModule
 import viaduct.engine.api.mocks.createEngineObjectData
 import viaduct.graphql.scopes.SchemaScopingMode
@@ -22,6 +26,11 @@ import viaduct.graphql.scopes.ScopedSchemaBuilder
 import viaduct.graphql.test.assertJson
 
 interface OperationValidationContract : QueryExecutionContract {
+    fun runSubscriptionTest(
+        module: EngineTestModule,
+        block: suspend (Engine) -> Unit,
+    )
+
     private fun operationValidationModule() =
         EngineTestModule(
             """
@@ -434,6 +443,404 @@ interface OperationValidationContract : QueryExecutionContract {
     }
 
     @ParameterizedTest
+    @ValueSource(strings = ["inline", "fragment"])
+    fun `subscriptions reject defer without an if condition or with if true`(kind: String) {
+        for (argument in listOf("", "(if: true)")) {
+            assertSubscriptionValidationError(
+                "subscription { item { ${labelSelection(kind, argument)} } } ${labelFragment(kind)}",
+            )
+        }
+    }
+
+    @Test
+    fun `subscription validation follows nested fragments also used by a query`() {
+        val query = """
+            query Read { item { ...Outer } }
+            subscription Watch { item { ...Outer } }
+            fragment Outer on IncrementalItem { ...Details }
+            fragment Details on IncrementalItem { ... @defer { value } }
+        """.trimIndent()
+        val lines = query.lines()
+        assertSubscriptionValidationError(query) { error ->
+            assertEquals(
+                listOf(
+                    SourceLocation(4, lines[3].indexOf("@defer") + 1),
+                    SourceLocation(3, lines[2].indexOf("...Details") + 1),
+                    SourceLocation(2, lines[1].indexOf("...Outer") + 1),
+                ),
+                error.locations,
+            )
+        }
+    }
+
+    @ParameterizedTest
+    @CsvSource("skip, true", "include, false")
+    fun `an excluded fragment spread does not hide an invalid included use`(
+        directive: String,
+        excluded: Boolean,
+    ) {
+        assertSubscriptionValidationError(
+            """
+            subscription { item { ...Details @$directive(if: $excluded) ...Details } }
+            fragment Details on IncrementalItem { ... @defer { value } }
+            """.trimIndent(),
+        )
+    }
+
+    @ParameterizedTest
+    @CsvSource("skip, false", "include, true")
+    fun `conditions that always include a selection do not allow unconditional subscription defer`(
+        directive: String,
+        included: Boolean,
+    ) {
+        for (query in listOf(
+            "subscription { item { ... @defer @$directive(if: $included) { value } } }",
+            "subscription { item { ... @$directive(if: $included) { ...Details @defer } } } fragment Details on IncrementalItem { value }",
+        )) {
+            assertSubscriptionValidationError(query)
+        }
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = ["inline", "fragment"])
+    fun `subscriptions allow disabled defer and selections excluded by literal conditions`(kind: String) {
+        subscriptionValidationModule().runSubscriptionValidationTest {
+            val deferred = labelSelection(kind, "")
+            val fragment = labelFragment(kind)
+            for (query in listOf(
+                "subscription { item { ${labelSelection(kind, "(if: false)")} } } $fragment",
+                "subscription { item { value ${labelSelection(kind, " @skip(if: true)")} } } $fragment",
+                "subscription { item { value ${labelSelection(kind, " @include(if: false)")} } } $fragment",
+                "subscription { item { value ... @skip(if: true) { $deferred } } } $fragment",
+                "subscription { item { value ... @include(if: false) { $deferred } } } $fragment",
+                "subscription { item { value child @skip(if: true) { $deferred } } } $fragment",
+                "subscription { item { value child @include(if: false) { $deferred } } } $fragment",
+            )) {
+                runQuery(query).assertJson("""{"data":{"item":{"value":1}}}""")
+            }
+        }
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = ["inline", "fragment"])
+    fun `subscription defer is evaluated separately for each execution`(kind: String) {
+        subscriptionValidationModule().runSubscriptionValidationTest {
+            val query = "subscription(${'$'}enabled: Boolean!) { item { ${labelSelection(kind, "(if: ${'$'}enabled)")} } } ${labelFragment(kind)}"
+            for (enabled in listOf(false, true, false)) {
+                val result = runQuery(query, mapOf("enabled" to enabled))
+                if (enabled) {
+                    assertSubscriptionExecutionError(result, listOf("item"), mapOf("item" to null))
+                } else {
+                    result.assertJson("""{"data":{"item":{"value":1}}}""")
+                }
+            }
+        }
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = [false, true])
+    fun `subscription defer uses the variable default when no value is supplied`(enabled: Boolean) {
+        subscriptionValidationModule().runSubscriptionValidationTest {
+            val result = runQuery(
+                "subscription(${'$'}enabled: Boolean! = $enabled) { item { ... @defer(if: ${'$'}enabled) { value } } }",
+            )
+            if (enabled) {
+                assertSubscriptionExecutionError(result, listOf("item"), mapOf("item" to null))
+            } else {
+                result.assertJson("""{"data":{"item":{"value":1}}}""")
+            }
+        }
+    }
+
+    @ParameterizedTest
+    @CsvSource("skip, true", "include, false")
+    fun `variable conditions allow validation but report enabled defer when the selection is included`(
+        directive: String,
+        excluded: Boolean,
+    ) {
+        subscriptionValidationModule().runSubscriptionValidationTest {
+            for (selection in listOf(
+                "...Details @defer @$directive(if: ${'$'}condition)",
+                "... @$directive(if: ${'$'}condition) { ...Details @defer }",
+            )) {
+                val query = "subscription(${'$'}condition: Boolean!) { item { value $selection } } fragment Details on IncrementalItem { value }"
+                runQuery(query, mapOf("condition" to excluded)).assertJson("""{"data":{"item":{"value":1}}}""")
+                assertSubscriptionExecutionError(
+                    runQuery(query, mapOf("condition" to !excluded)),
+                    listOf("item"),
+                    mapOf("item" to null),
+                )
+            }
+        }
+    }
+
+    @ParameterizedTest
+    @CsvSource("skip, true", "include, false")
+    fun `an enclosing field condition suppresses defer errors only when the field is excluded`(
+        directive: String,
+        excluded: Boolean,
+    ) {
+        subscriptionValidationModule().runSubscriptionValidationTest {
+            val query = """
+                subscription(${'$'}condition: Boolean!) {
+                    item {
+                        value
+                        child @$directive(if: ${'$'}condition) { ... @defer { value } }
+                    }
+                }
+            """.trimIndent()
+            runQuery(query, mapOf("condition" to excluded)).assertJson("""{"data":{"item":{"value":1}}}""")
+            assertSubscriptionExecutionError(
+                runQuery(query, mapOf("condition" to !excluded)),
+                listOf("item", "child"),
+                mapOf("item" to mapOf("value" to 1, "child" to null)),
+            )
+        }
+    }
+
+    @Test
+    fun `an earlier plain spread cannot hide an enabled subscription defer on a later spread`() {
+        subscriptionValidationModule().runSubscriptionValidationTest {
+            for (query in listOf(
+                "subscription(${'$'}enabled: Boolean!) { item { ...Details ...Details @defer(if: ${'$'}enabled) } } fragment Details on IncrementalItem { value }",
+                "subscription(${'$'}enabled: Boolean!) { item { ...Outer ...Details @defer(if: ${'$'}enabled) } } fragment Outer on IncrementalItem { ...Details } fragment Details on IncrementalItem { value }",
+            )) {
+                val result = runQuery(query, mapOf("enabled" to true))
+                assertSubscriptionExecutionError(
+                    result,
+                    listOf("item"),
+                    mapOf("item" to null),
+                )
+                assertEquals(listOf(SourceLocation(1, query.indexOf("@defer") + 1)), result.errors.single().locations)
+            }
+        }
+    }
+
+    @Test
+    fun `null subscription fields do not execute their deferred selections`() {
+        subscriptionValidationModule().runSubscriptionValidationTest {
+            runQuery("subscription(${'$'}enabled: Boolean! = true) { nullItem { ... @defer(if: ${'$'}enabled) { value } } }")
+                .assertJson("""{"data":{"nullItem":null}}""")
+        }
+    }
+
+    @ParameterizedTest
+    @CsvSource("OtherIncrementalItem, false", "IncrementalValue, true")
+    fun `subscription defer is checked only for fragments matching the actual object type`(
+        typeCondition: String,
+        matches: Boolean,
+    ) {
+        subscriptionValidationModule().runSubscriptionValidationTest {
+            for (field in listOf("abstractItem", "unionItem")) {
+                for (selection in listOf(
+                    "... on $typeCondition @defer(if: ${'$'}enabled) { value }",
+                    "...Details @defer(if: ${'$'}enabled)",
+                )) {
+                    val fragment = if (selection.startsWith("...Details")) "fragment Details on $typeCondition { value }" else ""
+                    val result = runQuery(
+                        "subscription(${'$'}enabled: Boolean! = true) { $field { ... on IncrementalValue { value } $selection } } $fragment",
+                    )
+                    if (matches) {
+                        assertSubscriptionExecutionError(result, listOf(field), mapOf(field to null))
+                    } else {
+                        result.assertJson("""{"data":{"$field":{"value":1}}}""")
+                    }
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `enabled subscription defer follows non-null field error propagation`() {
+        subscriptionValidationModule().runSubscriptionValidationTest {
+            val result = runQuery("subscription(${'$'}enabled: Boolean! = true) { requiredItem { ... @defer(if: ${'$'}enabled) { value } } }")
+            assertSubscriptionExecutionError(result, listOf("requiredItem"), null)
+        }
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = ["inline", "fragment"])
+    fun `enabled subscription defer returns a field error including when parent fields are merged`(kind: String) {
+        for (plainSelection in listOf("", "item { value }")) {
+            val rootCalls = AtomicInteger()
+            subscriptionValidationModule(
+                onResolve = { rootCalls.incrementAndGet() },
+            ).runSubscriptionValidationTest {
+                val callsBefore = rootCalls.get()
+                val result = runQuery(
+                    "subscription(${'$'}enabled: Boolean! = true) { $plainSelection item { ${labelSelection(kind, "(if: ${'$'}enabled)")} } } ${labelFragment(kind)}",
+                )
+                assertSubscriptionExecutionError(result, listOf("item"), mapOf("item" to null))
+                assertEquals(callsBefore + 1, rootCalls.get(), "The containing object must be resolved once before checking defer")
+            }
+        }
+    }
+
+    @Test
+    fun `subscription defer errors use response aliases and preserve sibling fields`() {
+        subscriptionValidationModule().runSubscriptionValidationTest {
+            val result = runQuery(
+                """
+                subscription(${'$'}enabled: Boolean! = true) {
+                    renamedItem: item {
+                        value
+                        plainChild: child { value }
+                        renamedChild: child { ... @defer(if: ${'$'}enabled) { value } }
+                    }
+                }
+                """.trimIndent(),
+            )
+            assertSubscriptionExecutionError(
+                result,
+                listOf("renamedItem", "renamedChild"),
+                mapOf("renamedItem" to mapOf("value" to 1, "plainChild" to mapOf("value" to 1), "renamedChild" to null)),
+            )
+        }
+    }
+
+    @Test
+    fun `subscription defer checks each list item runtime type and ignores null items`() {
+        subscriptionValidationModule().runSubscriptionValidationTest {
+            val result = runQuery(
+                "subscription(${'$'}enabled: Boolean! = true) { items { value ... on IncrementalItem @defer(if: ${'$'}enabled) { value } } }",
+            )
+            assertSubscriptionExecutionError(
+                result,
+                listOf("items", 0),
+                mapOf("items" to listOf(null, mapOf("value" to 2), null)),
+            )
+        }
+    }
+
+    @Test
+    fun `subscription defer checks cover each runtime type of a reused fragment`() {
+        subscriptionValidationModule().runSubscriptionValidationTest {
+            val result = runQuery(
+                """
+                subscription(${'$'}enabled: Boolean! = true) {
+                    items {
+                        ... on IncrementalItem { ...Details }
+                        ...Details
+                    }
+                }
+                fragment Details on IncrementalValue { ... @defer(if: ${'$'}enabled) { value } }
+                """.trimIndent(),
+            )
+
+            assertEquals(mapOf("items" to listOf(null, null, null)), result.getData<Any?>())
+            assertEquals(2, result.errors.size, result.errors.toString())
+            assertEquals(setOf(listOf("items", 0), listOf("items", 1)), result.errors.map { it.path }.toSet())
+            for (error in result.errors) {
+                assertEquals(ErrorType.DataFetchingException.toString(), error.errorType.toString())
+                assertTrue(error.message.contains("@defer"), error.toString())
+            }
+        }
+    }
+
+    @Test
+    fun `enabled subscription defer does not reject null or empty lists`() {
+        subscriptionValidationModule().runSubscriptionValidationTest {
+            for ((field, expected) in listOf("emptyItems" to "[]", "nullItems" to "null")) {
+                runQuery("subscription(${'$'}enabled: Boolean! = true) { $field { ... @defer(if: ${'$'}enabled) { value } } }")
+                    .assertJson("""{"data":{"$field":$expected}}""")
+            }
+        }
+    }
+
+    private fun assertSubscriptionValidationError(
+        query: String,
+        checkError: (GraphQLError) -> Unit = {},
+    ) {
+        val calls = AtomicInteger()
+        subscriptionValidationModule(onResolve = { calls.incrementAndGet() }).runSubscriptionValidationTest {
+            val result = runQuery(query)
+            assertEquals(1, result.errors.size, result.errors.toString())
+            val error = result.errors.single()
+            assertEquals(ErrorType.ValidationError.toString(), error.errorType.toString())
+            assertTrue(error.message.contains("@defer") && error.message.contains("subscription"), error.toString())
+            assertTrue(!error.locations.isNullOrEmpty(), error.toString())
+            assertEquals(0, calls.get(), "Invalid subscription directives must not execute resolvers")
+            checkError(error)
+        }
+    }
+
+    private fun EngineTestModule.runSubscriptionValidationTest(block: suspend SubscriptionQueryRunner.() -> Unit) {
+        for (incrementalExecution in listOf(false, true)) {
+            runSubscriptionTest(this) { engine ->
+                SubscriptionQueryRunner(engine, incrementalExecution).block()
+            }
+        }
+    }
+
+    private fun assertSubscriptionExecutionError(
+        result: ExecutionResult,
+        path: List<Any>,
+        expectedData: Any?,
+    ) {
+        assertEquals(expectedData, result.getData<Any?>())
+        assertEquals(1, result.errors.size, result.errors.toString())
+        val error = result.errors.single()
+        assertEquals(ErrorType.DataFetchingException.toString(), error.errorType.toString())
+        assertTrue(error.message.contains("@defer") && error.message.contains("subscription"), error.toString())
+        assertEquals(path, error.path)
+        assertTrue(!error.locations.isNullOrEmpty(), error.toString())
+    }
+
+    private fun subscriptionValidationModule(onResolve: () -> Unit = {}) =
+        EngineTestModule(
+            """
+        extend type Query { item: IncrementalItem }
+        extend type Subscription {
+            item: IncrementalItem
+            nullItem: IncrementalItem
+            requiredItem: IncrementalItem!
+            abstractItem: IncrementalValue
+            unionItem: IncrementalUnion
+            items: [IncrementalValue]
+            emptyItems: [IncrementalValue]
+            nullItems: [IncrementalValue]
+        }
+        interface IncrementalValue { value: Int }
+        type IncrementalItem implements IncrementalValue { value: Int child: IncrementalItem }
+        type OtherIncrementalItem implements IncrementalValue { value: Int }
+        union IncrementalUnion = IncrementalItem | OtherIncrementalItem
+            """.trimIndent(),
+        ) {
+            for (coordinate in listOf("Query" to "item", "Subscription" to "item", "Subscription" to "requiredItem", "Subscription" to "abstractItem", "Subscription" to "unionItem")) {
+                field(coordinate) {
+                    resolver {
+                        fn { _, _, _, _, context ->
+                            onResolve()
+                            createEngineObjectData(context.fullSchema.schema.getObjectType("IncrementalItem"), emptyMap())
+                        }
+                    }
+                }
+            }
+            fieldWithValue("IncrementalItem" to "value", 1)
+            field("IncrementalItem" to "child") {
+                resolver {
+                    fn { _, _, _, _, context ->
+                        createEngineObjectData(context.fullSchema.schema.getObjectType("IncrementalItem"), emptyMap())
+                    }
+                }
+            }
+            field("Subscription" to "items") {
+                resolver {
+                    fn { _, _, _, _, context ->
+                        listOf(
+                            createEngineObjectData(context.fullSchema.schema.getObjectType("IncrementalItem"), emptyMap()),
+                            createEngineObjectData(context.fullSchema.schema.getObjectType("OtherIncrementalItem"), mapOf("value" to 2)),
+                            null,
+                        )
+                    }
+                }
+            }
+            fieldWithValue("Subscription" to "nullItem", null)
+            fieldWithValue("Subscription" to "emptyItems", emptyList<Any>())
+            fieldWithValue("Subscription" to "nullItems", null)
+        }
+
+    @ParameterizedTest
     @CsvSource(
         delimiter = '|',
         value = [
@@ -598,4 +1005,19 @@ interface OperationValidationContract : QueryExecutionContract {
                 }
             }
         }
+}
+
+private class SubscriptionQueryRunner(
+    private val engine: Engine,
+    private val incrementalExecution: Boolean,
+) {
+    suspend fun runQuery(
+        query: String,
+        variables: Map<String, Any?> = emptyMap(),
+    ): ExecutionResult {
+        val result = engine.execute(ExecutionInput(query, variables = variables, requestContext = Any()), incrementalExecution)
+        if (result is IncrementalExecutionResult) result.cancel()
+        assertFalse(result is IncrementalExecutionResult, "Subscription data and errors must be returned together, without deferred patches (incrementalExecution=$incrementalExecution)")
+        return result
+    }
 }

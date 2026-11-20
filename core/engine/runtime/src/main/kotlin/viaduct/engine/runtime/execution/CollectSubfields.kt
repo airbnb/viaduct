@@ -1,6 +1,7 @@
 package viaduct.engine.runtime.execution
 
 import graphql.execution.CoercedVariables
+import graphql.language.Directive
 import graphql.schema.GraphQLObjectType
 import viaduct.engine.api.EngineSchema
 import viaduct.engine.runtime.execution.QueryPlan.Fragments
@@ -31,6 +32,10 @@ import viaduct.engine.runtime.execution.QueryPlan.Fragments
  * `id` has no defer context, `name` inherits defer A, and `bio` gets defer B with parent A.
  */
 internal object CollectSubfields {
+    /**
+     * Keeps the first enabled defer from any selection contributing to the same response object.
+     * A plain occurrence must not hide an enabled defer in another occurrence of that field.
+     */
     operator fun invoke(
         schema: EngineSchema,
         objectType: GraphQLObjectType,
@@ -43,6 +48,7 @@ internal object CollectSubfields {
     ): CollectFields.Result {
         val collectedFieldsMap = linkedMapOf<String, MutableSet<FieldDetails>>()
         val newDeferUsages = mutableListOf<DeferUsage>()
+        var enabledDefer: Directive? = null
         for ((field, deferUsage) in fields) {
             val selectionSet = field.selectionSet ?: continue
             if (selectionSet.selections.isEmpty()) continue
@@ -66,12 +72,14 @@ internal object CollectSubfields {
                     .addAll(subfields.occurrences)
             }
             newDeferUsages.addAll(result.newDeferUsages)
+            if (enabledDefer == null) enabledDefer = result.enabledDefer
         }
         return CollectFields.Result(
             collectedFieldsMap.mapValues { (_, fields) ->
                 CollectedField(fields.toList(), schema.schema)
             },
             newDeferUsages,
+            enabledDefer,
         )
     }
 }
