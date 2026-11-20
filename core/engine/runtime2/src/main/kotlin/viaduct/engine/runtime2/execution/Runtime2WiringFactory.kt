@@ -33,6 +33,7 @@ import kotlinx.coroutines.future.await
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import viaduct.apiannotations.InternalApi
+import viaduct.engine.runtime.validation.SubscriptionDeferChecks
 import viaduct.engine.runtime2.model.EngineErrorData
 import viaduct.engine.runtime2.model.EngineResult
 import viaduct.engine.runtime2.model.EngineResultCell
@@ -175,7 +176,7 @@ private fun EngineResult?.toGraphQLJavaValue(
             val result = errorResult(errorData, source.exceptionHandler, environment, path)
             if (result.isDone) result.join() else result
         }
-        is ObjectEngineResult -> source.copy(objectResult = this)
+        is ObjectEngineResult -> toGraphQLJavaObject(source, environment, path)
         is ListEngineResult -> {
             val ready = if (source.requestScope.isActive) toGraphQLJavaListIfReady(source, environment, path) else null
             ready?.takeIf { source.requestScope.isActive } ?: source.requestScope.asCompletableFuture(
@@ -196,13 +197,31 @@ private suspend fun EngineResult?.toGraphQLJavaValueAwaiting(
     when (this) {
         null -> null
         is ErrorEngineResult -> errorResult(errorData, source.exceptionHandler, environment, path).await()
-        is ObjectEngineResult -> source.copy(objectResult = this)
+        is ObjectEngineResult -> toGraphQLJavaObject(source, environment, path)
         is ListEngineResult ->
             toGraphQLJavaListIfReady(source, environment, path)
                 ?: toGraphQLJavaListAwaiting(source, environment, path)
         is ViaductSchema.EnumValue -> name
         else -> scalarResultValue()
     }
+
+/**
+ * Checks subscription defer when a non-null object reaches completion.
+ * The error result lets graphql-java apply its existing null propagation to fields and list items.
+ */
+private fun ObjectEngineResult.toGraphQLJavaObject(
+    source: Runtime2ExecutionSource,
+    environment: DataFetchingEnvironment,
+    path: ResultPath,
+): Any {
+    val error = SubscriptionDeferChecks.error(
+        environment,
+        type.name,
+        path,
+    )
+    // Nested completion uses Engine2's query-strategy wrapper, so check at the shared value bridge.
+    return if (error == null) source.copy(objectResult = this) else DataFetcherResult.newResult<Any>().error(error).build()
+}
 
 private fun ListEngineResult.toGraphQLJavaListIfReady(
     source: Runtime2ExecutionSource,

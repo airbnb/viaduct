@@ -263,7 +263,7 @@ private class MaterializeSelectionForestImpl(
 
     override fun plus(other: MaterializeSelectionForest): MaterializeSelectionForest = MaterializeSelectionForestImpl(selections + other.occurrences())
 
-    override fun constructionSelections(): SelectionForest =
+    private val construction: SelectionForest by lazy {
         selections
             .map { selection ->
                 Selection.of(
@@ -273,6 +273,9 @@ private class MaterializeSelectionForestImpl(
                     subselections = selection.subselections.constructionSelections(),
                 )
             }.toSelectionForest()
+    }
+
+    override fun constructionSelections(): SelectionForest = construction
 
     override fun collect(type: ViaductSchema.Object): ObjectMaterializeSelectionForest {
         // Layouts retain immutable keys and child forests, never materialized values or fetched bindings.

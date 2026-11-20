@@ -22,6 +22,7 @@ import graphql.schema.GraphQLSchema
 import graphql.schema.GraphQLTypeUtil
 import graphql.validation.ValidationErrorType
 import graphql.validation.Validator
+import java.util.IdentityHashMap
 import java.util.Locale
 import viaduct.engine.api.FieldDirectives
 import viaduct.engine.runtime2.model.Arguments
@@ -154,6 +155,9 @@ internal class GJSelectionParser(
         argumentDecoder: ArgumentDecoder,
         mode: TranslationMode,
         fragmentsByName: Map<String, FragmentDefinition> = emptyMap(),
+        expansion: FragmentExpansion = FragmentExpansion(
+            (schema.requireType(typeInScope.name) as ViaductSchema.CompositeTypeDef).possibleObjectTypes,
+        ),
     ): List<SpecSelection> =
         selectionSet.selections.flatMap { selection ->
             when (selection) {
@@ -175,6 +179,7 @@ internal class GJSelectionParser(
                             argumentDecoder = argumentDecoder,
                             mode = mode,
                             fragmentsByName = fragmentsByName,
+                            expansion = expansion,
                         ),
                     )
                 is FragmentSpread -> {
@@ -190,6 +195,7 @@ internal class GJSelectionParser(
                             argumentDecoder = argumentDecoder,
                             mode = mode,
                             fragmentsByName = fragmentsByName,
+                            expansion = expansion,
                         ),
                     )
                 }
@@ -207,6 +213,7 @@ internal class GJSelectionParser(
         if (mode == TranslationMode.EXTERNAL_OPERATION && field.name in Introspection.INTROSPECTION_SYSTEM_FIELDS) {
             return null
         }
+        argumentDecoder.fields[field]?.get(typeInScope)?.let { return it }
         val fieldDefinition =
             Introspection.getFieldDef(
                 sourceSchema,
@@ -237,7 +244,7 @@ internal class GJSelectionParser(
             subselections = subselections,
             inclusionCondition = argumentDecoder.decodeCondition(field),
             fieldDirectives = ParsedFieldDirectives(field.directives.map { it.name }.filterNot(EXECUTION_DIRECTIVES::contains)),
-        )
+        ).also { argumentDecoder.fields.getOrPut(field, ::IdentityHashMap)[typeInScope] = it }
     }
 
     private fun decodeInlineFragment(
@@ -246,6 +253,7 @@ internal class GJSelectionParser(
         argumentDecoder: ArgumentDecoder,
         mode: TranslationMode,
         fragmentsByName: Map<String, FragmentDefinition>,
+        expansion: FragmentExpansion,
     ): SpecSelection.InlineFragment? {
         val typeConditionName = fragment.typeCondition?.name
         val graphQLTypeCondition =
@@ -254,6 +262,7 @@ internal class GJSelectionParser(
             }
         val modelTypeCondition =
             typeConditionName?.let { schema.requireType(it) as ViaductSchema.CompositeTypeDef }
+        val condition = argumentDecoder.decodeCondition(fragment)
         val selections =
             decodeSelectionSet(
                 fragment.selectionSet,
@@ -261,12 +270,13 @@ internal class GJSelectionParser(
                 argumentDecoder,
                 mode,
                 fragmentsByName,
+                expansion.within(modelTypeCondition, condition),
             )
         if (selections.isEmpty()) return null
         return SpecSelection.InlineFragment.of(
             typeCondition = modelTypeCondition,
             selections = selections,
-            inclusionCondition = argumentDecoder.decodeCondition(fragment),
+            inclusionCondition = condition,
         )
     }
 
@@ -276,10 +286,14 @@ internal class GJSelectionParser(
         argumentDecoder: ArgumentDecoder,
         mode: TranslationMode,
         fragmentsByName: Map<String, FragmentDefinition>,
+        expansion: FragmentExpansion,
     ): SpecSelection.InlineFragment? {
         val typeConditionName = fragment.typeCondition.name!!
         val graphQLTypeCondition =
             sourceSchema.getType(typeConditionName) as GraphQLCompositeType
+        val modelTypeCondition = schema.requireType(typeConditionName) as ViaductSchema.CompositeTypeDef
+        val nestedExpansion = expansion.within(modelTypeCondition, inclusionCondition)
+        if (!nestedExpansion.visit(fragment.name)) return null
         val selections =
             decodeSelectionSet(
                 fragment.selectionSet,
@@ -287,22 +301,25 @@ internal class GJSelectionParser(
                 argumentDecoder,
                 mode,
                 fragmentsByName,
+                nestedExpansion,
             )
         if (selections.isEmpty()) return null
         return SpecSelection.InlineFragment.of(
-            typeCondition = schema.requireType(typeConditionName) as ViaductSchema.CompositeTypeDef,
+            typeCondition = modelTypeCondition,
             selections = selections,
             inclusionCondition = inclusionCondition,
         )
     }
 
-    private sealed interface ArgumentDecoder {
-        fun decode(
+    private sealed class ArgumentDecoder {
+        val fields = IdentityHashMap<Field, IdentityHashMap<GraphQLCompositeType, SpecSelection.Field>>()
+
+        abstract fun decode(
             field: Field,
             fieldDefinition: GraphQLFieldDefinition,
         ): Map<String, Any?>
 
-        fun decodeCondition(container: DirectivesContainer<*>): InclusionCondition
+        abstract fun decodeCondition(container: DirectivesContainer<*>): InclusionCondition
     }
 
     private enum class TranslationMode {
@@ -310,7 +327,7 @@ internal class GJSelectionParser(
         INTERNAL_FRAGMENT,
     }
 
-    private inner class LiteralArgumentDecoder : ArgumentDecoder {
+    private inner class LiteralArgumentDecoder : ArgumentDecoder() {
         override fun decode(
             field: Field,
             fieldDefinition: GraphQLFieldDefinition,
@@ -393,7 +410,7 @@ internal class GJSelectionParser(
         private val variables: CoercedVariables,
         private val graphQLContext: GraphQLContext,
         private val locale: Locale,
-    ) : ArgumentDecoder {
+    ) : ArgumentDecoder() {
         override fun decode(
             field: Field,
             fieldDefinition: GraphQLFieldDefinition,
@@ -458,6 +475,30 @@ internal data class ParsedSpecFragment(
     val fragment: Fragment by lazy {
         Fragment.of(nominalType, flattenForMaterialization(schema, nominalType, selections))
     }
+}
+
+private data class FragmentVisit(
+    val name: String,
+    val possibleTypes: Set<ViaductSchema.Object>,
+)
+
+private class FragmentExpansion(
+    private val possibleTypes: Set<ViaductSchema.Object>,
+    private val inclusionCondition: InclusionCondition = InclusionCondition.Always,
+    private val visited: MutableMap<InclusionCondition, MutableSet<FragmentVisit>> = mutableMapOf(),
+) {
+    fun within(
+        typeCondition: ViaductSchema.CompositeTypeDef?,
+        condition: InclusionCondition,
+    ): FragmentExpansion =
+        FragmentExpansion(
+            typeCondition?.let { possibleTypes intersect it.possibleObjectTypes } ?: possibleTypes,
+            inclusionCondition.and(condition),
+            visited,
+        )
+
+    // A field descent starts a new expansion; guards and applicability distinguish sibling uses.
+    fun visit(name: String): Boolean = visited.getOrPut(inclusionCondition, ::mutableSetOf).add(FragmentVisit(name, possibleTypes))
 }
 
 /** Generic no-argument field directives retained by the parser. */

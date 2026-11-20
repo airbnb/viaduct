@@ -12,6 +12,7 @@ import org.junit.jupiter.api.Test
 import viaduct.engine.api.CheckerResult
 import viaduct.engine.runtime2.model.InclusionCondition
 import viaduct.engine.runtime2.model.ObjectEngineResult
+import viaduct.engine.runtime2.model.Selection
 import viaduct.engine.runtime2.model.SelectionForest
 import viaduct.engine.runtime2.model.materializeSelectionForestOf
 import viaduct.engine.runtime2.model.merge
@@ -23,6 +24,7 @@ import viaduct.engine.runtime2.model.registry.TypeCheckerResolver
 import viaduct.engine.runtime2.model.requireObjectField
 import viaduct.engine.runtime2.model.requireQueryTypeDef
 import viaduct.engine.runtime2.model.requireType
+import viaduct.engine.runtime2.model.selectionForestOf
 import viaduct.engine.runtime2.model.testing.TestWorld
 import viaduct.engine.runtime2.model.testing.fragmentFrom
 import viaduct.engine.runtime2.resolution.framework.Demand
@@ -98,6 +100,43 @@ class RegistrySuccessorDemandCacheTest {
         }
         assertNotNull(cache.get(SuccessorBoundary(field = value, kind = SuccessorBoundaryKind.RESOLVER)))
         assertNotNull(cache.get(SuccessorBoundary(type = item, kind = SuccessorBoundaryKind.TYPE_CHECKER)))
+    }
+
+    @Test
+    fun `a shared forest reached inside a fixed cycle remains complete when requested afterward`() {
+        val fixture = recursiveFixture()
+        val item = fixture.schema.requireType("Item") as ViaductSchema.Object
+        val value = fixture.schema.requireObjectField("Item", "value")
+        val checker = TypeCheckerResolver.of(
+            item,
+            fixture.schema.requireQueryTypeDef(),
+            mapOf(
+                "value" to ResolverFragmentTemplates(
+                    fixture.schemas.fragmentFrom("fragment F on Item { value }").materializeSelections,
+                    materializeSelectionForestOf(),
+                ),
+            ),
+        ) { _, _ -> CheckerResult.Success }
+        val cache = FixedSuccessorDemandCache()
+        val registry = object : ResolverRegistry by fixture.resolverRegistry, FixedSuccessorDemandCacheOwner {
+            override val fixedSuccessorDemandCache = cache
+
+            override fun typeChecker(type: ViaductSchema.Object) = if (type == item) checker else fixture.resolverRegistry.typeChecker(type)
+        }
+        cache.prepare(fixture.schema, registry)
+        val world = Assumptions.of(fixture.schema, registry)
+        val boundary = SuccessorBoundary(field = value, kind = SuccessorBoundaryKind.RESOLVER)
+        val shared = requireNotNull(cache.preparedInput(boundary)).fragments.single()
+        val first = fixture.schemas.fragmentFrom("fragment F on Item { value }").subselections
+        val later = selectionForestOf(Selection.of(shared.single().key, setOf(item), shared))
+        val expected = fixture.schemas.fragmentFrom(
+            "fragment F on Item { value child { marker value child { marker value child { marker } } } }",
+        ).subselections.shape()
+
+        (first + later).successorDemand(world, engineExecutionContext = null).shape() shouldBe expected
+        (later + first).successorDemand(world, engineExecutionContext = null).shape() shouldBe expected
+        assertNull(cache.get(boundary))
+        assertNull(cache.get(SuccessorBoundary(type = item, kind = SuccessorBoundaryKind.TYPE_CHECKER)))
     }
 
     @Test

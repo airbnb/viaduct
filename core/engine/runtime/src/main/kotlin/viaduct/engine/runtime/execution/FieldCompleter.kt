@@ -12,6 +12,7 @@ import graphql.execution.instrumentation.InstrumentationContext
 import graphql.execution.instrumentation.SimpleInstrumentationContext.nonNullCtx
 import graphql.execution.instrumentation.parameters.InstrumentationExecutionStrategyParameters
 import graphql.execution.instrumentation.parameters.InstrumentationFieldCompleteParameters
+import graphql.language.OperationDefinition
 import graphql.schema.DataFetchingEnvironment
 import graphql.schema.GraphQLEnumType
 import graphql.schema.GraphQLScalarType
@@ -33,6 +34,7 @@ import viaduct.engine.runtime.execution.FieldExecutionHelpers.buildDataFetchingE
 import viaduct.engine.runtime.execution.FieldExecutionHelpers.buildOERKeyForField
 import viaduct.engine.runtime.execution.FieldExecutionHelpers.collectFields
 import viaduct.engine.runtime.execution.FieldExecutionHelpers.executionStepInfoFactory
+import viaduct.engine.runtime.validation.subscriptionDeferError
 import viaduct.utils.slf4j.ifDebug
 import viaduct.utils.slf4j.logger
 
@@ -156,6 +158,14 @@ class FieldCompleter(
                     ctxCompleteObject.onCompletedNullable(null, null)
                     completeValueForNull(parameters)
                 } else {
+                    val defer = collected.enabledDefer
+                    if (defer != null && parameters.executionContext.operationDefinition.operation == OperationDefinition.Operation.SUBSCRIPTION) {
+                        val deferError = subscriptionDeferError(defer, parameters.path)
+                        parameters.errorAccumulator.add(deferError)
+                        val exception = FieldCompletionException(listOf(deferError))
+                        ctxCompleteObject.onCompletedNullable(null, exception)
+                        return@thenCompose Value.fromThrowable(exception)
+                    }
                     val collectedFields = collected.collectedFieldsMap
                     val completionParameters = parameters.withNewDeferMap(
                         GetNewDeferMap(collected.newDeferUsages, parameters.path, parameters.deferMap)
