@@ -15,8 +15,7 @@ package conventions
 //   - securityScan  — aggregate of trivyScanSbom + cyclonedxBom + generateLicenseReport
 //
 // Local prerequisite: install Trivy CLI on PATH (e.g. `brew install trivy`).
-// Defaults are tuned for advisory rollout: `severityFloor = "HIGH,CRITICAL"`
-// surfaces findings without failing the build (`isIgnoreExitValue = true`).
+// Trivy exits 0 when it finds CVEs, so findings never fail the build; a Trivy error does.
 
 import buildroot.registerForOrchestrationAggregate
 import com.github.jk1.license.LicenseReportExtension
@@ -90,28 +89,18 @@ pluginManager.withPlugin("java") {
 
         executable = "trivy"
 
-        doFirst {
-            trivyReportDir.get().asFile.mkdirs()
+        val severityFloor = securityScanning.severityFloor
+        inputs.property("severityFloor", severityFloor)
+        argumentProviders.add {
             val ignore = trivyIgnoreFile.get()
-            val baseArgs = listOf(
+            listOf(
                 "sbom",
                 sbomFile.get().asFile.absolutePath,
                 "--format", "json",
                 "--output", trivyReportFile.get().asFile.absolutePath,
-                "--severity", securityScanning.severityFloor.get(),
-            )
-            setArgs(
-                if (ignore.exists()) {
-                    baseArgs + listOf("--ignorefile", ignore.absolutePath)
-                } else {
-                    baseArgs
-                }
-            )
+                "--severity", severityFloor.get(),
+            ) + if (ignore.exists()) listOf("--ignorefile", ignore.absolutePath) else emptyList()
         }
-
-        // Advisory mode: Trivy exits non-zero when CVEs are found at the floor
-        // severity. Surface findings via the JSON report but don't fail the build.
-        isIgnoreExitValue = true
     }
 
     afterEvaluate {
