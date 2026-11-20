@@ -52,11 +52,14 @@ runs:
         jdk_envs=JAVA_HOME_17_X64,JAVA_HOME_17_ARM64
         jdk_envs+=,JAVA_HOME_21_X64,JAVA_HOME_21_ARM64
         jdk_envs+=,JAVA_HOME_25_X64,JAVA_HOME_25_ARM64
-        gradle_opts="${GRADLE_OPTS:-}"
-        gradle_opts+=" -Dorg.gradle.project.org.gradle.java.installations.auto-detect=false"
-        gradle_opts+=" -Dorg.gradle.project.org.gradle.java.installations.auto-download=false"
         # Apply to standalone demo-app builds as well as the composite builds.
-        gradle_opts+=" -Dorg.gradle.project.org.gradle.java.installations.fromEnv=$jdk_envs"
+        gradle_opts="${GRADLE_OPTS:-}"
+        # As -D flags, project toolchains read only the org.gradle.project. form and daemon JVM selection only the bare form.
+        for prefix in org.gradle.project.org.gradle.java.installations org.gradle.java.installations; do
+          gradle_opts+=" -D$prefix.auto-detect=false"
+          gradle_opts+=" -D$prefix.auto-download=false"
+          gradle_opts+=" -D$prefix.fromEnv=$jdk_envs"
+        done
         echo "GRADLE_OPTS=$gradle_opts" >> "$GITHUB_ENV"
 
     - name: Configure dependency mirror
