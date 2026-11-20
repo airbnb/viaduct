@@ -593,7 +593,7 @@ class ShadowFieldExecutionTest {
                 },
             )
 
-        val events = captureShadowFailures {
+        val events = captureShadowFailures { failureLogged ->
             EngineTestModule(
                 """
                 extend type Query {
@@ -606,6 +606,8 @@ class ShadowFieldExecutionTest {
                     resolver {
                         fn { _, _, _, _, _ ->
                             comparisonCompleted.await()
+                            // Request completion cancels the shadow, so keep production active until the failure is logged.
+                            if (fatal) withTimeoutOrNull(1_000) { failureLogged.await() }
                             true
                         }
                     }
@@ -625,7 +627,7 @@ class ShadowFieldExecutionTest {
         }
 
         assertEquals(1, comparisonCalls.get())
-        assertEquals(if (fatal) 1 else 0, events.size)
+        assertEquals(if (fatal) 1 else 0, events.size, "Unexpected number of logged shadow failures for fatal=$fatal")
     }
 
     private fun captureShadowFailures(block: (CompletableDeferred<Unit>) -> Unit): List<ILoggingEvent> {
