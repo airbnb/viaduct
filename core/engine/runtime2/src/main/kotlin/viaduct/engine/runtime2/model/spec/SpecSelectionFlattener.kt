@@ -1,5 +1,6 @@
 package viaduct.engine.runtime2.model.spec
 
+import java.util.IdentityHashMap
 import viaduct.engine.runtime2.model.InclusionCondition
 import viaduct.engine.runtime2.model.MaterializeSelection
 import viaduct.engine.runtime2.model.MaterializeSelectionForest
@@ -56,11 +57,12 @@ private fun flattenSelectionSet(
     schema: ViaductSchema,
     selections: List<SpecSelection>,
     context: SelectionContext,
+    childForests: IdentityHashMap<SpecSelection.Field, MaterializeSelectionForest> = IdentityHashMap(),
 ): MaterializeSelectionForest =
     selections.flatMapToMaterializeSelectionForest { selection ->
         when (selection) {
             is SpecSelection.Field ->
-                materializeSelectionForestOf(selection.flattenField(schema, context))
+                materializeSelectionForestOf(selection.flattenField(schema, context, childForests))
             is SpecSelection.InlineFragment -> {
                 val fragmentContext =
                     selection.typeCondition?.let { typeCondition ->
@@ -77,7 +79,7 @@ private fun flattenSelectionSet(
                         inclusionCondition =
                             context.inclusionCondition.and(selection.inclusionCondition),
                     )
-                flattenSelectionSet(schema, selection.selections, fragmentContext)
+                flattenSelectionSet(schema, selection.selections, fragmentContext, childForests)
             }
         }
     }
@@ -85,9 +87,11 @@ private fun flattenSelectionSet(
 private fun SpecSelection.Field.flattenField(
     schema: ViaductSchema,
     context: SelectionContext,
+    childForests: IdentityHashMap<SpecSelection.Field, MaterializeSelectionForest>,
 ): MaterializeSelection {
     val field = schemaField
-    val flattenedSubselections =
+    // Child context resets at a field, so shared source fields can reuse their immutable children.
+    val flattenedSubselections = childForests.getOrPut(this) {
         when (val resultType = field.type.baseTypeDef) {
             is ViaductSchema.SimpleTypeDef -> materializeSelectionForestOf()
 
@@ -100,9 +104,11 @@ private fun SpecSelection.Field.flattenField(
                         possibleTypes = resultType.possibleObjectTypes,
                         inclusionCondition = InclusionCondition.Always,
                     ),
+                    childForests,
                 )
             else -> error("Output field has a non-output type")
         }
+    }
 
     return MaterializeSelection.of(
         responseKey = alias ?: fieldName,

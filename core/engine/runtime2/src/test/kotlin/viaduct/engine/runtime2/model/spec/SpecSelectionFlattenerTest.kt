@@ -2,8 +2,10 @@ package viaduct.engine.runtime2.model.spec
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertSame
 import kotlin.test.assertTrue
 import viaduct.engine.runtime2.model.EngineInputObjectData
+import viaduct.engine.runtime2.model.InclusionCondition
 import viaduct.engine.runtime2.model.SelectionForest
 import viaduct.engine.runtime2.model.fieldExpressions
 import viaduct.engine.runtime2.model.requireField
@@ -14,6 +16,27 @@ import viaduct.engine.runtime2.model.testing.TestWorld
 import viaduct.graphql.schema.ViaductSchema
 
 class SpecSelectionFlattenerTest {
+    @Test
+    fun `shared field children retain separate parent guards`() {
+        val fixture = SchemaFixture()
+        val field = fixture.field("Query", "pet", alias = "animal", subselections = listOf(fixture.field("Pet", "name")))
+        val selections = flattenForMaterialization(
+            fixture.schema,
+            fixture.query,
+            listOf(field, SpecSelection.InlineFragment.of(null, listOf(field), InclusionCondition.Never)),
+        )
+        val included = selections.filter { it.inclusionCondition === InclusionCondition.Always }.single()
+        val excluded = selections.filter { it.inclusionCondition === InclusionCondition.Never }.single()
+
+        assertEquals(2, selections.size)
+        assertEquals("animal", included.responseKey)
+        assertEquals("animal", excluded.responseKey)
+        assertSame(included.subselections, excluded.subselections)
+        assertSame(included.subselections.constructionSelections(), excluded.subselections.constructionSelections())
+        assertSame(InclusionCondition.Always, included.subselections.single().inclusionCondition)
+        assertEquals(setOf(fixture.dog, fixture.cat), included.subselections.single().possibleTypes)
+    }
+
     @Test
     fun `fields use object keys instead of response aliases`() {
         val fixture = SchemaFixture()

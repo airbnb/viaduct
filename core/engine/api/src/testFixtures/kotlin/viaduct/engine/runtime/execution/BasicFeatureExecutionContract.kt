@@ -107,6 +107,42 @@ interface BasicFeatureExecutionContract : QueryExecutionContract {
     }
 
     @Test
+    fun `shared fragment diamonds preserve the response after an excluded spread`() {
+        val depth = 12
+        val fragments = (0 until depth).joinToString("\n") { index ->
+            "fragment Part$index on Query { ...Part${index + 1} ...Part${index + 1} }"
+        } + "\nfragment Part$depth on Query { alias: hello withArgs(name: \"Alice\") }"
+
+        assertQuery(
+            createResolverTestModule(),
+            "query { ...Part0 @skip(if: true) ...Part0 }\n$fragments",
+            """{"data": {"alias": "world", "withArgs": "Hello, Alice!"}}""",
+        )
+    }
+
+    @Test
+    fun `shared fragment diamonds preserve repeated variable guards`() {
+        createResolverTestModule().runContractTest {
+            val depth = 12
+            for (directive in listOf("include", "skip")) {
+                val fragments = (0 until depth).joinToString("\n") { index ->
+                    "fragment Part$index on Query { ...Part${index + 1} @$directive(if: \$visible) ...Part${index + 1} @$directive(if: \$visible) }"
+                } + "\nfragment Part$depth on Query { alias: hello withArgs(name: \"Alice\") }"
+                for (visible in listOf(false, true)) {
+                    val result = runQuery("query(\$visible: Boolean!) { number ...Part0 }\n$fragments", mapOf("visible" to visible))
+                    val expected = if (visible == (directive == "include")) {
+                        mapOf("number" to 42, "alias" to "world", "withArgs" to "Hello, Alice!")
+                    } else {
+                        mapOf("number" to 42)
+                    }
+                    assertEquals(emptyList<Any>(), result.errors)
+                    assertEquals(expected, result.getData())
+                }
+            }
+        }
+    }
+
+    @Test
     fun `simple resolver test`() {
         assertQuery(
             createResolverTestModule(),

@@ -5,6 +5,8 @@ import graphql.schema.idl.SchemaParser
 import graphql.schema.idl.UnExecutableSchemaGenerator
 import java.math.BigDecimal
 import java.math.BigInteger
+import java.util.Collections
+import java.util.IdentityHashMap
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -16,6 +18,7 @@ import viaduct.engine.runtime2.model.ArgumentResolutionError
 import viaduct.engine.runtime2.model.Arguments
 import viaduct.engine.runtime2.model.InclusionCondition
 import viaduct.engine.runtime2.model.ResolverTarget
+import viaduct.engine.runtime2.model.SelectionForest
 import viaduct.engine.runtime2.model.fieldExpressions
 import viaduct.engine.runtime2.model.registry.ProviderFragment
 import viaduct.engine.runtime2.model.requireObjectField
@@ -24,6 +27,133 @@ import viaduct.engine.runtime2.model.testing.fromSDL
 import viaduct.engine.runtime2.model.usedVariables
 
 class FragmentSelectionParsingTest {
+    @Test
+    fun `shared fragments below fields retain bounded selection structure`() {
+        val nestedSchemas = ViaductAndGJSchema.fromSDL("type Query { value: Value } type Value { left: Value right: Value text: String }")
+        val depth = 10
+        val fragments = (0 until depth).joinToString("\n") { index ->
+            "fragment Part$index on Value { left { ...Part${index + 1} } right { ...Part${index + 1} } }"
+        } + "\nfragment Part$depth on Value { text }"
+        val operation = nestedSchemas.operationSelectionsFrom("query { value { ...Part0 } }\n$fragments")
+        val fragment = nestedSchemas.specFragmentFromDocument(Parser.parse("fragment Main on Query { value { ...Part0 } }\n$fragments")).fragment
+
+        for (selections in listOf(operation, fragment.materializeSelections.constructionSelections())) {
+            val visited = Collections.newSetFromMap(IdentityHashMap<SelectionForest, Boolean>())
+
+            fun visit(
+                forest: SelectionForest,
+                level: Int
+            ) {
+                if (!visited.add(forest)) return
+                if (level == depth) {
+                    assertEquals("text", forest.single().key.field.name)
+                } else {
+                    assertEquals(setOf("left", "right"), buildSet { forest.forEach { add(it.key.field.name) } })
+                    forest.forEach { visit(it.subselections, level + 1) }
+                }
+            }
+            visit(selections.single().subselections, 0)
+            assertTrue(visited.size <= 2 * depth + 1, "Shared fragments allocated ${visited.size} distinct child forests")
+        }
+    }
+
+    @Test
+    fun `shared named fragments do not expand into a tree`() {
+        val depth = 12
+        val fragments = (0 until depth).joinToString("\n") { index ->
+            "fragment Part$index on Query { ...Part${index + 1} ...Part${index + 1} }"
+        } + "\nfragment Part$depth on Query { echo }"
+
+        val operation = schemas.operationSelectionsFrom("query { ...Part0 }\n$fragments")
+        val fragment = schemas.specFragmentFromDocument(Parser.parse("fragment Main on Query { ...Part0 }\n$fragments")).fragment
+
+        assertEquals(1, operation.size, "Repeated spreads must not duplicate their shared field")
+        assertEquals(1, fragment.subselections.size)
+        assertEquals("echo", operation.single().key.field.name)
+        assertEquals(mapOf("value" to "default"), operation.single().key.arguments.fieldExpressions())
+    }
+
+    @Test
+    fun `repeated symbolic guards retain bounded fragment expansion`() {
+        val depth = 12
+        val visible = Arguments.Variable.of(owner, "visible")
+        val hidden = Arguments.Variable.of(owner, "hidden")
+        val guards = listOf(
+            Triple("@include(if: \$visible)", "@include(if: \$visible)", mapOf(visible to true)),
+            Triple("@skip(if: \$hidden)", "@skip(if: \$hidden)", mapOf(hidden to false)),
+            Triple("@include(if: \$visible) @skip(if: \$hidden)", "@skip(if: \$hidden) @include(if: \$visible)", mapOf(visible to true, hidden to false)),
+        )
+        for ((first, second, required) in guards) {
+            val fragments = (0 until depth).joinToString("\n") { index ->
+                "fragment Part$index on Query { ...Part${index + 1} $first ...Part${index + 1} $second }"
+            } + "\nfragment Part$depth on Query { echo }"
+            val selections = schemas.specFragmentFromDocument(
+                Parser.parse("fragment Main on Query { ...Part0 }\n$fragments"),
+                variableField = owner,
+            ).fragment.subselections
+
+            assertEquals(1, selections.size, "Equivalent symbolic guards must not duplicate their shared field")
+            val selection = selections.single()
+            assertEquals("echo", selection.key.field.name)
+            assertEquals(required.keys, selections.usedVariables())
+            assertTrue(selection.inclusionCondition.include(required))
+            required.forEach { (variable, value) ->
+                assertEquals(false, selection.inclusionCondition.include(required + (variable to !value)))
+            }
+        }
+    }
+
+    @Test
+    fun `shared fragments retain distinct guards and object positions`() {
+        val guarded = schemas.specFragmentFromDocument(
+            Parser.parse("fragment Main on Query { ...Shared @skip(if: true) ...Shared ...Shared } fragment Shared on Query { echo }"),
+        ).fragment.subselections
+        assertEquals(2, guarded.size)
+        assertEquals(setOf(InclusionCondition.Always, InclusionCondition.Never), buildSet { guarded.forEach { add(it.inclusionCondition) } })
+
+        val symbolic = schemas.specFragmentFromDocument(
+            Parser.parse("fragment Main on Query { ...Shared @include(if: \$first) ...Shared @include(if: \$second) } fragment Shared on Query { echo }"),
+            variableField = owner,
+        ).fragment.subselections
+        assertEquals(setOf(Arguments.Variable.of(owner, "first"), Arguments.Variable.of(owner, "second")), symbolic.usedVariables())
+
+        val opposite = schemas.specFragmentFromDocument(
+            Parser.parse("fragment Main on Query { ...Shared @include(if: \$visible) ...Shared @skip(if: \$visible) ...Shared @include(if: \$visible) } fragment Shared on Query { echo }"),
+            variableField = owner,
+        ).fragment.subselections
+        assertEquals(2, opposite.size)
+        for (value in listOf(false, true)) {
+            var included = 0
+            opposite.forEach { if (it.inclusionCondition.include(mapOf(Arguments.Variable.of(owner, "visible") to value))) included++ }
+            assertEquals(1, included)
+        }
+
+        val nestedSchemas = ViaductAndGJSchema.fromSDL("type Query { first: Value second: Value } type Value { text: String }")
+        val nested = nestedSchemas.operationSelectionsFrom(
+            "query { first { ...Shared } second { ...Shared } } fragment Shared on Value { text }",
+        )
+        assertEquals(setOf("first", "second"), buildSet { nested.forEach { add(it.key.field.name) } })
+        nested.forEach { assertEquals("text", it.subselections.single().key.field.name) }
+
+        val aliased = nestedSchemas.specFragmentFromDocument(
+            Parser.parse("fragment Main on Query { first { ...Shared } other: first { ...Shared } } fragment Shared on Value { text }"),
+        ).fragment.materializeSelections
+        assertEquals(setOf("first", "other"), buildSet { aliased.forEach { add(it.responseKey) } })
+        aliased.forEach { assertEquals("text", it.subselections.single().key.field.name) }
+    }
+
+    @Test
+    fun `shared fragments retain narrowed type applicability`() {
+        val abstractSchemas = ViaductAndGJSchema.fromSDL(
+            "type Query { value: Value } interface Value { text: String } type A implements Value { text: String } type B implements Value { text: String }",
+        )
+        val selections = abstractSchemas.operationSelectionsFrom(
+            "query { value { ... on A { ...Shared } ... on B { ...Shared } } } fragment Shared on Value { text }",
+        ).single().subselections
+
+        assertEquals(setOf(setOf("A"), setOf("B")), buildSet { selections.forEach { add(it.possibleTypes.map { type -> type.name }.toSet()) } })
+    }
+
     @Test
     fun `invalid literal arguments fail during fragment preparation`() {
         for (selection in listOf("echo(value: 1)", "echo(unknown: 1)", "nested(value: {values: [null]})")) {
