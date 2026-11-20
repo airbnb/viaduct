@@ -2,7 +2,7 @@ name: Security Scan
 
 # Advisory CVE-parity scan for the published fat JARs.
 #
-# Compares two views of each publication's dependencies:
+# Compares two views of each published jar plus the lower jars its POM depends on:
 #   - fine-grained: `trivy sbom` over each publication's CycloneDX SBOM (full dep graph)
 #   - fat-JAR:      `trivy rootfs` over each built shadow JAR (binary, via META-INF/maven/**)
 # and surfaces "parity gaps" — CVEs the fine-grained scan sees but the fat-JAR
@@ -63,9 +63,9 @@ jobs:
           trivy image --download-java-db-only
           echo "TRIVY_SKIP_JAVA_DB_UPDATE=true" >> "$GITHUB_ENV"
 
-      # Fine-grained: trivy sbom over each publication's CycloneDX SBOM.
-      # `securityScan` is advisory at the Gradle layer (isIgnoreExitValue=true);
-      # --continue ensures one module's failure doesn't abort the others.
+      # Fine-grained: trivy sbom over each publication's CycloneDX SBOM, plus the list of
+      # modules each shadow jar bundles. A Trivy error fails that module's task;
+      # --continue still scans the others.
       - name: Fine-grained SBOM scans (publications)
         continue-on-error: true
         run: ./gradlew -p publications securityScan --no-daemon --continue
@@ -78,10 +78,11 @@ jobs:
         shell: bash
         run: python3 .github/scripts/format_sbom_summary.py publications >> "$GITHUB_STEP_SUMMARY"
 
-      # Build the shadow (fat) JARs so we can scan them as binaries.
+      # Build the shadow (fat) JARs so we can scan them as binaries, and the POMs
+      # that name each jar's lower jars.
       - name: Build fat JARs (publications)
         continue-on-error: true
-        run: ./gradlew -p publications assemble --no-daemon
+        run: ./gradlew -p publications assemble generatePomFileForMavenPublication --no-daemon --continue
 
       # Fat-JAR binary scan (net-new): trivy rootfs over each shadow JAR, honoring
       # the same ignore file as the fine-grained scan. Resilient per-jar so one
@@ -99,7 +100,8 @@ jobs:
               *-sources.jar|*-javadoc.jar) continue ;;
             esac
             found=1
-            out="build/reports/trivy-fatjar/$(basename "$jar" .jar).json"
+            publication="${jar#publications/}"
+            out="build/reports/trivy-fatjar/${publication%%/*}.json"
             echo "Scanning $jar -> $out"
             trivy rootfs --quiet --scanners vuln --format json \
               --severity HIGH,CRITICAL \
@@ -111,43 +113,30 @@ jobs:
             echo "::warning::No fat JARs found under publications/*/build/libs/"
           fi
 
-      # Diff fine-grained vs fat-JAR findings. Script exits 1 when gaps exist
-      # (advisory: swallow it) and writes the report before returning.
+      # Compare each jar, with its lower jars, against its SBOM scan. Script exits 1
+      # when gaps exist or a jar could not be compared (advisory: swallow it) and
+      # writes the report before returning.
       - name: Compare CVE parity
         continue-on-error: true
         shell: bash
         run: |
           python3 .github/scripts/compare_cve_findings.py \
-            --fine-grained publications/*/build/reports/trivy/cve-report.json \
-            --fat-jar build/reports/trivy-fatjar/*.json \
+            --publications-dir publications \
+            --jar-scans-dir build/reports/trivy-fatjar \
             --severity-floor HIGH \
             --output-format markdown \
             --output security-scan-report.md || true
-          # The script writes the report on exit 0 and exit 1 (gaps found) but NOT on
-          # exit 2 — missing/invalid inputs, e.g. a glob that matched nothing (all scans
-          # failed, no fat jars) or a corrupt Trivy JSON. Without a report there is no PR
-          # comment, so a silently-broken scan would look identical to a clean one. Leave a
-          # visible signal instead. Guard on file-absence (not `|| ...`) so the real report
-          # from the exit-1 "gaps found" path is never clobbered.
+          # The script writes no report on exit 2 (no publications found, or a crash).
+          # Without a report there is no PR comment, so a broken scan would look identical
+          # to a clean one. Leave a visible signal instead.
           if [ ! -f security-scan-report.md ]; then
             {
               echo '<!-- security-scan-summary -->'
               echo '## Security scan: CVE parity report'
               echo
-              echo '⚠️ The scan produced no report — inputs were missing or invalid (no scan'
-              echo 'outputs, or a corrupt Trivy JSON). See the Actions logs and the'
+              echo '⚠️ The scan produced no report. See the Actions logs and the'
               echo 'security-scan-reports artifact.'
             } > security-scan-report.md
-          fi
-          missing=""
-          for sbom in publications/*/build/reports/sbom/cyclonedx.json; do
-            [ -f "$sbom" ] || continue
-            reports="${sbom%/sbom/cyclonedx.json}"
-            [ -f "$reports/trivy/cve-report.json" ] || missing="$missing $(basename "${reports%/build/reports}")"
-          done
-          if [ -n "$missing" ]; then
-            echo "::warning::Not compared, no SBOM scan report:$missing"
-            printf '\n⚠️ Not compared, no SBOM scan report:%s\n' "$missing" >> security-scan-report.md
           fi
 
       # Surface the CVE-parity report in the job summary too, so it's visible on
@@ -177,6 +166,8 @@ jobs:
             security-scan-report.md
             publications/*/build/reports/trivy/cve-report.json
             publications/*/build/reports/sbom/cyclonedx.json
+            publications/*/build/publications/maven/pom-default.xml
+            publications/*/build/reports/bundled-modules.txt
             build/reports/trivy-fatjar/*.json
 
       # Sticky PR comment via github-script (the repo's PR-interaction convention;

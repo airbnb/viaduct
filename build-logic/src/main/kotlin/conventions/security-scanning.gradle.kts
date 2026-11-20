@@ -11,13 +11,15 @@ package conventions
 //   - Trivy CLI (invoked via Gradle Exec on the CycloneDX SBOM) — CVE scan
 //
 // Tasks added:
-//   - trivyScanSbom — runs `trivy sbom` against the CycloneDX SBOM
-//   - securityScan  — aggregate of trivyScanSbom + cyclonedxBom + generateLicenseReport
+//   - trivyScanSbom       — runs `trivy sbom` against the CycloneDX SBOM
+//   - writeBundledModules — lists the modules with a class in the shadow jar (shadow projects only)
+//   - securityScan        — aggregate of the tasks above + cyclonedxBom + generateLicenseReport
 //
 // Local prerequisite: install Trivy CLI on PATH (e.g. `brew install trivy`).
 // Trivy exits 0 when it finds CVEs, so findings never fail the build; a Trivy error does.
 
 import buildroot.registerForOrchestrationAggregate
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 import com.github.jk1.license.LicenseReportExtension
 import com.github.jk1.license.filter.LicenseBundleNormalizer
 import com.github.jk1.license.render.InventoryHtmlReportRenderer
@@ -25,6 +27,7 @@ import com.github.jk1.license.render.JsonReportRenderer
 import com.github.jk1.license.render.ReportRenderer
 import javax.inject.Inject
 import org.cyclonedx.gradle.CycloneDxTask
+import org.gradle.api.artifacts.result.ResolvedArtifactResult
 import org.gradle.api.model.ObjectFactory
 import org.gradle.api.provider.Property
 import viaduct.gradle.internal.repoRoot
@@ -124,4 +127,28 @@ pluginManager.withPlugin("java") {
     // Self-report to the orchestration registry instead of having a root project's
     // `subprojects { }` block read this project's task container.
     registerForOrchestrationAggregate("securityScan", "securityScan")
+
+    pluginManager.withPlugin("com.gradleup.shadow") {
+        val bundledModulesFile = layout.buildDirectory.file("reports/bundled-modules.txt")
+        val writeBundledModules = tasks.register("writeBundledModules") {
+            group = "verification"
+            description = "[security] Lists the modules with at least one class in the shadow jar, for the CVE-parity report."
+            val shadowJar = tasks.named<ShadowJar>("shadowJar")
+            val bundledConfigurations = shadowJar.get().configurations.map {
+                it as? Configuration ?: error("shadowJar bundles $it, which is not a configuration")
+            }
+            val artifacts = objects.listProperty(ResolvedArtifactResult::class.java)
+            bundledConfigurations.forEach { artifacts.addAll(it.incoming.artifacts.resolvedArtifacts) }
+            val jar = shadowJar.flatMap { it.archiveFile }
+            val relocators = shadowJar.map { it.relocators }
+            inputs.files(bundledConfigurations).withNormalizer(ClasspathNormalizer::class).withPropertyName("bundledConfigurations")
+            inputs.file(jar).withPropertyName("shadowJar")
+            outputs.file(bundledModulesFile)
+            doLast {
+                val modules = modulesWithClassesIn(jar.get().asFile, artifacts.get(), relocators.get())
+                bundledModulesFile.get().asFile.writeText(modules.joinToString("\n", postfix = "\n"))
+            }
+        }
+        tasks.named("securityScan") { dependsOn(writeBundledModules) }
+    }
 }
