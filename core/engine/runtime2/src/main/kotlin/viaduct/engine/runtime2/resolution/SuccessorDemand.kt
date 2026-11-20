@@ -1,5 +1,6 @@
 package viaduct.engine.runtime2.resolution
 
+import java.util.IdentityHashMap
 import java.util.concurrent.ConcurrentHashMap
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.runtime2.model.InclusionCondition
@@ -18,6 +19,7 @@ import viaduct.engine.runtime2.model.registry.PreparedParentDemand
 import viaduct.engine.runtime2.model.registry.ResolverRegistry
 import viaduct.engine.runtime2.model.requireField
 import viaduct.engine.runtime2.model.selectionForestOf
+import viaduct.engine.runtime2.model.toSelectionForest
 import viaduct.engine.runtime2.resolution.framework.Demand
 import viaduct.engine.runtime2.resolution.framework.plus
 import viaduct.graphql.schema.ViaductSchema
@@ -150,6 +152,8 @@ internal class PreparedSuccessorInputs(
     var selectionIndependent: Boolean = true,
 )
 
+private data class DemandMode(val checked: Boolean, val producerSuppliableOnly: Boolean)
+
 private class FusedSuccessorDemandContext(
     val world: Assumptions,
     engineExecutionContext: EngineExecutionContext?,
@@ -158,6 +162,9 @@ private class FusedSuccessorDemandContext(
     val expansionContext = SuccessorDemandContext(world.resolverRegistry, world.parentFieldRelations, engineExecutionContext, operationDemandCache)
     val parentApplication = ParentDemandApplication(world, engineExecutionContext, operationDemandCache = operationDemandCache)
     val hasParentRelations = world.parentFieldRelations.isNotEmpty()
+
+    // Fixed inputs finish unwinding their cycle stack before requested traversal resumes.
+    val requestedDemands = IdentityHashMap<SelectionForest, MutableMap<DemandMode, FusedSuccessorResult>>()
 }
 
 /** Recursion state belongs to one computation, even when completed expansions are shared. */
@@ -168,6 +175,10 @@ private class SuccessorDemandContext(
     operationDemandCache: OperationDemandCache? = null,
 ) {
     val hasParentRelations = parentFieldRelations.isNotEmpty()
+    val compactedDemands = SuccessorDemandCompactionCache()
+
+    // Fixed fragments run under an active boundary stack, so cycle-cut answers cannot be reused.
+    val traversedDemands = IdentityHashMap<SelectionForest, MutableMap<DemandMode, SelectionForest>>()
     val expansionState = SuccessorExpansionState(
         (registry as? FixedSuccessorDemandCacheOwner)?.fixedSuccessorDemandCache,
         operationDemandCache,
@@ -182,6 +193,8 @@ private class SuccessorExpansionState(
     private val expandingBoundaries = mutableSetOf<SuccessorBoundary>()
     private val fixedInputDemand = mutableMapOf<SuccessorBoundary, SelectionForest>()
     private var cycleCuts = 0
+
+    val cycleCutCount: Int get() = cycleCuts
 
     fun preparedInput(boundary: SuccessorBoundary): PreparedSuccessorInputs? = sharedCache?.preparedInput(boundary)
 
@@ -249,6 +262,9 @@ private fun SelectionForest.fusedSuccessorDemandWithChecks(
     producerSuppliableOnly: Boolean = false,
 ): FusedSuccessorResult {
     if (isEmpty()) return EMPTY_FUSED_RESULT
+    val results = context.requestedDemands.getOrPut(this, ::mutableMapOf)
+    val mode = DemandMode(checked, producerSuppliableOnly)
+    results[mode]?.let { return it }
     var combinedParentDemand = PreparedParentDemand.EMPTY
     var anyParentKeys = false
     val successorDemand = flatMap { selection ->
@@ -274,8 +290,8 @@ private fun SelectionForest.fusedSuccessorDemandWithChecks(
         }
         combinedParentDemand = context.parentApplication.combine(combinedParentDemand, selectionParent)
         if (parentInduced != null) successor + parentInduced.inducedSuccessorDemand else successor
-    }.compactSuccessorDemand()
-    return FusedSuccessorResult(successorDemand, combinedParentDemand, anyParentKeys)
+    }.compactSuccessorDemand(context.expansionContext.compactedDemands)
+    return FusedSuccessorResult(successorDemand, combinedParentDemand, anyParentKeys).also { results[mode] = it }
 }
 
 private class ParentTransitionResult(
@@ -456,14 +472,21 @@ private fun SelectionForest.successorDemandWithChecks(
     context: SuccessorDemandContext,
     checked: Boolean,
     producerSuppliableOnly: Boolean = false,
-): SelectionForest =
-    flatMap { selection ->
+): SelectionForest {
+    val results = context.traversedDemands.getOrPut(this, ::mutableMapOf)
+    val mode = DemandMode(checked, producerSuppliableOnly)
+    results[mode]?.let { return it }
+    val cutsBefore = context.expansionState.cycleCutCount
+    val result = flatMap { selection ->
         selection.possibleTypes.flatMapToSelectionForest { type ->
             val key = selection.objectKey(type)
             selection.requestedSuccessorDemand(context, key, type, checked, producerSuppliableOnly) +
                 selection.fixedSuccessorInputDemand(context, key, checked)
         }
-    }.compactSuccessorDemand()
+    }.compactSuccessorDemand(context.compactedDemands)
+    if (context.expansionState.cycleCutCount == cutsBefore) results[mode] = result
+    return result
+}
 
 private fun Selection.requestedSuccessorDemand(
     context: SuccessorDemandContext,
@@ -501,11 +524,43 @@ private fun Selection.requestedSuccessorDemand(
  * become an exponentially duplicated producer forest. Merging pushes each alternative's guard
  * into its own descendants and preserves distinct symbolic keys.
  */
-private fun SelectionForest.compactSuccessorDemand(): SelectionForest {
+internal class SuccessorDemandCompactionCache {
+    private val forests = IdentityHashMap<SelectionForest, SelectionForest>()
+    private val occurrences = mutableMapOf<OccurrenceKey, SelectionForest>()
+
+    fun compact(forest: SelectionForest): SelectionForest {
+        forests[forest]?.let { return it }
+        if (forest.isEmpty()) return forest
+        val seen = IdentityHashMap<Selection, Boolean>()
+        val members = buildList {
+            forest.forEach { selection -> if (seen.put(selection, true) == null) add(selection) }
+        }
+        val result = occurrences.getOrPut(OccurrenceKey(members)) {
+            val unique = if (members.size == forest.size) forest else members.toSelectionForest()
+            unique.compactSuccessorDemandUncached(this)
+        }
+        forests[forest] = result
+        forests[result] = result
+        return result
+    }
+
+    // Let different forests with the same selection objects in the same order share a cached result.
+    private class OccurrenceKey(val members: List<Selection>) {
+        private val hash = members.fold(1) { result, selection -> 31 * result + System.identityHashCode(selection) }
+
+        override fun hashCode(): Int = hash
+
+        override fun equals(other: Any?): Boolean = other is OccurrenceKey && members.size == other.members.size && members.indices.all { members[it] === other.members[it] }
+    }
+}
+
+private fun SelectionForest.compactSuccessorDemand(cache: SuccessorDemandCompactionCache): SelectionForest = cache.compact(this)
+
+private fun SelectionForest.compactSuccessorDemandUncached(cache: SuccessorDemandCompactionCache): SelectionForest {
     if (isEmpty()) return this
     if (size == 1) {
         val selection = single()
-        val compactedChildren = selection.subselections.compactSuccessorDemand()
+        val compactedChildren = selection.subselections.compactSuccessorDemand(cache)
         return if (compactedChildren === selection.subselections) {
             this
         } else {
@@ -519,9 +574,13 @@ private fun SelectionForest.compactSuccessorDemand(): SelectionForest {
             )
         }
     }
-    val types = linkedSetOf<ViaductSchema.Object>()
-    forEach { types += it.possibleTypes }
-    if (types.size == 1) {
+    val selectionsByType = linkedMapOf<ViaductSchema.Object, MutableList<Selection>>()
+    forEach { selection ->
+        selection.possibleTypes.forEach { type ->
+            selectionsByType.getOrPut(type, ::mutableListOf).add(selection)
+        }
+    }
+    if (selectionsByType.size == 1) {
         val keys = linkedSetOf<ObjectEngineResult.Key>()
         forEach { keys += it.key }
         if (keys.size == size) {
@@ -530,18 +589,19 @@ private fun SelectionForest.compactSuccessorDemand(): SelectionForest {
                     key = selection.key,
                     possibleTypes = selection.possibleTypes,
                     inclusionCondition = selection.inclusionCondition,
-                    subselections = selection.subselections.compactSuccessorDemand(),
+                    subselections = selection.subselections.compactSuccessorDemand(cache),
                 )
             }
         }
     }
-    return types.flatMapToSelectionForest { type ->
-        merge(type).mapSelections { selection ->
+    return selectionsByType.entries.flatMapToSelectionForest { (type, members) ->
+        val applicableForest = if (members.size == size) this else members.toSelectionForest()
+        applicableForest.merge(type).mapSelections { selection ->
             Selection.of(
                 key = selection.key,
                 possibleTypes = selection.possibleTypes,
                 inclusionCondition = selection.inclusionCondition,
-                subselections = selection.subselections.compactSuccessorDemand(),
+                subselections = selection.subselections.compactSuccessorDemand(cache),
             )
         }
     }
