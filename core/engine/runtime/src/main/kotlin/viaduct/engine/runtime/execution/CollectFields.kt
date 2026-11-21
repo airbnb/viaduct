@@ -86,6 +86,12 @@ fun interface CollectFields {
     data class Result(
         val collectedFieldsMap: CollectedFieldsMap,
         val newDeferUsages: List<DeferUsage>,
+        /**
+         * The first enabled defer whose inclusion and type conditions match this object, or null.
+         * Subscription completion needs only one to reject the object and identify the directive.
+         * Kept even when incremental delivery is disabled, since the subscription restriction still applies.
+         */
+        val enabledDefer: Directive? = null,
     )
 
     operator fun invoke(
@@ -134,7 +140,7 @@ private object DefaultCollectFields : CollectFields {
             fieldRssOriginFilteringKillSwitchEnabled = fieldRssOriginFilteringKillSwitchEnabled,
             incrementalExecutionEnabled = incrementalExecutionEnabled,
         )
-        return CollectFields.Result(result.acc, result.newDeferUsages)
+        return CollectFields.Result(result.acc, result.newDeferUsages, result.enabledDefer)
     }
 
     /** models the state while collecting fields within a single SelectionSet */
@@ -148,6 +154,7 @@ private object DefaultCollectFields : CollectFields {
         val parentType: GraphQLObjectType,
         val deferUsage: DeferUsage?,
         val newDeferUsages: List<DeferUsage> = emptyList(),
+        val enabledDefer: Directive? = null,
     ) {
         fun fragmentDef(name: String): FragmentDefinition = requireNotNull(fragments[name]) { "Fragment `$name` is not defined" }
 
@@ -172,6 +179,7 @@ private object DefaultCollectFields : CollectFields {
         val visitedFragments = state.spreadFragments.mapValues { (_, defers) -> defers.toMutableSet() }.toMutableMap()
         val acc = linkedMapOf<String, MutableList<FieldDetails>>()
         val newDeferUsages = mutableListOf<DeferUsage>()
+        var enabledDefer: Directive? = null
 
         // the inner loop will both push and pop from the front of the queue
         // For example, we might handle an inline fragment by popping off the inline fragment
@@ -183,6 +191,13 @@ private object DefaultCollectFields : CollectFields {
         while (queue.isNotEmpty()) {
             val (sel, deferUsage) = queue.removeFirst()
             val resolution = sel.constraints.solve(state.constraintsCtx)
+            val directive = if (resolution == Resolution.Collect) {
+                sel.deferDirective?.takeUnless { it.argumentValue("if", variables) == false }
+            } else {
+                null
+            }
+            // Subscription errors must retain defer even when delivery is disabled or a fragment was already visited.
+            if (enabledDefer == null) enabledDefer = directive
 
             when {
                 resolution == Resolution.Drop -> continue
@@ -226,7 +241,7 @@ private object DefaultCollectFields : CollectFields {
 
                 sel is InlineFragment -> {
                     val fragmentUsage = fragmentDeferUsage(
-                        sel,
+                        directive,
                         deferUsage,
                         variables,
                         incrementalExecutionEnabled,
@@ -240,7 +255,7 @@ private object DefaultCollectFields : CollectFields {
                     val visitedDefers = visitedFragments.getOrPut(sel.name) { mutableSetOf() }
                     if (null in visitedDefers) continue
                     val fragmentUsage = fragmentDeferUsage(
-                        sel,
+                        directive,
                         deferUsage,
                         variables,
                         incrementalExecutionEnabled,
@@ -260,18 +275,18 @@ private object DefaultCollectFields : CollectFields {
             pending = emptyList(),
             spreadFragments = visitedFragments,
             newDeferUsages = newDeferUsages,
+            enabledDefer = enabledDefer,
         )
     }
 
     private fun fragmentDeferUsage(
-        selection: Selection,
+        directive: Directive?,
         parentDeferUsage: DeferUsage?,
         variables: CoercedVariables,
         incrementalExecutionEnabled: Boolean,
     ): DeferUsage? {
         if (!incrementalExecutionEnabled) return null
-        val directive = selection.deferDirective ?: return parentDeferUsage
-        if (directive.argumentValue("if", variables) == false) return parentDeferUsage
+        if (directive == null) return parentDeferUsage
 
         val label = directive.argumentValue("label", variables) as String?
         return DeferUsage(Defer(label, directive), parentDeferUsage)

@@ -2,11 +2,13 @@ package viaduct.tenant.runtime.execution.queryselections;
 
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import viaduct.api.testing.TestSchema;
 import viaduct.java.api.annotations.Resolver;
 import viaduct.tenant.runtime.execution.queryselections.resolverbases.MutationResolvers;
 import viaduct.tenant.runtime.execution.queryselections.resolverbases.QueryResolvers;
 import viaduct.tenant.runtime.execution.queryselections.resolverbases.UserResolvers;
 
+@TestSchema(JavaQuerySelectionsSchema.SCHEMA)
 public class JavaQuerySelectionsContractTest extends QuerySelectionsContractTest {
 
   // --- Resolvers ---

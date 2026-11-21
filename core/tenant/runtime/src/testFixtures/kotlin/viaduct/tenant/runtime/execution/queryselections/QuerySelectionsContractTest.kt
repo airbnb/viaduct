@@ -26,6 +26,8 @@ import viaduct.graphql.test.assertEquals
         nullableViewer: User @resolver
         "Return a User with id=<id>, name=\"User-<id>\""
         user(id: ID!): User @resolver
+        copiedUser(id: ID!): User @resolver(isSelective: true)
+        upperNameFromRss: String @resolver
     }
 
     extend type Mutation {
@@ -42,6 +44,7 @@ import viaduct.graphql.test.assertEquals
         displayNameFromNullViewer: String! @resolver
         "Use queryValueFragment to fetch viewer with displayName; return \"Hello User-<id>, from <viewer.id> (displayed by <viewer.displayName>)\""
         greeting: String! @resolver
+        upperName: String @resolver
     }
 
     type UpdateResult {

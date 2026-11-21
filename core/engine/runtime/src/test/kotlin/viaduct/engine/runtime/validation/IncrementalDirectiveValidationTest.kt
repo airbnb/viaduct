@@ -1,16 +1,29 @@
 package viaduct.engine.runtime.validation
 
 import graphql.ExecutionInput
+import graphql.GraphQLContext
+import graphql.execution.ExecutionId
+import graphql.execution.MergedField
+import graphql.execution.ResultPath
+import graphql.execution.conditional.ConditionalNodeDecision
 import graphql.execution.preparsed.NoOpPreparsedDocumentProvider
 import graphql.execution.preparsed.PreparsedDocumentEntry
+import graphql.language.Field
+import graphql.language.FragmentDefinition
+import graphql.language.OperationDefinition
 import graphql.language.SourceLocation
 import graphql.parser.Parser
+import graphql.schema.DataFetchingEnvironment
+import graphql.schema.DataFetchingEnvironmentImpl
 import graphql.schema.idl.SchemaParser
 import graphql.schema.idl.UnExecutableSchemaGenerator
 import graphql.validation.ValidationError
 import graphql.validation.ValidationErrorType
+import java.util.concurrent.atomic.AtomicInteger
+import java.util.stream.IntStream
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertInstanceOf
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.ValueSource
@@ -222,6 +235,199 @@ class IncrementalDirectiveValidationTest {
     )
     fun `namespace validation skips mutation results, queries and unknown fields`(query: String) {
         assertEquals(emptyList<ValidationError>(), validationErrors(query))
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = ["inline", "fragment"])
+    fun `subscription errors use field names through nested fields and aliases`(kind: String) {
+        val selection = if (kind == "inline") "... @defer { value }" else "...Details @defer"
+        val fragment = if (kind == "fragment") "fragment Details on IncrementalItem { value }" else ""
+        val error = validationError(
+            "subscription { renamedItem: item { renamedChild: child { $selection } } } $fragment",
+        )
+
+        assertEquals(listOf("item", "child"), error.queryPath)
+    }
+
+    @Test
+    fun `subscription errors in nested named fragments use the innermost definition name`() {
+        val error = validationError(
+            """
+            subscription { item { ...Outer } }
+            fragment Outer on IncrementalItem { ...Inner }
+            fragment Inner on IncrementalItem { renamedChild: child { ... @defer { value } } }
+            """.trimIndent(),
+        )
+
+        assertEquals(listOf("Inner", "child"), error.queryPath)
+    }
+
+    @Test
+    fun `subscription errors are appended to existing validation errors`() {
+        val query = "subscription { item { ... @defer { value } } }"
+        val existing = ValidationError.newValidationError()
+            .validationErrorType(ValidationErrorType.FieldUndefined)
+            .description("An existing validation error")
+            .build()
+        val input = ExecutionInput.newExecutionInput().query(query).build()
+
+        val entry = requireNotNull(
+            provider.getDocumentAsync(input) { PreparsedDocumentEntry(Parser.parse(query), listOf(existing)) }.join(),
+        )
+
+        assertEquals(2, entry.errors.size, entry.errors.toString())
+        assertEquals(existing, entry.errors.first())
+        assertEquals(listOf("item"), assertInstanceOf(ValidationError::class.java, entry.errors.last()).queryPath)
+    }
+
+    @Test
+    fun `label and root errors do not hide errors on nested subscription defer`() {
+        val errors = validationErrors(
+            """
+            subscription {
+                ... @defer(label: 1) { item { ... @defer { value } } }
+            }
+            """.trimIndent(),
+        )
+
+        assertEquals(listOf(emptyList(), emptyList(), listOf("item")), errors.map { it.queryPath })
+        assertEquals(1, errors.count { it.description.contains("root subscription") })
+        assertEquals(1, errors.count { it.description.contains("not supported on subscription") })
+    }
+
+    @Test
+    fun `a fragment visited at the subscription root is also checked when used inside a field`() {
+        val errors = validationErrors(
+            """
+            subscription { ...Root item { ...Root } }
+            fragment Root on Subscription {
+                ... @defer { item { value } }
+            }
+            """.trimIndent(),
+        )
+
+        assertEquals(2, errors.size, errors.toString())
+        assertEquals(listOf(listOf("Root"), listOf("Root")), errors.map { it.queryPath })
+        assertEquals(1, errors.count { it.description.contains("not supported on subscription") })
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = [true, false])
+    fun `concurrent completion reuses enabled and disabled defer decisions`(enabled: Boolean) {
+        val decisions = AtomicInteger()
+        val graphQLContext = GraphQLContext.newContext()
+            .of(
+                ConditionalNodeDecision::class.java,
+                ConditionalNodeDecision {
+                    decisions.incrementAndGet()
+                    true
+                },
+            )
+            .build()
+        val environment = deferEnvironment(
+            "subscription(${'$'}enabled: Boolean!) { items { ... @defer(if: ${'$'}enabled) { value } } }",
+            graphQLContext,
+            mapOf("enabled" to enabled),
+        )
+
+        IntStream.range(0, 16).parallel().forEach { index ->
+            val path = ResultPath.rootPath().segment("items").segment(index)
+            val error = SubscriptionDeferChecks.error(environment, "IncrementalItem", path)
+            if (enabled) {
+                assertEquals(listOf("items", index), requireNotNull(error).path)
+            } else {
+                assertNull(error)
+            }
+        }
+
+        assertEquals(1, decisions.get(), "Completing more objects must not reevaluate the selections")
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = [true, false])
+    fun `cached checks retain the first applicable directive for each runtime type`(typedFirst: Boolean) {
+        val typed = "... on IncrementalItem @defer(if: ${'$'}enabled) { value }"
+        val universal = "... @defer(if: ${'$'}enabled) { value }"
+        val selections = if (typedFirst) "$typed $universal" else "$universal $typed"
+        val query = "subscription(${'$'}enabled: Boolean!) { items { $selections } }"
+        val environment = deferEnvironment(query)
+
+        for (typeName in listOf("IncrementalItem", "OtherIncrementalItem")) {
+            val error = requireNotNull(SubscriptionDeferChecks.error(environment, typeName, ResultPath.rootPath().segment("items").segment(0)))
+            val directiveIndex = if (typedFirst && typeName == "OtherIncrementalItem") query.lastIndexOf("@defer") else query.indexOf("@defer")
+            assertEquals(listOf(SourceLocation(1, directiveIndex + 1)), error.locations)
+        }
+    }
+
+    @Test
+    fun `reusing a document and GraphQL context does not reuse another execution's defer decision`() {
+        val disabled = deferEnvironment(
+            "subscription(${'$'}enabled: Boolean!) { items { ... @defer(if: ${'$'}enabled) { value } } }",
+            variables = mapOf("enabled" to false),
+        )
+        val enabled = DataFetchingEnvironmentImpl.newDataFetchingEnvironment(disabled)
+            .executionId(ExecutionId.generate())
+            .variables(mapOf("enabled" to true))
+            .build()
+        val path = ResultPath.rootPath().segment("items").segment(0)
+
+        repeat(2) {
+            assertNull(SubscriptionDeferChecks.error(disabled, "IncrementalItem", path))
+            val error = requireNotNull(SubscriptionDeferChecks.error(enabled, "IncrementalItem", path))
+            assertEquals(listOf("items", 0), error.path)
+        }
+    }
+
+    @Test
+    fun `query completion does not evaluate subscription defer checks`() {
+        val decisions = AtomicInteger()
+        val graphQLContext = GraphQLContext.newContext()
+            .of(
+                ConditionalNodeDecision::class.java,
+                ConditionalNodeDecision {
+                    decisions.incrementAndGet()
+                    true
+                },
+            )
+            .build()
+        val environment = deferEnvironment(
+            "query(${'$'}enabled: Boolean!) { items { ... @defer(if: ${'$'}enabled) { value } } }",
+            graphQLContext,
+        )
+
+        assertNull(SubscriptionDeferChecks.error(environment, "IncrementalItem", ResultPath.rootPath().segment("items")))
+        assertEquals(0, decisions.get(), "Queries must not traverse selections for the subscription check")
+    }
+
+    private fun deferEnvironment(
+        query: String,
+        graphQLContext: GraphQLContext = GraphQLContext.newContext().build(),
+        variables: Map<String, Any?> = mapOf("enabled" to true),
+    ): DataFetchingEnvironment {
+        val document = Parser.parse(query)
+        val schema = UnExecutableSchemaGenerator.makeUnExecutableSchema(
+            SchemaParser().parse(
+                """
+                type Query { items: [IncrementalValue] }
+                type Subscription { items: [IncrementalValue] }
+                interface IncrementalValue { value: Int }
+                type IncrementalItem implements IncrementalValue { value: Int }
+                type OtherIncrementalItem implements IncrementalValue { value: Int }
+                """.trimIndent(),
+            ),
+        )
+        val operation = document.getDefinitionsOfType(OperationDefinition::class.java).single()
+        val field = operation.selectionSet.selections.single() as Field
+        return DataFetchingEnvironmentImpl.newDataFetchingEnvironment()
+            .executionId(ExecutionId.generate())
+            .mergedField(MergedField.newMergedField(field).build())
+            .document(document)
+            .operationDefinition(operation)
+            .fragmentsByName(document.getDefinitionsOfType(FragmentDefinition::class.java).associateBy { it.name })
+            .graphQLSchema(schema)
+            .graphQLContext(graphQLContext)
+            .variables(variables)
+            .build()
     }
 
     private fun validationError(query: String): ValidationError {

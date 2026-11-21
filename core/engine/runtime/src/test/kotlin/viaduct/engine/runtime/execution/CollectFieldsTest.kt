@@ -2,6 +2,7 @@ package viaduct.engine.runtime.execution
 
 import graphql.execution.CoercedVariables
 import graphql.execution.ResultPath
+import graphql.language.SourceLocation
 import graphql.schema.GraphQLObjectType
 import graphql.schema.GraphQLSchema
 import io.kotest.matchers.collections.shouldContain
@@ -499,6 +500,39 @@ class CollectFieldsTest {
     @Nested
     inner class CachedTests {
         @Test
+        fun `cache retains defer errors from later spreads without enabling incremental delivery`() {
+            val schema = "type Query { x: Int }".asEngineSchema
+            val query = "{ ...F ...F @defer(if: ${'$'}enabled) } fragment F on Query { x }"
+            val plan = buildPlan(query, schema)
+            var collections = 0
+            val cache = CollectFields.cached { engineSchema, selections, variables, parentType, fragments, killSwitchEnabled, enabled, deferUsage ->
+                collections++
+                CollectFields.default(engineSchema, selections, variables, parentType, fragments, killSwitchEnabled, enabled, deferUsage)
+            }
+
+            fun collect(enabled: Boolean) =
+                cache.collectForTest(
+                    schema.schema,
+                    plan.selectionSet,
+                    CoercedVariables.of(mapOf("enabled" to enabled)),
+                    schema.schema.queryType,
+                    plan.fragments,
+                    incrementalExecutionEnabled = false,
+                )
+
+            val disabled = collect(false)
+            val enabled = collect(true)
+
+            assertNull(disabled.enabledDefer)
+            assertEquals(SourceLocation(1, query.indexOf("@defer") + 1), enabled.enabledDefer?.sourceLocation)
+            assertTrue(enabled.newDeferUsages.isEmpty())
+            assertNull(enabled.collectedFieldsMap.getValue("x").occurrences.single().deferUsage)
+            assertSame(enabled, collect(true))
+            assertSame(disabled, collect(false))
+            assertEquals(2, collections)
+        }
+
+        @Test
         fun `cache distinguishes inherited contexts by identity`() {
             val schema = "type Query { obj: Query, x: Int, y: Int }".asEngineSchema
             val plan = buildPlan("{ obj { x ... @defer(label: \"nested\") { y } } }", schema)
@@ -627,6 +661,9 @@ class CollectFieldsTest {
             assertEquals(listOf("id"), excluded.collectedFieldsMap.keys.toList())
             assertEquals("first", included.newDeferUsages.single().defer.label)
             assertEquals("second", relabeled.newDeferUsages.single().defer.label)
+            assertNotNull(included.enabledDefer)
+            assertNotNull(excluded.enabledDefer)
+            assertNull(immediate.enabledDefer)
             assertSame(relabeled.newDeferUsages.single(), relabeled.collectedFieldsMap.getValue("name").occurrences.single().deferUsage)
             assertTrue(immediate.newDeferUsages.isEmpty())
             assertNull(immediate.collectedFieldsMap.getValue("name").occurrences.single().deferUsage)
@@ -1242,6 +1279,7 @@ class CollectFieldsTest {
             )
 
             assertTrue(result.newDeferUsages.isEmpty())
+            assertNull(result.enabledDefer)
         }
 
         @Test
@@ -1298,6 +1336,7 @@ class CollectFieldsTest {
             )
 
             assertTrue(result.newDeferUsages.isEmpty())
+            assertNull(result.enabledDefer)
             assertNull(result.collectedFieldsMap.getValue("x").occurrences.single().deferUsage)
         }
 
@@ -1331,6 +1370,7 @@ class CollectFieldsTest {
             )
 
             assertTrue(result.newDeferUsages.isEmpty())
+            assertNull(result.enabledDefer)
             assertNull(result.collectedFieldsMap.getValue("x").occurrences.single().deferUsage)
         }
 
@@ -1374,6 +1414,7 @@ class CollectFieldsTest {
             )
 
             assertTrue(result.newDeferUsages.isEmpty())
+            assertNull(result.enabledDefer)
             assertTrue(result.collectedFieldsMap.isEmpty())
         }
 
@@ -1385,6 +1426,7 @@ class CollectFieldsTest {
             )
 
             assertTrue(result.newDeferUsages.isEmpty())
+            assertNull(result.enabledDefer)
             assertTrue(result.collectedFieldsMap.isEmpty())
         }
 
@@ -1421,6 +1463,7 @@ class CollectFieldsTest {
             )
 
             assertTrue(result.newDeferUsages.isEmpty())
+            assertNull(result.enabledDefer)
             assertTrue(result.collectedFieldsMap.isEmpty())
         }
 
@@ -1447,6 +1490,7 @@ class CollectFieldsTest {
             )
 
             assertTrue(result.newDeferUsages.isEmpty())
+            assertNull(result.enabledDefer)
             assertTrue(result.collectedFieldsMap.isEmpty())
         }
 
@@ -1491,6 +1535,7 @@ class CollectFieldsTest {
             )
 
             assertTrue(result.newDeferUsages.isEmpty())
+            assertNotNull(result.enabledDefer)
             assertNull(result.collectedFieldsMap.getValue("x").occurrences.single().deferUsage)
         }
 
@@ -1556,6 +1601,7 @@ class CollectFieldsTest {
             )
 
             assertTrue(result.newDeferUsages.isEmpty())
+            assertNotNull(result.enabledDefer)
             assertNull(result.collectedFieldsMap.getValue("x").occurrences.single().deferUsage)
         }
 
@@ -1568,6 +1614,7 @@ class CollectFieldsTest {
             )
 
             assertTrue(result.newDeferUsages.isEmpty())
+            assertNotNull(result.enabledDefer)
             assertNull(result.collectedFieldsMap.getValue("x").occurrences.single().deferUsage)
         }
     }
