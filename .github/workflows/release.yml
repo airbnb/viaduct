@@ -129,6 +129,7 @@ jobs:
       ref: ${{ needs.preflight.outputs.source_ref }}
       release_mode: ${{ needs.preflight.outputs.is_final == 'true' }}
       destination_branch: ${{ needs.preflight.outputs.destination_branch }}
+      source_sha: ${{ needs.publish.outputs.source_sha }}
     secrets: inherit
 
   # ---------------------------------------------------------------------------

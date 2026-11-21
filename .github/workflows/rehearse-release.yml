@@ -1,0 +1,111 @@
+name: Rehearse Release
+# Rehearses the release-only signing and Plugin Portal validation without publishing anything.
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Git ref to rehearse"
+        required: true
+        type: string
+  workflow_call:
+    inputs:
+      ref:
+        required: true
+        type: string
+    secrets:
+      VIADUCT_GRADLE_PUBLISH_KEY:
+        required: true
+      VIADUCT_GRADLE_PUBLISH_SECRET:
+        required: true
+      GPG_PRIVATE_KEY:
+        required: true
+      GPG_PASSPHRASE:
+        required: true
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  rehearse:
+    name: Rehearse release signing and Plugin Portal publication
+    runs-on: ubuntu-latest
+    environment: release
+    env:
+      VIADUCT_DEPENDENCY_MIRROR_ROLE_ARN: ${{ vars.VIADUCT_DEPENDENCY_MIRROR_ROLE_ARN }}
+      RELEASE: "true"
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.ref }}
+
+      # The verifier and key come from the dispatched workflow, not from the rehearsed ref, which may predate them.
+      - uses: actions/checkout@v6
+        with:
+          path: tooling
+
+      - uses: ./.github/actions/setup-build
+        with:
+          java-version: '21'
+
+      # plugin-publish rejects -SNAPSHOT versions, so an RC rehearses as X.Y.Z-rc.N.
+      - name: Set the release version
+        id: version
+        run: |
+          set -euo pipefail
+          version="$(tr -d '[:space:]' < VERSION)"
+          version="${version%-SNAPSHOT}"
+          printf '%s\n' "$version" > VERSION
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+        shell: bash
+
+      - name: Derive the published coordinates
+        run: ./gradlew writePublishedCoordinates --no-daemon --stacktrace
+        shell: bash
+
+      - name: Publish to a local repository, signed with the release key
+        env:
+          ORG_GRADLE_PROJECT_signingKey: ${{ secrets.GPG_PRIVATE_KEY }}
+          ORG_GRADLE_PROJECT_signingPassword: ${{ secrets.GPG_PASSPHRASE }}
+        run: ./gradlew publishToMavenLocal -Dmaven.repo.local="${RUNNER_TEMP}/rehearsal-repository" --no-daemon --stacktrace
+        shell: bash
+
+      - name: Verify every local file is signed with the release key
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          python3 tooling/.github/scripts/verify_published_signatures.py \
+            --root . --version "$VERSION" --local-repo "${RUNNER_TEMP}/rehearsal-repository" \
+            --key tooling/.github/release-signing-key.asc
+        shell: bash
+
+      - name: Validate every plugin against the Plugin Portal
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          ORG_GRADLE_PROJECT_signingKey: ${{ secrets.GPG_PRIVATE_KEY }}
+          ORG_GRADLE_PROJECT_signingPassword: ${{ secrets.GPG_PASSPHRASE }}
+          GRADLE_PUBLISH_KEY: ${{ secrets.VIADUCT_GRADLE_PUBLISH_KEY }}
+          GRADLE_PUBLISH_SECRET: ${{ secrets.VIADUCT_GRADLE_PUBLISH_SECRET }}
+        run: |
+          set -euo pipefail
+          # The aggregate gradle-plugins:publishPlugins does not pass --validate-only on, so each task it runs gets it.
+          tasks="$(./gradlew gradle-plugins:publishPlugins --dry-run --no-daemon | sed -n 's/^\(:gradle-plugins:[^ ]*:publishPlugins\) SKIPPED$/\1/p')"
+          [ -n "$tasks" ] || { echo "::error::the publishPlugins dry run listed no plugin tasks"; exit 1; }
+          arguments=()
+          for task in $tasks; do arguments+=("$task" --validate-only); done
+          LOG="${RUNNER_TEMP}/validate-plugins.log"
+          ./gradlew "${arguments[@]}" --info --no-daemon --stacktrace 2>&1 | tee "$LOG"
+          plugins="$(find . -path '*/build/reports/publication/coordinates.txt' -exec sed -n 's/^portal \([^:]*\):.*/\1/p' {} + | sort -u)"
+          [ -n "$plugins" ] || { echo "::error::no Plugin Portal coordinates were derived"; exit 1; }
+          missing=0
+          for plugin in $plugins; do
+            if ! grep -qxF "Validating plugin publication of ${plugin} version ${VERSION}" "$LOG"; then
+              echo "::error::no publishPlugins task requested Plugin Portal validation of ${plugin} ${VERSION}"
+              missing=1
+            fi
+          done
+          [ "$missing" -eq 0 ] || exit 1
+          echo "✅ the Plugin Portal validated $(echo "$plugins" | wc -l | tr -d ' ') plugins at ${VERSION}"
+        shell: bash

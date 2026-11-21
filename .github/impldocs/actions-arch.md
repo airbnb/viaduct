@@ -94,7 +94,7 @@ A listener runs on `workflow_run`, after another run completes. It sees that run
 - RC mode publishes `X.Y.Z-rc.N-SNAPSHOT` artifacts to the Central snapshot repository, after refusing a version that is already there. It pushes demo apps to `rc/vX.Y.Z-rc.N`, checks every published file's signature against the release key in `.github/release-signing-key.asc`, and verifies the demo apps against the snapshot repository.
 - Final mode publishes the final `X.Y.Z` release, pushes demo apps to `main`, verifies them, creates the `vX.Y.Z` tag, and publishes the GitHub release.
 
-`release.yml` delegates the actual artifact publication work to `publish-branch.yml`.
+`release.yml` delegates the actual artifact publication work to `publish-branch.yml`. Its `validate` job pins the commit `ref` points at, and every later job checks out that commit. In RC and final mode, `publish-branch.yml` first runs `rehearse-release.yml`, and publishes only if it passes. `rehearse-release.yml` publishes in release mode to a local repository, checks that every file is signed with the release key, and validates every plugin against the Gradle Plugin Portal without publishing. It drops `-SNAPSHOT` from `VERSION` only in its runner and never commits the change. Dispatch it on `main`, or on a release branch before its final release: the Portal rejects validation of a version it already has.
 
 ## run_id Output Convention
 
@@ -392,6 +392,7 @@ Notifications are suppressed on manual dispatch, because the person who triggere
 | `periodic-green-check.yml` | Run scheduled checks without waiting for cron | `branch`, `mode` (ci-check / staleness-check / all) |
 | `post-alerts.yml` | Verify Slack and Discord connectivity | `mode: test-posts` |
 | `conventional-commit.yml` | Test the PR title validator itself | — |
+| `rehearse-release.yml` | Rehearse release signing and Plugin Portal validation without publishing | `ref` (`main`, or a release branch before its final release) |
 | `release.yml` | Publish either a public release candidate or the final release (see [.github/impldocs/release-runbook.md](release-runbook.md)) | `release_version`, `rc_ver`, `final`, `release_notes` |
 
 ## Appendix: Future Work

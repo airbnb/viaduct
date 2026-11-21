@@ -164,7 +164,7 @@ Demo apps have `gradle.properties` files with a `viaductVersion` property that *
 
 During the team meeting, a release manager is selected for the week.
 
-> **Before every push to `release/v${RELEASE_VER}`:** confirm no release is running. The `release.yml` jobs that build, publish and push demo apps check out the branch by name, so a push during a run can mix commits. This must print nothing (a run can also be `queued` or `waiting`, not only `in_progress`):
+> **Before every push to `release/v${RELEASE_VER}`:** confirm no release is running. `publish-branch.yml` builds and publishes the commit the branch points at when it starts, and `push-demoapps` copies that commit. A push during a run still leaves the release branch ahead of what was published and tagged. This must print nothing (a run can also be `queued` or `waiting`, not only `in_progress`):
 >
 > ```bash
 > gh run list --repo airbnb/viaduct --workflow=release.yml --limit 20 \
@@ -461,7 +461,7 @@ A run takes about 1h10–1h30.
 The workflow runs these steps in sequence:
 
 1. **Preflight** — validates the `release_version` / `rc_ver` / `final` inputs and verifies the `release/v${RELEASE_VER}` branch exists
-2. **Publish** — validates versions, runs checks, refuses an RC version that is already published, and publishes `${RELEASE_VER}-${RC_VER}-SNAPSHOT` to the Central snapshot repository. Nothing goes to Maven Central or the Gradle Plugin Portal
+2. **Publish** — validates versions, runs checks, rehearses release signing and Plugin Portal validation, refuses an RC version that is already published, and publishes `${RELEASE_VER}-${RC_VER}-SNAPSHOT` to the Central snapshot repository. Nothing goes to Maven Central or the Gradle Plugin Portal
 3. **Push demo apps** — updates the 5 standalone `viaduct-dev/*` repos on `rc/v${RELEASE_VER}-${RC_VER}`
 4. **Wait for new artifacts** — polls the snapshot repository until every published coordinate is visible, then checks that every published file has a valid signature from the release key in `.github/release-signing-key.asc`
 5. **Verify demo apps** — confirms standalone repos build against the published RC artifacts
@@ -654,14 +654,14 @@ gh run list --workflow=release.yml --repo airbnb/viaduct --limit 3
 
 A run takes about 1h10–1h30.
 
-The run lists main's SHA as its head because it is dispatched from main; `publish-branch.yml` checks out `release/v${RELEASE_VER}` to build and publish.
+The run lists main's SHA as its head because it is dispatched from main; `publish-branch.yml` builds and publishes the commit `release/v${RELEASE_VER}` points at when it starts.
 
 The workflow runs these steps in sequence:
 
 1. **Preflight** — verifies release branch exists and tag does not
-2. **Publish** — validates versions, runs checks, publishes to Plugin Portal + Maven Central (via `publish-branch.yml`)
+2. **Publish** — validates versions, runs checks, rehearses release signing and Plugin Portal validation, publishes to Plugin Portal + Maven Central (via `publish-branch.yml`)
 3. **Push demo apps** — updates the 5 standalone `viaduct-dev/*` repos on `main` (via `push-demoapps.yml`)
-4. **Wait for new artifacts** — polls Maven Central and the Gradle Plugin Portal until every published coordinate is visible
+4. **Wait for new artifacts** — polls Maven Central and the Gradle Plugin Portal until every published coordinate is visible, then warns about each plugin the Portal does not host itself
 5. **Verify demo apps** — confirms standalone repos build against published artifacts
 6. **Create release** — creates the `v${RELEASE_VER}` tag and publishes the GitHub release with your changelog
 
@@ -771,7 +771,7 @@ If `release.yml` fails in a job after `publish` succeeded (`push-demoapps`, `wai
 gh run rerun <RUN_ID> --repo airbnb/viaduct --failed
 ```
 
-If `publish` itself failed after part of the upload (e.g., Plugin Portal succeeded but Maven Central failed), investigate before re-running: the publish tasks do not skip versions that are already uploaded, so a re-run can fail on the part that succeeded. For an RC, the re-run stops at `Refuse to overwrite a published release candidate`, so move to the next RC number; see below.
+If `publish` itself failed after part of the upload (e.g., Plugin Portal succeeded but Maven Central failed), investigate before re-running: the publish tasks do not skip versions that are already uploaded, so a re-run can fail on the part that succeeded. For an RC, the re-run stops at `Refuse to overwrite a published release candidate`, so move to the next RC number; see below. For a final whose Plugin Portal upload succeeded, the re-run stops earlier, at `rehearse`, because the Portal rejects validation of a version it already has.
 
 ### `create-release` fails after creating the tag
 
@@ -790,6 +790,10 @@ If the two SHAs differ, stop and ask the team.
 
 If `release.yml` fails during an RC publication after publishing `${RELEASE_VER}-${RC_VER}-SNAPSHOT`, do not reuse that RC version. Fix the issue, increment to the next RC version, and rerun the workflow.
 
+### `rehearse` fails
+
+Nothing was published, because `publish` waits for it. `Verify every local file is signed with the release key` names each file without a good signature from `.github/release-signing-key.asc`; check the `GPG_PRIVATE_KEY` and `GPG_PASSPHRASE` repository secrets. `Validate every plugin against the Plugin Portal` prints the Portal's reason, such as rejected credentials; check the `VIADUCT_GRADLE_PUBLISH_KEY` and `VIADUCT_GRADLE_PUBLISH_SECRET` repository secrets. An RC needs the Portal too, even though it publishes nothing there: if the Portal is unreachable or returns a server error, wait for it to recover and re-run the failed jobs. After a fix, rehearse again without publishing: `gh workflow run rehearse-release.yml --ref main -f ref=release/v${RELEASE_VER}`. Rehearse a release branch only before its final release.
+
 ### `Refuse to overwrite a published release candidate` fails
 
 The error names each URL that did not return `404`. A `200` means that RC version is already in the snapshot repository, at least partly: move to the next RC number. Any other status means the repository could not confirm the version is absent; re-run the failed jobs.
@@ -807,7 +811,9 @@ Artifacts are already on Maven Central, but no tag or GitHub release exists yet.
 - **`not visible after 30m of polling`** — the error names each missing `.pom` URL and its last HTTP status. A `429` or `503` means retry. A persistent `404` means that coordinate is not on the CDN: either the derivation lists something the release does not publish, or the publication dropped it.
 - **`no coordinates found` / `no '<repository>' coordinates found`** — the `published-coordinates` artifact arrived with nothing the probe could use. The derivation itself runs in `publish`, so this points at the artifact hand-off rather than at the Gradle task.
 - **A signature error** (RC mode), such as `missing signature: <url>.asc` or `BADSIG: <url>` — the RC is published but a file is unsigned, altered, or signed by another key. `NO_PUBKEY` means the signing secret holds a key other than `.github/release-signing-key.asc`; `EXPKEYSIG` means the key has expired. Fix the secret or the key file before the final release. When the release key is rotated, replace `.github/release-signing-key.asc` with the new public key in the same change.
-- **`coordinates carry version X, expected Y`** — the published `VERSION` disagrees with the version being probed. `validate` catches an `rc_ver` mismatch before publication, so reaching this points at the release branch moving between `validate` and `publish` rather than at a bad `rc_ver`. Check the branch's history for a push mid-release.
+- **`coordinates carry version X, expected Y`** — the published `VERSION` disagrees with the version being probed. `validate` reads `VERSION` from the commit `publish` builds and catches an `rc_ver` mismatch before publication, so reaching this points at the coordinate derivation rather than at the branch. Reproduce it with `./gradlew writePublishedCoordinates` at the published SHA.
+- **`::warning::the Plugin Portal does not host <url>`** — a warning, not a failure: the Portal answered with a redirect (HTTP 3xx). Builds still resolve the plugin, because the Portal redirects requests for files it does not host to Maven Central. Expect it for a plugin ID's first release while the Portal reviews the new ID, and for `module-java-gradle-plugin`, which has never been uploaded to the Portal. For a plugin the Portal hosted in an earlier release, check the `Publish artifacts` log for its `publishPlugins` task.
+- **`::warning::could not check whether the Plugin Portal hosts <url>`** — the Portal answered with neither `200` nor a redirect, such as a timeout or a `503`. Check by hand with `curl -s -o /dev/null -w '%{http_code}' <url>`, which does not follow redirects.
 
 ### Demo app tests fail after push
 
