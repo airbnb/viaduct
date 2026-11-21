@@ -25,18 +25,18 @@ val lowerFatJars = configurations.resolvable("lowerFatJars") {
 }
 
 abstract class ViaductFatJarExtension {
-    abstract val relocateCommonDependencies: Property<Boolean>
+    abstract val relocations: Property<FatJarRelocations>
 }
 
 val viaductFatJar = extensions.create<ViaductFatJarExtension>("viaductFatJar").apply {
-    relocateCommonDependencies.convention(true)
+    relocations.convention(FatJarRelocations.COMMON)
 }
-val expectedRelocations = viaductFatJar.relocateCommonDependencies.map { if (it) commonDependencyRelocations else emptyList() }
+private val expectedRelocations = viaductFatJar.relocations.map { it.relocations }
 
 afterEvaluate {
     tasks.named<ShadowJar>("shadowJar") {
         val relocations = expectedRelocations.get()
-        relocations.forEach { (from, to) -> relocate(from, to) }
+        relocations.forEach { relocation -> relocate(relocation.from, relocation.to) { relocation.except.forEach { exclude(it) } } }
         val appliedRelocators = this.relocators
         manifest.attributes(mapOf(RELOCATIONS_ATTRIBUTE to provider { describeRelocators(appliedRelocators) }))
     }
@@ -165,7 +165,7 @@ val checkFatJarLayers by tasks.registering {
     doLast {
         check(shadowJarRelocations.get() == relocations.get()) {
             "${fatJar.get().asFile.name} relocates [${shadowJarRelocations.get()}], not [${relocations.get()}]: " +
-                "set viaductFatJar.relocateCommonDependencies instead of calling relocate"
+                "set viaductFatJar.relocations instead of calling relocate"
         }
         check(!poms.isEmpty) { "${fatJar.get().asFile.name} has no generated POM to check" }
         poms.forEach { pom ->
@@ -189,6 +189,24 @@ val checkFatJarLayers by tasks.registering {
     }
 }
 
+val checkBundledPackages by tasks.registering {
+    group = "verification"
+    description = "Fails if this fat jar ships a class outside the packages its relocation set allows."
+    val fatJar = tasks.shadowJar.flatMap { it.archiveFile }
+    val allowedPackages = viaductFatJar.relocations.map { it.unrelocatedPackages.orEmpty() }
+    val checked = viaductFatJar.relocations.map { it.unrelocatedPackages != null }
+    inputs.file(fatJar)
+    inputs.property("allowedPackages", allowedPackages)
+    onlyIf("its relocation set lists the packages it may leave unrelocated") { checked.get() }
+    doLast {
+        val unexpected = unexpectedPackages(fatJar.get().asFile, allowedPackages.get())
+        check(unexpected.isEmpty()) {
+            "${fatJar.get().asFile.name} ships ${unexpected.values.sum()} classes in packages it does not relocate or allow: " +
+                unexpected.entries.sortedByDescending { it.value }.take(10).joinToString { "${it.key.ifEmpty { "<root>" }} (${it.value})" }
+        }
+    }
+}
+
 tasks.named("check") {
-    dependsOn(checkRuntimeClasspathArtifactNamesAreUnique, checkFatJarLayers)
+    dependsOn(checkRuntimeClasspathArtifactNamesAreUnique, checkFatJarLayers, checkBundledPackages)
 }
