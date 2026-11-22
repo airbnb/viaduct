@@ -81,22 +81,22 @@ class SharedBranchDependenciesTest {
     fun `accepts statically excluded variable uses within a shared branch`() {
         for (directive in listOf("@skip(if: true)", "@include(if: false)")) {
             for (consumer in listOf("a { consume(arg: ${'$'}value) $directive }", "a $directive { consume(arg: ${'$'}value) }")) {
-                TestWorld.fromSDL(
-                    schemaSDL = TWO_BRANCH_SCHEMA,
-                    fieldResolvers = { schema ->
-                        twoBranchResolvers(
-                            schema,
-                            "fragment Input on Query { provider: a { value } consumer: $consumer }",
-                        )
-                    },
-                    variableProviders = { schema ->
-                        variable(
-                            schema,
-                            name = "value",
-                            provider = "fragment Provider on Query { provider: a { value } }",
-                            responsePath = listOf("provider", "value"),
-                        )
-                    },
+                TestWorld.fromDSL(
+                    """
+                    extend type Query {
+                      result: Int! @resolver(
+                        of: "provider: a { value } consumer: $consumer"
+                        variables: [{name: "value", fromObjectField: ["provider", "value"]}]
+                        script: "throw 'Not invoked'"
+                      )
+                      a: Branch! @resolver(script: "throw 'Not invoked'")
+                      b: Branch! @resolver(script: "throw 'Not invoked'")
+                    }
+                    type Branch {
+                      value: Int!
+                      consume(arg: Int!): Int! @resolver(script: "throw 'Not invoked'")
+                    }
+                    """.trimIndent(),
                 )
             }
         }
@@ -104,320 +104,146 @@ class SharedBranchDependenciesTest {
 
     @Test
     fun `accepts a provider and use in the same structural branch`() {
-        TestWorld.fromSDL(
-            schemaSDL = BRANCH_SCHEMA,
-            fieldResolvers = ::branchResolvers,
-            variableProviders = { schema ->
-                variable(
-                    schema = schema,
-                    name = "value",
-                    provider = "fragment ignored on Query { shared { value } }",
-                    responsePath = listOf("shared", "value"),
-                )
-            },
+        TestWorld.fromDSL(
+            """
+            extend type Query {
+              result: Int! @resolver(
+                of: "shared { value consume(arg: ${'$'}value) }"
+                variables: [{name: "value", fromObjectField: ["shared", "value"]}]
+                script: "throw 'Not invoked'"
+              )
+              shared: Branch! @resolver(script: "throw 'Not invoked'")
+            }
+            type Branch {
+              value: Int!
+              consume(arg: Int!): Int! @resolver(script: "throw 'Not invoked'")
+            }
+            """.trimIndent(),
         )
     }
 
     @Test
     fun `accepts a shared passive provider and use prefix`() {
-        TestWorld.fromSDL(
-            schemaSDL =
-                """
-                type Branch {
-                  value: Int!
-                  consume(arg: Int!): Int!
-                }
-
-                type Parent {
-                  result: Int!
-                  shared: Branch!
-                }
-
-                type Query {
-                  parent: Parent!
-                }
-                """.trimIndent(),
-            fieldResolvers = { schema ->
-                mapOf(
-                    schema.loweredSchema.requireField("Query", "parent") to
-                        resolver(schema.loweredSchema.emptyFragmentOf("Query")),
-                    schema.loweredSchema.requireField("Parent", "result") to
-                        resolver(
-                            schema.fragmentFrom(
-                                """
-                                fragment ignored on Parent {
-                                  shared {
-                                    value
-                                    consume(arg: ${'$'}value)
-                                  }
-                                }
-                                """.trimIndent(),
-                            ),
-                        ),
-                    schema.loweredSchema.requireField("Branch", "consume") to
-                        resolver(schema.loweredSchema.emptyFragmentOf("Branch")),
-                )
-            },
-            variableProviders = { schema ->
-                val owner = schema.loweredSchema.requireField("Parent", "result") as ViaductSchema.ObjectField
-                mapOf(
-                    Arguments.Variable.of(owner, "value") to
-                        schema.fromObjectField(
-                            "fragment ignored on Parent { shared { value } }",
-                            listOf("shared", "value"),
-                        ),
-                )
-            },
+        TestWorld.fromDSL(
+            """
+            extend type Query { parent: Parent! @resolver(script: "throw 'Not invoked'") }
+            type Parent {
+              result: Int! @resolver(
+                of: "shared { value consume(arg: ${'$'}value) }"
+                variables: [{name: "value", fromObjectField: ["shared", "value"]}]
+                script: "throw 'Not invoked'"
+              )
+              shared: Branch!
+            }
+            type Branch {
+              value: Int!
+              consume(arg: Int!): Int! @resolver(script: "throw 'Not invoked'")
+            }
+            """.trimIndent(),
         )
     }
 
     @Test
     fun `accepts overlap introduced by a transitive resolver prerequisite`() {
-        TestWorld.fromSDL(
-            schemaSDL =
-                """
-                type Child {
-                  field(arg: Int!): Int!
-                }
-
-                type Query {
-                  result: Int!
-                  common: Int!
-                  child: Child!
-                }
-                """.trimIndent(),
-            fieldResolvers = { schema ->
-                mapOf(
-                    schema.loweredSchema.requireField("Query", "result") to
-                        resolver(
-                            schema.fragmentFrom(
-                                """
-                                fragment ignored on Query {
-                                  child {
-                                    field(arg: ${'$'}value)
-                                  }
-                                  common
-                                }
-                                """.trimIndent(),
-                            ),
-                        ),
-                    schema.loweredSchema.requireField("Query", "common") to
-                        resolver(
-                            schema.fragmentFrom(
-                                "fragment ignored on Query { child { field(arg: 1) } }",
-                            ),
-                        ),
-                    schema.loweredSchema.requireField("Query", "child") to
-                        resolver(schema.loweredSchema.emptyFragmentOf("Query")),
-                    schema.loweredSchema.requireField("Child", "field") to
-                        resolver(schema.loweredSchema.emptyFragmentOf("Child")),
-                )
-            },
-            variableProviders = { schema ->
-                variable(
-                    schema = schema,
-                    name = "value",
-                    provider = "fragment ignored on Query { common }",
-                    responsePath = listOf("common"),
-                )
-            },
+        TestWorld.fromDSL(
+            """
+            extend type Query {
+              result: Int! @resolver(
+                of: "child { field(arg: ${'$'}value) } common"
+                variables: [{name: "value", fromObjectField: ["common"]}]
+                script: "throw 'Not invoked'"
+              )
+              common: Int! @resolver(of: "child { field(arg: 1) }", script: "throw 'Not invoked'")
+              child: Child! @resolver(script: "throw 'Not invoked'")
+            }
+            type Child { field(arg: Int!): Int! @resolver(script: "throw 'Not invoked'") }
+            """.trimIndent(),
         )
     }
 
     @Test
     fun `accepts independent field providers across shared branches`() {
-        TestWorld.fromSDL(
-            schemaSDL = TWO_BRANCH_SCHEMA,
-            fieldResolvers = { schema ->
-                twoBranchResolvers(
-                    schema,
-                    """
-                    fragment ignored on Query {
-                      a {
-                        value
-                        consume(arg: ${'$'}v)
-                      }
-                      b {
-                        value
-                        consume(arg: ${'$'}w)
-                      }
-                    }
-                    """.trimIndent(),
-                )
-            },
-            variableProviders = { schema ->
-                variable(
-                    schema,
-                    name = "v",
-                    provider = "fragment ignored on Query { b { value } }",
-                    responsePath = listOf("b", "value"),
-                ) +
-                    variable(
-                        schema,
-                        name = "w",
-                        provider = "fragment ignored on Query { a { value } }",
-                        responsePath = listOf("a", "value"),
-                    )
-            },
+        TestWorld.fromDSL(
+            """
+            extend type Query {
+              result: Int! @resolver(
+                of: "a { value consume(arg: ${'$'}v) } b { value consume(arg: ${'$'}w) }"
+                variables: [{name: "v", fromObjectField: ["b", "value"]}, {name: "w", fromObjectField: ["a", "value"]}]
+                script: "throw 'Not invoked'"
+              )
+              a: Branch! @resolver(script: "throw 'Not invoked'")
+              b: Branch! @resolver(script: "throw 'Not invoked'")
+            }
+            type Branch {
+              value: Int!
+              consume(arg: Int!): Int! @resolver(script: "throw 'Not invoked'")
+            }
+            """.trimIndent(),
         )
     }
 
     @Test
     fun `accepts linear and independent variable branch orders`() {
-        TestWorld.fromSDL(
-            schemaSDL =
-                """
-                type Branch {
-                  value: Int!
-                  consume(arg: Int!): Int!
-                }
-
-                type Query {
-                  result: Int!
-                  a: Branch!
-                  b: Branch!
-                  c: Branch!
-                  d: Branch!
-                }
-                """.trimIndent(),
-            fieldResolvers = { schema ->
-                val emptyQuery = schema.loweredSchema.emptyFragmentOf("Query")
-                mapOf(
-                    schema.loweredSchema.requireField("Query", "result") to
-                        resolver(
-                            schema.fragmentFrom(
-                                """
-                                fragment ignored on Query {
-                                  a { value }
-                                  b {
-                                    value
-                                    consume(arg: ${'$'}w)
-                                  }
-                                  c { consume(arg: ${'$'}v) }
-                                  d { consume(arg: ${'$'}independent) }
-                                }
-                                """.trimIndent(),
-                            ),
-                        ),
-                    schema.loweredSchema.requireField("Query", "a") to resolver(emptyQuery),
-                    schema.loweredSchema.requireField("Query", "b") to resolver(emptyQuery),
-                    schema.loweredSchema.requireField("Query", "c") to resolver(emptyQuery),
-                    schema.loweredSchema.requireField("Query", "d") to resolver(emptyQuery),
-                    schema.loweredSchema.requireField("Branch", "consume") to
-                        resolver(schema.loweredSchema.emptyFragmentOf("Branch")),
-                )
-            },
-            variableProviders = { schema ->
-                variable(
-                    schema,
-                    name = "w",
-                    provider = "fragment ignored on Query { a { value } }",
-                    responsePath = listOf("a", "value"),
-                ) +
-                    variable(
-                        schema,
-                        name = "v",
-                        provider = "fragment ignored on Query { b { value } }",
-                        responsePath = listOf("b", "value"),
-                    ) +
-                    variable(
-                        schema,
-                        name = "independent",
-                        provider = "fragment ignored on Query { a { value } }",
-                        responsePath = listOf("a", "value"),
-                    )
-            },
+        TestWorld.fromDSL(
+            """
+            extend type Query {
+              result: Int! @resolver(
+                of: "a { value } b { value consume(arg: ${'$'}w) } c { consume(arg: ${'$'}v) } d { consume(arg: ${'$'}independent) }"
+                variables: [
+                  {name: "w", fromObjectField: ["a", "value"]}
+                  {name: "v", fromObjectField: ["b", "value"]}
+                  {name: "independent", fromObjectField: ["a", "value"]}
+                ]
+                script: "throw 'Not invoked'"
+              )
+              a: Branch! @resolver(script: "throw 'Not invoked'")
+              b: Branch! @resolver(script: "throw 'Not invoked'")
+              c: Branch! @resolver(script: "throw 'Not invoked'")
+              d: Branch! @resolver(script: "throw 'Not invoked'")
+            }
+            type Branch {
+              value: Int!
+              consume(arg: Int!): Int! @resolver(script: "throw 'Not invoked'")
+            }
+            """.trimIndent(),
         )
     }
 
     @Test
     fun `accepts argument-distinct occurrences within one structural branch`() {
-        TestWorld.fromSDL(
-            schemaSDL =
-                """
-                type Branch {
-                  value: Int!
-                  consume(arg: Int!): Int!
-                }
-
-                type Query {
-                  result: Int!
-                  child(id: Int!): Branch!
-                }
-                """.trimIndent(),
-            fieldResolvers = { schema ->
-                mapOf(
-                    schema.loweredSchema.requireField("Query", "result") to
-                        resolver(
-                            schema.fragmentFrom(
-                                """
-                                fragment ignored on Query {
-                                  providerChild: child(id: 1) { value }
-                                  consumerChild: child(id: 2) { consume(arg: ${'$'}value) }
-                                }
-                                """.trimIndent(),
-                            ),
-                        ),
-                    schema.loweredSchema.requireField("Query", "child") to
-                        resolver(schema.loweredSchema.emptyFragmentOf("Query")),
-                    schema.loweredSchema.requireField("Branch", "consume") to
-                        resolver(schema.loweredSchema.emptyFragmentOf("Branch")),
-                )
-            },
-            variableProviders = { schema ->
-                variable(
-                    schema = schema,
-                    name = "value",
-                    provider =
-                        "fragment ignored on Query { providerChild: child(id: 1) { value } }",
-                    responsePath = listOf("providerChild", "value"),
-                )
-            },
+        TestWorld.fromDSL(
+            """
+            extend type Query {
+              result: Int! @resolver(
+                of: "providerChild: child(id: 1) { value } consumerChild: child(id: 2) { consume(arg: ${'$'}value) }"
+                variables: [{name: "value", fromObjectField: ["providerChild", "value"]}]
+                script: "throw 'Not invoked'"
+              )
+              child(id: Int!): Branch! @resolver(script: "throw 'Not invoked'")
+            }
+            type Branch {
+              value: Int!
+              consume(arg: Int!): Int! @resolver(script: "throw 'Not invoked'")
+            }
+            """.trimIndent(),
         )
     }
 
     @Test
     fun `finds variables nested in input objects and lists`() {
-        TestWorld.fromSDL(
-            schemaSDL =
-                """
-                input Config {
-                  values: [Int!]!
-                }
-
-                type Query {
-                  result: Int!
-                  source: Int!
-                  consume(config: Config!): Int!
-                }
-                """.trimIndent(),
-            fieldResolvers = { schema ->
-                mapOf(
-                    schema.loweredSchema.requireField("Query", "result") to
-                        resolver(
-                            schema.fragmentFrom(
-                                """
-                                fragment ignored on Query {
-                                  source
-                                  consume(config: { values: [1, ${'$'}value] })
-                                }
-                                """.trimIndent(),
-                            ),
-                        ),
-                    schema.loweredSchema.requireField("Query", "source") to
-                        resolver(schema.loweredSchema.emptyFragmentOf("Query")),
-                    schema.loweredSchema.requireField("Query", "consume") to
-                        resolver(schema.loweredSchema.emptyFragmentOf("Query")),
-                )
-            },
-            variableProviders = { schema ->
-                variable(
-                    schema = schema,
-                    name = "value",
-                    provider = "fragment ignored on Query { source }",
-                    responsePath = listOf("source"),
-                )
-            },
+        TestWorld.fromDSL(
+            """
+            extend type Query {
+              result: Int! @resolver(
+                of: "source consume(config: {values: [1, ${'$'}value]})"
+                variables: [{name: "value", fromObjectField: ["source"]}]
+                script: "throw 'Not invoked'"
+              )
+              source: Int! @resolver(script: "throw 'Not invoked'")
+              consume(config: Config!): Int! @resolver(script: "throw 'Not invoked'")
+            }
+            input Config { values: [Int!]! }
+            """.trimIndent(),
         )
     }
 
@@ -488,20 +314,6 @@ class SharedBranchDependenciesTest {
             }
             """.trimIndent()
 
-        val TWO_BRANCH_SCHEMA =
-            """
-            type Branch {
-              value: Int!
-              consume(arg: Int!): Int!
-            }
-
-            type Query {
-              result: Int!
-              a: Branch!
-              b: Branch!
-            }
-            """.trimIndent()
-
         fun branchResolvers(schema: ViaductAndGJSchema): Map<ViaductSchema.Field, FieldResolverDefinition> =
             mapOf(
                 schema.loweredSchema.requireField("Query", "result") to
@@ -518,19 +330,6 @@ class SharedBranchDependenciesTest {
                         ),
                     ),
                 schema.loweredSchema.requireField("Query", "shared") to resolver(schema.loweredSchema.emptyFragmentOf("Query")),
-                schema.loweredSchema.requireField("Branch", "consume") to
-                    resolver(schema.loweredSchema.emptyFragmentOf("Branch")),
-            )
-
-        fun twoBranchResolvers(
-            schema: ViaductAndGJSchema,
-            resultFragment: String,
-        ): Map<ViaductSchema.Field, FieldResolverDefinition> =
-            mapOf(
-                schema.loweredSchema.requireField("Query", "result") to
-                    resolver(schema.fragmentFrom(resultFragment)),
-                schema.loweredSchema.requireField("Query", "a") to resolver(schema.loweredSchema.emptyFragmentOf("Query")),
-                schema.loweredSchema.requireField("Query", "b") to resolver(schema.loweredSchema.emptyFragmentOf("Query")),
                 schema.loweredSchema.requireField("Branch", "consume") to
                     resolver(schema.loweredSchema.emptyFragmentOf("Branch")),
             )

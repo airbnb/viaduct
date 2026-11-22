@@ -28,7 +28,6 @@ import viaduct.engine.runtime2.model.Selection
 import viaduct.engine.runtime2.model.emptyFragmentOf
 import viaduct.engine.runtime2.model.engineObjectDataOf
 import viaduct.engine.runtime2.model.merge
-import viaduct.engine.runtime2.model.registry.FieldCheckerResolver
 import viaduct.engine.runtime2.model.registry.fieldResolverOf
 import viaduct.engine.runtime2.model.requireObjectField
 import viaduct.engine.runtime2.model.requireQueryTypeDef
@@ -81,17 +80,14 @@ class OrchestrationTaskTest : ResolutionDispatcherResource {
                         }
                     }
             }
-            val fixture = TestWorld.fromSDL(
-                "type Query { first: Int second: Int dependency: Int }",
-                fieldResolvers = { schema ->
-                    val empty = schema.loweredSchema.emptyFragmentOf("Query")
-                    val query = schema.fragmentFrom("fragment Input on Query { dependency }")
-                    listOf("first", "second").associate { name ->
-                        schema.loweredSchema.requireObjectField("Query", name) to fieldResolverOf(empty, query) { _, _, _ ->
-                            error("Preparation must not invoke resolvers")
-                        }
-                    }
-                },
+            val fixture = TestWorld.fromDSL(
+                """
+                extend type Query {
+                  first: Int @resolver(qf: "dependency", script: "throw 'Preparation must not invoke resolvers'")
+                  second: Int @resolver(qf: "dependency", script: "throw 'Preparation must not invoke resolvers'")
+                  dependency: Int
+                }
+                """.trimIndent(),
             )
             val world = fixture.assumptions
             val operation = OperationContext.create(SharedOperationContext.create(world, resolutionObserver = observer), this)
@@ -247,20 +243,13 @@ class OrchestrationTaskTest : ResolutionDispatcherResource {
     @Test
     fun `value preparation claims both roots without dispatching or deciding activation`(): Unit =
         runBlocking {
-            val worldFixture = TestWorld.fromSDL(
-                "type Query { consumer: Int!, dependency: Int! }",
-                fieldResolvers = { schema ->
-                    val empty = schema.loweredSchema.emptyFragmentOf("Query")
-                    mapOf(
-                        schema.loweredSchema.requireObjectField("Query", "consumer") to fieldResolverOf(
-                            objectFragment = empty,
-                            queryFragment = schema.fragmentFrom("fragment Input on Query { dependency }"),
-                        ) { _, _, _ -> error("Preparation must not invoke the consumer") },
-                        schema.loweredSchema.requireObjectField("Query", "dependency") to fieldResolverOf(empty) { _, _ ->
-                            error("Preparation must not invoke the dependency")
-                        },
-                    )
-                },
+            val worldFixture = TestWorld.fromDSL(
+                """
+                extend type Query {
+                  consumer: Int! @resolver(qf: "dependency", script: "throw 'Preparation must not invoke the consumer'")
+                  dependency: Int! @resolver(script: "throw 'Preparation must not invoke the dependency'")
+                }
+                """.trimIndent(),
             )
             val world = worldFixture.assumptions
             val operation = OperationContext.create(SharedOperationContext.create(world), this)
@@ -297,18 +286,10 @@ class OrchestrationTaskTest : ResolutionDispatcherResource {
                         """
                         extend type Query {
                           outer: Int! @resolver(of: "values @include(if: ${'$'}enabled)", vars: {names: ["enabled"], script: "{'enabled': $enabled}"}, script: "1")
-                          values: [Int!]!
+                          values: [Int!]! ${if (withChecker) "@checker(script: \"allow\")" else ""}
                           target: Int! @resolver(script: "7")
                         }
                         """.trimIndent(),
-                        fieldCheckers = { schema ->
-                            if (withChecker) {
-                                val values = schema.loweredSchema.requireObjectField("Query", "values")
-                                mapOf(values to FieldCheckerResolver.of(values, schema.loweredSchema.requireQueryTypeDef()) { _, _, _ -> CheckerResult.Success })
-                            } else {
-                                emptyMap()
-                            }
-                        },
                     )
                     val world = worldFixture.assumptions
                     val operation = OperationContext.create(SharedOperationContext.create(world), this)
@@ -350,15 +331,11 @@ class OrchestrationTaskTest : ResolutionDispatcherResource {
             val worldFixture = TestWorld.fromDSL(
                 """
                 extend type Query {
-                  checked: Int! @resolver(script: "1")
+                  checked: Int! @resolver(script: "1") @checker(script: "allow")
                   pending: Int! @resolver(script: "2")
                   passive: Int!
                 }
                 """.trimIndent(),
-                fieldCheckers = { schema ->
-                    val checked = schema.loweredSchema.requireObjectField("Query", "checked")
-                    mapOf(checked to FieldCheckerResolver.of(checked, schema.loweredSchema.requireQueryTypeDef()) { _, _, _ -> CheckerResult.Success })
-                },
             )
             val world = worldFixture.assumptions
             val operation = OperationContext.create(SharedOperationContext.create(world), this)

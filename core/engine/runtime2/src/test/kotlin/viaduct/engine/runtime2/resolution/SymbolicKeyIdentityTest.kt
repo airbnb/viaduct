@@ -5,24 +5,17 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertTrue
-import viaduct.engine.api.EngineObjectData
-import viaduct.engine.runtime2.contract.selectionValues
 import viaduct.engine.runtime2.correctresolution.CorrectnessResolverObserver
 import viaduct.engine.runtime2.correctresolution.correctResolution
 import viaduct.engine.runtime2.model.Arguments
 import viaduct.engine.runtime2.model.ListEngineResult
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.ResolverOccurrenceId
-import viaduct.engine.runtime2.model.emptyFragmentOf
 import viaduct.engine.runtime2.model.merge
-import viaduct.engine.runtime2.model.registry.fieldResolverOf
-import viaduct.engine.runtime2.model.registry.fromArgument
 import viaduct.engine.runtime2.model.requireObjectField
 import viaduct.engine.runtime2.model.requireType
 import viaduct.engine.runtime2.model.testing.TestWorld
-import viaduct.engine.runtime2.model.testing.emptyFragmentOf
 import viaduct.engine.runtime2.model.testing.fragmentFrom
-import viaduct.engine.runtime2.model.testing.objectOf
 import viaduct.engine.runtime2.model.usedVariables
 import viaduct.engine.runtime2.resolution.framework.ResolverInvocationObservation
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
@@ -33,68 +26,18 @@ import viaduct.graphql.schema.ViaductSchema
 class SymbolicKeyIdentityTest : ResolutionDispatcherResource {
     @Test
     fun `list elements reuse one resolver-owned symbolic child key`() {
-        val resultFragment =
-            """
-            fragment Result on Query {
-              items {
-                child(value: ${'$'}seed)
-              }
-            }
-            """.trimIndent()
         val testWorld =
-            TestWorld.fromSDL(
-                schemaSDL =
-                    """
-                    type Item {
-                      child(value: Int!): Int!
-                    }
-
-                    type Query {
-                      result(seed: Int!): Int!
-                      items: [Item!]!
-                    }
-                    """.trimIndent(),
-                fieldResolvers = { schema ->
-                    val result = schema.loweredSchema.requireObjectField("Query", "result")
-                    val items = schema.loweredSchema.requireObjectField("Query", "items")
-                    val itemsKey = ObjectEngineResult.GroundKey.of(items, emptyMap())
-                    checkNotNull(items.type.unwrapList())
-                    val child = schema.loweredSchema.requireObjectField("Item", "child")
-                    val visibleChildKey = ObjectEngineResult.GroundKey.of(child, mapOf("value" to 7))
-                    mapOf(
-                        result to
-                            fieldResolverOf(schema.fragmentFrom(resultFragment)) { input, _ ->
-                                val itemValues =
-                                    input.selectionValues().getValue(itemsKey.field.name) as List<*>
-                                itemValues.sumOf { value ->
-                                    val item = value as EngineObjectData.Sync
-                                    val childValue =
-                                        item.selectionValues().getValue(
-                                            visibleChildKey.field.name,
-                                        ) as Int
-                                    childValue
-                                }
-                            },
-                        items to
-                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
-                                listOf(
-                                    schema.loweredSchema.objectOf("Item"),
-                                    schema.loweredSchema.objectOf("Item"),
-                                )
-                            },
-                        child to
-                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Item")) { _, arguments ->
-                                arguments.fieldValues.getValue("value") as Int
-                            },
-                    )
-                },
-                variableProviders = { schema ->
-                    val result = schema.loweredSchema.requireObjectField("Query", "result")
-                    mapOf(
-                        Arguments.Variable.of(result, "seed") to
-                            schema.loweredSchema.fromArgument(result, "seed"),
-                    )
-                },
+            TestWorld.fromDSL(
+                """
+                extend type Query {
+                  result(seed: Int!): Int! @resolver(
+                    of: "items { child(value: ${'$'}seed) }"
+                    script: "var total = 0; for (var item : objectValue.items) { total += item.child; } total"
+                  )
+                  items: [Item!]! @resolver(script: "[{:}, {:}]")
+                }
+                type Item { child(value: Int!): Int! @resolver(script: "value") }
+                """.trimIndent(),
             )
         val world = testWorld.assumptions
         val operation = SharedOperationContext.create(world, resolutionObserver = CorrectnessResolverObserver())
@@ -146,72 +89,18 @@ class SymbolicKeyIdentityTest : ResolutionDispatcherResource {
     fun `symbolic cell identity coalesces only equal variable instances`() {
         var frankApplications = 0
         val frankDemandFields = mutableListOf<Set<String>>()
-        val resultFragment =
-            """
-            fragment Result on Query {
-              ground: frank(arg: "hi") { one }
-              seedValue: frank(arg: ${'$'}seed) { two }
-              seedValue: frank(arg: ${'$'}seed) { two }
-              otherValue: frank(arg: ${'$'}other) { one }
-            }
-            """.trimIndent()
         val testWorld =
-            TestWorld.fromSDL(
-                schemaSDL =
-                    """
-                    type Payload {
-                      one: Int!
-                      two: Int!
-                    }
-
-                    type Query {
-                      result(seed: String!, other: String!): Int!
-                      frank(arg: String!): Payload!
-                    }
-                    """.trimIndent(),
-                fieldResolvers = { schema ->
-                    val frank = schema.loweredSchema.requireObjectField("Query", "frank")
-                    val oneKey =
-                        ObjectEngineResult.GroundKey.of(
-                            schema.loweredSchema.requireObjectField("Payload", "one"),
-                            emptyMap(),
-                        )
-                    val twoKey =
-                        ObjectEngineResult.GroundKey.of(
-                            schema.loweredSchema.requireObjectField("Payload", "two"),
-                            emptyMap(),
-                        )
-                    mapOf(
-                        schema.loweredSchema.requireObjectField("Query", "result") to
-                            fieldResolverOf(schema.fragmentFrom(resultFragment)) { input, _ ->
-                                val ground =
-                                    input.selectionValues().getValue("ground") as EngineObjectData.Sync
-                                val seedValue =
-                                    input.selectionValues().getValue("seedValue") as EngineObjectData.Sync
-                                val one =
-                                    ground.selectionValues().getValue(oneKey.field.name) as Int
-                                val two =
-                                    seedValue.selectionValues().getValue(twoKey.field.name) as Int
-                                one + two
-                            },
-                        frank to
-                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
-                                schema.loweredSchema.objectOf("Payload") {
-                                    "one" setTo 3
-                                    "two" setTo 5
-                                }
-                            },
-                    )
-                },
-                variableProviders = { schema ->
-                    val result = schema.loweredSchema.requireObjectField("Query", "result")
-                    mapOf(
-                        Arguments.Variable.of(result, "seed") to
-                            schema.loweredSchema.fromArgument(result, "seed"),
-                        Arguments.Variable.of(result, "other") to
-                            schema.loweredSchema.fromArgument(result, "other"),
-                    )
-                },
+            TestWorld.fromDSL(
+                """
+                extend type Query {
+                  result(seed: String!, other: String!): Int! @resolver(
+                    of: "ground: frank(arg: \"hi\") { one } seedValue: frank(arg: ${'$'}seed) { two } seedValue: frank(arg: ${'$'}seed) { two } otherValue: frank(arg: ${'$'}other) { one }"
+                    script: "objectValue.ground.one + objectValue.seedValue.two"
+                  )
+                  frank(arg: String!): Payload! @resolver(script: "{'one': 3, 'two': 5}")
+                }
+                type Payload { one: Int! two: Int! }
+                """.trimIndent(),
             )
         val world = testWorld.assumptions
         val operation = SharedOperationContext.create(
@@ -294,70 +183,16 @@ class SymbolicKeyIdentityTest : ResolutionDispatcherResource {
     fun `equal grounded calls from different resolver instances remain separate`() {
         val frankArguments = mutableListOf<Arguments.Resolved>()
         val frankDemandFields = mutableListOf<Set<String>>()
-        val leftFragment =
-            """fragment Left on Query { frank(arg: ${'$'}seed) { one } }"""
-        val rightFragment =
-            """fragment Right on Query { frank(arg: ${'$'}seed) { two } }"""
         val testWorld =
-            TestWorld.fromSDL(
-                schemaSDL =
-                    """
-                    type Payload {
-                      one: Int!
-                      two: Int!
-                    }
-
-                    type Query {
-                      left(seed: String!): Int!
-                      right(seed: String!): Int!
-                      frank(arg: String!): Payload!
-                    }
-                    """.trimIndent(),
-                fieldResolvers = { schema ->
-                    val frank = schema.loweredSchema.requireObjectField("Query", "frank")
-                    val frankKey = ObjectEngineResult.GroundKey.of(frank, mapOf("arg" to "hi"))
-                    val oneKey =
-                        ObjectEngineResult.GroundKey.of(
-                            schema.loweredSchema.requireObjectField("Payload", "one"),
-                            emptyMap(),
-                        )
-                    val twoKey =
-                        ObjectEngineResult.GroundKey.of(
-                            schema.loweredSchema.requireObjectField("Payload", "two"),
-                            emptyMap(),
-                        )
-                    mapOf(
-                        schema.loweredSchema.requireObjectField("Query", "left") to
-                            fieldResolverOf(schema.fragmentFrom(leftFragment)) { input, _ ->
-                                val payload =
-                                    input.selectionValues().getValue(frankKey.field.name)
-                                        as EngineObjectData.Sync
-                                payload.selectionValues().getValue(oneKey.field.name)
-                            },
-                        schema.loweredSchema.requireObjectField("Query", "right") to
-                            fieldResolverOf(schema.fragmentFrom(rightFragment)) { input, _ ->
-                                val payload =
-                                    input.selectionValues().getValue(frankKey.field.name)
-                                        as EngineObjectData.Sync
-                                payload.selectionValues().getValue(twoKey.field.name)
-                            },
-                        frank to
-                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
-                                schema.loweredSchema.objectOf("Payload") {
-                                    "one" setTo 3
-                                    "two" setTo 5
-                                }
-                            },
-                    )
-                },
-                variableProviders = { schema ->
-                    val left = schema.loweredSchema.requireObjectField("Query", "left")
-                    val right = schema.loweredSchema.requireObjectField("Query", "right")
-                    mapOf(
-                        Arguments.Variable.of(left, "seed") to schema.loweredSchema.fromArgument(left, "seed"),
-                        Arguments.Variable.of(right, "seed") to schema.loweredSchema.fromArgument(right, "seed"),
-                    )
-                },
+            TestWorld.fromDSL(
+                """
+                extend type Query {
+                  left(seed: String!): Int! @resolver(of: "frank(arg: ${'$'}seed) { one }", script: "objectValue.frank.one")
+                  right(seed: String!): Int! @resolver(of: "frank(arg: ${'$'}seed) { two }", script: "objectValue.frank.two")
+                  frank(arg: String!): Payload! @resolver(script: "{'one': 3, 'two': 5}")
+                }
+                type Payload { one: Int! two: Int! }
+                """.trimIndent(),
             )
         val world = testWorld.assumptions
         val operation = SharedOperationContext.create(

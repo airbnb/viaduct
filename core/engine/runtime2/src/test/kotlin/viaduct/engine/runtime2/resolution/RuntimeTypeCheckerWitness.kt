@@ -62,7 +62,7 @@ internal fun validateRuntimeTypeCheckerCase(
           derived: Int! @resolver(of: "protected", script: "5")
           echo(value: Int): Int @resolver(script: "value")
         }
-        type Source { token: Int! }
+        type Source @checker(script: "throw 'Raw-only Source must not be checked'") { token: Int! }
         """.trimIndent(),
         fieldCheckers = { schema ->
             listOf(schema.loweredSchema.requireObjectField("Query", "gate"), schema.loweredSchema.requireObjectField("Item", "protected"))
@@ -70,7 +70,6 @@ internal fun validateRuntimeTypeCheckerCase(
         },
         typeCheckers = { schema ->
             val item = schema.loweredSchema.requireType("Item") as ViaductSchema.Object
-            val source = schema.loweredSchema.requireType("Source") as ViaductSchema.Object
             val target = ResolverTarget.TypeCheckerTarget(item)
 
             fun pair(offset: Int): ResolverFragmentTemplates =
@@ -114,7 +113,6 @@ internal fun validateRuntimeTypeCheckerCase(
                     }
                     if (mode == GeneratedTypeCheckerMode.DENIAL || (mode == GeneratedTypeCheckerMode.MIXED && localToken % 2 == 1)) RuntimeTypeDenial else CheckerResult.Success
                 },
-                source to TypeCheckerResolver.of(source, schema.loweredSchema.requireQueryTypeDef()) { _, _ -> error("Raw-only Source must not be checked") },
             )
         },
     )

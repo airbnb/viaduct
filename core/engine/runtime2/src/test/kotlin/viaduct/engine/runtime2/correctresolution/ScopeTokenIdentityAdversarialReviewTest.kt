@@ -12,20 +12,16 @@ import viaduct.engine.runtime2.arbitrary.FieldCoordinate
 import viaduct.engine.runtime2.arbitrary.ResolutionOccurrenceWitness
 import viaduct.engine.runtime2.arbitrary.ResolverOccurrenceApplicationRecord
 import viaduct.engine.runtime2.contract.registeredResolverOccurrenceApplicationIdentityCounts
-import viaduct.engine.runtime2.contract.selectionValues
 import viaduct.engine.runtime2.model.Arguments
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.ResolverOccurrenceId
-import viaduct.engine.runtime2.model.emptyFragmentOf
 import viaduct.engine.runtime2.model.engineObjectDataOf
 import viaduct.engine.runtime2.model.materializeSelectionForestOf
 import viaduct.engine.runtime2.model.merge
 import viaduct.engine.runtime2.model.registry.Assumptions
-import viaduct.engine.runtime2.model.registry.fieldResolverOf
 import viaduct.engine.runtime2.model.requireObjectField
 import viaduct.engine.runtime2.model.requireQueryTypeDef
 import viaduct.engine.runtime2.model.testing.TestWorld
-import viaduct.engine.runtime2.model.testing.emptyFragmentOf
 import viaduct.engine.runtime2.model.testing.engineResultOf
 import viaduct.engine.runtime2.model.testing.fragmentFrom
 import viaduct.engine.runtime2.resolution.framework.OEROccurrence
@@ -39,25 +35,14 @@ import viaduct.engine.runtime2.resolution.framework.materializeResult
 class ScopeTokenIdentityAdversarialReviewTest {
     @Test
     fun `separate Query roots for the same containing occurrence are rejected with fresh scope wrappers`() {
-        val worldFixture = TestWorld.fromSDL(
-            schemaSDL = "type Query { left: Int! right: Int! source: Int! }",
-            fieldResolvers = { schema ->
-                buildMap {
-                    listOf("left", "right").forEach { name ->
-                        put(
-                            schema.loweredSchema.requireObjectField("Query", name),
-                            fieldResolverOf(
-                                schema.loweredSchema.emptyFragmentOf("Query"),
-                                schema.fragmentFrom("fragment Input on Query { source }"),
-                            ) { _, query, _ -> query.selectionValues().getValue("source") },
-                        )
-                    }
-                    put(
-                        schema.loweredSchema.requireObjectField("Query", "source"),
-                        fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ -> 7 },
-                    )
-                }
-            },
+        val worldFixture = TestWorld.fromDSL(
+            """
+            extend type Query {
+              left: Int! @resolver(qf: "source", script: "queryValue.source")
+              right: Int! @resolver(qf: "source", script: "queryValue.source")
+              source: Int! @resolver(script: "7")
+            }
+            """.trimIndent(),
         )
         val world = worldFixture.assumptions
         val queryType = worldFixture.schema.requireQueryTypeDef()
@@ -102,22 +87,14 @@ class ScopeTokenIdentityAdversarialReviewTest {
 
     @Test
     fun `a resolver on the associated Query root cannot claim a new containing scope`() {
-        val worldFixture = TestWorld.fromSDL(
-            schemaSDL = "type Query { answer: Int! middle: Int! source: Int! }",
-            fieldResolvers = { schema ->
-                buildMap {
-                    listOf("answer" to "middle", "middle" to "source").forEach { (name, dependency) ->
-                        put(
-                            schema.loweredSchema.requireObjectField("Query", name),
-                            fieldResolverOf(
-                                schema.loweredSchema.emptyFragmentOf("Query"),
-                                schema.fragmentFrom("fragment Input on Query { $dependency }"),
-                            ) { _, query, _ -> query.selectionValues().getValue(dependency) }
-                        )
-                    }
-                    put(schema.loweredSchema.requireObjectField("Query", "source"), fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ -> 7 })
-                }
-            },
+        val worldFixture = TestWorld.fromDSL(
+            """
+            extend type Query {
+              answer: Int! @resolver(qf: "middle", script: "queryValue.middle")
+              middle: Int! @resolver(qf: "source", script: "queryValue.source")
+              source: Int! @resolver(script: "7")
+            }
+            """.trimIndent(),
         )
         val world = worldFixture.assumptions
         val queryType = worldFixture.schema.requireQueryTypeDef()

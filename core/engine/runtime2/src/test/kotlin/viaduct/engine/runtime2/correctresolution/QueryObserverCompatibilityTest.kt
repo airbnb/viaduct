@@ -4,15 +4,10 @@ import java.util.Collections
 import kotlin.test.assertEquals
 import org.junit.jupiter.api.DynamicTest.dynamicTest
 import org.junit.jupiter.api.TestFactory
-import viaduct.engine.runtime2.contract.selectionValues
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.ResolverOccurrenceId
 import viaduct.engine.runtime2.model.SelectionForest
-import viaduct.engine.runtime2.model.emptyFragmentOf
-import viaduct.engine.runtime2.model.registry.fieldResolverOf
-import viaduct.engine.runtime2.model.requireObjectField
 import viaduct.engine.runtime2.model.testing.TestWorld
-import viaduct.engine.runtime2.model.testing.emptyFragmentOf
 import viaduct.engine.runtime2.model.testing.fragmentFrom
 import viaduct.engine.runtime2.resolution.ResolutionDispatcherResource
 import viaduct.engine.runtime2.resolution.framework.OEROccurrence
@@ -55,18 +50,13 @@ class QueryObserverCompatibilityTest : ResolutionDispatcherResource {
                         events += observation.field.name
                     }
                 }
-                val worldFixture = TestWorld.fromSDL(
-                    schemaSDL = "type Query { consumer: Int! dependency: Int! }",
-                    fieldResolvers = { schema ->
-                        mapOf(
-                            schema.loweredSchema.requireObjectField("Query", "consumer") to fieldResolverOf(
-                                schema.loweredSchema.emptyFragmentOf("Query"),
-                                schema.fragmentFrom("fragment Input on Query { dependency }"),
-                            ) { _, query, _ -> query.selectionValues().getValue("dependency") },
-                            schema.loweredSchema.requireObjectField("Query", "dependency") to
-                                fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ -> 7 },
-                        )
-                    },
+                val worldFixture = TestWorld.fromDSL(
+                    """
+                    extend type Query {
+                      consumer: Int! @resolver(qf: "dependency", script: "queryValue.dependency")
+                      dependency: Int! @resolver(script: "7")
+                    }
+                    """.trimIndent(),
                 )
                 val world = worldFixture.assumptions
                 val operation = SharedOperationContext.create(world, resolutionObserver = observer)

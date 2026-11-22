@@ -31,59 +31,19 @@ class ResolverDemandTest {
     @Test
     fun `includes field-relative variables in the resolver demand graph`() {
         val world =
-            TestWorld.fromSDL(
-                schemaSDL =
-                    """
-                    type Query {
-                      x: Int
-                      y(b: Int): Int
-                      z(c: Int): Int
-                      raw: Int
-                    }
-                    """.trimIndent(),
-                fieldResolvers = { schema ->
-                    mapOf(
-                        schema.loweredSchema.requireField("Query", "x") to
-                            resolver(
-                                schema.fragmentFrom(
-                                    """
-                                    fragment ignored on Query {
-                                      y(b: ${'$'}b)
-                                      z(c: ${'$'}c)
-                                      raw
-                                    }
-                                    """.trimIndent(),
-                                ),
-                            ),
-                        schema.loweredSchema.requireField("Query", "y") to resolver(schema.loweredSchema.emptyFragmentOf("Query")),
-                        schema.loweredSchema.requireField("Query", "z") to resolver(schema.loweredSchema.emptyFragmentOf("Query")),
-                        schema.loweredSchema.requireField("Query", "raw") to resolver(schema.loweredSchema.emptyFragmentOf("Query")),
-                    )
-                },
-                variableProviders = { schema ->
-                    val owner = schema.loweredSchema.requireObjectField("Query", "x")
-                    mapOf(
-                        Arguments.Variable.of(owner, "b") to
-                            schema.fromObjectField(
-                                """
-                                fragment ignored on Query {
-                                  z(c: ${'$'}c)
-                                }
-                                """.trimIndent(),
-                                listOf("z"),
-                                variableField = owner,
-                            ),
-                        Arguments.Variable.of(owner, "c") to
-                            schema.fromObjectField(
-                                """
-                                fragment ignored on Query {
-                                  raw
-                                }
-                                """.trimIndent(),
-                                listOf("raw"),
-                            ),
-                    )
-                },
+            TestWorld.fromDSL(
+                """
+                extend type Query {
+                  x: Int @resolver(
+                    of: "y(b: ${'$'}b) z(c: ${'$'}c) raw"
+                    variables: [{name: "b", fromObjectField: ["z"]}, {name: "c", fromObjectField: ["raw"]}]
+                    script: "throw 'Not invoked'"
+                  )
+                  y(b: Int): Int @resolver(script: "throw 'Not invoked'")
+                  z(c: Int): Int @resolver(script: "throw 'Not invoked'")
+                  raw: Int @resolver(script: "throw 'Not invoked'")
+                }
+                """.trimIndent(),
             )
         val schema = world.schemas
         val registry = world.resolverRegistry
@@ -98,63 +58,24 @@ class ResolverDemandTest {
     @Test
     fun `variable names are local to their defining field resolver`() {
         val world =
-            TestWorld.fromSDL(
-                schemaSDL =
-                    """
-                    type Query {
-                      x: Int
-                      y: Int
-                      xSource: Int
-                      ySource: Int
-                      consume(value: Int): Int
-                    }
-                    """.trimIndent(),
-                fieldResolvers = { schema ->
-                    val empty = schema.loweredSchema.emptyFragmentOf("Query")
-                    mapOf(
-                        schema.loweredSchema.requireField("Query", "x") to
-                            resolver(
-                                schema.fragmentFrom(
-                                    """
-                                    fragment ignored on Query {
-                                      xSource
-                                      consume(value: ${'$'}same)
-                                    }
-                                    """.trimIndent(),
-                                ),
-                            ),
-                        schema.loweredSchema.requireField("Query", "y") to
-                            resolver(
-                                schema.fragmentFrom(
-                                    """
-                                    fragment ignored on Query {
-                                      ySource
-                                      consume(value: ${'$'}same)
-                                    }
-                                    """.trimIndent(),
-                                ),
-                            ),
-                        schema.loweredSchema.requireField("Query", "xSource") to resolver(empty),
-                        schema.loweredSchema.requireField("Query", "ySource") to resolver(empty),
-                        schema.loweredSchema.requireField("Query", "consume") to resolver(empty),
-                    )
-                },
-                variableProviders = { schema ->
-                    val x = schema.loweredSchema.requireObjectField("Query", "x")
-                    val y = schema.loweredSchema.requireObjectField("Query", "y")
-                    mapOf(
-                        Arguments.Variable.of(x, "same") to
-                            schema.fromObjectField(
-                                "fragment ignored on Query { xSource }",
-                                listOf("xSource"),
-                            ),
-                        Arguments.Variable.of(y, "same") to
-                            schema.fromObjectField(
-                                "fragment ignored on Query { ySource }",
-                                listOf("ySource"),
-                            ),
-                    )
-                },
+            TestWorld.fromDSL(
+                """
+                extend type Query {
+                  x: Int @resolver(
+                    of: "xSource consume(value: ${'$'}same)"
+                    variables: [{name: "same", fromObjectField: ["xSource"]}]
+                    script: "throw 'Not invoked'"
+                  )
+                  y: Int @resolver(
+                    of: "ySource consume(value: ${'$'}same)"
+                    variables: [{name: "same", fromObjectField: ["ySource"]}]
+                    script: "throw 'Not invoked'"
+                  )
+                  xSource: Int @resolver(script: "throw 'Not invoked'")
+                  ySource: Int @resolver(script: "throw 'Not invoked'")
+                  consume(value: Int): Int @resolver(script: "throw 'Not invoked'")
+                }
+                """.trimIndent(),
             )
         val schema = world.schemas
         val x = schema.loweredSchema.requireObjectField("Query", "x")
@@ -187,37 +108,13 @@ class ResolverDemandTest {
     @Test
     fun `defines a variable from an argument without adding provider demand`() {
         val world =
-            TestWorld.fromSDL(
-                schemaSDL =
-                    """
-                    type Query {
-                      source(seed: Int!): Int
-                      consume(value: Int): Int
-                    }
-                    """.trimIndent(),
-                fieldResolvers = { schema ->
-                    mapOf(
-                        schema.loweredSchema.requireField("Query", "source") to
-                            resolver(
-                                schema.fragmentFrom(
-                                    """
-                                    fragment ignored on Query {
-                                      consume(value: ${'$'}seed)
-                                    }
-                                    """.trimIndent(),
-                                ),
-                            ),
-                        schema.loweredSchema.requireField("Query", "consume") to
-                            resolver(schema.loweredSchema.emptyFragmentOf("Query")),
-                    )
-                },
-                variableProviders = { schema ->
-                    val source = schema.loweredSchema.requireObjectField("Query", "source")
-                    mapOf(
-                        Arguments.Variable.of(source, "seed") to
-                            schema.loweredSchema.fromArgument(source, "seed"),
-                    )
-                },
+            TestWorld.fromDSL(
+                """
+                extend type Query {
+                  source(seed: Int!): Int @resolver(of: "consume(value: ${'$'}seed)", script: "throw 'Not invoked'")
+                  consume(value: Int): Int @resolver(script: "throw 'Not invoked'")
+                }
+                """.trimIndent(),
             )
         val source = world.schema.requireObjectField("Query", "source")
         val consume = world.schema.requireObjectField("Query", "consume")
@@ -370,47 +267,20 @@ class ResolverDemandTest {
 
     @Test
     fun `accepts a variable defined beneath parent and used outside parent`() {
-        TestWorld.fromSDL(
-            schemaSDL =
-                """
-                directive @parent on FIELD_DEFINITION
-                type Query { root: Root }
-                type Root { enabled: Boolean!, child: Child }
-                type Child {
-                  parent: Root @parent
-                  dependency: Int
-                  result: Int
-                }
-                """.trimIndent(),
-            fieldResolvers = { schema ->
-                val result = schema.loweredSchema.requireObjectField("Child", "result")
-                mapOf(
-                    result to
-                        resolver(
-                            schema.fragmentFrom(
-                                """
-                                fragment ResultInput on Child {
-                                  parent { enabled }
-                                  dependency @include(if: ${'$'}enabled)
-                                }
-                                """.trimIndent(),
-                                variableField = result,
-                            ),
-                        ),
-                )
-            },
-            variableProviders = { schema ->
-                val result = schema.loweredSchema.requireObjectField("Child", "result")
-                mapOf(
-                    Arguments.Variable.of(result, "enabled") to
-                        schema.fromObjectField(
-                            objectFragmentSource =
-                                "fragment ResultInput on Child { parent { enabled } }",
-                            responsePath = listOf("parent", "enabled"),
-                            variableField = result,
-                        ),
-                )
-            },
+        TestWorld.fromDSL(
+            """
+            extend type Query { root: Root }
+            type Root { enabled: Boolean! child: Child }
+            type Child {
+              parent: Root @parent
+              dependency: Int
+              result: Int @resolver(
+                of: "parent { enabled } dependency @include(if: ${'$'}enabled)"
+                variables: [{name: "enabled", fromObjectField: ["parent", "enabled"]}]
+                script: "throw 'Not invoked'"
+              )
+            }
+            """.trimIndent(),
         )
     }
 
@@ -1038,20 +908,16 @@ class ResolverDemandTest {
         for (provider in ProviderFragment.entries) {
             for (directive in listOf("@skip(if: true)", "@include(if: false)")) {
                 val world =
-                    TestWorld.fromSDL(
-                        schemaSDL = "type Query { first: Int!, second: Int! }",
-                        fieldResolvers = { schema ->
-                            val empty = schema.loweredSchema.emptyFragmentOf("Query")
-                            val fragment = schema.fragmentFrom("fragment Input on Query { second $directive }")
-                            mapOf(
-                                schema.loweredSchema.requireObjectField("Query", "first") to
-                                    fieldResolverOf(
-                                        objectFragment = if (provider == ProviderFragment.OBJECT) fragment else empty,
-                                        queryFragment = if (provider == ProviderFragment.QUERY) fragment else empty,
-                                    ) { _, _, _ -> error("Not invoked") },
-                                schema.loweredSchema.requireObjectField("Query", "second") to resolver(empty),
-                            )
-                        },
+                    TestWorld.fromDSL(
+                        """
+                        extend type Query {
+                          first: Int! @resolver(
+                            ${if (provider == ProviderFragment.OBJECT) "of" else "qf"}: "second $directive"
+                            script: "throw 'Not invoked'"
+                          )
+                          second: Int! @resolver(script: "throw 'Not invoked'")
+                        }
+                        """.trimIndent(),
                     )
                 val first = world.schema.requireObjectField("Query", "first")
                 val second = world.schema.requireObjectField("Query", "second")

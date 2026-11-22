@@ -146,46 +146,33 @@ class TypeCheckerResolutionTest {
         val typeInvocations = AtomicInteger()
         val worldFixture =
             TestWorld.fromDSL(
-                schemaSDL =
-                    """
-                    extend type Query {
-                      checked: Int! @resolver(script: "1")
-                      raw: Item! @resolver(script: "{'id': 2}")
-                    }
-
-                    type Item { id: Int! }
-                    """.trimIndent(),
+                """
+                extend type Query {
+                  checked: Int! @resolver(script: "1")
+                  raw: Item! @resolver(script: "{'id': 2}")
+                }
+                type Item @checker(script: "typeInvocations.incrementAndGet(); allow") { id: Int! }
+                """.trimIndent(),
                 fieldCheckers = { schema ->
                     val checked = schema.loweredSchema.requireObjectField("Query", "checked")
                     val raw = schema.fragmentFrom("fragment Raw on Query { raw { id } }").materializeSelections
                     mapOf(
-                        checked to
-                            FieldCheckerResolver.of(
-                                checked,
-                                schema.loweredSchema.requireQueryTypeDef(),
-                                fragmentTemplates =
-                                    mapOf(
-                                        "raw" to
-                                            ResolverFragmentTemplates(
-                                                objectFragmentTemplate = raw,
-                                                queryFragmentTemplate = materializeSelectionForestOf(),
-                                            ),
-                                    ),
-                            ) { _, inputs, _ ->
-                                assertIs<EngineObjectData.Sync>(inputs.getValue("raw").objectValue.get("raw"))
-                                CheckerResult.Success
-                            },
-                    )
-                },
-                typeCheckers = { schema ->
-                    val item = schema.loweredSchema.requireType("Item") as ViaductSchema.Object
-                    mapOf(
-                        item to TypeCheckerResolver.of(item, schema.loweredSchema.requireQueryTypeDef()) { _, _ ->
-                            typeInvocations.incrementAndGet()
+                        checked to FieldCheckerResolver.of(
+                            checked,
+                            schema.loweredSchema.requireQueryTypeDef(),
+                            fragmentTemplates = mapOf(
+                                "raw" to ResolverFragmentTemplates(
+                                    objectFragmentTemplate = raw,
+                                    queryFragmentTemplate = materializeSelectionForestOf(),
+                                ),
+                            ),
+                        ) { _, inputs, _ ->
+                            assertIs<EngineObjectData.Sync>(inputs.getValue("raw").objectValue.get("raw"))
                             CheckerResult.Success
                         },
                     )
                 },
+                scriptBindings = mapOf("typeInvocations" to typeInvocations),
             )
         val world = worldFixture.assumptions
 
@@ -205,30 +192,15 @@ class TypeCheckerResolutionTest {
         val invocations = AtomicInteger()
         val worldFixture =
             TestWorld.fromDSL(
-                schemaSDL =
-                    """
-                    extend type Query {
-                      root: Root! @resolver(script: "{'value': 1, 'child': {:}}")
-                    }
-
-                    type Root {
-                      value: Int!
-                      child: Child!
-                    }
-
-                    type Child {
-                      parent: Root! @parent
-                    }
-                    """.trimIndent(),
-                typeCheckers = { schema ->
-                    val root = schema.loweredSchema.requireType("Root") as ViaductSchema.Object
-                    mapOf(
-                        root to TypeCheckerResolver.of(root, schema.loweredSchema.requireQueryTypeDef()) { _, _ ->
-                            invocations.incrementAndGet()
-                            CheckerResult.Success
-                        },
-                    )
-                },
+                """
+                extend type Query { root: Root! @resolver(script: "{'value': 1, 'child': {:}}") }
+                type Root @checker(script: "invocations.incrementAndGet(); allow") {
+                  value: Int!
+                  child: Child!
+                }
+                type Child { parent: Root! @parent }
+                """.trimIndent(),
+                scriptBindings = mapOf("invocations" to invocations),
             )
         val world = worldFixture.assumptions
 

@@ -10,15 +10,12 @@ import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.ObjectSelectionForest
 import viaduct.engine.runtime2.model.ResolverOccurrenceId
 import viaduct.engine.runtime2.model.VariableBinding
-import viaduct.engine.runtime2.model.emptyFragmentOf
 import viaduct.engine.runtime2.model.engineObjectDataOf
 import viaduct.engine.runtime2.model.merge
-import viaduct.engine.runtime2.model.registry.fieldResolverOf
 import viaduct.engine.runtime2.model.requireObjectField
 import viaduct.engine.runtime2.model.requireQueryTypeDef
 import viaduct.engine.runtime2.model.selectionForestOf
 import viaduct.engine.runtime2.model.testing.TestWorld
-import viaduct.engine.runtime2.model.testing.emptyFragmentOf
 import viaduct.engine.runtime2.model.testing.engineResultOf
 import viaduct.engine.runtime2.model.testing.fragmentFrom
 import viaduct.engine.runtime2.resolution.framework.OEROccurrence
@@ -29,24 +26,15 @@ import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
 class SharedQueryOwnerDemandRegressionTest {
     @Test
     fun `cached shared scope validation cannot erase a second owner's input obligation`() {
-        val worldFixture = TestWorld.fromSDL(
-            schemaSDL = "type Query { first(value: Int!): Int! second(value: Int!): Int! left: Int! right: Int! }",
-            fieldResolvers = { schema ->
-                mapOf(
-                    schema.loweredSchema.requireObjectField("Query", "first") to fieldResolverOf(
-                        objectFragment = schema.loweredSchema.emptyFragmentOf("Query"),
-                        queryFragment = schema.fragmentFrom("fragment First on Query { left }"),
-                    ) { _, _, _ -> error("Erroneous arguments must suppress invocation") },
-                    schema.loweredSchema.requireObjectField("Query", "second") to fieldResolverOf(
-                        objectFragment = schema.loweredSchema.emptyFragmentOf("Query"),
-                        queryFragment = schema.fragmentFrom("fragment Second on Query { right }"),
-                    ) { _, _, _ -> error("Erroneous arguments must suppress invocation") },
-                    schema.loweredSchema.requireObjectField("Query", "left") to
-                        fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ -> 7 },
-                    schema.loweredSchema.requireObjectField("Query", "right") to
-                        fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ -> 9 },
-                )
-            },
+        val worldFixture = TestWorld.fromDSL(
+            """
+            extend type Query {
+              first(value: Int!): Int! @resolver(qf: "left", script: "throw 'Erroneous arguments must suppress invocation'")
+              second(value: Int!): Int! @resolver(qf: "right", script: "throw 'Erroneous arguments must suppress invocation'")
+              left: Int! @resolver(script: "7")
+              right: Int! @resolver(script: "9")
+            }
+            """.trimIndent(),
         )
         val world = worldFixture.assumptions
         val queryType = worldFixture.schema.requireQueryTypeDef()
@@ -79,18 +67,13 @@ class SharedQueryOwnerDemandRegressionTest {
 
     @Test
     fun `observed closure cannot erase an error argument owner's Query input obligation`() {
-        val worldFixture = TestWorld.fromSDL(
-            schemaSDL = "type Query { consumer(value: Int!): Int! source: Int! }",
-            fieldResolvers = { schema ->
-                mapOf(
-                    schema.loweredSchema.requireObjectField("Query", "consumer") to fieldResolverOf(
-                        objectFragment = schema.loweredSchema.emptyFragmentOf("Query"),
-                        queryFragment = schema.fragmentFrom("fragment Input on Query { source }"),
-                    ) { _, _, _ -> error("Erroneous arguments must suppress invocation") },
-                    schema.loweredSchema.requireObjectField("Query", "source") to
-                        fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ -> 7 },
-                )
-            },
+        val worldFixture = TestWorld.fromDSL(
+            """
+            extend type Query {
+              consumer(value: Int!): Int! @resolver(qf: "source", script: "throw 'Erroneous arguments must suppress invocation'")
+              source: Int! @resolver(script: "7")
+            }
+            """.trimIndent(),
         )
         val world = worldFixture.assumptions
         val queryType = worldFixture.schema.requireQueryTypeDef()

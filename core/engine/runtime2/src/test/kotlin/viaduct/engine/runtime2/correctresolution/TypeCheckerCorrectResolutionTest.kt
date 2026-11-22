@@ -14,14 +14,12 @@ import viaduct.engine.runtime2.model.emptyFragmentOf
 import viaduct.engine.runtime2.model.materializeSelectionForestOf
 import viaduct.engine.runtime2.model.registry.ResolverFragmentTemplates
 import viaduct.engine.runtime2.model.registry.TypeCheckerResolver
-import viaduct.engine.runtime2.model.registry.fieldResolverOf
 import viaduct.engine.runtime2.model.requireObjectField
 import viaduct.engine.runtime2.model.requireQueryTypeDef
 import viaduct.engine.runtime2.model.requireType
 import viaduct.engine.runtime2.model.testing.TestWorld
 import viaduct.engine.runtime2.model.testing.emptyFragmentOf
 import viaduct.engine.runtime2.model.testing.fragmentFrom
-import viaduct.engine.runtime2.model.testing.objectOf
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
 import viaduct.graphql.schema.ViaductSchema
 
@@ -73,19 +71,11 @@ class TypeCheckerCorrectResolutionTest {
     @Test
     fun `checked OER requires its type result raw input and matching replayed variant`() {
         var calls = 0
-        val worldFixture = TestWorld.fromSDL(
-            schemaSDL = "type Query { item: Item! } type Item { value: Int! policy: Int! }",
-            fieldResolvers = { schema ->
-                mapOf(
-                    schema.loweredSchema.requireObjectField("Query", "item") to
-                        fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
-                            schema.loweredSchema.objectOf("Item") {
-                                "value" setTo 1
-                                "policy" setTo 7
-                            }
-                        }
-                )
-            },
+        val worldFixture = TestWorld.fromDSL(
+            """
+            extend type Query { item: Item! @resolver(script: "{'value': 1, 'policy': 7}") }
+            type Item { value: Int! policy: Int! }
+            """.trimIndent(),
             typeCheckers = { schema ->
                 val item = schema.loweredSchema.requireType("Item") as ViaductSchema.Object
                 mapOf(
@@ -140,16 +130,14 @@ class TypeCheckerCorrectResolutionTest {
 
     @Test
     fun `type checker Query replay rejects missing duplicate and incorrect witnesses`() {
-        val worldFixture = TestWorld.fromSDL(
-            schemaSDL = "type Query { item: Item! marker: Int! } type Item { value: Int! }",
-            fieldResolvers = { schema ->
-                mapOf(
-                    schema.loweredSchema.requireObjectField("Query", "item") to fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
-                        schema.loweredSchema.objectOf("Item") { "value" setTo 1 }
-                    },
-                    schema.loweredSchema.requireObjectField("Query", "marker") to fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ -> 7 },
-                )
-            },
+        val worldFixture = TestWorld.fromDSL(
+            """
+            extend type Query {
+              item: Item! @resolver(script: "{'value': 1}")
+              marker: Int! @resolver(script: "7")
+            }
+            type Item { value: Int! }
+            """.trimIndent(),
             typeCheckers = { schema ->
                 val item = schema.loweredSchema.requireType("Item") as ViaductSchema.Object
                 mapOf(
@@ -205,9 +193,10 @@ class TypeCheckerCorrectResolutionTest {
 
     @Test
     fun `primary Query root requires a null type result even with no selected fields`() {
-        val worldFixture = TestWorld.fromSDL(
-            schemaSDL = "type Query { value: Int! }",
-            fieldResolvers = { schema -> mapOf(schema.loweredSchema.requireObjectField("Query", "value") to fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ -> 1 }) },
+        val worldFixture = TestWorld.fromDSL(
+            """
+            extend type Query { value: Int! @resolver(script: "1") }
+            """.trimIndent(),
         )
         val world = worldFixture.assumptions
         val selections = worldFixture.schema.emptyFragmentOf("Query")

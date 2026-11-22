@@ -8,15 +8,12 @@ import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.ResolverOccurrenceId
 import viaduct.engine.runtime2.model.Selection
 import viaduct.engine.runtime2.model.VariableBinding
-import viaduct.engine.runtime2.model.emptyFragmentOf
 import viaduct.engine.runtime2.model.engineObjectDataOf
 import viaduct.engine.runtime2.model.merge
-import viaduct.engine.runtime2.model.registry.fieldResolverOf
 import viaduct.engine.runtime2.model.requireObjectField
 import viaduct.engine.runtime2.model.requireQueryTypeDef
 import viaduct.engine.runtime2.model.selectionForestOf
 import viaduct.engine.runtime2.model.testing.TestWorld
-import viaduct.engine.runtime2.model.testing.emptyFragmentOf
 import viaduct.engine.runtime2.model.testing.engineResultOf
 import viaduct.engine.runtime2.model.testing.fragmentFrom
 import viaduct.engine.runtime2.resolution.framework.OEROccurrence
@@ -40,17 +37,13 @@ class SharedQuerySymbolicDomainRegressionTest {
         extraSymbolicCell: Boolean,
         declareExtra: Boolean = false
     ): Boolean {
-        val worldFixture = TestWorld.fromSDL(
-            schemaSDL = "type Query { consumer: Int!, source(value: Int!): Int! }",
-            fieldResolvers = { schema ->
-                mapOf(
-                    schema.loweredSchema.requireObjectField("Query", "consumer") to fieldResolverOf(
-                        objectFragment = schema.loweredSchema.emptyFragmentOf("Query"),
-                        queryFragment = schema.fragmentFrom("fragment Input on Query { source(value: 7) }"),
-                    ) { _, _, _ -> 7 },
-                    schema.loweredSchema.requireObjectField("Query", "source") to fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ -> 7 },
-                )
-            },
+        val worldFixture = TestWorld.fromDSL(
+            """
+            extend type Query {
+              consumer: Int! @resolver(qf: "source(value: 7)", script: "7")
+              source(value: Int!): Int! @resolver(script: "7")
+            }
+            """.trimIndent(),
         )
         val world = worldFixture.assumptions
         val queryType = worldFixture.schema.requireQueryTypeDef()

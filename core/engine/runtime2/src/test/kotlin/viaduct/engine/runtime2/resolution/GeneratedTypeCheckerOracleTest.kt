@@ -12,18 +12,11 @@ import viaduct.engine.runtime2.correctresolution.correctResolution
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.Promise
 import viaduct.engine.runtime2.model.ResolverTarget
-import viaduct.engine.runtime2.model.emptyFragmentOf
-import viaduct.engine.runtime2.model.materializeSelectionForestOf
-import viaduct.engine.runtime2.model.registry.ResolverFragmentTemplates
-import viaduct.engine.runtime2.model.registry.TypeCheckerResolver
-import viaduct.engine.runtime2.model.registry.fieldResolverOf
 import viaduct.engine.runtime2.model.requireObjectField
 import viaduct.engine.runtime2.model.requireQueryTypeDef
 import viaduct.engine.runtime2.model.requireType
 import viaduct.engine.runtime2.model.testing.TestWorld
-import viaduct.engine.runtime2.model.testing.emptyFragmentOf
 import viaduct.engine.runtime2.model.testing.fragmentFrom
-import viaduct.engine.runtime2.model.testing.objectOf
 import viaduct.engine.runtime2.resolution.framework.CheckerInvocationObservation
 import viaduct.engine.runtime2.resolution.framework.CheckerKind
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
@@ -37,43 +30,15 @@ class GeneratedTypeCheckerOracleTest : ResolutionDispatcherResource {
     fun `generated oracle rejects type checks justified only by a surplus resolver invocation`() {
         listOf(false, true).forEach { symbolic ->
             val testWorld =
-                TestWorld.fromSDL(
-                    schemaSDL =
-                        """
-                    type Query {
-                      selected: Int!
-                      surplus: Int!
-                      dependency: Dependency!
+                TestWorld.fromDSL(
+                    """
+                    extend type Query {
+                      selected: Int! @resolver(script: "1")
+                      surplus: Int! @resolver(of: "dependency { value }", script: "2")
+                      dependency: Dependency! @resolver(script: "{'value': 3}")
                     }
-
-                    type Dependency { value: Int! }
-                        """.trimIndent(),
-                    fieldResolvers = { schema ->
-                        mapOf(
-                            schema.loweredSchema.requireObjectField("Query", "selected") to
-                                fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ -> 1 },
-                            schema.loweredSchema.requireObjectField("Query", "surplus") to
-                                fieldResolverOf(
-                                    schema.fragmentFrom(
-                                        "fragment SurplusInput on Query { dependency { value } }",
-                                    ),
-                                ) { _, _ -> 2 },
-                            schema.loweredSchema.requireObjectField("Query", "dependency") to
-                                fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
-                                    schema.loweredSchema.objectOf("Dependency") { "value" setTo 3 }
-                                },
-                        )
-                    },
-                    typeCheckers = { schema ->
-                        val dependency = schema.loweredSchema.requireType("Dependency") as ViaductSchema.Object
-                        mapOf(
-                            dependency to
-                                TypeCheckerResolver.of(
-                                    dependency,
-                                    schema.loweredSchema.requireQueryTypeDef(),
-                                ) { _, _ -> CheckerResult.Success },
-                        )
-                    },
+                    type Dependency @checker(script: "allow") { value: Int! }
+                    """.trimIndent(),
                 )
             val world = testWorld.newAssumptions()
             val recorder = CheckerApplicationRecorder()
@@ -123,36 +88,15 @@ class GeneratedTypeCheckerOracleTest : ResolutionDispatcherResource {
 
     @Test
     fun `generated oracle rejects an unnecessary type check on a raw-only nested object`() {
-        val worldFixture = TestWorld.fromSDL(
-            schemaSDL = "type Query { item: Item! } type Item { value: Int! raw: Raw! } type Raw { token: Int! }",
-            fieldResolvers = { schema ->
-                mapOf(
-                    schema.loweredSchema.requireObjectField("Query", "item") to
-                        fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
-                            schema.loweredSchema.objectOf("Item") {
-                                "value" setTo 1
-                                "raw" setTo schema.loweredSchema.objectOf("Raw") { "token" setTo 7 }
-                            }
-                        }
-                )
-            },
-            typeCheckers = { schema ->
-                val item = schema.loweredSchema.requireType("Item") as ViaductSchema.Object
-                val raw = schema.loweredSchema.requireType("Raw") as ViaductSchema.Object
-                mapOf(
-                    item to TypeCheckerResolver.of(
-                        item,
-                        schema.loweredSchema.requireQueryTypeDef(),
-                        mapOf(
-                            "input" to ResolverFragmentTemplates(
-                                schema.fragmentFrom("fragment Input on Item { raw { token } }").materializeSelections,
-                                materializeSelectionForestOf(),
-                            )
-                        ),
-                    ) { _, _ -> CheckerResult.Success },
-                    raw to TypeCheckerResolver.of(raw, schema.loweredSchema.requireQueryTypeDef()) { _, _ -> CheckerResult.Success },
-                )
-            },
+        val worldFixture = TestWorld.fromDSL(
+            """
+            extend type Query { item: Item! @resolver(script: "{'value': 1, 'raw': {'token': 7}}") }
+            type Item @checker(inputs: [{name: "input", of: "raw { token }"}], script: "allow") {
+              value: Int!
+              raw: Raw!
+            }
+            type Raw @checker(script: "allow") { token: Int! }
+            """.trimIndent(),
         )
         val world = worldFixture.assumptions
         val itemType = worldFixture.schema.requireType("Item") as ViaductSchema.Object

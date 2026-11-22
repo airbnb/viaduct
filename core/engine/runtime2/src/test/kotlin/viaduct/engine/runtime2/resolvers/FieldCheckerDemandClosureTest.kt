@@ -13,10 +13,7 @@ import viaduct.engine.runtime2.model.ResolverOccurrenceId
 import viaduct.engine.runtime2.model.Selection
 import viaduct.engine.runtime2.model.SelectionForest
 import viaduct.engine.runtime2.model.VariableBinding
-import viaduct.engine.runtime2.model.materializeSelectionForestOf
 import viaduct.engine.runtime2.model.merge
-import viaduct.engine.runtime2.model.registry.FieldCheckerResolver
-import viaduct.engine.runtime2.model.registry.ResolverFragmentTemplates
 import viaduct.engine.runtime2.model.requireObjectField
 import viaduct.engine.runtime2.model.requireQueryTypeDef
 import viaduct.engine.runtime2.model.selectionForestOf
@@ -27,7 +24,6 @@ import viaduct.engine.runtime2.resolution.framework.Demand
 import viaduct.engine.runtime2.resolution.framework.OEROccurrence
 import viaduct.engine.runtime2.resolution.framework.OrchestrationConstructionDemand
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
-import viaduct.engine.runtime2.schema.ViaductAndGJSchema
 import viaduct.graphql.schema.ViaductSchema
 
 /** Closure witnesses only: no checker executors, result slots, or Query producers run here. */
@@ -87,20 +83,19 @@ class FieldCheckerDemandClosureTest {
         val world = TestWorld.fromDSL(
             """
             extend type Query { boxes: [Box] @resolver(script: "[]") }
-            type Box { a: Int, nested: Nested }
+            type Box {
+              a: Int @checker(inputs: [{name: "input0", of: "nested { raw }"}], script: "throw 'Closure must not execute checkers'")
+              nested: Nested
+            }
             type Nested {
               ordinary: Int
-              raw: Int @resolver(of: "dependency", script: "1")
+              raw: Int
+                @resolver(of: "dependency", script: "1")
+                @checker(inputs: [{name: "input0", of: "forbidden"}], script: "throw 'Closure must not execute checkers'")
               dependency: Int
               forbidden: Int
             }
             """.trimIndent(),
-            fieldCheckers = { schema ->
-                mapOf(
-                    checker(schema, "Box", "a", "nested { raw }"),
-                    checker(schema, "Nested", "raw", "forbidden"),
-                )
-            },
         )
 
         val closed = close(world, checked = "a nested { ordinary }")
@@ -125,14 +120,13 @@ class FieldCheckerDemandClosureTest {
             """
             extend type Query { boxes: [Box] @resolver(script: "[]") }
             type Box {
-              a: Int
+              a: Int @checker(inputs: [{name: "input0", of: "first: b(seed: 7) second: b(seed: 8)"}], script: "throw 'Closure must not execute checkers'")
               late: Int @resolver(of: "middle", script: "1")
               middle: Int @resolver(of: "b(seed: 7)", script: "1")
               b(seed: Int!): Int @resolver(of: "c(value: ${'$'}seed)", script: "1")
               c(value: Int!): Int @resolver(script: "1")
             }
             """.trimIndent(),
-            fieldCheckers = { schema -> mapOf(checker(schema, "Box", "a", "first: b(seed: 7) second: b(seed: 8)")) },
         )
 
         val operation = SharedOperationContext.create(world.assumptions)
@@ -171,42 +165,19 @@ class FieldCheckerDemandClosureTest {
             """
             extend type Query {
               boxes: [Box] @resolver(script: "[]")
-              viewer: Int @resolver(of: "dependency", script: "1")
+              viewer: Int
+                @resolver(of: "dependency", script: "1")
+                @checker(inputs: [{name: "input0", of: "forbidden"}], script: "throw 'Closure must not execute checkers'")
               dependency: Int @resolver(script: "1")
               forbidden: Int @resolver(script: "1")
             }
-            type Box { a: Int }
+            type Box {
+              a: Int @checker(
+                inputs: [{name: "empty"}, {name: "viewer", qf: "viewer"}, {name: "emptyQuery"}]
+                script: "throw 'Closure must not execute checkers'"
+              )
+            }
             """.trimIndent(),
-            fieldCheckers = { schema ->
-                val a = schema.loweredSchema.requireObjectField("Box", "a")
-                mapOf(
-                    a to FieldCheckerResolver.of(
-                        a,
-                        schema.loweredSchema.requireQueryTypeDef(),
-                        fragmentTemplates = mapOf(
-                            "empty" to
-                                ResolverFragmentTemplates(
-                                    objectFragmentTemplate = materializeSelectionForestOf(),
-                                    queryFragmentTemplate = materializeSelectionForestOf(),
-                                ),
-                            "viewer" to
-                                ResolverFragmentTemplates(
-                                    objectFragmentTemplate = materializeSelectionForestOf(),
-                                    queryFragmentTemplate =
-                                        schema
-                                            .fragmentFrom("fragment F on Query { viewer }")
-                                            .materializeSelections,
-                                ),
-                            "emptyQuery" to
-                                ResolverFragmentTemplates(
-                                    objectFragmentTemplate = materializeSelectionForestOf(),
-                                    queryFragmentTemplate = materializeSelectionForestOf(),
-                                ),
-                        ),
-                    ) { _, _, _ -> error("Closure must not execute checkers") },
-                    checker(schema, "Query", "viewer", "forbidden"),
-                )
-            },
         )
 
         val checker = requireNotNull(world.resolverRegistry.fieldChecker(world.schema.requireObjectField("Box", "a")))
@@ -327,23 +298,18 @@ class FieldCheckerDemandClosureTest {
               a: Int
               children: [Child]
               checkedA: Int
-              checkedB: Int
+              checkedB: Int @checker(inputs: [{name: "input0", of: "audit"}], script: "throw 'Closure must not execute checkers'")
               audit: Int
             }
             type Child {
               parent: Box @parent
-              a: Int
-              b: Int @resolver(of: "parent { checkedB }", script: "1")
+              a: Int @checker(inputs: [{name: "input0", of: "b"}], script: "throw 'Closure must not execute checkers'")
+              b: Int
+                @resolver(of: "parent { checkedB }", script: "1")
+                @checker(inputs: [{name: "input0", of: "c"}], script: "throw 'Closure must not execute checkers'")
               c: Int @resolver(of: "parent { checkedA }", script: "1")
             }
             """.trimIndent(),
-            fieldCheckers = { schema ->
-                mapOf(
-                    checker(schema, "Child", "a", "b"),
-                    checker(schema, "Child", "b", "c"),
-                    checker(schema, "Box", "checkedB", "audit"),
-                )
-            },
         )
 
         for (fields in listOf("a b", "b a")) {
@@ -358,24 +324,19 @@ class FieldCheckerDemandClosureTest {
     private fun chainWorld(): TestWorld =
         TestWorld.fromDSL(
             """
-        extend type Query { boxes: [Box] @resolver(script: "[]") }
-        type Box {
-          a: Int
-          b: Int @resolver(of: "c", script: "1")
-          c: Int
-          audit: Int
-          forbidden: Int
-          late: Int @resolver(of: "middle", script: "1")
-          middle: Int @resolver(of: "b", script: "1")
-        }
+            extend type Query { boxes: [Box] @resolver(script: "[]") }
+            type Box {
+              a: Int @checker(inputs: [{name: "input0", of: "b"}, {name: "input1", of: "b"}], script: "throw 'Closure must not execute checkers'")
+              b: Int
+                @resolver(of: "c", script: "1")
+                @checker(inputs: [{name: "input0", of: "forbidden"}], script: "throw 'Closure must not execute checkers'")
+              c: Int @checker(inputs: [{name: "input0", of: "audit"}], script: "throw 'Closure must not execute checkers'")
+              audit: Int
+              forbidden: Int
+              late: Int @resolver(of: "middle", script: "1")
+              middle: Int @resolver(of: "b", script: "1")
+            }
             """.trimIndent(),
-            fieldCheckers = { schema ->
-                mapOf(
-                    checker(schema, "Box", "a", "b", "b"),
-                    checker(schema, "Box", "b", "forbidden"),
-                    checker(schema, "Box", "c", "audit"),
-                )
-            },
         )
 
     private fun parentWorld(
@@ -384,65 +345,33 @@ class FieldCheckerDemandClosureTest {
     ): TestWorld =
         TestWorld.fromDSL(
             """
-        extend type Query { boxes: [Box] @resolver(script: "[]") }
-        type Box {
-          a: Int
-          b: Int @resolver(of: "$bInput", script: "1")
-          children: [[Child]]
-          checkedAncestor: Int
-          audit: Int
-          forbidden: Int
-        }
-        type Child {
-          parent: Box @parent
-          protected: Int
-          derived: Int @resolver(of: "parent { checkedAncestor }", script: "1")
-          forbiddenProbe: Int @resolver(of: "parent { forbidden }", script: "1")
-          grandchildren: [[Grandchild]]
-          checkedLocal: Int
-          localAudit: Int
-        }
-        type Grandchild {
-          parent: Child @parent
-          derived: Int @resolver(of: "parent { parent { checkedAncestor } }", script: "1")
-          localDerived: Int @resolver(of: "parent { checkedLocal }", script: "1")
-        }
+            extend type Query { boxes: [Box] @resolver(script: "[]") }
+            type Box {
+              a: Int @checker(inputs: [{name: "input0", of: "$aInput"}], script: "throw 'Closure must not execute checkers'")
+              b: Int @resolver(of: "$bInput", script: "1")
+              children: [[Child]] @checker(inputs: [{name: "input0", of: "forbidden"}], script: "throw 'Closure must not execute checkers'")
+              checkedAncestor: Int @checker(inputs: [{name: "input0", of: "audit"}], script: "throw 'Closure must not execute checkers'")
+              audit: Int
+              forbidden: Int
+            }
+            type Child {
+              parent: Box @parent
+              protected: Int @checker(inputs: [{name: "input0", of: "derived"}], script: "throw 'Closure must not execute checkers'")
+              derived: Int
+                @resolver(of: "parent { checkedAncestor }", script: "1")
+                @checker(inputs: [{name: "input0", of: "forbiddenProbe"}], script: "throw 'Closure must not execute checkers'")
+              forbiddenProbe: Int @resolver(of: "parent { forbidden }", script: "1")
+              grandchildren: [[Grandchild]]
+              checkedLocal: Int @checker(inputs: [{name: "input0", of: "localAudit"}], script: "throw 'Closure must not execute checkers'")
+              localAudit: Int
+            }
+            type Grandchild {
+              parent: Child @parent
+              derived: Int @resolver(of: "parent { parent { checkedAncestor } }", script: "1")
+              localDerived: Int @resolver(of: "parent { checkedLocal }", script: "1")
+            }
             """.trimIndent(),
-            fieldCheckers = { schema ->
-                mapOf(
-                    checker(schema, "Box", "a", aInput),
-                    checker(schema, "Box", "children", "forbidden"),
-                    checker(schema, "Box", "checkedAncestor", "audit"),
-                    checker(schema, "Child", "derived", "forbiddenProbe"),
-                    checker(schema, "Child", "protected", "derived"),
-                    checker(schema, "Child", "checkedLocal", "localAudit"),
-                )
-            },
         )
-
-    private fun checker(
-        schema: ViaductAndGJSchema,
-        type: String,
-        name: String,
-        vararg inputs: String,
-    ): Pair<ViaductSchema.ObjectField, FieldCheckerResolver> {
-        val field = schema.loweredSchema.requireObjectField(type, name)
-        return field to FieldCheckerResolver.of(
-            field,
-            schema.loweredSchema.requireQueryTypeDef(),
-            fragmentTemplates =
-                inputs.mapIndexed { index, input ->
-                    "input$index" to
-                        ResolverFragmentTemplates(
-                            objectFragmentTemplate =
-                                schema
-                                    .fragmentFrom("fragment F on $type { $input }")
-                                    .materializeSelections,
-                            queryFragmentTemplate = materializeSelectionForestOf(),
-                        )
-                }.toMap(),
-        ) { _, _, _ -> error("Closure must not execute checkers") }
-    }
 
     private fun close(
         world: TestWorld,

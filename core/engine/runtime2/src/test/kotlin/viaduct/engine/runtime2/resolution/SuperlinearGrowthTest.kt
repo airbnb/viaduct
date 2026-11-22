@@ -7,22 +7,15 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 import org.junit.jupiter.api.Disabled
-import viaduct.engine.api.CheckerResult
 import viaduct.engine.runtime2.model.Arguments
 import viaduct.engine.runtime2.model.InclusionCondition
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.ResolverOccurrenceId
 import viaduct.engine.runtime2.model.SelectionForest
-import viaduct.engine.runtime2.model.emptyFragmentOf
-import viaduct.engine.runtime2.model.materializeSelectionForestOf
 import viaduct.engine.runtime2.model.merge
 import viaduct.engine.runtime2.model.nodeCount
 import viaduct.engine.runtime2.model.registry.Assumptions
-import viaduct.engine.runtime2.model.registry.FieldCheckerResolver
-import viaduct.engine.runtime2.model.registry.ResolverFragmentTemplates
 import viaduct.engine.runtime2.model.registry.ResolverRegistry
-import viaduct.engine.runtime2.model.registry.TypeCheckerResolver
-import viaduct.engine.runtime2.model.registry.fieldResolverOf
 import viaduct.engine.runtime2.model.requireObjectField
 import viaduct.engine.runtime2.model.requireQueryTypeDef
 import viaduct.engine.runtime2.model.testing.TestWorld
@@ -47,42 +40,14 @@ class SuperlinearGrowthTest : ResolutionDispatcherResource {
         val depth = 15
         val fields = (0..depth).joinToString("\n") { index ->
             val inputs = ((index + 1)..minOf(index + 2, depth)).joinToString(" ") { "field$it" }
-            "field$index: Int @resolver(of: \"$inputs\", script: \"1\")"
+            val checker = if (index == 0) """@checker(inputs: [{name: "input", of: "field1 field2"}], script: "allow")""" else ""
+            """field$index: Int @resolver(of: "$inputs", script: "1") $checker"""
         }
         val fixture = TestWorld.fromDSL(
-            "extend type Query { root: Box @resolver(script: \"{:}\") } type Box { $fields }",
-            fieldCheckers = { schema ->
-                val checked = schema.loweredSchema.requireObjectField("Box", "field0")
-                val pair =
-                    ResolverFragmentTemplates(
-                        schema.fragmentFrom("fragment CheckerInput on Box { field1 field2 }").materializeSelections,
-                        materializeSelectionForestOf(),
-                    )
-                mapOf(
-                    checked to
-                        FieldCheckerResolver.of(
-                            checked,
-                            schema.loweredSchema.requireQueryTypeDef(),
-                            mapOf("input" to pair),
-                        ) { _, _, _ -> CheckerResult.Success },
-                )
-            },
-            typeCheckers = { schema ->
-                val type = schema.loweredSchema.requireObjectField("Query", "root").type.baseTypeDef as ViaductSchema.Object
-                val pair =
-                    ResolverFragmentTemplates(
-                        schema.fragmentFrom("fragment TypeInput on Box { field0 }").materializeSelections,
-                        materializeSelectionForestOf(),
-                    )
-                mapOf(
-                    type to
-                        TypeCheckerResolver.of(
-                            type,
-                            schema.loweredSchema.requireQueryTypeDef(),
-                            mapOf("input" to pair),
-                        ) { _, _ -> CheckerResult.Success },
-                )
-            },
+            """
+            extend type Query { root: Box @resolver(script: "{:}") }
+            type Box @checker(inputs: [{name: "input", of: "field0"}], script: "allow") { $fields }
+            """.trimIndent(),
         )
         val world = fixture.assumptions
         val applications = AtomicInteger()
@@ -137,31 +102,19 @@ class SuperlinearGrowthTest : ResolutionDispatcherResource {
                     } else {
                         ((index + 1)..minOf(index + 2, depth)).joinToString(" ") { "field$it" }
                     }
-                "field$index: Int @resolver(of: \"$inputs\", script: \"1\")"
+                """field$index: Int @resolver(of: "$inputs", script: "1") @checker(inputs: [{name: "input", of: "leaf"}], script: "allow")"""
             }
             val fixture =
                 TestWorld.fromDSL(
                     """
                     extend type Query { root: Parent @resolver(script: "{:}") }
                     type Parent { seed: Int tag: Int child: Child }
-                    type Child { parent: Parent @parent leaf: Int @resolver(of: "parent { tag }", script: "1") $fields }
+                    type Child {
+                      parent: Parent @parent
+                      leaf: Int @resolver(of: "parent { tag }", script: "1")
+                      $fields
+                    }
                     """.trimIndent(),
-                    fieldCheckers = { schema ->
-                        val pair =
-                            ResolverFragmentTemplates(
-                                schema.fragmentFrom("fragment CheckerInput on Child { leaf }").materializeSelections,
-                                materializeSelectionForestOf(),
-                            )
-                        (0..depth).associate { index ->
-                            val field = schema.loweredSchema.requireObjectField("Child", "field$index")
-                            field to
-                                FieldCheckerResolver.of(
-                                    field,
-                                    schema.loweredSchema.requireQueryTypeDef(),
-                                    mapOf("input" to pair),
-                                ) { _, _, _ -> CheckerResult.Success }
-                        }
-                    },
                 )
             val world = fixture.assumptions
             val input = fixture.schemas.fragmentFrom("fragment F on Query { root { child { field0 } } }").subselections
@@ -191,33 +144,19 @@ class SuperlinearGrowthTest : ResolutionDispatcherResource {
                 } else {
                     ((index + 1)..minOf(index + 2, depth)).joinToString(" ") { "field$it" }
                 }
-                "field$index: Int @resolver(of: \"$inputs\", script: \"1\")"
+                """field$index: Int @resolver(of: "$inputs", script: "1") @checker(inputs: [{name: "input", of: "leaf"}], script: "allow")"""
             }
             val fixture = TestWorld.fromDSL(
                 """
                 extend type Query { root: Parent @resolver(script: "{'seed': {'value': 7, 'other': 8}, 'child': {:}}") }
                 type Parent { seed: Seed child: Child }
                 type Seed { value: Int other: Int }
-                type Child { parent: Parent @parent leaf: Int @resolver(of: "parent { seed { value } }", script: "1") $fields }
+                type Child @checker(inputs: [{name: "input", of: "field0 field1 leaf"}], script: "allow") {
+                  parent: Parent @parent
+                  leaf: Int @resolver(of: "parent { seed { value } }", script: "1")
+                  $fields
+                }
                 """.trimIndent(),
-                fieldCheckers = { schema ->
-                    val pair = ResolverFragmentTemplates(
-                        schema.fragmentFrom("fragment FC on Child { leaf }").materializeSelections,
-                        materializeSelectionForestOf(),
-                    )
-                    (0..depth).associate { index ->
-                        val field = schema.loweredSchema.requireObjectField("Child", "field$index")
-                        field to FieldCheckerResolver.of(field, schema.loweredSchema.requireQueryTypeDef(), mapOf("input" to pair)) { _, _, _ -> CheckerResult.Success }
-                    }
-                },
-                typeCheckers = { schema ->
-                    val child = schema.loweredSchema.requireObjectField("Child", "parent").containingDef
-                    val pair = ResolverFragmentTemplates(
-                        schema.fragmentFrom("fragment TC on Child { field0 field1 leaf }").materializeSelections,
-                        materializeSelectionForestOf(),
-                    )
-                    mapOf(child to TypeCheckerResolver.of(child, schema.loweredSchema.requireQueryTypeDef(), mapOf("input" to pair)) { _, _ -> CheckerResult.Success })
-                },
             )
             val world = fixture.assumptions
             val input = fixture.schemas.fragmentFrom("fragment F on Query { root { child { field0 } } }").subselections
@@ -250,49 +189,20 @@ class SuperlinearGrowthTest : ResolutionDispatcherResource {
     fun `shared query closure keeps guarded alternatives compact`() {
         for (depth in listOf(3, 6, 9, 12)) {
             val fixture =
-                TestWorld.fromSDL(
-                    schemaSDL = "type Query { audit: Int " + (0..depth).joinToString(" ") { "field$it: Int" } + " }",
-                    fieldResolvers = { schema ->
-                        (0..depth).associate { index ->
-                            val field = schema.loweredSchema.requireObjectField("Query", "field$index")
-                            val empty = schema.loweredSchema.emptyFragmentOf("Query")
-                            val resolver =
-                                fieldResolverOf(
-                                    objectFragment = empty,
-                                    queryFragment =
-                                        if (index == depth) {
-                                            empty
-                                        } else {
-                                            schema.fragmentFrom(
-                                                "fragment F on Query { left: field${index + 1} @include(if: ${'$'}a) right: field${index + 1} @include(if: ${'$'}b) }",
-                                                variableField = field,
-                                            )
-                                        },
-                                ) { _, _, _ -> 1 }
-                            field to
-                                if (index == depth) {
-                                    resolver
-                                } else {
-                                    resolver.withVariablesProvider(setOf("a", "b")) { mapOf("a" to true, "b" to true) }
-                                }
-                        }
-                    },
-                    fieldCheckers = { schema ->
-                        val checked = schema.loweredSchema.requireObjectField("Query", "field$depth")
-                        val pair =
-                            ResolverFragmentTemplates(
-                                schema.fragmentFrom("fragment CheckerInput on Query { audit }").materializeSelections,
-                                materializeSelectionForestOf(),
+                TestWorld.fromDSL(
+                    "extend type Query { audit: Int " + (0..depth).joinToString("\n") { index ->
+                        if (index == depth) {
+                            """field$index: Int @resolver(script: "1") @checker(inputs: [{name: "input", of: "audit"}], script: "allow")"""
+                        } else {
+                            """
+                            field$index: Int @resolver(
+                              qf: "left: field${index + 1} @include(if: ${'$'}a) right: field${index + 1} @include(if: ${'$'}b)"
+                              vars: {names: ["a", "b"], script: "{'a': true, 'b': true}"}
+                              script: "1"
                             )
-                        mapOf(
-                            checked to
-                                FieldCheckerResolver.of(
-                                    checked,
-                                    schema.loweredSchema.requireQueryTypeDef(),
-                                    mapOf("input" to pair),
-                                ) { _, _, _ -> CheckerResult.Success },
-                        )
-                    },
+                            """.trimIndent()
+                        }
+                    } + " }",
                 )
             val closed = close(fixture.assumptions, fixture, "field0")
             val checkerInput =
@@ -312,46 +222,18 @@ class SuperlinearGrowthTest : ResolutionDispatcherResource {
     @Test
     fun `fixed registry keeps query scaled guarded checker demand linear`() {
         val fixture =
-            TestWorld.fromSDL(
-                schemaSDL = "type Query { requested(id: Int!): Int shared: Int audit: Int }",
-                fieldResolvers = { schema ->
-                    val requested = schema.loweredSchema.requireObjectField("Query", "requested")
-                    val empty = schema.loweredSchema.emptyFragmentOf("Query")
-                    mapOf(
-                        requested to
-                            fieldResolverOf(
-                                objectFragment = empty,
-                                queryFragment =
-                                    schema.fragmentFrom(
-                                        "fragment Input on Query { left: shared @include(if: ${'$'}left) right: shared @include(if: ${'$'}right) }",
-                                        variableField = requested,
-                                    ),
-                            ) { _, _, _ -> 1 }
-                                .withVariablesProvider(setOf("left", "right")) {
-                                    mapOf("left" to true, "right" to true)
-                                },
-                        schema.loweredSchema.requireObjectField("Query", "shared") to
-                            fieldResolverOf(empty) { _, _, _ -> 1 },
-                        schema.loweredSchema.requireObjectField("Query", "audit") to
-                            fieldResolverOf(empty) { _, _, _ -> 1 },
-                    )
-                },
-                fieldCheckers = { schema ->
-                    val shared = schema.loweredSchema.requireObjectField("Query", "shared")
-                    val pair =
-                        ResolverFragmentTemplates(
-                            schema.loweredSchema.emptyFragmentOf("Query").materializeSelections,
-                            schema.fragmentFrom("fragment CheckerInput on Query { audit }").materializeSelections,
-                        )
-                    mapOf(
-                        shared to
-                            FieldCheckerResolver.of(
-                                shared,
-                                schema.loweredSchema.requireQueryTypeDef(),
-                                mapOf("input" to pair),
-                            ) { _, _, _ -> CheckerResult.Success },
-                    )
-                },
+            TestWorld.fromDSL(
+                """
+                extend type Query {
+                  requested(id: Int!): Int @resolver(
+                    qf: "left: shared @include(if: ${'$'}left) right: shared @include(if: ${'$'}right)"
+                    vars: {names: ["left", "right"], script: "{'left': true, 'right': true}"}
+                    script: "1"
+                  )
+                  shared: Int @resolver(script: "1") @checker(inputs: [{name: "input", qf: "audit"}], script: "allow")
+                  audit: Int @resolver(script: "1")
+                }
+                """.trimIndent(),
             )
         val world = fixture.assumptions
         val queryType = world.schema.requireQueryTypeDef()
@@ -390,28 +272,17 @@ class SuperlinearGrowthTest : ResolutionDispatcherResource {
     @Test
     fun `wide client request activates compact guarded demand without recursion`() {
         val fixture =
-            TestWorld.fromSDL(
-                schemaSDL = "type Query { requested(id: Int!): Int shared: Int }",
-                fieldResolvers = { schema ->
-                    val requested = schema.loweredSchema.requireObjectField("Query", "requested")
-                    val shared = schema.loweredSchema.requireObjectField("Query", "shared")
-                    val empty = schema.loweredSchema.emptyFragmentOf("Query")
-                    mapOf(
-                        requested to
-                            fieldResolverOf(
-                                objectFragment = empty,
-                                queryFragment =
-                                    schema.fragmentFrom(
-                                        "fragment Input on Query { a: shared @include(if: ${'$'}enabled) b: shared @skip(if: ${'$'}disabled) }",
-                                        variableField = requested,
-                                    ),
-                            ) { _, _, _ -> 1 }
-                                .withVariablesProvider(setOf("enabled", "disabled")) {
-                                    mapOf("enabled" to true, "disabled" to false)
-                                },
-                        shared to fieldResolverOf(empty) { _, _, _ -> 1 },
-                    )
-                },
+            TestWorld.fromDSL(
+                """
+                extend type Query {
+                  requested(id: Int!): Int @resolver(
+                    qf: "a: shared @include(if: ${'$'}enabled) b: shared @skip(if: ${'$'}disabled)"
+                    vars: {names: ["enabled", "disabled"], script: "{'enabled': true, 'disabled': false}"}
+                    script: "1"
+                  )
+                  shared: Int @resolver(script: "1")
+                }
+                """.trimIndent(),
             )
         val width = 1_800
         val fields = (0 until width).joinToString(" ") { index -> "r$index: requested(id: $index)" }
@@ -428,24 +299,11 @@ class SuperlinearGrowthTest : ResolutionDispatcherResource {
     fun `type checker input demand keeps guarded alternatives compact`() {
         for (depth in listOf(3, 6, 9, 12)) {
             val fixture =
-                TestWorld.fromSDL(
-                    schemaSDL = "type Query { seed: Int } type Box { audit: Int }",
-                    typeCheckers = { schema ->
-                        val type = schema.loweredSchema.requireObjectField("Box", "audit").containingDef
-                        val pair =
-                            ResolverFragmentTemplates(
-                                schema.fragmentFrom("fragment CheckerInput on Box { audit }").materializeSelections,
-                                materializeSelectionForestOf(),
-                            )
-                        mapOf(
-                            type to
-                                TypeCheckerResolver.of(
-                                    type,
-                                    schema.loweredSchema.requireQueryTypeDef(),
-                                    mapOf("input" to pair),
-                                ) { _, _ -> CheckerResult.Success },
-                        )
-                    },
+                TestWorld.fromDSL(
+                    """
+                    extend type Query { seed: Int }
+                    type Box @checker(inputs: [{name: "input", of: "audit"}], script: "allow") { audit: Int }
+                    """.trimIndent(),
                 )
             val world = fixture.assumptions
             val queryType = world.schema.requireQueryTypeDef()

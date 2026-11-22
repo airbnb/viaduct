@@ -4,20 +4,10 @@ import java.util.concurrent.atomic.AtomicInteger
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlinx.coroutines.CoroutineScope
-import viaduct.engine.api.CheckerResult
 import viaduct.engine.runtime2.contract.CoroutineResolverTestSubject
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.SelectionForest
-import viaduct.engine.runtime2.model.emptyFragmentOf
-import viaduct.engine.runtime2.model.materializeSelectionForestOf
-import viaduct.engine.runtime2.model.registry.FieldCheckerResolver
-import viaduct.engine.runtime2.model.registry.ResolverFragmentTemplates
-import viaduct.engine.runtime2.model.registry.fieldResolverOf
-import viaduct.engine.runtime2.model.requireObjectField
-import viaduct.engine.runtime2.model.requireQueryTypeDef
 import viaduct.engine.runtime2.model.testing.TestWorld
-import viaduct.engine.runtime2.model.testing.emptyFragmentOf
-import viaduct.engine.runtime2.model.testing.fragmentFrom
 import viaduct.engine.runtime2.resolution.framework.CycleCheckState
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
 import viaduct.engine.runtime2.resolvers.resolver21.startCoroutineResolution
@@ -55,60 +45,19 @@ class QueryFragmentExpansionTest : CoroutineResolverTestSubject() {
         val resolverInvocations = AtomicInteger()
         val checkerInvocations = AtomicInteger()
         val testWorld =
-            TestWorld.fromSDL(
-                schemaSDL =
-                    "type Query { " +
-                        (0..depth).joinToString(" ") { index -> "field$index: Int!" } +
-                        " }",
-                fieldResolvers = { schema ->
-                    (0..depth).associate { index ->
-                        val field = schema.loweredSchema.requireObjectField("Query", "field$index")
-                        val queryFragment =
-                            if (index == depth) {
-                                schema.loweredSchema.emptyFragmentOf("Query")
-                            } else {
-                                schema.fragmentFrom(
-                                    "fragment Input on Query { field${index + 1} }",
-                                )
-                            }
-                        field to
-                            fieldResolverOf(
-                                schema.loweredSchema.emptyFragmentOf("Query"),
-                                queryFragment,
-                            ) { _, _, _ ->
-                                resolverInvocations.incrementAndGet()
-                                1
-                            }
-                    }
-                },
-                fieldCheckers = { schema ->
-                    (0..depth).associate { index ->
-                        val field = schema.loweredSchema.requireObjectField("Query", "field$index")
-                        val querySelections =
-                            if (index == depth) {
-                                materializeSelectionForestOf()
-                            } else {
-                                schema
-                                    .fragmentFrom(
-                                        "fragment Input on Query { field${index + 1} }",
-                                    ).materializeSelections
-                            }
-                        val templates =
-                            ResolverFragmentTemplates(
-                                objectFragmentTemplate = materializeSelectionForestOf(),
-                                queryFragmentTemplate = querySelections,
-                            )
-                        field to
-                            FieldCheckerResolver.of(
-                                field = field,
-                                queryType = schema.loweredSchema.requireQueryTypeDef(),
-                                fragmentTemplates = mapOf("left" to templates, "right" to templates),
-                            ) { _, _, _ ->
-                                checkerInvocations.incrementAndGet()
-                                CheckerResult.Success
-                            }
-                    }
-                },
+            TestWorld.fromDSL(
+                schemaSDL = "extend type Query {\n" + (0..depth).joinToString("\n") { index ->
+                    val required = if (index == depth) "" else "field${index + 1}"
+                    """
+                    field$index: Int!
+                      @resolver(qf: "$required", script: "resolverInvocations.incrementAndGet(); 1")
+                      @checker(
+                        inputs: [{name: "left", qf: "$required"}, {name: "right", qf: "$required"}]
+                        script: "checkerInvocations.incrementAndGet(); allow"
+                      )
+                    """.trimIndent()
+                } + "\n}",
+                scriptBindings = mapOf("resolverInvocations" to resolverInvocations, "checkerInvocations" to checkerInvocations),
             )
         val world = testWorld.assumptions
 

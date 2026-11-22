@@ -26,14 +26,12 @@ import viaduct.engine.runtime2.model.ErrorEngineResult
 import viaduct.engine.runtime2.model.ListEngineResult
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.PathComponent
-import viaduct.engine.runtime2.model.RootFieldReferenceData
 import viaduct.engine.runtime2.model.emptyFragmentOf
 import viaduct.engine.runtime2.model.registry.fieldResolverOf
 import viaduct.engine.runtime2.model.requireObjectField
 import viaduct.engine.runtime2.model.requireQueryTypeDef
 import viaduct.engine.runtime2.model.testing.TestWorld
 import viaduct.engine.runtime2.model.testing.emptyFragmentOf
-import viaduct.engine.runtime2.model.testing.fragmentFrom
 import viaduct.engine.runtime2.resolution.framework.MutationOrchestrationTask
 import viaduct.engine.runtime2.resolution.framework.OEROccurrence
 import viaduct.engine.runtime2.resolution.framework.ResolutionObserver
@@ -48,12 +46,11 @@ class TaskObservationTest : ResolutionDispatcherResource {
     @Test
     fun `either task callback can be subscribed independently`() {
         for (type in listOf("Query", "Mutation")) {
-            val world = TestWorld.fromSDL(
-                "type Query { value: Int } type Mutation { value: Int }",
-                fieldResolvers = { schemas ->
-                    val schema = schemas.loweredSchema
-                    mapOf(schema.requireObjectField(type, "value") to fieldResolverOf(schema.emptyFragmentOf(type)) { _, _ -> 7 })
-                }
+            val world = TestWorld.fromDSL(
+                """
+                extend type Query { value: Int ${if (type == "Query") "@resolver(script: \"7\")" else ""} }
+                type Mutation { value: Int ${if (type == "Mutation") "@resolver(script: \"7\")" else ""} }
+                """.trimIndent(),
             )
             for (prepareOnly in listOf(false, true)) {
                 val prepared = ConcurrentLinkedQueue<ResolutionTask>()
@@ -139,20 +136,14 @@ class TaskObservationTest : ResolutionDispatcherResource {
 
     @Test
     fun `list reference tasks retain their field creator and independently rooted Query tasks`() {
-        val world = TestWorld.fromSDL(
-            "type Query { numbers: [Int!]! target: Int! source: Int! }",
-            fieldResolvers = { schemas ->
-                val schema = schemas.loweredSchema
-                val empty = schema.emptyFragmentOf("Query")
-                val target = schema.requireObjectField("Query", "target")
-                mapOf(
-                    schema.requireObjectField("Query", "numbers") to fieldResolverOf(empty) { _, _ ->
-                        List(2) { RootFieldReferenceData.of(listOf(target), emptyMap()) }
-                    },
-                    target to fieldResolverOf(empty, schemas.fragmentFrom("fragment Input on Query { source }")) { _, query, _ -> query.get("source") },
-                    schema.requireObjectField("Query", "source") to fieldResolverOf(empty) { _, _ -> 7 },
-                )
+        val world = TestWorld.fromDSL(
+            """
+            extend type Query {
+              numbers: [Int!]! @resolver(script: "[ref('target'), ref('target')]")
+              target: Int! @resolver(qf: "source", script: "queryValue.source")
+              source: Int! @resolver(script: "7")
             }
+            """.trimIndent(),
         )
         val log = TaskLog()
         val root = SharedOperationContext.create(world.assumptions, resolutionObserver = log)
@@ -178,16 +169,13 @@ class TaskObservationTest : ResolutionDispatcherResource {
 
     @Test
     fun `shared Query fields belong to the paired object orchestration`() {
-        val world = TestWorld.fromSDL(
-            "type Query { consumer: Int source: Int }",
-            fieldResolvers = { schemas ->
-                val schema = schemas.loweredSchema
-                val empty = schema.emptyFragmentOf("Query")
-                mapOf(
-                    schema.requireObjectField("Query", "consumer") to fieldResolverOf(empty, schemas.fragmentFrom("fragment Input on Query { source }")) { _, query, _ -> query.get("source") },
-                    schema.requireObjectField("Query", "source") to fieldResolverOf(empty) { _, _ -> 11 },
-                )
+        val world = TestWorld.fromDSL(
+            """
+            extend type Query {
+              consumer: Int @resolver(qf: "source", script: "queryValue.source")
+              source: Int @resolver(script: "11")
             }
+            """.trimIndent(),
         )
         val log = TaskLog()
         val root = SharedOperationContext.create(world.assumptions, resolutionObserver = log)
@@ -202,12 +190,13 @@ class TaskObservationTest : ResolutionDispatcherResource {
 
     @Test
     fun `mutation namespace orchestrations own their field tasks`() {
-        val world = TestWorld.fromSDL(
-            "directive @namespaceType on OBJECT type Query { unused: Int } type Mutation { nested: Namespace } type Namespace @namespaceType { value: Int }",
-            fieldResolvers = { schemas ->
-                val schema = schemas.loweredSchema
-                mapOf(schema.requireObjectField("Namespace", "value") to fieldResolverOf(schema.emptyFragmentOf("Namespace")) { _, _ -> 13 })
-            }
+        val world = TestWorld.fromDSL(
+            """
+            directive @namespaceType on OBJECT
+            extend type Query { unused: Int }
+            type Mutation { nested: Namespace }
+            type Namespace @namespaceType { value: Int @resolver(script: "13") }
+            """.trimIndent(),
         )
         val log = TaskLog()
         SharedOperationContext.create(world.assumptions, resolutionObserver = log)
@@ -404,12 +393,8 @@ class TaskObservationTest : ResolutionDispatcherResource {
 
     @Test
     fun `field errors complete the task normally and callbacks default to null`() {
-        val world = TestWorld.fromSDL(
-            "type Query { value: Int }",
-            fieldResolvers = { schemas ->
-                val schema = schemas.loweredSchema
-                mapOf(schema.requireObjectField("Query", "value") to fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ -> error("tenant failure") })
-            }
+        val world = TestWorld.fromDSL(
+            """extend type Query { value: Int @resolver(script: "throw 'tenant failure'") }""",
         )
         val log = TaskLog()
         val root = SharedOperationContext.create(world.assumptions, resolutionObserver = log)

@@ -203,21 +203,15 @@ class SuccessorDemandRegressionTest : ResolutionDispatcherResource {
         val depth = 12
 
         fun inputs(index: Int) = ((index + 1)..minOf(index + 2, depth)).joinToString(" ") { "field$it" }
-        val fields = (0..depth).joinToString("\n") { "field$it: Int @resolver(of: \"${inputs(it)}\", script: \"1\")" }
-        val originalFixture = TestWorld
-            .fromDSL(
-                "extend type Query { $fields }",
-                fieldCheckers = { schema ->
-                    (0 until depth).associate { index ->
-                        val field = schema.loweredSchema.requireObjectField("Query", "field$index")
-                        val pair = ResolverFragmentTemplates(
-                            schema.fragmentFrom("fragment Input on Query { ${inputs(index)} }").materializeSelections,
-                            materializeSelectionForestOf(),
-                        )
-                        field to FieldCheckerResolver.of(field, schema.loweredSchema.requireQueryTypeDef(), mapOf("first" to pair, "second" to pair)) { _, _, _ -> CheckerResult.Success }
-                    }
-                },
-            )
+        val fields = (0..depth).joinToString("\n") { index ->
+            val checker = if (index == depth) {
+                ""
+            } else {
+                """@checker(inputs: [{name: "first", of: "${inputs(index)}"}, {name: "second", of: "${inputs(index)}"}], script: "allow")"""
+            }
+            """field$index: Int @resolver(of: "${inputs(index)}", script: "1") $checker"""
+        }
+        val originalFixture = TestWorld.fromDSL("extend type Query { $fields }")
         val original = originalFixture.assumptions
         var lookups = 0
         val registry = object : ResolverRegistry by original.resolverRegistry {

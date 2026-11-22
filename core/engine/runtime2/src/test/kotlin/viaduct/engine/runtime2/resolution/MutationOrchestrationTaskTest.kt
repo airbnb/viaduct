@@ -173,19 +173,13 @@ class MutationOrchestrationTaskTest : ResolutionDispatcherResource {
     @Test
     fun `orchestration activates each mutation member before handing off its work`(): Unit =
         runTest {
-            val fixture = TestWorld.fromSDL(
+            val fixture = TestWorld.fromDSL(
                 """
                 directive @namespaceType on OBJECT
-                type Query { idle: Int }
-                type Mutation { update: Int group: Group }
-                type Group @namespaceType { update: Int }
+                extend type Query { idle: Int }
+                type Mutation { update: Int @resolver(script: "7") group: Group }
+                type Group @namespaceType { update: Int @resolver(script: "7") }
                 """.trimIndent(),
-                fieldResolvers = { schemas ->
-                    val schema = schemas.loweredSchema
-                    listOf("Mutation", "Group").associate { type ->
-                        schema.requireObjectField(type, "update") to fieldResolverOf(schema.emptyFragmentOf(type)) { _, _ -> 7 }
-                    }
-                },
             )
             val selections = assertIs<MutationSelectionForest>(
                 fixture.schemas.operationSelectionsFrom("mutation { first: update group { nested: update } last: update }"),
@@ -244,20 +238,14 @@ class MutationOrchestrationTaskTest : ResolutionDispatcherResource {
     @Test
     fun `nested orchestration cancels each level while preserving completed mutations`(): Unit =
         runTest {
-            val fixture = TestWorld.fromSDL(
+            val fixture = TestWorld.fromDSL(
                 """
                 directive @namespaceType on OBJECT
-                type Query { idle: Int }
-                type Mutation { update: Int group: Group }
-                type Group @namespaceType { update: Int nested: Nested }
-                type Nested @namespaceType { update: Int }
+                extend type Query { idle: Int }
+                type Mutation { update: Int @resolver(script: "0") group: Group }
+                type Group @namespaceType { update: Int @resolver(script: "0") nested: Nested }
+                type Nested @namespaceType { update: Int @resolver(script: "0") }
                 """.trimIndent(),
-                fieldResolvers = { schemas ->
-                    val schema = schemas.loweredSchema
-                    listOf("Mutation", "Group", "Nested").associate { type ->
-                        schema.requireObjectField(type, "update") to fieldResolverOf(schema.emptyFragmentOf(type)) { _, _ -> 0 }
-                    }
-                },
             )
             val selections = assertIs<MutationSelectionForest>(
                 fixture.schemas.operationSelectionsFrom(

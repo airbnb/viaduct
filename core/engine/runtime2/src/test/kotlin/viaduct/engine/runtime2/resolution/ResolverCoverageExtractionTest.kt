@@ -9,7 +9,6 @@ import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import viaduct.engine.api.EngineObjectData
-import viaduct.engine.runtime2.bootstrap.fromQueryField
 import viaduct.engine.runtime2.contract.CorrectResolutionPostTestPolicy
 import viaduct.engine.runtime2.contract.ResolverResolutionObservation
 import viaduct.engine.runtime2.contract.resolveAndValidateObserved
@@ -28,16 +27,10 @@ import viaduct.engine.runtime2.coverage.ResolverLocus
 import viaduct.engine.runtime2.coverage.StampClass
 import viaduct.engine.runtime2.coverage.coverageRecords
 import viaduct.engine.runtime2.coverage.coverageRows
-import viaduct.engine.runtime2.model.Arguments
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.ResolverOccurrenceId
 import viaduct.engine.runtime2.model.SelectionForest
-import viaduct.engine.runtime2.model.emptyFragmentOf
-import viaduct.engine.runtime2.model.outputValue
-import viaduct.engine.runtime2.model.registry.fieldResolverOf
-import viaduct.engine.runtime2.model.requireObjectField
 import viaduct.engine.runtime2.model.testing.TestWorld
-import viaduct.engine.runtime2.model.testing.fragmentFrom
 import viaduct.engine.runtime2.model.testing.objectOf
 import viaduct.engine.runtime2.resolution.framework.ProviderCellOutcome
 import viaduct.engine.runtime2.resolution.framework.ResolutionObserver
@@ -330,48 +323,22 @@ class ResolverCoverageExtractionTest : CorrectResolutionPostTestPolicy, Resoluti
 }
 
 private fun queryProviderWorld(): TestWorld {
-    val fragmentSource =
-        "fragment Input on Query { source { value passive } consume(value: ${'$'}fromSource) }"
-    return TestWorld.fromSDL(
-        schemaSDL =
-            """
-            type Query {
-              result: Int
-              source: Source
-              consume(value: Int): Int
-            }
-            type Source { value: Int passive: Int }
-            """.trimIndent(),
-        fieldResolvers = { schema ->
-            val result = schema.loweredSchema.requireObjectField("Query", "result")
-            val fragment = schema.fragmentFrom(fragmentSource, variableField = result)
-            mapOf(
-                result to fieldResolverOf(
-                    objectFragment = schema.loweredSchema.emptyFragmentOf("Query"),
-                    queryFragment = fragment,
-                ) { _, query, _ -> query.outputValue("consume") },
-                schema.loweredSchema.requireObjectField("Query", "source") to
-                    fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
-                        schema.loweredSchema.objectOf("Source") {
-                            "value" setTo 7
-                            "passive" setTo 11
-                        }
-                    },
-                schema.loweredSchema.requireObjectField("Source", "passive") to
-                    fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Source")) { _, _ -> 99 },
-                schema.loweredSchema.requireObjectField("Query", "consume") to
-                    fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, arguments ->
-                        arguments.fieldValues.getValue("value")
-                    },
-            )
-        },
-        variableProviders = { schema ->
-            val result = schema.loweredSchema.requireObjectField("Query", "result")
-            mapOf(
-                Arguments.Variable.of(result, "fromSource") to
-                    schema.fromQueryField(fragmentSource, listOf("source", "value"), result),
-            )
-        },
+    return TestWorld.fromDSL(
+        """
+        extend type Query {
+          result: Int @resolver(
+            qf: "source { value passive } consume(value: ${'$'}fromSource)"
+            variables: [{name: "fromSource", fromQueryField: ["source", "value"]}]
+            script: "queryValue.consume"
+          )
+          source: Source @resolver(script: "{'value': 7, 'passive': 11}")
+          consume(value: Int): Int @resolver(script: "value")
+        }
+        type Source {
+          value: Int
+          passive: Int @resolver(script: "99")
+        }
+        """.trimIndent(),
     )
 }
 

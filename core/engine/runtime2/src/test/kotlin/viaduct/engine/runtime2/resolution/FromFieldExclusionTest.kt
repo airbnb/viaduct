@@ -5,27 +5,17 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertTrue
-import viaduct.engine.runtime2.bootstrap.fromObjectField
-import viaduct.engine.runtime2.bootstrap.fromQueryField
 import viaduct.engine.runtime2.contract.validateFromFieldBindings
 import viaduct.engine.runtime2.correctresolution.CorrectnessResolverObserver
 import viaduct.engine.runtime2.correctresolution.correctResolution
-import viaduct.engine.runtime2.model.Arguments
-import viaduct.engine.runtime2.model.EngineErrorData
 import viaduct.engine.runtime2.model.ErrorEngineResult
 import viaduct.engine.runtime2.model.ObjectEngineResult
-import viaduct.engine.runtime2.model.emptyFragmentOf
 import viaduct.engine.runtime2.model.merge
-import viaduct.engine.runtime2.model.outputValue
 import viaduct.engine.runtime2.model.registry.ProviderFragment
-import viaduct.engine.runtime2.model.registry.fieldResolverOf
-import viaduct.engine.runtime2.model.registry.fromArgument
 import viaduct.engine.runtime2.model.requireObjectField
 import viaduct.engine.runtime2.model.requireQueryTypeDef
 import viaduct.engine.runtime2.model.testing.TestWorld
-import viaduct.engine.runtime2.model.testing.emptyFragmentOf
 import viaduct.engine.runtime2.model.testing.fragmentFrom
-import viaduct.engine.runtime2.model.testing.objectOf
 import viaduct.engine.runtime2.resolution.framework.ResolverInvocationObservation
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
 
@@ -132,61 +122,36 @@ class FromFieldExclusionTest : ResolutionDispatcherResource {
         errorAt: String? = null,
         responsePath: List<String> = listOf("a", "b", "c"),
     ): TestWorld {
-        val fragmentSource = "fragment Input on Query { $source consume(value: ${'$'}value) }"
-        return TestWorld.fromSDL(
+        val fragmentSource = "$source consume(value: ${'$'}value)".replace("\n", " ")
+        val variableSource = if (provider == ProviderFragment.OBJECT) "fromObjectField" else "fromQueryField"
+        val variables = buildList {
+            add("""{name: "value", $variableSource: [${responsePath.joinToString { "\"$it\"" }}]}""")
+            if ("${'$'}enabled" in source) {
+                val definition = if (conditionFromField) """$variableSource: ["flag"]""" else """fromArgument: ["enabled"]"""
+                add("""{name: "enabled", $definition}""")
+            }
+            if ("${'$'}other" in source) add("""{name: "other", fromArgument: ["other"]}""")
+        }.joinToString("\n")
+        val cScript = when {
+            errorAt == "c" -> "error"
+            nullAt == "c" -> "null"
+            else -> "7"
+        }
+        return TestWorld.fromDSL(
             schemaSDL = """
-                type Query {
-                  outer(enabled: Boolean!, other: Boolean!): Int!
-                  consume(value: Int): Int!
-                  a: A!
-                  flag: Boolean!
+                extend type Query {
+                  outer(enabled: Boolean!, other: Boolean!): Int! @resolver(
+                    ${if (provider == ProviderFragment.OBJECT) "of" else "qf"}: "$fragmentSource"
+                    variables: [$variables]
+                    script: "${if (provider == ProviderFragment.OBJECT) "objectValue" else "queryValue"}.consume"
+                  )
+                  consume(value: Int): Int! @resolver(script: "value == null ? -1 : value")
+                  a: A! @resolver(script: "{:}")
+                  flag: Boolean! @resolver(script: "false")
                 }
-                type A { b: B }
-                type B { c: Int }
+                type A { b: B @resolver(script: "${if (nullAt == "b") "null" else "{:}"}") }
+                type B { c: Int @resolver(script: "$cScript") }
             """.trimIndent(),
-            fieldResolvers = { schema ->
-                val outer = schema.loweredSchema.requireObjectField("Query", "outer")
-                val fragment = schema.fragmentFrom(fragmentSource, variableField = outer)
-                mapOf(
-                    outer to fieldResolverOf(
-                        objectFragment = if (provider == ProviderFragment.OBJECT) fragment else schema.loweredSchema.emptyFragmentOf("Query"),
-                        queryFragment = if (provider == ProviderFragment.QUERY) fragment else schema.loweredSchema.emptyFragmentOf("Query"),
-                    ) { obj, query, _ ->
-                        (if (provider == ProviderFragment.OBJECT) obj else query).outputValue("consume")
-                    },
-                    schema.loweredSchema.requireObjectField("Query", "consume") to fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, args ->
-                        args.fieldValues.getValue("value") ?: -1
-                    },
-                    schema.loweredSchema.requireObjectField("Query", "a") to fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ -> schema.loweredSchema.objectOf("A") },
-                    schema.loweredSchema.requireObjectField("Query", "flag") to fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ -> false },
-                    schema.loweredSchema.requireObjectField("A", "b") to fieldResolverOf(schema.loweredSchema.emptyFragmentOf("A")) { _, _ ->
-                        if (nullAt == "b") null else schema.loweredSchema.objectOf("B")
-                    },
-                    schema.loweredSchema.requireObjectField("B", "c") to fieldResolverOf(schema.loweredSchema.emptyFragmentOf("B")) { _, _ ->
-                        when {
-                            errorAt == "c" -> EngineErrorData.of()
-                            nullAt == "c" -> null
-                            else -> 7
-                        }
-                    },
-                )
-            },
-            variableProviders = { schema ->
-                val outer = schema.loweredSchema.requireObjectField("Query", "outer")
-
-                fun fromPath(path: List<String>) =
-                    when (provider) {
-                        ProviderFragment.OBJECT -> schema.fromObjectField(fragmentSource, path, outer)
-                        ProviderFragment.QUERY -> schema.fromQueryField(fragmentSource, path, outer)
-                    }
-                buildMap {
-                    put(Arguments.Variable.of(outer, "value"), fromPath(responsePath))
-                    if ("${'$'}enabled" in source) {
-                        put(Arguments.Variable.of(outer, "enabled"), if (conditionFromField) fromPath(listOf("flag")) else schema.loweredSchema.fromArgument(outer, "enabled"))
-                    }
-                    if ("${'$'}other" in source) put(Arguments.Variable.of(outer, "other"), schema.loweredSchema.fromArgument(outer, "other"))
-                }
-            },
         )
     }
 

@@ -17,17 +17,13 @@ import viaduct.engine.runtime2.contract.forEachRegisteredResolverOccurrence
 import viaduct.engine.runtime2.contract.registeredResolverOccurrenceCounts
 import viaduct.engine.runtime2.contract.registeredResolverOccurrences
 import viaduct.engine.runtime2.model.Arguments
-import viaduct.engine.runtime2.model.EngineErrorData
 import viaduct.engine.runtime2.model.ListEngineResult
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.ResolverOccurrenceId
-import viaduct.engine.runtime2.model.emptyFragmentOf
-import viaduct.engine.runtime2.model.registry.fieldResolverOf
 import viaduct.engine.runtime2.model.requireField
 import viaduct.engine.runtime2.model.requireObjectField
 import viaduct.engine.runtime2.model.requireQueryTypeDef
 import viaduct.engine.runtime2.model.testing.TestWorld
-import viaduct.engine.runtime2.model.testing.emptyFragmentOf
 import viaduct.engine.runtime2.model.testing.engineResultOf
 import viaduct.engine.runtime2.model.testing.fragmentFrom
 import viaduct.engine.runtime2.model.testing.objectOf
@@ -668,51 +664,19 @@ class ResolutionWitnessTest {
     }
 
     private fun traversalWorld(): TestWorld =
-        TestWorld.fromSDL(
-            schemaSDL =
-                """
-                type Query {
-                  item: Payload!
-                  items: [Payload!]!
-                  helper: Int!
-                  dead: Int!
-                }
-
-                type Payload {
-                  computed(scale: Int!): Int!
-                  base: Int!
-                }
-                """.trimIndent(),
-            fieldResolvers = { schema ->
-                val queryNeedsHelper =
-                    schema.fragmentFrom(
-                        "fragment ignored on Query { helper }",
-                    )
-                val payloadNeedsBase =
-                    schema.fragmentFrom(
-                        "fragment ignored on Payload { base }",
-                    )
-                mapOf(
-                    schema.loweredSchema.requireField("Query", "item") to
-                        fieldResolverOf(queryNeedsHelper) { _, _ -> EngineErrorData.of() },
-                    schema.loweredSchema.requireField("Query", "items") to
-                        fieldResolverOf(queryNeedsHelper) { _, _ -> EngineErrorData.of() },
-                    schema.loweredSchema.requireField("Query", "helper") to
-                        fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
-                            EngineErrorData.of()
-                        },
-                    schema.loweredSchema.requireField("Query", "dead") to
-                        fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
-                            EngineErrorData.of()
-                        },
-                    schema.loweredSchema.requireField("Payload", "computed") to
-                        fieldResolverOf(payloadNeedsBase) { _, _ -> EngineErrorData.of() },
-                    schema.loweredSchema.requireField("Payload", "base") to
-                        fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Payload")) { _, _ ->
-                            EngineErrorData.of()
-                        },
-                )
-            },
+        TestWorld.fromDSL(
+            """
+            extend type Query {
+              item: Payload! @resolver(of: "helper", script: "error")
+              items: [Payload!]! @resolver(of: "helper", script: "error")
+              helper: Int! @resolver(script: "error")
+              dead: Int! @resolver(script: "error")
+            }
+            type Payload {
+              computed(scale: Int!): Int! @resolver(of: "base", script: "error")
+              base: Int! @resolver(script: "error")
+            }
+            """.trimIndent(),
         )
 
     private fun coordinate(field: ViaductSchema.ObjectField): FieldCoordinate = FieldCoordinate(field.containingDef.name, field.name)

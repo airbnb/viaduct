@@ -6,13 +6,9 @@ import kotlin.test.assertEquals
 import kotlin.test.assertSame
 import viaduct.engine.api.CheckerResult
 import viaduct.engine.runtime2.model.ObjectEngineResult
-import viaduct.engine.runtime2.model.registry.TypeCheckerResolver
-import viaduct.engine.runtime2.model.requireQueryTypeDef
-import viaduct.engine.runtime2.model.requireType
 import viaduct.engine.runtime2.model.testing.TestWorld
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
 import viaduct.engine.runtime2.schema.operationSelectionsFrom
-import viaduct.graphql.schema.ViaductSchema
 
 /** Coverage retained for the T1 cross-slot requirement's independently rooted reference case. */
 class RootReferenceTypeCheckerTest {
@@ -21,27 +17,16 @@ class RootReferenceTypeCheckerTest {
         val invocations = AtomicInteger()
         val worldFixture =
             TestWorld.fromDSL(
-                schemaSDL =
-                    """
-                    extend type Query {
-                      viewer: User! @resolver(script: "ref('node', {'id': 'user-1'})")
-                    }
-
-                    type User implements Node
-                      @nodeResolver(ids: ["user-1"], script: "{'score': 7}") {
-                      id: ID!
-                      score: Int!
-                    }
-                    """.trimIndent(),
-                typeCheckers = { schema ->
-                    val user = schema.loweredSchema.requireType("User") as ViaductSchema.Object
-                    mapOf(
-                        user to TypeCheckerResolver.of(user, schema.loweredSchema.requireQueryTypeDef()) { _, _ ->
-                            invocations.incrementAndGet()
-                            CheckerResult.Success
-                        },
-                    )
-                },
+                """
+                extend type Query { viewer: User! @resolver(script: "ref('node', {'id': 'user-1'})") }
+                type User implements Node
+                  @nodeResolver(ids: ["user-1"], script: "{'score': 7}")
+                  @checker(script: "invocations.incrementAndGet(); allow") {
+                  id: ID!
+                  score: Int!
+                }
+                """.trimIndent(),
+                scriptBindings = mapOf("invocations" to invocations),
             )
         val world = worldFixture.assumptions
 

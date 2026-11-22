@@ -11,18 +11,12 @@ import viaduct.engine.runtime2.arbitrary.ResolutionOccurrenceWitness
 import viaduct.engine.runtime2.arbitrary.ResolverOccurrenceApplicationRecord
 import viaduct.engine.runtime2.contract.registeredResolverApplicationIdentityCounts
 import viaduct.engine.runtime2.contract.registeredResolverOccurrenceApplicationIdentityCounts
-import viaduct.engine.runtime2.contract.selectionValues
 import viaduct.engine.runtime2.correctresolution.CorrectnessResolverObserver
 import viaduct.engine.runtime2.model.ListEngineResult
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.ResolverOccurrenceId
-import viaduct.engine.runtime2.model.emptyFragmentOf
-import viaduct.engine.runtime2.model.registry.fieldResolverOf
-import viaduct.engine.runtime2.model.requireObjectField
 import viaduct.engine.runtime2.model.testing.TestWorld
-import viaduct.engine.runtime2.model.testing.emptyFragmentOf
 import viaduct.engine.runtime2.model.testing.fragmentFrom
-import viaduct.engine.runtime2.model.testing.objectOf
 import viaduct.engine.runtime2.resolution.framework.ResolverInvocationObservation
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
 
@@ -30,40 +24,14 @@ class ResolverOccurrenceWitnessTest {
     @Test
     fun `occurrence oracle includes one shared query root`() {
         val testWorld =
-            TestWorld.fromSDL(
-                schemaSDL =
-                    """
-                    type Query {
-                      source: Int!
-                      first: Int!
-                      second: Int!
-                    }
-                    """.trimIndent(),
-                fieldResolvers = { schema ->
-                    val source = schema.loweredSchema.requireObjectField("Query", "source")
-                    val queryFragment =
-                        schema.fragmentFrom(
-                            "fragment SourceQuery on Query { source }",
-                        )
-                    mapOf(
-                        source to
-                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ -> 7 },
-                        schema.loweredSchema.requireObjectField("Query", "first") to
-                            fieldResolverOf(
-                                objectFragment = schema.loweredSchema.emptyFragmentOf("Query"),
-                                queryFragment = queryFragment,
-                            ) { _, queryValue, _ ->
-                                queryValue.selectionValues().getValue("source")
-                            },
-                        schema.loweredSchema.requireObjectField("Query", "second") to
-                            fieldResolverOf(
-                                objectFragment = schema.loweredSchema.emptyFragmentOf("Query"),
-                                queryFragment = queryFragment,
-                            ) { _, queryValue, _ ->
-                                queryValue.selectionValues().getValue("source")
-                            },
-                    )
-                },
+            TestWorld.fromDSL(
+                """
+                extend type Query {
+                  source: Int! @resolver(script: "7")
+                  first: Int! @resolver(qf: "source", script: "queryValue.source")
+                  second: Int! @resolver(qf: "source", script: "queryValue.source")
+                }
+                """.trimIndent(),
             )
         val world = testWorld.assumptions
 
@@ -133,48 +101,16 @@ class ResolverOccurrenceWitnessTest {
     @Test
     fun `occurrence oracle rejects duplicate-one omit-one for equal-input list elements`() {
         val testWorld =
-            TestWorld.fromSDL(
-                schemaSDL =
-                    """
-                    type Query {
-                      items: [Payload!]!
-                    }
-
-                    type Payload {
-                      computed: Int!
-                      base: Int!
-                    }
-                    """.trimIndent(),
-                fieldResolvers = { schema ->
-                    val items = schema.loweredSchema.requireObjectField("Query", "items")
-                    checkNotNull(items.type.unwrapList())
-                    val baseKey =
-                        ObjectEngineResult.GroundKey.of(
-                            schema.loweredSchema.requireObjectField("Payload", "base"),
-                            emptyMap(),
-                        )
-                    mapOf(
-                        items to
-                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
-                                listOf(
-                                    schema.loweredSchema.objectOf("Payload") {
-                                        "base" setTo 10
-                                    },
-                                    schema.loweredSchema.objectOf("Payload") {
-                                        "base" setTo 10
-                                    },
-                                )
-                            },
-                        schema.loweredSchema.requireObjectField("Payload", "computed") to
-                            fieldResolverOf(
-                                schema.fragmentFrom(
-                                    "fragment PayloadInput on Payload { base }",
-                                ),
-                            ) { input, _ ->
-                                input.selectionValues().getValue(baseKey.field.name)
-                            },
-                    )
-                },
+            TestWorld.fromDSL(
+                """
+                extend type Query {
+                  items: [Payload!]! @resolver(script: "[{'base': 10}, {'base': 10}]")
+                }
+                type Payload {
+                  computed: Int! @resolver(of: "base", script: "objectValue.base")
+                  base: Int!
+                }
+                """.trimIndent(),
             )
         val world = testWorld.assumptions
 

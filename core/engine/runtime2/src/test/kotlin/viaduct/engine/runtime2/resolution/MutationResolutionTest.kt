@@ -280,22 +280,22 @@ class MutationResolutionTest : ResolutionDispatcherResource {
                 DynamicTest.dynamicTest("${family.name}: nonnull namespace=$nonNullNamespace") {
                     val calls = AtomicInteger()
                     val namespaceType = if (nonNullNamespace) "Group!" else "Group"
-                    val fixture = TestWorld.fromSDL(
+                    val fixture = TestWorld.fromDSL(
                         """
                         directive @namespaceType on OBJECT
-                        type Query { idle: Int }
-                        type Mutation { group: $namespaceType, update: Int }
-                        type Group @namespaceType { update: Int! }
+                        extend type Query { idle: Int }
+                        type Mutation {
+                          group: $namespaceType
+                          update: Int @resolver(script: "calls.incrementAndGet()")
+                        }
+                        type Group @namespaceType {
+                          update: Int! @resolver(script: "calls.incrementAndGet() == 1 ? failure : calls.get()")
+                        }
                         """.trimIndent(),
-                        fieldResolvers = { schemas ->
-                            val schema = schemas.loweredSchema
-                            mapOf(
-                                schema.requireObjectField("Mutation", "update") to fieldResolverOf(schema.emptyFragmentOf("Mutation")) { _, _ -> calls.incrementAndGet() },
-                                schema.requireObjectField("Group", "update") to fieldResolverOf(schema.emptyFragmentOf("Group")) { _, _ ->
-                                    if (calls.incrementAndGet() == 1) EngineErrorData.of(IllegalStateException("mutation failed")) else calls.get()
-                                },
-                            )
-                        },
+                        scriptBindings = mapOf(
+                            "calls" to calls,
+                            "failure" to EngineErrorData.of(IllegalStateException("mutation failed")),
+                        ),
                     )
                     val result = family.resolve(
                         SharedOperationContext.create(fixture.newAssumptions(usePrecomputedConstructionDemand = family.precomputed)),
@@ -322,16 +322,14 @@ class MutationResolutionTest : ResolutionDispatcherResource {
                 val checks = mutableListOf<Int>()
                 val recorder = CheckerApplicationRecorder()
                 val failure = IllegalStateException("checker failed")
-                val fixture = TestWorld.fromSDL(
-                    "type Query { idle: Int } type Mutation { update(value: Int): Int }",
-                    fieldResolvers = { schemas ->
-                        val schema = schemas.loweredSchema
-                        mapOf(
-                            schema.requireObjectField("Mutation", "update") to fieldResolverOf(schema.emptyFragmentOf("Mutation")) { _, args ->
-                                (args.fieldValues.getValue("value") as Int).also { effects += it }
-                            }
-                        )
-                    },
+                val fixture = TestWorld.fromDSL(
+                    """
+                    extend type Query { idle: Int }
+                    type Mutation {
+                      update(value: Int): Int @resolver(script: "effects.add(value); value")
+                    }
+                    """.trimIndent(),
+                    scriptBindings = mapOf("effects" to effects),
                     fieldCheckers = { schemas ->
                         val schema = schemas.loweredSchema
                         val field = schema.requireObjectField("Mutation", "update")
@@ -382,25 +380,25 @@ class MutationResolutionTest : ResolutionDispatcherResource {
                 val events = mutableListOf<String>()
                 val preparedPaths = mutableListOf<List<String>>()
                 var groupTypeCalls = 0
-                val fixture = TestWorld.fromSDL(
+                val fixture = TestWorld.fromDSL(
                     """
                     directive @namespaceType on OBJECT
-                    type Query { idle: Int }
-                    type Mutation { group: Group, hidden: Group, update: Int }
-                    type Group @namespaceType { nested: Nested, update: Int, blocked: Int }
-                    type Nested @namespaceType { update: Int }
+                    extend type Query { idle: Int }
+                    type Mutation {
+                      group: Group
+                      hidden: Group
+                      update: Int @resolver(script: "events.add('effect:Mutation'); 7")
+                    }
+                    type Group @namespaceType {
+                      nested: Nested
+                      update: Int @resolver(script: "events.add('effect:Group'); 7")
+                      blocked: Int @resolver(script: "throw 'Denied field ran'")
+                    }
+                    type Nested @namespaceType {
+                      update: Int @resolver(script: "throw 'Denied field ran'")
+                    }
                     """.trimIndent(),
-                    fieldResolvers = { schemas ->
-                        val schema = schemas.loweredSchema
-                        listOf("Mutation", "Group").associate { owner ->
-                            schema.requireObjectField(owner, "update") to fieldResolverOf(schema.emptyFragmentOf(owner)) { _, _ ->
-                                events += "effect:$owner"
-                                7
-                            }
-                        } + listOf("Group" to "blocked", "Nested" to "update").associate { (owner, name) ->
-                            schema.requireObjectField(owner, name) to fieldResolverOf(schema.emptyFragmentOf(owner)) { _, _ -> error("Denied field ran") }
-                        }
-                    },
+                    scriptBindings = mapOf("events" to events),
                     fieldCheckers = { schemas ->
                         val schema = schemas.loweredSchema
                         listOf("Mutation" to "group", "Mutation" to "hidden", "Group" to "blocked", "Group" to "nested", "Nested" to "update").associate { (owner, name) ->
@@ -479,24 +477,18 @@ class MutationResolutionTest : ResolutionDispatcherResource {
 
     @Test
     fun `mutation checkers query fresh raw state before namespace effects`() {
-        var current = 0
+        val current = AtomicInteger()
         val events = mutableListOf<String>()
-        val fixture = TestWorld.fromSDL(
+        val fixture = TestWorld.fromDSL(
             """
             directive @namespaceType on OBJECT
-            type Query { current: Int }
+            extend type Query { current: Int @resolver(script: "current.get()") }
             type Mutation { group: Group }
-            type Group @namespaceType { update: Int }
+            type Group @namespaceType {
+              update: Int @resolver(script: "var value = current.incrementAndGet(); events.add('effect:' + value); value")
+            }
             """.trimIndent(),
-            fieldResolvers = { schemas ->
-                val schema = schemas.loweredSchema
-                mapOf(
-                    schema.requireObjectField("Query", "current") to fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ -> current },
-                    schema.requireObjectField("Group", "update") to fieldResolverOf(schema.emptyFragmentOf("Group")) { _, _ ->
-                        (++current).also { events += "effect:$it" }
-                    },
-                )
-            },
+            scriptBindings = mapOf("current" to current, "events" to events),
             fieldCheckers = { schemas ->
                 val schema = schemas.loweredSchema
                 listOf("Query" to "current", "Group" to "update").associate { (owner, name) ->
@@ -535,22 +527,19 @@ class MutationResolutionTest : ResolutionDispatcherResource {
                 val effects = mutableListOf<String>()
                 val calls = mutableListOf<String>()
                 val failure = CancellationException("checker-local cancellation")
-                val fixture = TestWorld.fromSDL(
+                val fixture = TestWorld.fromDSL(
                     """
                     directive @namespaceType on OBJECT
-                    type Query { idle: Int }
-                    type Mutation { group: Group, later: Int }
-                    type Group @namespaceType { update: Int }
+                    extend type Query { idle: Int }
+                    type Mutation {
+                      group: Group
+                      later: Int @resolver(script: "effects.add('later'); 7")
+                    }
+                    type Group @namespaceType {
+                      update: Int @resolver(script: "effects.add('update'); 7")
+                    }
                     """.trimIndent(),
-                    fieldResolvers = { schemas ->
-                        val schema = schemas.loweredSchema
-                        listOf("Group" to "update", "Mutation" to "later").associate { (owner, name) ->
-                            schema.requireObjectField(owner, name) to fieldResolverOf(schema.emptyFragmentOf(owner)) { _, _ ->
-                                effects += name
-                                7
-                            }
-                        }
-                    },
+                    scriptBindings = mapOf("effects" to effects),
                     typeCheckers = { schemas ->
                         val schema = schemas.loweredSchema
                         val type = schema.requireType("Group") as ViaductSchema.Object

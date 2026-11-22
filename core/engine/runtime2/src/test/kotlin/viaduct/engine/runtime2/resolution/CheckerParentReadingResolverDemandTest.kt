@@ -4,14 +4,9 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 import viaduct.engine.api.CheckerResult
-import viaduct.engine.api.EngineObjectData
 import viaduct.engine.runtime2.model.ObjectEngineResult
-import viaduct.engine.runtime2.model.materializeSelectionForestOf
 import viaduct.engine.runtime2.model.merge
-import viaduct.engine.runtime2.model.registry.FieldCheckerResolver
-import viaduct.engine.runtime2.model.registry.ResolverFragmentTemplates
 import viaduct.engine.runtime2.model.requireObjectField
-import viaduct.engine.runtime2.model.requireQueryTypeDef
 import viaduct.engine.runtime2.model.testing.TestWorld
 import viaduct.engine.runtime2.model.testing.fragmentFrom
 import viaduct.engine.runtime2.resolution.framework.ResolutionObserver
@@ -35,7 +30,10 @@ class CheckerParentReadingResolverDemandTest : ResolutionDispatcherResource {
         val fixture = TestWorld.fromDSL(
             """
             extend type Query {
-              consumer: Int @resolver(script: "1")
+              consumer: Int @resolver(script: "1") @checker(
+                inputs: [{name: "input", of: "root { child { derived } }"}]
+                script: "derived.add(inputs.input.objectValue.root.child.derived); allow"
+              )
               root: Root @resolver(script: "{'label': 1, 'child': {:}}")
             }
             type Root { label: Int child: Child }
@@ -44,26 +42,7 @@ class CheckerParentReadingResolverDemandTest : ResolutionDispatcherResource {
               derived: Int @resolver(of: "parent { label }", script: "42")
             }
             """.trimIndent(),
-            fieldCheckers = { schemas ->
-                val consumer = schemas.loweredSchema.requireObjectField("Query", "consumer")
-                mapOf(
-                    consumer to FieldCheckerResolver.of(
-                        consumer,
-                        schemas.loweredSchema.requireQueryTypeDef(),
-                        mapOf(
-                            "input" to ResolverFragmentTemplates(
-                                schemas.fragmentFrom("fragment F on Query { root { child { derived } } }").materializeSelections,
-                                materializeSelectionForestOf(),
-                            )
-                        ),
-                    ) { _, inputs, _ ->
-                        val root = inputs.getValue("input").objectValue.get("root") as EngineObjectData.Sync
-                        val child = root.get("child") as EngineObjectData.Sync
-                        derived += child.get("derived") as Int
-                        CheckerResult.Success
-                    }
-                )
-            },
+            scriptBindings = mapOf("derived" to derived),
         )
         val operation = SharedOperationContext.create(
             fixture.newAssumptions(usePrecomputedConstructionDemand = precomputed),

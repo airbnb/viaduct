@@ -4,7 +4,6 @@ import java.util.concurrent.atomic.AtomicInteger
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
-import viaduct.engine.api.CheckerResult
 import viaduct.engine.runtime2.contract.CheckerApplicationRecorder
 import viaduct.engine.runtime2.contract.demandedTypeCheckerApplications
 import viaduct.engine.runtime2.contract.hasIncludedAlternative
@@ -14,18 +13,12 @@ import viaduct.engine.runtime2.model.InclusionCondition
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.ResolverOccurrenceId
 import viaduct.engine.runtime2.model.VariableBinding
-import viaduct.engine.runtime2.model.registry.FieldCheckerResolver
-import viaduct.engine.runtime2.model.registry.ResolverFragmentTemplates
-import viaduct.engine.runtime2.model.registry.TypeCheckerResolver
 import viaduct.engine.runtime2.model.requireObjectField
 import viaduct.engine.runtime2.model.requireQueryTypeDef
-import viaduct.engine.runtime2.model.requireType
 import viaduct.engine.runtime2.model.testing.TestWorld
-import viaduct.engine.runtime2.model.testing.fragmentFrom
 import viaduct.engine.runtime2.resolution.framework.CheckerKind
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
 import viaduct.engine.runtime2.schema.operationSelectionsFrom
-import viaduct.graphql.schema.ViaductSchema
 
 open class TypeCheckerDemandOracleConditionTest : ResolutionDispatcherResource {
     protected open val precomputedConstructionDemand = false
@@ -69,34 +62,18 @@ open class TypeCheckerDemandOracleConditionTest : ResolutionDispatcherResource {
                 script: "1"
               )
               source: Int! @resolver(script: "error")
-              checked(value: Int!): Int! @resolver(script: "2")
+              checked(value: Int!): Int! @resolver(script: "2") @checker(
+                inputs: [{name: "input", qf: "raw { active }"}]
+                script: "throw 'Error-valued arguments must prevent invocation'"
+              )
               raw: Raw! @resolver(script: "{'dependency': {'token': 7}}")
             }
             type Raw {
               active: Int! @resolver(of: "dependency { token }", script: "3")
               dependency: Dependency!
             }
-            type Dependency { token: Int! }
+            type Dependency @checker(script: "allow") { token: Int! }
             """.trimIndent(),
-            fieldCheckers = { schema ->
-                val field = schema.loweredSchema.requireObjectField("Query", "checked")
-                mapOf(
-                    field to FieldCheckerResolver.of(
-                        field,
-                        schema.loweredSchema.requireQueryTypeDef(),
-                        mapOf(
-                            "input" to ResolverFragmentTemplates(
-                                viaduct.engine.runtime2.model.materializeSelectionForestOf(),
-                                schema.fragmentFrom("fragment Input on Query { raw { active } }").materializeSelections,
-                            )
-                        ),
-                    ) { _, _, _ -> error("Error-valued arguments must prevent invocation") }
-                )
-            },
-            typeCheckers = { schema ->
-                val type = schema.loweredSchema.requireType("Dependency") as ViaductSchema.Object
-                mapOf(type to TypeCheckerResolver.of(type, schema.loweredSchema.requireQueryTypeDef()) { _, _ -> CheckerResult.Success })
-            },
         )
         val applications = CheckerApplicationRecorder()
         val checkerObserver = CorrectnessResolverObserver(applications)
@@ -129,39 +106,14 @@ open class TypeCheckerDemandOracleConditionTest : ResolutionDispatcherResource {
                     script: "1"
                   )
                   source: Int! @resolver(script: "error")
-                  other: Int! @resolver(script: "2")
+                  other: Int! @resolver(script: "2") @checker(inputs: [{name: "raw", of: "raw { token }"}], script: "allow")
                   item(value: Int!): Item! @resolver(of: "raw { token }", script: "{'id': 1}")
                   raw: Raw! @resolver(script: "{'token': 7}")
                 }
                 type Item { id: Int! }
-                type Raw { token: Int! }
+                type Raw @checker(script: "typeChecks.incrementAndGet(); allow") { token: Int! }
                 """.trimIndent(),
-                fieldCheckers = { schema ->
-                    val other = schema.loweredSchema.requireObjectField("Query", "other")
-                    mapOf(
-                        other to
-                            FieldCheckerResolver.of(
-                                other,
-                                schema.loweredSchema.requireQueryTypeDef(),
-                                mapOf(
-                                    "raw" to
-                                        ResolverFragmentTemplates(
-                                            schema.fragmentFrom("fragment Raw on Query { raw { token } }").materializeSelections,
-                                            viaduct.engine.runtime2.model.materializeSelectionForestOf(),
-                                        ),
-                                ),
-                            ) { _, _, _ -> CheckerResult.Success },
-                    )
-                },
-                typeCheckers = { schema ->
-                    val raw = schema.loweredSchema.requireType("Raw") as ViaductSchema.Object
-                    mapOf(
-                        raw to TypeCheckerResolver.of(raw, schema.loweredSchema.requireQueryTypeDef()) { _, _ ->
-                            typeChecks.incrementAndGet()
-                            CheckerResult.Success
-                        },
-                    )
-                },
+                scriptBindings = mapOf("typeChecks" to typeChecks),
             )
         val applications = CheckerApplicationRecorder()
         val operation =

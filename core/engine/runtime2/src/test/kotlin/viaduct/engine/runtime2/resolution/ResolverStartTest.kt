@@ -209,22 +209,14 @@ class ResolverStartTest : ResolutionDispatcherResource {
     @Test
     fun `nested execution retains observer but only query fragment emits preparation`() {
         val observer = InvocationRecordingObserver()
-        val testWorld = TestWorld.fromSDL(
-            schemaSDL = "type Query { outer: Int inner: Int dependency: Int }",
-            fieldResolvers = { schema ->
-                val empty = schema.loweredSchema.emptyFragmentOf("Query")
-                val nested = schema.fragmentFrom("fragment Nested on Query { inner }")
-                mapOf(
-                    schema.loweredSchema.requireObjectField("Query", "outer") to fieldResolverOf(empty) { _, _, executionContext ->
-                        executionContext.resolveSelectionSet(nested.materializeSelections).get("inner")
-                    },
-                    schema.loweredSchema.requireObjectField("Query", "inner") to fieldResolverOf(
-                        empty,
-                        schema.fragmentFrom("fragment Input on Query { dependency }"),
-                    ) { _, query, _ -> query.get("dependency") },
-                    schema.loweredSchema.requireObjectField("Query", "dependency") to fieldResolverOf(empty) { _, _ -> 7 },
-                )
-            },
+        val testWorld = TestWorld.fromDSL(
+            """
+            extend type Query {
+              outer: Int @resolver(script: "query('{ inner }').inner")
+              inner: Int @resolver(qf: "dependency", script: "queryValue.dependency")
+              dependency: Int @resolver(script: "7")
+            }
+            """.trimIndent(),
         )
         val operation = SharedOperationContext.create(testWorld.assumptions, resolutionObserver = observer)
         val root = operation.resolveWithTestDispatcher(
@@ -316,25 +308,13 @@ class ResolverStartTest : ResolutionDispatcherResource {
         runBlocking {
             val invocations = AtomicInteger()
             val testWorld =
-                TestWorld.fromSDL(
-                    schemaSDL = "type Query { recursive: Int! }",
-                    fieldResolvers = { schema ->
-                        val field = schema.loweredSchema.requireObjectField("Query", "recursive")
-                        val nested =
-                            schema.fragmentFrom("fragment Nested on Query { recursive }")
-                        mapOf(
-                            field to
-                                fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _, executionContext ->
-                                    if (invocations.incrementAndGet() > 1) {
-                                        7
-                                    } else {
-                                        executionContext
-                                            .resolveSelectionSet(nested.materializeSelections)
-                                            .get("recursive")
-                                    }
-                                },
-                        )
-                    },
+                TestWorld.fromDSL(
+                    """
+                    extend type Query {
+                      recursive: Int! @resolver(script: "invocations.incrementAndGet() > 1 ? 7 : query('{ recursive }').recursive")
+                    }
+                    """.trimIndent(),
+                    scriptBindings = mapOf("invocations" to invocations),
                 )
             val operation = SharedOperationContext.create(testWorld.assumptions)
             val result =

@@ -38,35 +38,19 @@ open class SymbolicFieldCheckerTest : ResolutionDispatcherResource {
                 val world = TestWorld.fromDSL(
                     """
                     extend type Query {
-                      checked: Int! @resolver(script: "1")
+                      checked: Int! @resolver(script: "1") @checker(
+                        inputs: [{
+                          name: "input"
+                          ${if (providerRoot == ProviderFragment.OBJECT) "of" else "qf"}: "source { token } echo(value: ${'$'}v)"
+                          variables: [{name: "v", ${if (providerRoot == ProviderFragment.OBJECT) "fromObjectField" else "fromQueryField"}: ["source", "token"]}]
+                        }]
+                        script: "allow"
+                      )
                       source: Source @resolver(script: "$source")
                       echo(value: [Int]): Int @resolver(script: "1")
                     }
                     type Source { token: [Int] }
                     """.trimIndent(),
-                    fieldCheckers = { schema ->
-                        val field = schema.loweredSchema.requireObjectField("Query", "checked")
-                        val input = schema.fragmentFrom(
-                            "fragment Input on Query { source { token } echo(value: ${'$'}v) }",
-                            variableTarget = ResolverTarget.FieldCheckerTarget(field),
-                        ).materializeSelections
-                        val empty = viaduct.engine.runtime2.model.materializeSelectionForestOf()
-                        val pair = ResolverFragmentTemplates(
-                            if (providerRoot == ProviderFragment.OBJECT) input else empty,
-                            if (providerRoot == ProviderFragment.QUERY) input else empty,
-                            mapOf(
-                                Arguments.Variable.of(ResolverTarget.FieldCheckerTarget(field), "v") to VariableDefinition.FromField.of(
-                                    providerRoot,
-                                    listOf(
-                                        ObjectEngineResult.Key.of(schema.loweredSchema.requireObjectField("Query", "source"), emptyMap()),
-                                        ObjectEngineResult.Key.of(schema.loweredSchema.requireObjectField("Source", "token"), emptyMap()),
-                                    ),
-                                    listOf("source", "token"),
-                                )
-                            ),
-                        )
-                        mapOf(field to FieldCheckerResolver.of(field, schema.loweredSchema.requireQueryTypeDef(), mapOf("input" to pair)) { _, _, _ -> CheckerResult.Success })
-                    },
                 )
                 val resolution = resolveChecked(world, "{ checked }")
                 val key = ObjectEngineResult.GroundKey.of(world.schema.requireObjectField("Query", "checked"), emptyMap())
@@ -229,12 +213,18 @@ open class SymbolicFieldCheckerTest : ResolutionDispatcherResource {
             extend type Query {
               checked: Int! @resolver(of: "dependency @include(if: ${'$'}enabled)", vars: {names: ["enabled"], script: "{'enabled': false}"}, script: "1")
               raw: Int! @resolver(script: "2")
-              dependency: Int! @resolver(script: "7")
+              dependency: Int! @resolver(script: "7") @checker(
+                inputs: [{
+                  name: "excluded"
+                  of: "raw @include(if: ${'$'}enabled)"
+                  vars: {names: ["enabled"], script: "throw 'Excluded checker provider must not run'"}
+                }]
+                script: "forbidden.incrementAndGet(); allow"
+              )
             }
             """.trimIndent(),
             fieldCheckers = { schema ->
                 val raw = schema.loweredSchema.requireObjectField("Query", "raw")
-                val dependency = schema.loweredSchema.requireObjectField("Query", "dependency")
                 mapOf(
                     raw to FieldCheckerResolver.of(
                         raw,
@@ -243,32 +233,15 @@ open class SymbolicFieldCheckerTest : ResolutionDispatcherResource {
                             "input" to ResolverFragmentTemplates(
                                 schema.fragmentFrom("fragment Input on Query { dependency }").materializeSelections,
                                 viaduct.engine.runtime2.model.materializeSelectionForestOf(),
-                            )
-                        )
+                            ),
+                        ),
                     ) { _, inputs, _ ->
                         assertEquals(7, inputs.getValue("input").objectValue.get("dependency"))
                         CheckerResult.Success
                     },
-                    dependency to FieldCheckerResolver.of(
-                        dependency,
-                        schema.loweredSchema.requireQueryTypeDef(),
-                        mapOf(
-                            "excluded" to ResolverFragmentTemplates(
-                                schema.fragmentFrom(
-                                    "fragment Input on Query { raw @include(if: ${'$'}enabled) }",
-                                    variableTarget = ResolverTarget.FieldCheckerTarget(dependency)
-                                ).materializeSelections,
-                                viaduct.engine.runtime2.model.materializeSelectionForestOf(),
-                                mapOf(Arguments.Variable.of(ResolverTarget.FieldCheckerTarget(dependency), "enabled") to VariableDefinition.FromProvider),
-                                variablesProvider = { error("Excluded checker provider must not run") },
-                            )
-                        ),
-                    ) { _, _, _ ->
-                        forbidden.incrementAndGet()
-                        CheckerResult.Success
-                    },
                 )
             },
+            scriptBindings = mapOf("forbidden" to forbidden),
         )
         val resolution = resolveChecked(world, "{ checked raw }")
         assertEquals(0, forbidden.get())
@@ -300,13 +273,9 @@ open class SymbolicFieldCheckerTest : ResolutionDispatcherResource {
             extend type Query {
               first: Int! @resolver(of: "checked(value: ${'$'}v)", vars: {names: ["v"], script: "{'v': 7}"}, script: "1")
               second: Int! @resolver(of: "checked(value: ${'$'}v)", vars: {names: ["v"], script: "{'v': 7}"}, script: "2")
-              checked(value: Int!): Int! @resolver(script: "value")
+              checked(value: Int!): Int! @resolver(script: "value") @checker(script: "allow")
             }
             """.trimIndent(),
-            fieldCheckers = { schema ->
-                val field = schema.loweredSchema.requireObjectField("Query", "checked")
-                mapOf(field to FieldCheckerResolver.of(field, schema.loweredSchema.requireQueryTypeDef()) { _, _, _ -> CheckerResult.Success })
-            },
         )
         val resolution = resolveChecked(world, "{ first second }")
         val calls = resolution.recorder.checkerApplications()

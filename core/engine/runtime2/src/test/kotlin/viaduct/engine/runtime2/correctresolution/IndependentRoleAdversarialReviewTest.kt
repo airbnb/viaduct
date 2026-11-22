@@ -16,19 +16,14 @@ import viaduct.engine.runtime2.contract.registeredResolverOccurrenceApplicationI
 import viaduct.engine.runtime2.model.Arguments
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.ResolverOccurrenceId
-import viaduct.engine.runtime2.model.RootFieldReferenceData
-import viaduct.engine.runtime2.model.emptyFragmentOf
 import viaduct.engine.runtime2.model.engineObjectDataOf
 import viaduct.engine.runtime2.model.materializeSelectionForestOf
 import viaduct.engine.runtime2.model.merge
-import viaduct.engine.runtime2.model.outputValue
 import viaduct.engine.runtime2.model.registry.ResolutionExecutionContext
-import viaduct.engine.runtime2.model.registry.fieldResolverOf
 import viaduct.engine.runtime2.model.requireObjectField
 import viaduct.engine.runtime2.model.requireQueryTypeDef
 import viaduct.engine.runtime2.model.selectionForestOf
 import viaduct.engine.runtime2.model.testing.TestWorld
-import viaduct.engine.runtime2.model.testing.emptyFragmentOf
 import viaduct.engine.runtime2.model.testing.fragmentFrom
 import viaduct.engine.runtime2.resolution.framework.OEROccurrence
 import viaduct.engine.runtime2.resolution.framework.ResolverInvocationObservation
@@ -160,33 +155,22 @@ class IndependentRoleAdversarialReviewTest {
         calls: AtomicInteger,
         references: Boolean
     ): TestWorld =
-        TestWorld.fromSDL(
-            schemaSDL = "type Query { left: Int! right: Int! target: Int! source: Int! }",
-            fieldResolvers = { schema ->
-                val empty = schema.loweredSchema.emptyFragmentOf("Query")
-                val query = schema.fragmentFrom("fragment Input on Query { source }")
-                val target = schema.loweredSchema.requireObjectField("Query", "target")
-                buildMap {
-                    listOf("left", "right").forEach { name ->
-                        put(
-                            schema.loweredSchema.requireObjectField("Query", name),
-                            if (references) {
-                                fieldResolverOf(empty) { _, _ -> RootFieldReferenceData.of(listOf(target), emptyMap()) }
-                            } else {
-                                fieldResolverOf(empty, query) { _, value, _ -> value.outputValue("source") }
-                            }
-                        )
-                    }
-                    put(target, fieldResolverOf(empty, query) { _, value, _ -> value.outputValue("source") })
-                    put(
-                        schema.loweredSchema.requireObjectField("Query", "source"),
-                        fieldResolverOf(empty) { _, _ ->
-                            calls.incrementAndGet()
-                            7
-                        }
-                    )
-                }
-            },
+        TestWorld.fromDSL(
+            """
+            extend type Query {
+              left: Int! @resolver(
+                qf: "${if (references) "" else "source"}"
+                script: "${if (references) "ref('target')" else "queryValue.source"}"
+              )
+              right: Int! @resolver(
+                qf: "${if (references) "" else "source"}"
+                script: "${if (references) "ref('target')" else "queryValue.source"}"
+              )
+              target: Int! @resolver(qf: "source", script: "queryValue.source")
+              source: Int! @resolver(script: "calls.incrementAndGet(); 7")
+            }
+            """.trimIndent(),
+            scriptBindings = mapOf("calls" to calls),
         )
 
     private class RecordingObserver : CorrectnessResolverObserver() {

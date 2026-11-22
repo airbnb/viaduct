@@ -13,15 +13,9 @@ import viaduct.engine.runtime2.contract.registeredResolverOccurrenceApplicationI
 import viaduct.engine.runtime2.correctresolution.CorrectnessResolverObserver
 import viaduct.engine.runtime2.correctresolution.correctResolution
 import viaduct.engine.runtime2.model.ResolverOccurrenceId
-import viaduct.engine.runtime2.model.RootFieldReferenceData
-import viaduct.engine.runtime2.model.emptyFragmentOf
 import viaduct.engine.runtime2.model.merge
-import viaduct.engine.runtime2.model.outputValue
-import viaduct.engine.runtime2.model.registry.fieldResolverOf
-import viaduct.engine.runtime2.model.requireObjectField
 import viaduct.engine.runtime2.model.requireQueryTypeDef
 import viaduct.engine.runtime2.model.testing.TestWorld
-import viaduct.engine.runtime2.model.testing.emptyFragmentOf
 import viaduct.engine.runtime2.model.testing.fragmentFrom
 import viaduct.engine.runtime2.resolution.framework.ResolverInvocationObservation
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
@@ -46,23 +40,15 @@ class IndependentQueryInputWitnessRegressionTest : ResolutionDispatcherResource 
     }
 
     private fun verify(resolver: Int) {
-        val world = TestWorld.fromSDL(
-            schemaSDL = "type Query { first: Int!, second: Int!, target: Int!, source: Int! }",
-            fieldResolvers = { schema ->
-                val empty = schema.loweredSchema.emptyFragmentOf("Query")
-                val target = schema.loweredSchema.requireObjectField("Query", "target")
-                mapOf(
-                    schema.loweredSchema.requireObjectField("Query", "first") to
-                        fieldResolverOf(empty) { _, _ -> RootFieldReferenceData.of(listOf(target), emptyMap()) },
-                    schema.loweredSchema.requireObjectField("Query", "second") to
-                        fieldResolverOf(empty) { _, _ -> RootFieldReferenceData.of(listOf(target), emptyMap()) },
-                    target to fieldResolverOf(
-                        empty,
-                        schema.fragmentFrom("fragment TargetInput on Query { source }"),
-                    ) { _, query, _ -> query.outputValue("source") },
-                    schema.loweredSchema.requireObjectField("Query", "source") to fieldResolverOf(empty) { _, _ -> 7 },
-                )
-            },
+        val world = TestWorld.fromDSL(
+            """
+            extend type Query {
+              first: Int! @resolver(script: "ref('target')")
+              second: Int! @resolver(script: "ref('target')")
+              target: Int! @resolver(qf: "source", script: "queryValue.source")
+              source: Int! @resolver(script: "7")
+            }
+            """.trimIndent(),
         )
         val log = BoundedRecorder<ResolverOccurrenceApplicationRecord>()
         val events = ConcurrentLinkedQueue<ResolverInvocationObservation>()

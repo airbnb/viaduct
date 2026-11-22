@@ -10,24 +10,16 @@ import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertTrue
 import kotlinx.coroutines.runBlocking
-import viaduct.engine.runtime2.bootstrap.fromObjectField
-import viaduct.engine.runtime2.bootstrap.fromQueryField
 import viaduct.engine.runtime2.correctresolution.CorrectnessResolverObserver
 import viaduct.engine.runtime2.correctresolution.correctResolution
-import viaduct.engine.runtime2.model.Arguments
 import viaduct.engine.runtime2.model.ErrorEngineResult
 import viaduct.engine.runtime2.model.ObjectEngineResult
-import viaduct.engine.runtime2.model.emptyFragmentOf
 import viaduct.engine.runtime2.model.merge
 import viaduct.engine.runtime2.model.registry.ProviderFragment
-import viaduct.engine.runtime2.model.registry.fieldResolverOf
-import viaduct.engine.runtime2.model.registry.fromArgument
 import viaduct.engine.runtime2.model.requireObjectField
 import viaduct.engine.runtime2.model.requireQueryTypeDef
 import viaduct.engine.runtime2.model.testing.TestWorld
-import viaduct.engine.runtime2.model.testing.emptyFragmentOf
 import viaduct.engine.runtime2.model.testing.fragmentFrom
-import viaduct.engine.runtime2.model.testing.objectOf
 import viaduct.engine.runtime2.resolution.framework.ResolutionObserver
 import viaduct.engine.runtime2.resolution.framework.ResolverInvocationObservation
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
@@ -213,47 +205,20 @@ class InclusionConditionTest : ResolutionDispatcherResource {
     @Test
     fun `aliases sharing one construction cell are materialized by source occurrence`() {
         val world =
-            TestWorld.fromSDL(
-                schemaSDL =
-                    """
-                    type Query {
-                      outer(a: Boolean!, b: Boolean!): Int!
-                      dependency: Int!
-                    }
-                    """.trimIndent(),
-                fieldResolvers = { schema ->
-                    val outer = schema.loweredSchema.requireObjectField("Query", "outer")
-                    val dependency = schema.loweredSchema.requireObjectField("Query", "dependency")
-                    mapOf(
-                        outer to
-                            fieldResolverOf(
-                                schema.fragmentFrom(
-                                    """
-                                    fragment Outer on Query {
-                                      left: dependency @include(if: ${'$'}a)
-                                      right: dependency @include(if: ${'$'}b)
-                                    }
-                                    """.trimIndent(),
-                                    variableField = outer,
-                                ),
-                            ) { input, _ ->
-                                when {
-                                    input.isPresent("left") && !input.isPresent("right") -> 10
-                                    !input.isPresent("left") && input.isPresent("right") -> 1
-                                    else -> error("Unexpected conditioned aliases")
-                                }
-                            },
-                        dependency to
-                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ -> 7 },
-                    )
-                },
-                variableProviders = { schema ->
-                    val outer = schema.loweredSchema.requireObjectField("Query", "outer")
-                    mapOf(
-                        Arguments.Variable.of(outer, "a") to schema.loweredSchema.fromArgument(outer, "a"),
-                        Arguments.Variable.of(outer, "b") to schema.loweredSchema.fromArgument(outer, "b"),
-                    )
-                },
+            TestWorld.fromDSL(
+                """
+                extend type Query {
+                  outer(a: Boolean!, b: Boolean!): Int! @resolver(
+                    of: "left: dependency @include(if: ${'$'}a) right: dependency @include(if: ${'$'}b)"
+                    script: ${"\"\"\""}
+                      if ('left' =~ objectValue && 'right' !~ objectValue) { return 10; }
+                      if ('left' !~ objectValue && 'right' =~ objectValue) { return 1; }
+                      throw 'Unexpected conditioned aliases';
+                    ${"\"\"\""}
+                  )
+                  dependency: Int! @resolver(script: "7")
+                }
+                """.trimIndent(),
             )
         val resolution =
             world.resolve(
@@ -311,33 +276,18 @@ class InclusionConditionTest : ResolutionDispatcherResource {
         listOf(false, true).forEach { enabled ->
             val providerApplications = AtomicInteger()
             val world =
-                TestWorld.fromSDL(
-                    schemaSDL =
-                        """
-                        type Query {
-                          outer: Int!
-                          dependency: Int!
-                        }
-                        """.trimIndent(),
-                    fieldResolvers = { schema ->
-                        val outer = schema.loweredSchema.requireObjectField("Query", "outer")
-                        val dependency = schema.loweredSchema.requireObjectField("Query", "dependency")
-                        mapOf(
-                            outer to
-                                fieldResolverOf(
-                                    schema.fragmentFrom(
-                                        "fragment Outer on Query { dependency @include(if: ${'$'}enabled) }",
-                                        variableField = outer,
-                                    ),
-                                ) { _, _ -> 1 }
-                                    .withVariablesProvider(setOf("enabled")) {
-                                        providerApplications.incrementAndGet()
-                                        mapOf("enabled" to enabled)
-                                    },
-                            dependency to
-                                fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ -> 7 },
-                        )
-                    },
+                TestWorld.fromDSL(
+                    """
+                    extend type Query {
+                      outer: Int! @resolver(
+                        of: "dependency @include(if: ${'$'}enabled)"
+                        vars: {names: ["enabled"], script: "providerApplications.incrementAndGet(); {'enabled': $enabled}"}
+                        script: "1"
+                      )
+                      dependency: Int! @resolver(script: "7")
+                    }
+                    """.trimIndent(),
+                    scriptBindings = mapOf("providerApplications" to providerApplications),
                 )
             val resolution = world.resolve("query { outer }")
             val dependency = world.schema.requireObjectField("Query", "dependency")
@@ -355,49 +305,19 @@ class InclusionConditionTest : ResolutionDispatcherResource {
     fun `an excluded resolver does not invoke its own variables provider`() {
         val providerApplications = AtomicInteger()
         val world =
-            TestWorld.fromSDL(
-                schemaSDL =
-                    """
-                    type Query {
-                      controller(enabled: Boolean!): Int!
-                      outer: Int!
-                      dependency: Int!
-                    }
-                    """.trimIndent(),
-                fieldResolvers = { schema ->
-                    val controller = schema.loweredSchema.requireObjectField("Query", "controller")
-                    val outer = schema.loweredSchema.requireObjectField("Query", "outer")
-                    val dependency = schema.loweredSchema.requireObjectField("Query", "dependency")
-                    mapOf(
-                        controller to
-                            fieldResolverOf(
-                                schema.fragmentFrom(
-                                    "fragment Controller on Query { outer @include(if: ${'$'}enabled) }",
-                                    variableField = controller,
-                                ),
-                            ) { _, _ -> 1 },
-                        outer to
-                            fieldResolverOf(
-                                schema.fragmentFrom(
-                                    "fragment Outer on Query { dependency @include(if: ${'$'}provided) }",
-                                    variableField = outer,
-                                ),
-                            ) { _, _ -> 2 }
-                                .withVariablesProvider(setOf("provided")) {
-                                    providerApplications.incrementAndGet()
-                                    mapOf("provided" to true)
-                                },
-                        dependency to
-                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ -> 7 },
-                    )
-                },
-                variableProviders = { schema ->
-                    val controller = schema.loweredSchema.requireObjectField("Query", "controller")
-                    mapOf(
-                        Arguments.Variable.of(controller, "enabled") to
-                            schema.loweredSchema.fromArgument(controller, "enabled"),
-                    )
-                },
+            TestWorld.fromDSL(
+                """
+                extend type Query {
+                  controller(enabled: Boolean!): Int! @resolver(of: "outer @include(if: ${'$'}enabled)", script: "1")
+                  outer: Int! @resolver(
+                    of: "dependency @include(if: ${'$'}provided)"
+                    vars: {names: ["provided"], script: "providerApplications.incrementAndGet(); {'provided': true}"}
+                    script: "2"
+                  )
+                  dependency: Int! @resolver(script: "7")
+                }
+                """.trimIndent(),
+                scriptBindings = mapOf("providerApplications" to providerApplications),
             )
         val resolution = world.resolve("query { controller(enabled: false) }")
         val outer = world.schema.requireObjectField("Query", "outer")
@@ -413,49 +333,19 @@ class InclusionConditionTest : ResolutionDispatcherResource {
     fun `an excluded resolver does not ground a descendant key from its provider`() {
         val providerApplications = AtomicInteger()
         val world =
-            TestWorld.fromSDL(
-                schemaSDL =
-                    """
-                    type Query {
-                      controller(enabled: Boolean!): Int!
-                      outer: Int!
-                      dependency(value: Int!): Int!
-                    }
-                    """.trimIndent(),
-                fieldResolvers = { schema ->
-                    val controller = schema.loweredSchema.requireObjectField("Query", "controller")
-                    val outer = schema.loweredSchema.requireObjectField("Query", "outer")
-                    val dependency = schema.loweredSchema.requireObjectField("Query", "dependency")
-                    mapOf(
-                        controller to
-                            fieldResolverOf(
-                                schema.fragmentFrom(
-                                    "fragment Controller on Query { outer @include(if: ${'$'}enabled) }",
-                                    variableField = controller,
-                                ),
-                            ) { _, _ -> 1 },
-                        outer to
-                            fieldResolverOf(
-                                schema.fragmentFrom(
-                                    "fragment Outer on Query { dependency(value: ${'$'}provided) }",
-                                    variableField = outer,
-                                ),
-                            ) { _, _ -> 2 }
-                                .withVariablesProvider(setOf("provided")) {
-                                    providerApplications.incrementAndGet()
-                                    mapOf("provided" to 7)
-                                },
-                        dependency to
-                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ -> 3 },
-                    )
-                },
-                variableProviders = { schema ->
-                    val controller = schema.loweredSchema.requireObjectField("Query", "controller")
-                    mapOf(
-                        Arguments.Variable.of(controller, "enabled") to
-                            schema.loweredSchema.fromArgument(controller, "enabled"),
-                    )
-                },
+            TestWorld.fromDSL(
+                """
+                extend type Query {
+                  controller(enabled: Boolean!): Int! @resolver(of: "outer @include(if: ${'$'}enabled)", script: "1")
+                  outer: Int! @resolver(
+                    of: "dependency(value: ${'$'}provided)"
+                    vars: {names: ["provided"], script: "providerApplications.incrementAndGet(); {'provided': 7}"}
+                    script: "2"
+                  )
+                  dependency(value: Int!): Int! @resolver(script: "3")
+                }
+                """.trimIndent(),
+                scriptBindings = mapOf("providerApplications" to providerApplications),
             )
         val resolution = world.resolve("query { controller(enabled: false) }")
         val outer = world.schema.requireObjectField("Query", "outer")
@@ -533,62 +423,18 @@ class InclusionConditionTest : ResolutionDispatcherResource {
         listOf(false, true).forEach { conditionNestedNamespace ->
             conditionUses.forEach { use ->
                 val world =
-                    TestWorld.fromSDL(
-                        schemaSDL =
-                            """
-                            type Query {
-                              outer(enabled: Boolean!): Int!
-                              namespace: Namespace
-                            }
-
-                            type Namespace {
-                              nested: NestedNamespace
-                            }
-
-                            type NestedNamespace {
-                              value: Int!
-                            }
-                            """.trimIndent(),
-                        fieldResolvers = { schema ->
-                            val outer = schema.loweredSchema.requireObjectField("Query", "outer")
-                            val namespace = schema.loweredSchema.requireObjectField("Query", "namespace")
-                            val nested = schema.loweredSchema.requireObjectField("Namespace", "nested")
-                            val value = schema.loweredSchema.requireObjectField("NestedNamespace", "value")
-                            val namespaceSelection =
-                                if (conditionNestedNamespace) {
-                                    "namespace { nested ${use.directiveSource()} { value } }"
-                                } else {
-                                    "namespace ${use.directiveSource()} { nested { value } }"
-                                }
-                            mapOf(
-                                outer to
-                                    fieldResolverOf(
-                                        schema.fragmentFrom(
-                                            "fragment Outer on Query { $namespaceSelection }",
-                                            variableField = outer,
-                                        ),
-                                    ) { _, _ -> 1 },
-                                namespace to
-                                    fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
-                                        schema.loweredSchema.objectOf("Namespace")
-                                    },
-                                nested to
-                                    fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Namespace")) { _, _ ->
-                                        schema.loweredSchema.objectOf("NestedNamespace")
-                                    },
-                                value to
-                                    fieldResolverOf(schema.loweredSchema.emptyFragmentOf("NestedNamespace")) { _, _ ->
-                                        7
-                                    },
-                            )
-                        },
-                        variableProviders = { schema ->
-                            val outer = schema.loweredSchema.requireObjectField("Query", "outer")
-                            mapOf(
-                                Arguments.Variable.of(outer, "enabled") to
-                                    schema.loweredSchema.fromArgument(outer, "enabled"),
-                            )
-                        },
+                    TestWorld.fromDSL(
+                        """
+                        extend type Query {
+                          outer(enabled: Boolean!): Int! @resolver(
+                            of: "${if (conditionNestedNamespace) "namespace { nested ${use.directiveSource()} { value } }" else "namespace ${use.directiveSource()} { nested { value } }"}"
+                            script: "1"
+                          )
+                          namespace: Namespace @resolver(script: "{:}")
+                        }
+                        type Namespace { nested: NestedNamespace @resolver(script: "{:}") }
+                        type NestedNamespace { value: Int! @resolver(script: "7") }
+                        """.trimIndent(),
                     )
                 val resolution = world.resolve("query { outer(enabled: ${use.value}) }")
                 val namespace = world.schema.requireObjectField("Query", "namespace")
@@ -635,117 +481,38 @@ class InclusionConditionTest : ResolutionDispatcherResource {
         providerFragment: ProviderFragment,
         use: ConditionUse,
     ): TestWorld =
-        TestWorld.fromSDL(
-            schemaSDL =
-                """
-                type Query {
-                  outer: Int!
-                  flag: Boolean!
-                  dependency: Int!
-                }
-                """.trimIndent(),
-            fieldResolvers = { schema ->
-                val outer = schema.loweredSchema.requireObjectField("Query", "outer")
-                val flag = schema.loweredSchema.requireObjectField("Query", "flag")
-                val dependency = schema.loweredSchema.requireObjectField("Query", "dependency")
-                val fragmentSource =
-                    "fragment Outer on Query { flag dependency ${use.directiveSource()} }"
-                val fragment = schema.fragmentFrom(fragmentSource, variableField = outer)
-                val outerResolver =
-                    when (providerFragment) {
-                        ProviderFragment.OBJECT ->
-                            fieldResolverOf(fragment) { _, _ -> 1 }
-                        ProviderFragment.QUERY ->
-                            fieldResolverOf(
-                                objectFragment = schema.loweredSchema.emptyFragmentOf("Query"),
-                                queryFragment = fragment,
-                            ) { _, _, _ -> 1 }
-                    }
-                mapOf(
-                    outer to outerResolver,
-                    flag to
-                        fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ -> use.value },
-                    dependency to
-                        fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ -> 7 },
-                )
-            },
-            variableProviders = { schema ->
-                val outer = schema.loweredSchema.requireObjectField("Query", "outer")
-                val fragmentSource = "fragment Outer on Query { flag }"
-                val provider =
-                    when (providerFragment) {
-                        ProviderFragment.OBJECT ->
-                            schema.fromObjectField(
-                                objectFragmentSource = fragmentSource,
-                                responsePath = listOf("flag"),
-                                variableField = outer,
-                            )
-                        ProviderFragment.QUERY ->
-                            schema.fromQueryField(
-                                queryFragmentSource = fragmentSource,
-                                responsePath = listOf("flag"),
-                                variableField = outer,
-                            )
-                    }
-                mapOf(Arguments.Variable.of(outer, "enabled") to provider)
-            },
+        TestWorld.fromDSL(
+            """
+            extend type Query {
+              outer: Int! @resolver(
+                ${if (providerFragment == ProviderFragment.OBJECT) "of" else "qf"}: "flag dependency ${use.directiveSource()}"
+                variables: [{name: "enabled", ${if (providerFragment == ProviderFragment.OBJECT) "fromObjectField" else "fromQueryField"}: ["flag"]}]
+                script: "1"
+              )
+              flag: Boolean! @resolver(script: "${use.value}")
+              dependency: Int! @resolver(script: "7")
+            }
+            """.trimIndent(),
         )
 
     private fun parentConditionWorld(enabled: Boolean): TestWorld =
-        TestWorld.fromSDL(
-            schemaSDL =
-                """
-                directive @parent on FIELD_DEFINITION
-                type Query { root: Root! }
-                type Root { enabled: Boolean!, child: Child! }
-                type Child {
-                  parent: Root @parent
-                  result: Int!
-                  dependency: Int!
-                }
-                """.trimIndent(),
-            fieldResolvers = { schema ->
-                val root = schema.loweredSchema.requireObjectField("Query", "root")
-                val child = schema.loweredSchema.requireObjectField("Root", "child")
-                val result = schema.loweredSchema.requireObjectField("Child", "result")
-                val dependency = schema.loweredSchema.requireObjectField("Child", "dependency")
-                mapOf(
-                    root to
-                        fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
-                            schema.loweredSchema.objectOf("Root") { "enabled" setTo enabled }
-                        },
-                    child to
-                        fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Root")) { _, _ ->
-                            schema.loweredSchema.objectOf("Child")
-                        },
-                    result to
-                        fieldResolverOf(
-                            schema.fragmentFrom(
-                                """
-                                fragment ResultInput on Child {
-                                  parent { enabled }
-                                  dependency @include(if: ${'$'}enabled)
-                                }
-                                """.trimIndent(),
-                                variableField = result,
-                            ),
-                        ) { _, _ -> 1 },
-                    dependency to
-                        fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Child")) { _, _ -> 7 },
-                )
-            },
-            variableProviders = { schema ->
-                val result = schema.loweredSchema.requireObjectField("Child", "result")
-                mapOf(
-                    Arguments.Variable.of(result, "enabled") to
-                        schema.fromObjectField(
-                            objectFragmentSource =
-                                "fragment ResultInput on Child { parent { enabled } }",
-                            responsePath = listOf("parent", "enabled"),
-                            variableField = result,
-                        ),
-                )
-            },
+        TestWorld.fromDSL(
+            """
+            extend type Query { root: Root! @resolver(script: "{'enabled': $enabled}") }
+            type Root {
+              enabled: Boolean!
+              child: Child! @resolver(script: "{:}")
+            }
+            type Child {
+              parent: Root @parent
+              result: Int! @resolver(
+                of: "parent { enabled } dependency @include(if: ${'$'}enabled)"
+                variables: [{name: "enabled", fromObjectField: ["parent", "enabled"]}]
+                script: "1"
+              )
+              dependency: Int! @resolver(script: "7")
+            }
+            """.trimIndent(),
         )
 
     private fun TestWorld.resolve(query: String): Resolution {

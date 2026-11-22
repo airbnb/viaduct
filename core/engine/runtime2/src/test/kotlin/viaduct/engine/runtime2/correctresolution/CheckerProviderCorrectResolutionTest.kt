@@ -11,7 +11,6 @@ import viaduct.engine.runtime2.model.Promise
 import viaduct.engine.runtime2.model.ResolverOccurrenceId
 import viaduct.engine.runtime2.model.ResolverTarget
 import viaduct.engine.runtime2.model.VariableBinding
-import viaduct.engine.runtime2.model.emptyFragmentOf
 import viaduct.engine.runtime2.model.materializeSelectionForestOf
 import viaduct.engine.runtime2.model.merge
 import viaduct.engine.runtime2.model.registry.CheckerResolverBase
@@ -19,12 +18,10 @@ import viaduct.engine.runtime2.model.registry.FieldCheckerResolver
 import viaduct.engine.runtime2.model.registry.ResolverFragmentTemplates
 import viaduct.engine.runtime2.model.registry.TypeCheckerResolver
 import viaduct.engine.runtime2.model.registry.VariableDefinition
-import viaduct.engine.runtime2.model.registry.fieldResolverOf
 import viaduct.engine.runtime2.model.requireObjectField
 import viaduct.engine.runtime2.model.requireQueryTypeDef
 import viaduct.engine.runtime2.model.requireType
 import viaduct.engine.runtime2.model.testing.TestWorld
-import viaduct.engine.runtime2.model.testing.emptyFragmentOf
 import viaduct.engine.runtime2.model.testing.fragmentFrom
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
 import viaduct.engine.runtime2.resolution.framework.VariableBindingsState
@@ -67,18 +64,17 @@ class CheckerProviderCorrectResolutionTest {
                 )
             }
 
-        val worldFixture = TestWorld.fromSDL(
-            "type Query { item: Item! echo(value: [Int]): Int! } type Item { value(id: Int!): Int! echo(value: [Int]): Int! }",
-            fieldResolvers = { schema ->
-                mapOf(
-                    schema.loweredSchema.requireObjectField("Query", "item") to fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
-                        viaduct.engine.runtime2.model.engineObjectDataOf(schema.loweredSchema.requireType("Item") as viaduct.graphql.schema.ViaductSchema.Object)
-                    },
-                    schema.loweredSchema.requireObjectField("Query", "echo") to fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ -> 1 },
-                ) + listOf("value", "echo").associate { name ->
-                    schema.loweredSchema.requireObjectField("Item", name) to fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Item")) { _, _ -> 1 }
-                }
-            },
+        val worldFixture = TestWorld.fromDSL(
+            """
+            extend type Query {
+              item: Item! @resolver(script: "{:}")
+              echo(value: [Int]): Int! @resolver(script: "1")
+            }
+            type Item {
+              value(id: Int!): Int! @resolver(script: "1")
+              echo(value: [Int]): Int! @resolver(script: "1")
+            }
+            """.trimIndent(),
             fieldCheckers = { schema ->
                 if (typeChecker) {
                     emptyMap()

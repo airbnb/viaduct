@@ -11,19 +11,13 @@ import viaduct.engine.runtime2.arbitrary.FieldCoordinate
 import viaduct.engine.runtime2.arbitrary.ResolutionOccurrenceWitness
 import viaduct.engine.runtime2.arbitrary.ResolverOccurrenceApplicationRecord
 import viaduct.engine.runtime2.contract.registeredResolverOccurrenceApplicationIdentityCounts
-import viaduct.engine.runtime2.contract.selectionValues
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.ResolverOccurrenceId
 import viaduct.engine.runtime2.model.SelectionForest
-import viaduct.engine.runtime2.model.emptyFragmentOf
 import viaduct.engine.runtime2.model.merge
-import viaduct.engine.runtime2.model.registry.fieldResolverOf
-import viaduct.engine.runtime2.model.requireObjectField
 import viaduct.engine.runtime2.model.requireQueryTypeDef
 import viaduct.engine.runtime2.model.testing.TestWorld
-import viaduct.engine.runtime2.model.testing.emptyFragmentOf
 import viaduct.engine.runtime2.model.testing.fragmentFrom
-import viaduct.engine.runtime2.model.testing.objectOf
 import viaduct.engine.runtime2.resolution.ResolutionDispatcherResource
 import viaduct.engine.runtime2.resolution.framework.OEROccurrence
 import viaduct.engine.runtime2.resolution.framework.ResolverInvocationObservation
@@ -62,22 +56,14 @@ class QueryScopeOwnershipTest : ResolutionDispatcherResource {
                 addresses += AddressEvent(resolverOccurrenceId, resolverOER, resolverKey)
             }
         }
-        val worldFixture = TestWorld.fromSDL(
-            schemaSDL = "type Query { items: [Item!]! source: Int! } type Item { value: Int! }",
-            fieldResolvers = { schema ->
-                mapOf(
-                    schema.loweredSchema.requireObjectField("Query", "items") to
-                        fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
-                            listOf(schema.loweredSchema.objectOf("Item"), schema.loweredSchema.objectOf("Item"))
-                        },
-                    schema.loweredSchema.requireObjectField("Item", "value") to fieldResolverOf(
-                        schema.loweredSchema.emptyFragmentOf("Item"),
-                        schema.fragmentFrom("fragment Input on Query { source }"),
-                    ) { _, query, _ -> query.selectionValues().getValue("source") },
-                    schema.loweredSchema.requireObjectField("Query", "source") to
-                        fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ -> 7 },
-                )
-            },
+        val worldFixture = TestWorld.fromDSL(
+            """
+            extend type Query {
+              items: [Item!]! @resolver(script: "[{:}, {:}]")
+              source: Int! @resolver(script: "7")
+            }
+            type Item { value: Int! @resolver(qf: "source", script: "queryValue.source") }
+            """.trimIndent(),
         )
         val world = worldFixture.assumptions
         val selection = worldFixture.schemas.fragmentFrom("fragment Result on Query { items { value } }").subselections

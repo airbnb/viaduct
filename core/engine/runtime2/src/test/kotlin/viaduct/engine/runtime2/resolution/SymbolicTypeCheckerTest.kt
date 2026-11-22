@@ -14,20 +14,16 @@ import viaduct.engine.runtime2.correctresolution.correctResolution
 import viaduct.engine.runtime2.model.Arguments
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.ResolverTarget
-import viaduct.engine.runtime2.model.RootFieldReferenceData
 import viaduct.engine.runtime2.model.VariableBinding
-import viaduct.engine.runtime2.model.emptyFragmentOf
 import viaduct.engine.runtime2.model.merge
 import viaduct.engine.runtime2.model.registry.ProviderFragment
 import viaduct.engine.runtime2.model.registry.ResolverFragmentTemplates
 import viaduct.engine.runtime2.model.registry.TypeCheckerResolver
 import viaduct.engine.runtime2.model.registry.VariableDefinition
-import viaduct.engine.runtime2.model.registry.fieldResolverOf
 import viaduct.engine.runtime2.model.requireObjectField
 import viaduct.engine.runtime2.model.requireQueryTypeDef
 import viaduct.engine.runtime2.model.requireType
 import viaduct.engine.runtime2.model.testing.TestWorld
-import viaduct.engine.runtime2.model.testing.emptyFragmentOf
 import viaduct.engine.runtime2.model.testing.fragmentFrom
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
 import viaduct.engine.runtime2.schema.operationSelectionsFrom
@@ -47,36 +43,20 @@ open class SymbolicTypeCheckerTest : ResolutionDispatcherResource {
                       source: Source @resolver(script: "$source")
                       echo(value: [Int]): Int @resolver(script: "1")
                     }
-                    type Item {
+                    type Item @checker(
+                      inputs: [{
+                        name: "input"
+                        ${if (providerRoot == ProviderFragment.OBJECT) "of" else "qf"}: "source { token } echo(value: ${'$'}v)"
+                        variables: [{name: "v", ${if (providerRoot == ProviderFragment.OBJECT) "fromObjectField" else "fromQueryField"}: ["source", "token"]}]
+                      }]
+                      script: "allow"
+                    ) {
                       checked: Int! @resolver(script: "1")
                       source: Source @resolver(script: "$source")
                       echo(value: [Int]): Int @resolver(script: "1")
                     }
                     type Source { token: [Int] }
                     """.trimIndent(),
-                    typeCheckers = { schema ->
-                        val field = schema.loweredSchema.requireType("Item") as ViaductSchema.Object
-                        val input = schema.fragmentFrom(
-                            "fragment Input on ${if (providerRoot == ProviderFragment.OBJECT) "Item" else "Query"} { source { token } echo(value: ${'$'}v) }",
-                            variableTarget = ResolverTarget.TypeCheckerTarget(field),
-                        ).materializeSelections
-                        val empty = viaduct.engine.runtime2.model.materializeSelectionForestOf()
-                        val pair = ResolverFragmentTemplates(
-                            if (providerRoot == ProviderFragment.OBJECT) input else empty,
-                            if (providerRoot == ProviderFragment.QUERY) input else empty,
-                            mapOf(
-                                Arguments.Variable.of(ResolverTarget.TypeCheckerTarget(field), "v") to VariableDefinition.FromField.of(
-                                    providerRoot,
-                                    listOf(
-                                        ObjectEngineResult.Key.of(schema.loweredSchema.requireObjectField(if (providerRoot == ProviderFragment.OBJECT) "Item" else "Query", "source"), emptyMap()),
-                                        ObjectEngineResult.Key.of(schema.loweredSchema.requireObjectField("Source", "token"), emptyMap()),
-                                    ),
-                                    listOf("source", "token"),
-                                )
-                            ),
-                        )
-                        mapOf(field to TypeCheckerResolver.of(field, schema.loweredSchema.requireQueryTypeDef(), mapOf("input" to pair)) { _, _ -> CheckerResult.Success })
-                    },
                 )
                 val resolution = resolveChecked(world, "{ item { checked } }")
                 val itemKey = resolution.result.keys.single()
@@ -311,12 +291,8 @@ open class SymbolicTypeCheckerTest : ResolutionDispatcherResource {
               second: Int! @resolver(of: "item(value: ${'$'}v) { id }", vars: {names: ["v"], script: "{'v': 7}"}, script: "2")
               item(value: Int!): Item! @resolver(script: "{'id': 7}")
             }
-            type Item { id: Int! }
+            type Item @checker(script: "allow") { id: Int! }
             """.trimIndent(),
-            typeCheckers = { schema ->
-                val type = schema.loweredSchema.requireType("Item") as ViaductSchema.Object
-                mapOf(type to TypeCheckerResolver.of(type, schema.loweredSchema.requireQueryTypeDef()) { _, _ -> CheckerResult.Success })
-            },
         )
         val resolution = resolveChecked(world, "{ first second }")
         val calls = resolution.recorder.checkerApplications()
@@ -365,7 +341,10 @@ open class SymbolicTypeCheckerTest : ResolutionDispatcherResource {
         val world = TestWorld.fromDSL(
             """
             extend type Query {
-              raw: Int! @resolver(script: "1")
+              raw: Int! @resolver(script: "1") @checker(
+                inputs: [{name: "input", of: "wrapper { child { computed } }"}]
+                script: "allow"
+              )
               wrapper: Wrapper! @resolver(script: "{'token': 7, 'secret': 11, 'child': {:}}")
             }
             type Wrapper { token: Int! secret: Int! child: Child! }
@@ -374,21 +353,6 @@ open class SymbolicTypeCheckerTest : ResolutionDispatcherResource {
               computed: Int! @resolver(of: "parent { token }", script: "3")
             }
             """.trimIndent(),
-            fieldCheckers = { schema ->
-                val raw = schema.loweredSchema.requireObjectField("Query", "raw")
-                mapOf(
-                    raw to viaduct.engine.runtime2.model.registry.FieldCheckerResolver.of(
-                        raw,
-                        schema.loweredSchema.requireQueryTypeDef(),
-                        mapOf(
-                            "input" to ResolverFragmentTemplates(
-                                schema.fragmentFrom("fragment Input on Query { wrapper { child { computed } } }").materializeSelections,
-                                viaduct.engine.runtime2.model.materializeSelectionForestOf(),
-                            ),
-                        )
-                    ) { _, _, _ -> CheckerResult.Success }
-                )
-            },
             typeCheckers = { schema ->
                 val type = schema.loweredSchema.requireType("Wrapper") as ViaductSchema.Object
                 mapOf(
@@ -400,11 +364,11 @@ open class SymbolicTypeCheckerTest : ResolutionDispatcherResource {
                                 schema.fragmentFrom("fragment Input on Wrapper { secret }").materializeSelections,
                                 viaduct.engine.runtime2.model.materializeSelectionForestOf(),
                             ),
-                        )
+                        ),
                     ) { inputs, _ ->
                         assertEquals(11, inputs.getValue("input").objectValue.get("secret"))
                         CheckerResult.Success
-                    }
+                    },
                 )
             },
         )
@@ -417,35 +381,19 @@ open class SymbolicTypeCheckerTest : ResolutionDispatcherResource {
         val world = TestWorld.fromDSL(
             """
             extend type Query { item: Item! @resolver(script: "{:}") }
-            type Item {
+            type Item @checker(
+              inputs: [{
+                name: "input"
+                of: "source echo(value: ${'$'}v)"
+                variables: [{name: "v", fromObjectField: ["source"]}]
+              }]
+              script: "allow"
+            ) {
               value: Int! @resolver(script: "1")
               source: Int! @resolver(script: "7")
               echo(value: Int): Int @resolver(script: "1")
             }
             """.trimIndent(),
-            typeCheckers = { schema ->
-                val type = schema.loweredSchema.requireType("Item") as ViaductSchema.Object
-                val target = ResolverTarget.TypeCheckerTarget(type)
-                mapOf(
-                    type to TypeCheckerResolver.of(
-                        type,
-                        schema.loweredSchema.requireQueryTypeDef(),
-                        mapOf(
-                            "input" to ResolverFragmentTemplates(
-                                schema.fragmentFrom("fragment Input on Item { source echo(value: ${'$'}v) }", variableTarget = target).materializeSelections,
-                                viaduct.engine.runtime2.model.materializeSelectionForestOf(),
-                                mapOf(
-                                    Arguments.Variable.of(target, "v") to VariableDefinition.FromField.of(
-                                        ProviderFragment.OBJECT,
-                                        listOf(ObjectEngineResult.Key.of(schema.loweredSchema.requireObjectField("Item", "source"), emptyMap())),
-                                        listOf("source"),
-                                    )
-                                ),
-                            ),
-                        )
-                    ) { _, _ -> CheckerResult.Success }
-                )
-            },
         )
         val resolution = resolveChecked(world, "{ item { value } }")
         val itemKey = resolution.result.keys.single()
@@ -465,25 +413,15 @@ open class SymbolicTypeCheckerTest : ResolutionDispatcherResource {
 
     @Test
     fun `reference target Query roots have no type checker result`() {
-        val world = TestWorld.fromSDL(
+        val world = TestWorld.fromDSL(
             """
-            type Query { reference: Int! target: Int! dependency: Int! policy: Int! }
+            extend type Query {
+              reference: Int! @resolver(script: "ref('target')")
+              target: Int! @resolver(qf: "dependency", script: "queryValue.dependency")
+              dependency: Int! @resolver(script: "7")
+              policy: Int! @resolver(script: "11")
+            }
             """.trimIndent(),
-            fieldResolvers = { schema ->
-                val empty = schema.loweredSchema.emptyFragmentOf("Query")
-                val target = schema.loweredSchema.requireObjectField("Query", "target")
-                mapOf(
-                    schema.loweredSchema.requireObjectField("Query", "reference") to fieldResolverOf(empty) { _, _ ->
-                        RootFieldReferenceData.of(listOf(target), emptyMap())
-                    },
-                    target to fieldResolverOf(
-                        objectFragment = empty,
-                        queryFragment = schema.fragmentFrom("fragment Input on Query { dependency }")
-                    ) { _, query, _ -> query.get("dependency") },
-                    schema.loweredSchema.requireObjectField("Query", "dependency") to fieldResolverOf(empty) { _, _ -> 7 },
-                    schema.loweredSchema.requireObjectField("Query", "policy") to fieldResolverOf(empty) { _, _ -> 11 },
-                )
-            },
         )
         val resolution = resolveChecked(world, "{ reference }")
         val key = resolution.result.keys.single { it.field.name == "reference" }

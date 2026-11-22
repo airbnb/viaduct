@@ -279,21 +279,16 @@ class ParentConstructionDemandTest : ResolutionDispatcherResource {
 
     @Test
     fun `object and Query fragments retain independent parent-demand metadata`() {
-        val fixture = TestWorld.fromSDL(
+        val fixture = TestWorld.fromDSL(
             """
-            directive @parent on FIELD_DEFINITION
-            type Query { objectConsumer: Int queryConsumer: Int root: Root }
+            extend type Query {
+              objectConsumer: Int @resolver(of: "root { child { parent { seed } } }", script: "1")
+              queryConsumer: Int @resolver(qf: "root { child { parent { seed } } }", script: "1")
+              root: Root
+            }
             type Root { seed: Int child: Child }
             type Child { parent: Root @parent }
             """.trimIndent(),
-            fieldResolvers = { schemas ->
-                val fragment = schemas.fragmentFrom("fragment F on Query { root { child { parent { seed } } } }")
-                val empty = schemas.loweredSchema.emptyFragmentOf("Query")
-                mapOf(
-                    schemas.loweredSchema.requireObjectField("Query", "objectConsumer") to fieldResolverOf(fragment) { _, _ -> 1 },
-                    schemas.loweredSchema.requireObjectField("Query", "queryConsumer") to fieldResolverOf(empty, fragment) { _, _, _ -> 1 },
-                )
-            },
         )
         val objectConsumer = fixture.resolverRegistry.resolver(fixture.schema.requireObjectField("Query", "objectConsumer"))
         val queryConsumer = fixture.resolverRegistry.resolver(fixture.schema.requireObjectField("Query", "queryConsumer"))

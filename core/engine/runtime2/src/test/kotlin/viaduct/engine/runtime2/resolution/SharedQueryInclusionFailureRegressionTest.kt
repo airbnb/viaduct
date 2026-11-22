@@ -5,16 +5,11 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import viaduct.engine.runtime2.bootstrap.fromQueryField
-import viaduct.engine.runtime2.contract.selectionValues
-import viaduct.engine.runtime2.model.Arguments
 import viaduct.engine.runtime2.model.EngineErrorData
 import viaduct.engine.runtime2.model.ErrorEngineResult
 import viaduct.engine.runtime2.model.ObjectEngineResult
-import viaduct.engine.runtime2.model.emptyFragmentOf
-import viaduct.engine.runtime2.model.registry.fieldResolverOf
 import viaduct.engine.runtime2.model.requireObjectField
 import viaduct.engine.runtime2.model.testing.TestWorld
-import viaduct.engine.runtime2.model.testing.emptyFragmentOf
 import viaduct.engine.runtime2.model.testing.fragmentFrom
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
 
@@ -46,64 +41,34 @@ class SharedQueryInclusionFailureRegressionTest : ResolutionDispatcherResource {
     ) {
         val sourceApplications = AtomicInteger()
         val failure = IllegalStateException("bad owner's provider failed")
-        val world = TestWorld.fromSDL(
-            schemaSDL = """
-                type Query {
-                  bad: Int!
-                  good: Int!
-                  source: Int!
-                  badFlag: Boolean!
-                  goodFlag: Boolean!
-                }
+        val ownerDeclarations = listOf("bad", "good").joinToString("\n") { name ->
+            val binding = if (fromQueryField) {
+                """variables: [{name: "enabled", fromQueryField: ["${name}Flag"]}]"""
+            } else {
+                val script = if (name == "bad") "throw 'bad owner provider failed'" else "{'enabled': true}"
+                """vars: {names: ["enabled"], script: "$script"}"""
+            }
+            """
+            $name: Int! @resolver(
+              qf: "${if (fromQueryField) "${name}Flag " else ""}source @include(if: ${'$'}enabled)"
+              $binding
+              script: "queryValue.source"
+            )
+            """.trimIndent()
+        }
+        val world = TestWorld.fromDSL(
+            """
+            extend type Query {
+              $ownerDeclarations
+              source: Int! @resolver(script: "sourceApplications.incrementAndGet(); 7")
+              badFlag: Boolean! @resolver(script: "failure")
+              goodFlag: Boolean! @resolver(script: "true")
+            }
             """.trimIndent(),
-            fieldResolvers = { schema ->
-                val owners = listOf("bad", "good").associate { name ->
-                    val field = schema.loweredSchema.requireObjectField("Query", name)
-                    val resolver = fieldResolverOf(
-                        objectFragment = schema.loweredSchema.emptyFragmentOf("Query"),
-                        queryFragment = schema.fragmentFrom(
-                            "fragment Owner on Query { " + (if (fromQueryField) "${name}Flag " else "") +
-                                "source @include(if: ${'$'}enabled) }",
-                            variableField = field,
-                        ),
-                    ) { _, queryValue, _ -> queryValue.selectionValues().getValue("source") }
-                    field to if (fromQueryField) {
-                        resolver
-                    } else {
-                        resolver.withVariablesProvider(setOf("enabled")) {
-                            if (name == "bad") throw failure
-                            mapOf("enabled" to true)
-                        }
-                    }
-                }
-                val flags = listOf("bad", "good").associate { name ->
-                    schema.loweredSchema.requireObjectField("Query", "${name}Flag") to
-                        fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
-                            if (name == "bad") EngineErrorData.of(failure) else true
-                        }
-                }
-                owners + flags + (
-                    schema.loweredSchema.requireObjectField("Query", "source") to
-                        fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
-                            sourceApplications.incrementAndGet()
-                            7
-                        }
-                )
-            },
-            variableProviders = { schema ->
-                if (!fromQueryField) {
-                    emptyMap()
-                } else {
-                    listOf("bad", "good").associate { name ->
-                        val field = schema.loweredSchema.requireObjectField("Query", name)
-                        Arguments.Variable.of(field, "enabled") to schema.fromQueryField(
-                            queryFragmentSource = "fragment Flag on Query { ${name}Flag }",
-                            responsePath = listOf("${name}Flag"),
-                            variableField = field,
-                        )
-                    }
-                }
-            },
+            scriptBindings = mapOf(
+                "sourceApplications" to sourceApplications,
+                "failure" to EngineErrorData.of(failure),
+            ),
         )
         val operation = SharedOperationContext.create(world.assumptions)
         val result = operation.resolveWithTestDispatcher(

@@ -22,7 +22,6 @@ import viaduct.engine.runtime2.model.requireType
 import viaduct.engine.runtime2.model.selectionForestOf
 import viaduct.engine.runtime2.model.testing.TestWorld
 import viaduct.engine.runtime2.model.testing.emptyFragmentOf
-import viaduct.engine.runtime2.model.testing.fragmentFrom
 import viaduct.engine.runtime2.model.testing.objectOf
 import viaduct.engine.runtime2.model.testing.testRoot
 import viaduct.engine.runtime2.model.toCanonicalMaterializeSelectionForest
@@ -166,35 +165,36 @@ class SiblingDependencyLogicTest {
     private fun testWorld(
         includeInapplicableSelection: Boolean = false,
         queryFragment: Boolean = false,
-    ): TestWorld =
-        TestWorld.fromSDL(
+    ): TestWorld {
+        if (!includeInapplicableSelection) {
+            return TestWorld.fromDSL(
+                """
+                extend type Query {
+                  consumer: String @resolver(
+                    ${if (queryFragment) "qf" else "of"}: "sibling(input: 1) { nested }"
+                    script: "'consumer'"
+                  )
+                  sibling(input: Int): Payload @resolver(script: "{:}")
+                  other: String @resolver(script: "'other'")
+                }
+                type Payload { nested: String }
+                """.trimIndent(),
+            )
+        }
+        return TestWorld.fromSDL(
             schemaSDL = SCHEMA_SDL,
             fieldResolvers = { schema ->
-                val consumerFragment =
-                    if (includeInapplicableSelection) {
-                        val query = schema.loweredSchema.requireQueryTypeDef()
-                        Fragment.of(
-                            nominalType = query,
-                            subselections =
-                                selectionForestOf(
-                                    Selection.of(
-                                        key = schema.loweredSchema.key(query, "other"),
-                                        possibleTypes = emptySet(),
-                                        subselections = selectionForestOf(),
-                                    ),
-                                ),
-                        )
-                    } else {
-                        schema.fragmentFrom(
-                            """
-                            fragment ignored on Query {
-                              sibling(input: 1) {
-                                nested
-                              }
-                            }
-                            """.trimIndent(),
-                        )
-                    }
+                val query = schema.loweredSchema.requireQueryTypeDef()
+                val consumerFragment = Fragment.of(
+                    nominalType = query,
+                    subselections = selectionForestOf(
+                        Selection.of(
+                            key = schema.loweredSchema.key(query, "other"),
+                            possibleTypes = emptySet(),
+                            subselections = selectionForestOf(),
+                        ),
+                    ),
+                )
                 val emptyFragment = schema.loweredSchema.emptyFragmentOf("Query")
                 mapOf(
                     schema.loweredSchema.requireField("Query", "consumer") to
@@ -223,42 +223,20 @@ class SiblingDependencyLogicTest {
                 )
             },
         )
+    }
 
     private fun cycleTemplateWorld(
         firstObjectDependency: String? = null,
         templateQueryDependency: String,
     ): TestWorld =
-        TestWorld.fromSDL(
-            schemaSDL =
-                """
-                type Query {
-                  first: Int!
-                  second: Int!
-                  template: Int!
-                }
-                """.trimIndent(),
-            fieldResolvers = { schema ->
-                val empty = schema.loweredSchema.emptyFragmentOf("Query")
-                val firstObjectFragment =
-                    firstObjectDependency?.let { dependency ->
-                        schema.fragmentFrom("fragment FirstObject on Query { $dependency }")
-                    } ?: empty
-                val templateQueryFragment =
-                    schema.fragmentFrom(
-                        "fragment TemplateQuery on Query { $templateQueryDependency }",
-                    )
-                mapOf(
-                    schema.loweredSchema.requireObjectField("Query", "first") to
-                        fieldResolverOf(firstObjectFragment) { _, _ -> 1 },
-                    schema.loweredSchema.requireObjectField("Query", "second") to
-                        fieldResolverOf(empty) { _, _ -> 2 },
-                    schema.loweredSchema.requireObjectField("Query", "template") to
-                        fieldResolverOf(
-                            objectFragment = empty,
-                            queryFragment = templateQueryFragment,
-                        ) { _, _, _ -> 3 },
-                )
-            },
+        TestWorld.fromDSL(
+            """
+            extend type Query {
+              first: Int! @resolver(of: "${firstObjectDependency.orEmpty()}", script: "1")
+              second: Int! @resolver(script: "2")
+              template: Int! @resolver(qf: "$templateQueryDependency", script: "3")
+            }
+            """.trimIndent(),
         )
 
     /** Reuses a validated template to construct a runtime-only cycle after registry assembly. */

@@ -9,15 +9,11 @@ import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.Promise
 import viaduct.engine.runtime2.model.ResolverOccurrenceId
 import viaduct.engine.runtime2.model.RootFieldReferenceData
-import viaduct.engine.runtime2.model.emptyFragmentOf
 import viaduct.engine.runtime2.model.merge
-import viaduct.engine.runtime2.model.registry.fieldResolverOf
 import viaduct.engine.runtime2.model.requireObjectField
 import viaduct.engine.runtime2.model.requireQueryTypeDef
 import viaduct.engine.runtime2.model.selectionForestOf
 import viaduct.engine.runtime2.model.testing.TestWorld
-import viaduct.engine.runtime2.model.testing.emptyFragmentOf
-import viaduct.engine.runtime2.model.testing.fragmentFrom
 import viaduct.engine.runtime2.resolution.framework.OEROccurrence
 import viaduct.engine.runtime2.resolution.framework.RootFieldReferenceInvocationObservation
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
@@ -48,26 +44,22 @@ class ReferenceQueryTypeCheckerCorrectResolutionTest {
         reference: Boolean = true,
         excludeDependency: Boolean = false,
     ): Boolean {
-        val worldFixture = TestWorld.fromSDL(
-            "type Query { reference: Int! ordinary: Int! target: Int! dependency: Int! policy: Int! }",
-            fieldResolvers = { schema ->
-                val empty = schema.loweredSchema.emptyFragmentOf("Query")
-                val target = schema.loweredSchema.requireObjectField("Query", "target")
-                buildMap {
-                    put(schema.loweredSchema.requireObjectField("Query", "reference"), fieldResolverOf(empty) { _, _ -> RootFieldReferenceData.of(listOf(target), emptyMap()) })
-                    listOf("ordinary", "target").forEach { name ->
-                        val selection = if (excludeDependency) "dependency @skip(if: true)" else "dependency"
-                        put(
-                            schema.loweredSchema.requireObjectField("Query", name),
-                            fieldResolverOf(empty, schema.fragmentFrom("fragment Input on Query { $selection }")) { _, query, _ ->
-                                if (excludeDependency) 7 else query.get("dependency")
-                            },
-                        )
-                    }
-                    put(schema.loweredSchema.requireObjectField("Query", "dependency"), fieldResolverOf(empty) { _, _ -> 7 })
-                    put(schema.loweredSchema.requireObjectField("Query", "policy"), fieldResolverOf(empty) { _, _ -> 11 })
-                }
-            },
+        val worldFixture = TestWorld.fromDSL(
+            """
+            extend type Query {
+              reference: Int! @resolver(script: "ref('target')")
+              ordinary: Int! @resolver(
+                qf: "dependency ${if (excludeDependency) "@skip(if: true)" else ""}"
+                script: "${if (excludeDependency) "7" else "queryValue.dependency"}"
+              )
+              target: Int! @resolver(
+                qf: "dependency ${if (excludeDependency) "@skip(if: true)" else ""}"
+                script: "${if (excludeDependency) "7" else "queryValue.dependency"}"
+              )
+              dependency: Int! @resolver(script: "7")
+              policy: Int! @resolver(script: "11")
+            }
+            """.trimIndent(),
         )
         val world = worldFixture.assumptions
         val query = worldFixture.schema.requireQueryTypeDef()

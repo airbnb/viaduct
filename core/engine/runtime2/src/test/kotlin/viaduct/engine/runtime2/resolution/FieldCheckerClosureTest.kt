@@ -32,27 +32,12 @@ open class FieldCheckerClosureTest : ResolutionDispatcherResource {
         runBlocking {
             val world = TestWorld.fromDSL(
                 """
-            extend type Query {
-              checked: Int! @resolver(script: "1")
-              raw: Int! @resolver(of: "protected", script: "2")
-              protected: Int! @resolver(script: "3")
-            }
+                extend type Query {
+                  checked: Int! @resolver(script: "1") @checker(inputs: [{name: "input", of: "raw", qf: "raw"}], script: "allow")
+                  raw: Int! @resolver(of: "protected", script: "2") @checker(script: "throw 'raw checker must not run'")
+                  protected: Int! @resolver(script: "3") @checker(script: "allow")
+                }
                 """.trimIndent(),
-                fieldCheckers = { schema ->
-                    val checked = schema.loweredSchema.requireObjectField("Query", "checked")
-                    val raw = schema.loweredSchema.requireObjectField("Query", "raw")
-                    val protected = schema.loweredSchema.requireObjectField("Query", "protected")
-                    val fragment = schema.fragmentFrom("fragment Input on Query { raw }").materializeSelections
-                    mapOf(
-                        checked to FieldCheckerResolver.of(
-                            checked,
-                            schema.loweredSchema.requireQueryTypeDef(),
-                            mapOf("input" to ResolverFragmentTemplates(fragment, fragment))
-                        ) { _, _, _ -> CheckerResult.Success },
-                        raw to FieldCheckerResolver.of(raw, schema.loweredSchema.requireQueryTypeDef()) { _, _, _ -> error("raw checker must not run") },
-                        protected to FieldCheckerResolver.of(protected, schema.loweredSchema.requireQueryTypeDef()) { _, _, _ -> CheckerResult.Success },
-                    )
-                },
             )
             val operation = OperationContext.create(SharedOperationContext.create(world.newAssumptions(usePrecomputedConstructionDemand = precomputedConstructionDemand)), this)
             val root = ObjectEngineResult.of(world.schema.requireQueryTypeDef(), mutable = true)

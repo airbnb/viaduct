@@ -1,5 +1,6 @@
 package viaduct.engine.runtime2.resolvers
 
+import java.util.concurrent.CopyOnWriteArrayList
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -26,7 +27,6 @@ import viaduct.engine.runtime2.model.merge
 import viaduct.engine.runtime2.model.registry.Assumptions
 import viaduct.engine.runtime2.model.registry.VariablesProviderFunction
 import viaduct.engine.runtime2.model.registry.fieldResolverOf
-import viaduct.engine.runtime2.model.registry.fromArgument
 import viaduct.engine.runtime2.model.requireObjectField
 import viaduct.engine.runtime2.model.requireQueryTypeDef
 import viaduct.engine.runtime2.model.requireType
@@ -52,35 +52,24 @@ class ConstructionDemandClosureTest {
     @Test
     fun `distinct normalized symbolic and literal seeds coalesce after grounding`() {
         for (precomputed in listOf(false, true)) {
-            val providerCalls = mutableListOf<Int>()
-            val fixture = TestWorld.fromSDL(
-                schemaSDL = "type Query { consumer(seed: Int): Int middle(value: Int): Int base(value: Int): Int }",
-                fieldResolvers = { schemas ->
-                    val schema = schemas.loweredSchema
-                    mapOf(
-                        schema.requireObjectField("Query", "consumer") to fieldResolverOf(
-                            objectFragment = schema.emptyFragmentOf("Query"),
-                            queryFragment = schemas.fragmentFrom("fragment Input on Query { literal: middle(value: 7) symbolic: middle(value: ${'$'}value) }"),
-                        ) { _, query, _ ->
-                            val values = query.selectionValues()
-                            (values.getValue("literal") as Int) + (values.getValue("symbolic") as Int)
-                        },
-                        schema.requireObjectField("Query", "middle") to fieldResolverOf(
-                            objectFragment = schema.emptyFragmentOf("Query"),
-                            queryFragment = schemas.fragmentFrom("fragment Input on Query { base(value: ${'$'}provided) }"),
-                        ) { _, query, _ -> query.selectionValues().getValue("base") }
-                            .withVariablesProvider(setOf("provided")) { arguments ->
-                                val value = arguments.fieldValues.getValue("value") as Int
-                                providerCalls += value
-                                mapOf("provided" to value * 2)
-                            },
-                        schema.requireObjectField("Query", "base") to fieldResolverOf(schema.emptyFragmentOf("Query")) { _, arguments -> arguments.fieldValues.getValue("value") },
-                    )
-                },
-                variableProviders = { schemas ->
-                    val consumer = schemas.loweredSchema.requireObjectField("Query", "consumer")
-                    mapOf(Arguments.Variable.of(consumer, "value") to schemas.loweredSchema.fromArgument(consumer, "seed"))
-                },
+            val providerCalls = CopyOnWriteArrayList<Int>()
+            val fixture = TestWorld.fromDSL(
+                """
+                extend type Query {
+                  consumer(seed: Int): Int @resolver(
+                    qf: "literal: middle(value: 7) symbolic: middle(value: ${'$'}value)"
+                    variables: [{name: "value", fromArgument: ["seed"]}]
+                    script: "queryValue.literal + queryValue.symbolic"
+                  )
+                  middle(value: Int): Int @resolver(
+                    qf: "base(value: ${'$'}provided)"
+                    vars: {names: ["provided"], script: "providerCalls.add(value); {'provided': value * 2}"}
+                    script: "queryValue.base"
+                  )
+                  base(value: Int): Int @resolver(script: "value")
+                }
+                """.trimIndent(),
+                scriptBindings = mapOf("providerCalls" to providerCalls),
             )
             val consumer = fixture.schema.requireObjectField("Query", "consumer")
             val resolver = fixture.resolverRegistry.resolver(consumer)
@@ -192,33 +181,25 @@ class ConstructionDemandClosureTest {
     fun `object closure links a diamond and grounds residuals only for unsupplied dependencies`() {
         for (precomputed in listOf(false, true)) {
             for (supplied in listOf(false, true)) {
-                val providerCalls = mutableListOf<Int>()
-                val fixture = TestWorld.fromSDL(
-                    schemaSDL = """
-                        type Query { base(value: Int): Int constant: Int }
-                        type Item { leftResult: Int rightResult: Int middle: Leaf fixed: Int seed(value: Int): Int }
-                        type Leaf { left: Int right: Int }
+                val providerCalls = CopyOnWriteArrayList<Int>()
+                val fixture = TestWorld.fromDSL(
+                    """
+                    extend type Query { base(value: Int): Int constant: Int }
+                    type Item {
+                      leftResult: Int @resolver(of: "middle { left }", script: "throw 'Closure must not invoke resolvers'")
+                      rightResult: Int @resolver(of: "middle { right }", script: "throw 'Closure must not invoke resolvers'")
+                      middle: Leaf @resolver(
+                        of: "fixed seed(value: ${'$'}value)"
+                        qf: "constant base(value: ${'$'}value)"
+                        vars: {names: ["value"], script: "providerCalls.add(4); {'value': 4}"}
+                        script: "throw 'Closure must not invoke resolvers'"
+                      )
+                      fixed: Int @resolver(script: "3")
+                      seed(value: Int): Int @resolver(script: "4")
+                    }
+                    type Leaf { left: Int right: Int }
                     """.trimIndent(),
-                    fieldResolvers = { schemas ->
-                        val schema = schemas.loweredSchema
-                        mapOf(
-                            schema.requireObjectField("Item", "leftResult") to fieldResolverOf(
-                                schemas.fragmentFrom("fragment Input on Item { middle { left } }"),
-                            ) { _, _ -> error("Closure must not invoke resolvers") },
-                            schema.requireObjectField("Item", "rightResult") to fieldResolverOf(
-                                schemas.fragmentFrom("fragment Input on Item { middle { right } }"),
-                            ) { _, _ -> error("Closure must not invoke resolvers") },
-                            schema.requireObjectField("Item", "middle") to fieldResolverOf(
-                                objectFragment = schemas.fragmentFrom("fragment Input on Item { fixed seed(value: ${'$'}value) }"),
-                                queryFragment = schemas.fragmentFrom("fragment Input on Query { constant base(value: ${'$'}value) }"),
-                            ) { _, _, _ -> error("Closure must not invoke resolvers") }.withVariablesProvider(setOf("value")) {
-                                providerCalls += 4
-                                mapOf("value" to 4)
-                            },
-                            schema.requireObjectField("Item", "fixed") to fieldResolverOf(schema.emptyFragmentOf("Item")) { _, _ -> 3 },
-                            schema.requireObjectField("Item", "seed") to fieldResolverOf(schema.emptyFragmentOf("Item")) { _, _ -> 4 },
-                        )
-                    },
+                    scriptBindings = mapOf("providerCalls" to providerCalls),
                 )
                 val world = fixture.newAssumptions(usePrecomputedConstructionDemand = precomputed)
                 val itemType = world.schema.requireType("Item") as ViaductSchema.Object
@@ -365,7 +346,7 @@ class ConstructionDemandClosureTest {
 
     @Test
     fun `hybrid templates preserve static siblings and split a partially variable bearing subtree`() {
-        val fixture = mixedQueryClosureFixture { error("registry construction must not invoke providers") }
+        val fixture = mixedQueryClosureFixture("throw 'registry construction must not invoke providers'")
         val template = requireNotNull(fixture.resolverRegistry.referenceConstructionDemand(fixture.schema.requireObjectField("Query", "consumer"))).queryDemand
         val bar = fixture.schema.requireType("Bar") as ViaductSchema.Object
 
@@ -380,27 +361,20 @@ class ConstructionDemandClosureTest {
 
     @Test
     fun `hybrid templates keep conditional dependencies and descendants in residual demand`() {
-        val fixture = TestWorld.fromSDL(
-            schemaSDL = "type Query { consumer(flag: Boolean!): Int stable: Int middle: Int base: Int branch: Branch } type Branch { fixed: Int conditional: Int }",
-            fieldResolvers = { schemas ->
-                val schema = schemas.loweredSchema
-                mapOf(
-                    schema.requireObjectField("Query", "consumer") to fieldResolverOf(
-                        objectFragment = schema.emptyFragmentOf("Query"),
-                        queryFragment = schemas.fragmentFrom(
-                            "fragment Input on Query { stable middle @include(if: ${'$'}flag) branch { fixed conditional @skip(if: ${'$'}flag) } }",
-                        ),
-                    ) { _, _, _ -> 0 },
-                    schema.requireObjectField("Query", "middle") to fieldResolverOf(
-                        objectFragment = schema.emptyFragmentOf("Query"),
-                        queryFragment = schemas.fragmentFrom("fragment Input on Query { base }"),
-                    ) { _, query, _ -> query.selectionValues().getValue("base") },
-                )
-            },
-            variableProviders = { schemas ->
-                val consumer = schemas.loweredSchema.requireObjectField("Query", "consumer")
-                mapOf(Arguments.Variable.of(consumer, "flag") to schemas.loweredSchema.fromArgument(consumer, "flag"))
-            },
+        val fixture = TestWorld.fromDSL(
+            """
+            extend type Query {
+              consumer(flag: Boolean!): Int @resolver(
+                qf: "stable middle @include(if: ${'$'}flag) branch { fixed conditional @skip(if: ${'$'}flag) }"
+                script: "0"
+              )
+              stable: Int
+              middle: Int @resolver(qf: "base", script: "queryValue.base")
+              base: Int
+              branch: Branch
+            }
+            type Branch { fixed: Int conditional: Int }
+            """.trimIndent(),
         )
         val consumer = fixture.schema.requireObjectField("Query", "consumer")
         val template = requireNotNull(fixture.resolverRegistry.referenceConstructionDemand(consumer)).queryDemand
@@ -423,13 +397,12 @@ class ConstructionDemandClosureTest {
     @Test
     fun `hybrid closure combines static and dynamic subselections before sharing Query production`() {
         for (precomputed in listOf(false, true)) {
-            val providers = mutableListOf<Int>()
+            val providers = CopyOnWriteArrayList<Int>()
             val calls = mutableListOf<ObjectEngineResult.GroundKey>()
-            val fixture = mixedQueryClosureFixture { arguments ->
-                val value = arguments.fieldValues.getValue("seed") as Int
-                providers += value
-                mapOf("value" to value)
-            }
+            val fixture = mixedQueryClosureFixture(
+                providerScript = "providers.add(seed); {'value': seed}",
+                scriptBindings = mapOf("providers" to providers),
+            )
             assertTrue(providers.isEmpty())
             val world = fixture.newAssumptions(usePrecomputedConstructionDemand = precomputed)
             val observer = object : ResolutionObserver {
@@ -452,7 +425,7 @@ class ConstructionDemandClosureTest {
     fun `failed nested variable bindings retain static siblings and suppress variable bearing resolution`() {
         for (precomputed in listOf(false, true)) {
             val calls = mutableListOf<String>()
-            val fixture = mixedQueryClosureFixture { error("provider failed") }
+            val fixture = mixedQueryClosureFixture("throw 'provider failed'")
             val world = fixture.newAssumptions(usePrecomputedConstructionDemand = precomputed)
             val observer = object : ResolutionObserver {
                 override val onResolverInvocation: (ResolverInvocationObservation) -> Unit = { observation ->
@@ -887,45 +860,30 @@ class ConstructionDemandClosureTest {
                 """.trimIndent(),
         )
 
-    private fun mixedQueryClosureFixture(provider: VariablesProviderFunction): TestWorld =
-        TestWorld.fromSDL(
-            schemaSDL = """
-                type Query { consumer(seed: Int!): Int! foo: Leaf! bar: Bar! baz: Leaf! base(value: Int!): Int! }
-                type Leaf { value: Int! }
-                type Bar { fixed: Int! f1(arg: Int!): Leaf! }
+    private fun mixedQueryClosureFixture(
+        providerScript: String,
+        scriptBindings: Map<String, Any?> = emptyMap(),
+    ): TestWorld =
+        TestWorld.fromDSL(
+            """
+            extend type Query {
+              consumer(seed: Int!): Int! @resolver(
+                qf: "foo { value } bar { fixed f1(arg: ${'$'}value) { value } } baz { value }"
+                vars: {names: ["value"], script: "$providerScript"}
+                script: "queryValue.foo.value + queryValue.bar.fixed + queryValue.baz.value + queryValue.bar.f1.value"
+              )
+              foo: Leaf! @resolver(qf: "base(value: 7)", script: "{'value': queryValue.base}")
+              bar: Bar! @resolver(script: "{'fixed': 5}")
+              baz: Leaf! @resolver(script: "{'value': 3}")
+              base(value: Int!): Int! @resolver(script: "value")
+            }
+            type Leaf { value: Int! }
+            type Bar {
+              fixed: Int!
+              f1(arg: Int!): Leaf! @resolver(script: "{'value': arg * 2}")
+            }
             """.trimIndent(),
-            fieldResolvers = { schemas ->
-                val schema = schemas.loweredSchema
-                val empty = schema.emptyFragmentOf("Query")
-                mapOf(
-                    schema.requireObjectField("Query", "consumer") to
-                        fieldResolverOf(
-                            empty,
-                            schemas.fragmentFrom("fragment F on Query { foo { value } bar { fixed f1(arg: ${'$'}value) { value } } baz { value } }"),
-                        ) { _, query, _ ->
-                            val values = query.selectionValues()
-                            val foo = (values.getValue("foo") as EngineObjectData.Sync).selectionValues()
-                            val bar = (values.getValue("bar") as EngineObjectData.Sync).selectionValues()
-                            val baz = (values.getValue("baz") as EngineObjectData.Sync).selectionValues()
-                            val f1 = (bar.getValue("f1") as EngineObjectData.Sync).selectionValues()
-                            (foo.getValue("value") as Int) + (bar.getValue("fixed") as Int) + (baz.getValue("value") as Int) + (f1.getValue("value") as Int)
-                        }.withVariablesProvider(setOf("value"), provider),
-                    schema.requireObjectField("Query", "foo") to
-                        fieldResolverOf(empty, schemas.fragmentFrom("fragment F on Query { base(value: 7) }")) { _, query, _ ->
-                            schema.objectOf("Leaf") { "value" setTo query.selectionValues().getValue("base") }
-                        },
-                    schema.requireObjectField("Query", "bar") to
-                        fieldResolverOf(empty) { _, _ -> schema.objectOf("Bar") { "fixed" setTo 5 } },
-                    schema.requireObjectField("Query", "baz") to
-                        fieldResolverOf(empty) { _, _ -> schema.objectOf("Leaf") { "value" setTo 3 } },
-                    schema.requireObjectField("Query", "base") to
-                        fieldResolverOf(empty) { _, arguments -> arguments.fieldValues.getValue("value") },
-                    schema.requireObjectField("Bar", "f1") to
-                        fieldResolverOf(schema.emptyFragmentOf("Bar")) { _, arguments ->
-                            schema.objectOf("Leaf") { "value" setTo (arguments.fieldValues.getValue("arg") as Int) * 2 }
-                        },
-                )
-            },
+            scriptBindings = scriptBindings,
         )
 
     private fun queryVariableClosureFixture(
@@ -959,177 +917,55 @@ class ConstructionDemandClosureTest {
         )
 
     private fun precomputedClosureFixture(): TestWorld =
-        TestWorld.fromSDL(
-            schemaSDL = """
-                type Query { base(value: Int!): Int! middle: Int! first: Int! second: Int! item: Item! }
-                type Item { left: Int! right: Int! }
+        TestWorld.fromDSL(
+            """
+            extend type Query {
+              base(value: Int!): Int! @resolver(script: "value")
+              middle: Int! @resolver(qf: "base(value: 7)", script: "queryValue.base")
+              first: Int! @resolver(qf: "middle item { left }", script: "queryValue.middle + queryValue.item.left")
+              second: Int! @resolver(qf: "base(value: 9) item { right }", script: "queryValue.base + queryValue.item.right")
+              item: Item! @resolver(script: "{'left': 1, 'right': 2}")
+            }
+            type Item { left: Int! right: Int! }
             """.trimIndent(),
-            fieldResolvers = { schema ->
-                val empty = schema.loweredSchema.emptyFragmentOf("Query")
-                mapOf(
-                    schema.loweredSchema.requireObjectField("Query", "base") to
-                        fieldResolverOf(empty) { _, arguments -> arguments.fieldValues.getValue("value") },
-                    schema.loweredSchema.requireObjectField("Query", "item") to
-                        fieldResolverOf(empty) { _, _ ->
-                            schema.loweredSchema.objectOf("Item") {
-                                "left" setTo 1
-                                "right" setTo 2
-                            }
-                        },
-                    schema.loweredSchema.requireObjectField("Query", "middle") to
-                        fieldResolverOf(empty, schema.fragmentFrom("fragment F on Query { base(value: 7) }")) { _, queryValue, _ ->
-                            queryValue.selectionValues().getValue("base")
-                        },
-                    schema.loweredSchema.requireObjectField("Query", "first") to
-                        fieldResolverOf(empty, schema.fragmentFrom("fragment F on Query { middle item { left } }")) { _, queryValue, _ ->
-                            val item = queryValue.selectionValues().getValue("item") as EngineObjectData.Sync
-                            (queryValue.selectionValues().getValue("middle") as Int) + (item.selectionValues().getValue("left") as Int)
-                        },
-                    schema.loweredSchema.requireObjectField("Query", "second") to
-                        fieldResolverOf(empty, schema.fragmentFrom("fragment F on Query { base(value: 9) item { right } }")) { _, queryValue, _ ->
-                            val item = queryValue.selectionValues().getValue("item") as EngineObjectData.Sync
-                            (queryValue.selectionValues().getValue("base") as Int) + (item.selectionValues().getValue("right") as Int)
-                        },
-                )
-            },
         )
 
     private fun queryClosureFixture(): TestWorld =
-        TestWorld.fromSDL(
-            schemaSDL =
-                """
-                type Query {
-                  entry: Int!
-                  objectOnly: Int!
-                  queryOnly: Int!
-                  shared: Int!
-                  transitive: Int!
-                  leaf: Int!
-                  checkedOwner: Int!
-                  checkedDependency: Int!
-                  rawOwner: Int!
-                  rawDependency: Int!
-                }
-                """.trimIndent(),
-            fieldResolvers = { schema ->
-                val empty = schema.loweredSchema.emptyFragmentOf("Query")
-                val entry = schema.loweredSchema.requireObjectField("Query", "entry")
-                val queryOnly = schema.loweredSchema.requireObjectField("Query", "queryOnly")
-                val checkedOwner = schema.loweredSchema.requireObjectField("Query", "checkedOwner")
-                val rawOwner = schema.loweredSchema.requireObjectField("Query", "rawOwner")
-                listOf(
-                    "entry",
-                    "objectOnly",
-                    "queryOnly",
-                    "shared",
-                    "transitive",
-                    "leaf",
-                    "checkedOwner",
-                    "checkedDependency",
-                    "rawOwner",
-                    "rawDependency",
-                ).associate { fieldName ->
-                    val field = schema.loweredSchema.requireObjectField("Query", fieldName)
-                    field to
-                        when (field) {
-                            entry ->
-                                fieldResolverOf(
-                                    objectFragment =
-                                        schema.fragmentFrom(
-                                            "fragment EntryObject on Query { objectOnly shared }",
-                                        ),
-                                    queryFragment =
-                                        schema.fragmentFrom(
-                                            "fragment EntryQuery on Query { queryOnly shared }",
-                                        ),
-                                ) { _, _, _ -> 1 }
-                            queryOnly ->
-                                fieldResolverOf(
-                                    objectFragment =
-                                        schema.fragmentFrom(
-                                            "fragment QueryOnlyObject on Query { shared }",
-                                        ),
-                                    queryFragment =
-                                        schema.fragmentFrom(
-                                            "fragment QueryOnlyQuery on Query { transitive }",
-                                        ),
-                                ) { _, _, _ -> 1 }
-                            checkedOwner ->
-                                fieldResolverOf(
-                                    schema.fragmentFrom(
-                                        "fragment CheckedOwner on Query { checkedDependency }",
-                                    ),
-                                ) { _, _ -> 1 }
-                            rawOwner ->
-                                fieldResolverOf(
-                                    schema.fragmentFrom(
-                                        "fragment RawOwner on Query { rawDependency }",
-                                    ),
-                                ) { _, _ -> 1 }
-                            else -> fieldResolverOf(empty) { _, _ -> 1 }
-                        }
-                }
-            },
+        TestWorld.fromDSL(
+            """
+            extend type Query {
+              entry: Int! @resolver(of: "objectOnly shared", qf: "queryOnly shared", script: "1")
+              objectOnly: Int! @resolver(script: "1")
+              queryOnly: Int! @resolver(of: "shared", qf: "transitive", script: "1")
+              shared: Int! @resolver(script: "1")
+              transitive: Int! @resolver(script: "1")
+              leaf: Int! @resolver(script: "1")
+              checkedOwner: Int! @resolver(of: "checkedDependency", script: "1")
+              checkedDependency: Int! @resolver(script: "1")
+              rawOwner: Int! @resolver(of: "rawDependency", script: "1")
+              rawDependency: Int! @resolver(script: "1")
+            }
+            """.trimIndent(),
         )
 
     private fun parentClosureFixture(): TestWorld =
-        TestWorld.fromSDL(
-            schemaSDL =
-                """
-                directive @parent on FIELD_DEFINITION
-
-                type Query { root: Root! queryInput: Int! transitive: Int! }
-
-                type Root {
-                  child: Child!
-                  lifted: Int!
-                  local: Int!
-                }
-
-                type Child {
-                  parent: Root @parent
-                  result: Int!
-                }
-                """.trimIndent(),
-            fieldResolvers = { schema ->
-                val emptyQuery = schema.loweredSchema.emptyFragmentOf("Query")
-                val emptyRoot = schema.loweredSchema.emptyFragmentOf("Root")
-                val child = schema.loweredSchema.requireObjectField("Root", "child")
-                val lifted = schema.loweredSchema.requireObjectField("Root", "lifted")
-                val local = schema.loweredSchema.requireObjectField("Root", "local")
-                val queryInput = schema.loweredSchema.requireObjectField("Query", "queryInput")
-                val transitive = schema.loweredSchema.requireObjectField("Query", "transitive")
-                val result = schema.loweredSchema.requireObjectField("Child", "result")
-                mapOf(
-                    child to
-                        fieldResolverOf(emptyRoot) { _, _ -> schema.loweredSchema.objectOf("Child") },
-                    lifted to
-                        fieldResolverOf(
-                            objectFragment =
-                                schema.fragmentFrom("fragment LiftedObject on Root { local }"),
-                            queryFragment =
-                                schema.fragmentFrom(
-                                    "fragment LiftedQuery on Query { queryInput }",
-                                ),
-                        ) { _, _, _ -> 1 },
-                    local to fieldResolverOf(emptyRoot) { _, _ -> 1 },
-                    queryInput to
-                        fieldResolverOf(
-                            objectFragment = emptyQuery,
-                            queryFragment =
-                                schema.fragmentFrom(
-                                    "fragment QueryInput on Query { transitive }",
-                                ),
-                        ) { _, _, _ -> 1 },
-                    transitive to fieldResolverOf(emptyQuery) { _, _ -> 1 },
-                    result to
-                        fieldResolverOf(
-                            schema.fragmentFrom(
-                                "fragment ChildResult on Child { parent { lifted } }",
-                            ),
-                        ) { _, _ -> 1 },
-                )
-            },
+        TestWorld.fromDSL(
+            """
+            extend type Query {
+              root: Root!
+              queryInput: Int! @resolver(qf: "transitive", script: "1")
+              transitive: Int! @resolver(script: "1")
+            }
+            type Root {
+              child: Child! @resolver(script: "{:}")
+              lifted: Int! @resolver(of: "local", qf: "queryInput", script: "1")
+              local: Int! @resolver(script: "1")
+            }
+            type Child {
+              parent: Root @parent
+              result: Int! @resolver(of: "parent { lifted }", script: "1")
+            }
+            """.trimIndent(),
         )
 
     private fun TestWorld.closeOrchestrationDemand(

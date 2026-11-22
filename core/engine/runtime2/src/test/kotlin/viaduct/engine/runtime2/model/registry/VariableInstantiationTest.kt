@@ -9,50 +9,21 @@ import viaduct.engine.runtime2.model.Arguments
 import viaduct.engine.runtime2.model.ListEngineResult
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.ResolverOccurrenceId
-import viaduct.engine.runtime2.model.emptyFragmentOf
 import viaduct.engine.runtime2.model.requireArg
 import viaduct.engine.runtime2.model.requireObjectField
 import viaduct.engine.runtime2.model.testing.TestWorld
-import viaduct.engine.runtime2.model.testing.emptyFragmentOf
-import viaduct.engine.runtime2.model.testing.fragmentFrom
 import viaduct.engine.runtime2.model.testing.testRoot
 import viaduct.engine.runtime2.model.usedVariables
 
 class VariableInstantiationTest {
     private val world =
-        TestWorld.fromSDL(
-            schemaSDL =
-                """
-                type Query {
-                  result(seed: Int): Int!
-                  consume(value: Int): Int!
-                }
-                """.trimIndent(),
-            fieldResolvers = { schema ->
-                val result = schema.loweredSchema.requireObjectField("Query", "result")
-                mapOf(
-                    result to
-                        fieldResolverOf(
-                            schema.fragmentFrom(
-                                """
-                                fragment Result on Query {
-                                  first: consume(value: ${'$'}seed)
-                                  second: consume(value: ${'$'}seed)
-                                }
-                                """.trimIndent(),
-                            ),
-                        ) { _, _ -> 1 },
-                    schema.loweredSchema.requireObjectField("Query", "consume") to
-                        fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ -> 1 },
-                )
-            },
-            variableProviders = { schema ->
-                val result = schema.loweredSchema.requireObjectField("Query", "result")
-                mapOf(
-                    Arguments.Variable.of(result, "seed") to
-                        schema.loweredSchema.fromArgument(result, "seed"),
-                )
-            },
+        TestWorld.fromDSL(
+            """
+            extend type Query {
+              result(seed: Int): Int! @resolver(of: "first: consume(value: ${'$'}seed) second: consume(value: ${'$'}seed)", script: "1")
+              consume(value: Int): Int! @resolver(script: "1")
+            }
+            """.trimIndent(),
         )
 
     @Test

@@ -27,18 +27,14 @@ import viaduct.engine.runtime2.model.ResolverOutputData
 import viaduct.engine.runtime2.model.RootFieldReferenceData
 import viaduct.engine.runtime2.model.SelectionForest
 import viaduct.engine.runtime2.model.additionalContextForResolver
-import viaduct.engine.runtime2.model.emptyFragmentOf
 import viaduct.engine.runtime2.model.engineObjectDataOf
 import viaduct.engine.runtime2.model.outputType
 import viaduct.engine.runtime2.model.outputValue
-import viaduct.engine.runtime2.model.registry.fieldResolverOf
-import viaduct.engine.runtime2.model.requireField
 import viaduct.engine.runtime2.model.requireObjectField
 import viaduct.engine.runtime2.model.requireQueryTypeDef
 import viaduct.engine.runtime2.model.requireType
 import viaduct.engine.runtime2.model.selectionForestOf
 import viaduct.engine.runtime2.model.testing.TestWorld
-import viaduct.engine.runtime2.model.testing.emptyFragmentOf
 import viaduct.engine.runtime2.model.testing.fragmentFrom
 import viaduct.engine.runtime2.model.testing.objectOf
 import viaduct.engine.runtime2.resolvers.applicableGroundSelections
@@ -282,40 +278,16 @@ class SharedPassiveValueResolutionLogicTest {
     @Test
     fun `leaves demanded active typename unresolved and retains exact resolver objects`() {
         val testWorld =
-            TestWorld.fromSDL(
-                schemaSDL =
-                    """
-                    type Profile {
-                      raw: String!
-                      rendered: String!
-                    }
-
-                    type User {
-                      name: String!
-                      profile: Profile!
-                      computed: String!
-                    }
-
-                    type Query {
-                      user: User!
-                    }
-                    """.trimIndent(),
-                fieldResolvers = { schema ->
-                    mapOf(
-                        schema.loweredSchema.requireField("Query", "user") to
-                            fieldResolverOf(
-                                schema.loweredSchema.emptyFragmentOf("Query"),
-                            ) { _, _ -> schema.loweredSchema.objectOf("User") },
-                        schema.loweredSchema.requireField("User", "computed") to
-                            fieldResolverOf(
-                                schema.loweredSchema.emptyFragmentOf("User"),
-                            ) { _, _ -> "computed" },
-                        schema.loweredSchema.requireField("Profile", "rendered") to
-                            fieldResolverOf(
-                                schema.loweredSchema.emptyFragmentOf("Profile"),
-                            ) { _, _ -> "rendered" },
-                    )
-                },
+            TestWorld.fromDSL(
+                """
+                extend type Query { user: User! @resolver(script: "{:}") }
+                type User {
+                  name: String!
+                  profile: Profile!
+                  computed: String! @resolver(script: "'computed'")
+                }
+                type Profile { raw: String! rendered: String! @resolver(script: "'rendered'") }
+                """.trimIndent(),
             )
         val world = testWorld.assumptions
         val schema = world.schema
@@ -384,40 +356,16 @@ class SharedPassiveValueResolutionLogicTest {
     @Test
     fun `passive traversal ignores undemanded object subtrees`() {
         val testWorld =
-            TestWorld.fromSDL(
-                schemaSDL =
-                    """
-                    type Profile {
-                      raw: String!
-                      rendered: String!
-                    }
-
-                    type User {
-                      name: String!
-                      profile: Profile!
-                      computed: String!
-                    }
-
-                    type Query {
-                      user: User!
-                    }
-                    """.trimIndent(),
-                fieldResolvers = { schema ->
-                    mapOf(
-                        schema.loweredSchema.requireField("Query", "user") to
-                            fieldResolverOf(
-                                schema.loweredSchema.emptyFragmentOf("Query"),
-                            ) { _, _ -> schema.loweredSchema.objectOf("User") },
-                        schema.loweredSchema.requireField("User", "computed") to
-                            fieldResolverOf(
-                                schema.loweredSchema.emptyFragmentOf("User"),
-                            ) { _, _ -> "computed" },
-                        schema.loweredSchema.requireField("Profile", "rendered") to
-                            fieldResolverOf(
-                                schema.loweredSchema.emptyFragmentOf("Profile"),
-                            ) { _, _ -> "rendered" },
-                    )
-                },
+            TestWorld.fromDSL(
+                """
+                extend type Query { user: User! @resolver(script: "{:}") }
+                type User {
+                  name: String!
+                  profile: Profile!
+                  computed: String! @resolver(script: "'computed'")
+                }
+                type Profile { raw: String! rendered: String! @resolver(script: "'rendered'") }
+                """.trimIndent(),
             )
         val world = testWorld.assumptions
         val schema = world.schema
@@ -685,41 +633,15 @@ class SharedPassiveValueResolutionLogicTest {
     @Test
     fun `list traversal records every pending descendant without rebuilding paths`() {
         val testWorld =
-            TestWorld.fromSDL(
-                schemaSDL =
-                    """
-                    type Nested {
-                      rendered: Int!
-                    }
-
-                    type Item {
-                      nested: Nested!
-                      computed: Int!
-                    }
-
-                    type Query {
-                      items: [Item!]!
-                    }
-                    """.trimIndent(),
-                fieldResolvers = { schema ->
-                    val emptyQuery = schema.loweredSchema.emptyFragmentOf("Query")
-                    val emptyItem = schema.loweredSchema.emptyFragmentOf("Item")
-                    val emptyNested = schema.loweredSchema.emptyFragmentOf("Nested")
-                    mapOf(
-                        schema.loweredSchema.requireField("Query", "items") to
-                            fieldResolverOf(emptyQuery) { _, _ ->
-                                error("Not invoked")
-                            },
-                        schema.loweredSchema.requireField("Item", "computed") to
-                            fieldResolverOf(emptyItem) { _, _ ->
-                                error("Not invoked")
-                            },
-                        schema.loweredSchema.requireField("Nested", "rendered") to
-                            fieldResolverOf(emptyNested) { _, _ ->
-                                error("Not invoked")
-                            },
-                    )
-                },
+            TestWorld.fromDSL(
+                """
+                extend type Query { items: [Item!]! @resolver(script: "throw 'Not invoked'") }
+                type Item {
+                  nested: Nested!
+                  computed: Int! @resolver(script: "throw 'Not invoked'")
+                }
+                type Nested { rendered: Int! @resolver(script: "throw 'Not invoked'") }
+                """.trimIndent(),
             )
         val world = testWorld.assumptions
         val schema = world.schema

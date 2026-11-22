@@ -9,17 +9,12 @@ import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.Promise
 import viaduct.engine.runtime2.model.ResolverOccurrenceId
 import viaduct.engine.runtime2.model.ResolverTarget
-import viaduct.engine.runtime2.model.emptyFragmentOf
 import viaduct.engine.runtime2.model.engineObjectDataOf
 import viaduct.engine.runtime2.model.registry.CheckerInput
-import viaduct.engine.runtime2.model.registry.ResolverFragmentTemplates
-import viaduct.engine.runtime2.model.registry.TypeCheckerResolver
-import viaduct.engine.runtime2.model.registry.fieldResolverOf
 import viaduct.engine.runtime2.model.requireObjectField
 import viaduct.engine.runtime2.model.requireQueryTypeDef
 import viaduct.engine.runtime2.model.requireType
 import viaduct.engine.runtime2.model.testing.TestWorld
-import viaduct.engine.runtime2.model.testing.emptyFragmentOf
 import viaduct.engine.runtime2.model.testing.fragmentFrom
 import viaduct.engine.runtime2.resolution.framework.CheckerInvocationObservation
 import viaduct.engine.runtime2.resolution.framework.CheckerKind
@@ -30,30 +25,23 @@ import viaduct.graphql.schema.ViaductSchema
 class CheckerInputCorrectResolutionTest {
     @Test
     fun `replay rejects wrong scalar projections even when both named inputs agree and return success`() {
-        val worldFixture = TestWorld.fromSDL(
-            schemaSDL = "type Query { item: Item marker: Int! } type Item { value: Int! marker: Int! }",
-            fieldResolvers = { schema ->
-                mapOf(
-                    schema.loweredSchema.requireObjectField("Query", "item") to fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
-                        engineObjectDataOf(schema.loweredSchema.requireType("Item") as ViaductSchema.Object)
-                    }
-                ) + listOf("Query" to "marker", "Item" to "value", "Item" to "marker").associate { (type, name) ->
-                    schema.loweredSchema.requireObjectField(type, name) to fieldResolverOf(schema.loweredSchema.emptyFragmentOf(type)) { _, _ -> 7 }
-                }
-            },
-            typeCheckers = { schema ->
-                val query = schema.loweredSchema.requireQueryTypeDef()
-                val item = schema.loweredSchema.requireType("Item") as ViaductSchema.Object
-                val selections = schema.fragmentFrom("fragment Input on Item { alias: marker }").materializeSelections
-                val querySelections = schema.fragmentFrom("fragment Input on Query { alias: marker }").materializeSelections
-                mapOf(
-                    item to TypeCheckerResolver.of(
-                        item,
-                        query,
-                        listOf("left", "right").associateWith { ResolverFragmentTemplates(selections, querySelections) },
-                    ) { _, _ -> CheckerResult.Success }
-                )
-            },
+        val worldFixture = TestWorld.fromDSL(
+            """
+            extend type Query {
+              item: Item @resolver(script: "{:}")
+              marker: Int! @resolver(script: "7")
+            }
+            type Item @checker(
+              inputs: [
+                {name: "left", of: "alias: marker", qf: "alias: marker"}
+                {name: "right", of: "alias: marker", qf: "alias: marker"}
+              ]
+              script: "allow"
+            ) {
+              value: Int! @resolver(script: "7")
+              marker: Int! @resolver(script: "7")
+            }
+            """.trimIndent(),
         )
         val world = worldFixture.assumptions
         val query = worldFixture.schema.requireQueryTypeDef()

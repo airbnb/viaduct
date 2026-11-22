@@ -4,13 +4,11 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotEquals
 import kotlin.test.assertTrue
-import viaduct.engine.runtime2.bootstrap.fromObjectField
 import viaduct.engine.runtime2.model.Arguments
 import viaduct.engine.runtime2.model.InclusionCondition
 import viaduct.engine.runtime2.model.MaterializeSelection
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.ResolverOccurrenceId
-import viaduct.engine.runtime2.model.emptyFragmentOf
 import viaduct.engine.runtime2.model.fieldExpressions
 import viaduct.engine.runtime2.model.instantiatedVariables
 import viaduct.engine.runtime2.model.merge
@@ -18,7 +16,6 @@ import viaduct.engine.runtime2.model.requireArg
 import viaduct.engine.runtime2.model.requireObjectField
 import viaduct.engine.runtime2.model.requireQueryTypeDef
 import viaduct.engine.runtime2.model.testing.TestWorld
-import viaduct.engine.runtime2.model.testing.emptyFragmentOf
 import viaduct.engine.runtime2.model.testing.fragmentFrom
 import viaduct.engine.runtime2.model.testing.testRoot
 import viaduct.engine.runtime2.model.usedVariables
@@ -26,38 +23,20 @@ import viaduct.engine.runtime2.model.usedVariables
 class ResolverVariableInstantiationTest {
     @Test
     fun `registry normalizes both base roots while retaining symbolic keys and materialization aliases`() {
-        val world = TestWorld.fromSDL(
-            schemaSDL = """
-                type Query { item: Item echo(value: Int): Int box: Box }
-                type Item { result(seed: Int, other: Int): Int echo(value: Int): Int box: Box }
-                type Box { value: Int }
+        val world = TestWorld.fromDSL(
+            """
+            extend type Query { item: Item echo(value: Int): Int box: Box }
+            type Item {
+              result(seed: Int, other: Int): Int @resolver(
+                of: "literal: echo(value: 3) first: echo(value: ${'$'}seed) duplicate: echo(value: ${'$'}seed) other: echo(value: ${'$'}other) box { first: value } box { second: value }"
+                qf: "literal: echo(value: 3) first: echo(value: ${'$'}seed) duplicate: echo(value: ${'$'}seed) other: echo(value: ${'$'}other) box { first: value } box { second: value }"
+                script: "null"
+              )
+              echo(value: Int): Int
+              box: Box
+            }
+            type Box { value: Int }
             """.trimIndent(),
-            fieldResolvers = { schemas ->
-                val schema = schemas.loweredSchema
-                val result = schema.requireObjectField("Item", "result")
-
-                fun input(type: String) =
-                    schemas.fragmentFrom(
-                        """
-                    fragment Input on $type {
-                      literal: echo(value: 3)
-                      first: echo(value: ${'$'}seed)
-                      duplicate: echo(value: ${'$'}seed)
-                      other: echo(value: ${'$'}other)
-                      box { first: value }
-                      box { second: value }
-                    }
-                        """.trimIndent(),
-                        variableField = result,
-                    )
-                mapOf(result to fieldResolverOf(input("Item"), input("Query")) { _, _, _ -> null })
-            },
-            variableProviders = { schemas ->
-                val result = schemas.loweredSchema.requireObjectField("Item", "result")
-                listOf("seed", "other").associate { name ->
-                    Arguments.Variable.of(result, name) to schemas.loweredSchema.fromArgument(result, name)
-                }
-            },
         )
         val result = world.schema.requireObjectField("Item", "result")
         val resolver = world.resolverRegistry.resolver(result)
@@ -119,42 +98,14 @@ class ResolverVariableInstantiationTest {
 
     @Test
     fun `resolver occurrence identity distinguishes symbolic variables`() {
-        val fragment =
-            """
-            fragment Result on Query {
-              literal: consume(value: 3)
-              symbolic: consume(value: ${'$'}seed)
-            }
-            """.trimIndent()
         val testWorld =
-            TestWorld.fromSDL(
-                schemaSDL =
-                    """
-                    type Query {
-                      result(seed: Int): Int!
-                      consume(value: Int): Int!
-                    }
-                    """.trimIndent(),
-                fieldResolvers = { schema ->
-                    val result = schema.loweredSchema.requireObjectField("Query", "result")
-                    mapOf(
-                        result to
-                            fieldResolverOf(schema.fragmentFrom(fragment)) { _, _ ->
-                                1
-                            },
-                        schema.loweredSchema.requireObjectField("Query", "consume") to
-                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
-                                1
-                            },
-                    )
-                },
-                variableProviders = { schema ->
-                    val result = schema.loweredSchema.requireObjectField("Query", "result")
-                    mapOf(
-                        Arguments.Variable.of(result, "seed") to
-                            schema.loweredSchema.fromArgument(result, "seed"),
-                    )
-                },
+            TestWorld.fromDSL(
+                """
+                extend type Query {
+                  result(seed: Int): Int! @resolver(of: "literal: consume(value: 3) symbolic: consume(value: ${'$'}seed)", script: "1")
+                  consume(value: Int): Int! @resolver(script: "1")
+                }
+                """.trimIndent(),
             )
         val result = testWorld.schema.requireObjectField("Query", "result")
         val resolver = testWorld.resolverRegistry.resolver(result)
@@ -203,49 +154,19 @@ class ResolverVariableInstantiationTest {
 
     @Test
     fun `instantiates definition fragment and provider path at one occurrence`() {
-        val source =
-            """
-            fragment Provider on Query {
-              source(value: ${'$'}seed)
-              consume(value: ${'$'}value)
-            }
-            """.trimIndent()
         val testWorld =
-            TestWorld.fromSDL(
-                schemaSDL =
-                    """
-                    type Query {
-                      result(seed: Int): Int!
-                      source(value: Int): Int!
-                      consume(value: Int): Int!
-                    }
-                    """.trimIndent(),
-                fieldResolvers = { schema ->
-                    val result = schema.loweredSchema.requireObjectField("Query", "result")
-                    mapOf(
-                        result to
-                            fieldResolverOf(schema.fragmentFrom(source)) { _, _ ->
-                                1
-                            },
-                        schema.loweredSchema.requireObjectField("Query", "source") to
-                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
-                                1
-                            },
-                        schema.loweredSchema.requireObjectField("Query", "consume") to
-                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
-                                1
-                            },
-                    )
-                },
-                variableProviders = { schema ->
-                    val result = schema.loweredSchema.requireObjectField("Query", "result")
-                    mapOf(
-                        Arguments.Variable.of(result, "seed") to
-                            schema.loweredSchema.fromArgument(result, "seed"),
-                        Arguments.Variable.of(result, "value") to
-                            schema.fromObjectField(source, listOf("source"), variableField = result),
-                    )
-                },
+            TestWorld.fromDSL(
+                """
+                extend type Query {
+                  result(seed: Int): Int! @resolver(
+                    of: "source(value: ${'$'}seed) consume(value: ${'$'}value)"
+                    variables: [{name: "value", fromObjectField: ["source"]}]
+                    script: "1"
+                  )
+                  source(value: Int): Int! @resolver(script: "1")
+                  consume(value: Int): Int! @resolver(script: "1")
+                }
+                """.trimIndent(),
             )
         val resolver =
             testWorld.resolverRegistry.resolver(
@@ -291,40 +212,14 @@ class ResolverVariableInstantiationTest {
     @Test
     fun `variable instantiation preserves generic field directives`() {
         val testWorld =
-            TestWorld.fromSDL(
-                schemaSDL =
-                    """
-                    directive @consumerPolicy on FIELD
-
-                    type Query {
-                      result(seed: Int): Int!
-                      consume(value: Int): Int!
-                    }
-                    """.trimIndent(),
-                fieldResolvers = { schema ->
-                    val result = schema.loweredSchema.requireObjectField("Query", "result")
-                    mapOf(
-                        result to
-                            fieldResolverOf(
-                                schema.fragmentFrom(
-                                    """
-                                    fragment Result on Query {
-                                      renamed: consume(value: ${'$'}seed) @consumerPolicy
-                                    }
-                                    """.trimIndent(),
-                                ),
-                            ) { _, _ -> 1 },
-                        schema.loweredSchema.requireObjectField("Query", "consume") to
-                            fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ -> 1 },
-                    )
-                },
-                variableProviders = { schema ->
-                    val result = schema.loweredSchema.requireObjectField("Query", "result")
-                    mapOf(
-                        Arguments.Variable.of(result, "seed") to
-                            schema.loweredSchema.fromArgument(result, "seed"),
-                    )
-                },
+            TestWorld.fromDSL(
+                """
+                extend type Query {
+                  result(seed: Int): Int! @resolver(of: "renamed: consume(value: ${'$'}seed) @consumerPolicy", script: "1")
+                  consume(value: Int): Int! @resolver(script: "1")
+                }
+                directive @consumerPolicy on FIELD
+                """.trimIndent(),
             )
         val result = testWorld.schema.requireObjectField("Query", "result")
         val path =

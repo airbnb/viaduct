@@ -78,11 +78,11 @@ class PassiveValueResolutionLogicTest : ResolutionDispatcherResource {
 
     @Test
     fun `demanded argument-bearing passive output is rejected`() {
-        val fixture = TestWorld.fromSDL(
-            schemaSDL = "type Query { item: Item } type Item { extra(arg: Int): String }",
-            fieldResolvers = { schemas ->
-                mapOf(schemas.loweredSchema.requireObjectField("Item", "extra") to fieldResolverOf(schemas.loweredSchema.emptyFragmentOf("Item")) { _, _ -> "active" })
-            },
+        val fixture = TestWorld.fromDSL(
+            """
+            extend type Query { item: Item }
+            type Item { extra(arg: Int): String @resolver(script: "'active'") }
+            """.trimIndent(),
         )
         val itemField = fixture.schema.requireObjectField("Query", "item")
         val output = ResolvedEngineObjectData(fixture.schemas.graphQLSchema.getObjectType("Item"), mapOf("extra" to "invalid"))
@@ -178,24 +178,17 @@ class PassiveValueResolutionLogicTest : ResolutionDispatcherResource {
     @Test
     fun `resolved source values nulls and errors suppress resolvers while absent fields resolve`() {
         val calls = AtomicInteger()
-        val fixture = TestWorld.fromSDL(
-            schemaSDL = "type Query { item: Item } type Item { name: String nickname: String age: Int computed: String }",
-            fieldResolvers = { schemas ->
-                val schema = schemas.loweredSchema
-                val passive = listOf("name", "nickname", "age").associate { name ->
-                    schema.requireObjectField("Item", name) to fieldResolverOf(schema.emptyFragmentOf("Item")) { _, _ ->
-                        error("Source-supplied fields must suppress their standard resolvers")
-                    }
-                }
-                passive + (
-                    schema.requireObjectField("Item", "computed") to fieldResolverOf(
-                        schemas.fragmentFrom("fragment Input on Item { name }"),
-                    ) { input, _ ->
-                        calls.incrementAndGet()
-                        "computed:${input.get("name")}"
-                    }
-                )
-            },
+        val fixture = TestWorld.fromDSL(
+            """
+            extend type Query { item: Item }
+            type Item {
+              name: String @resolver(script: "throw 'Source-supplied fields must suppress their standard resolvers'")
+              nickname: String @resolver(script: "throw 'Source-supplied fields must suppress their standard resolvers'")
+              age: Int @resolver(script: "throw 'Source-supplied fields must suppress their standard resolvers'")
+              computed: String @resolver(of: "name", script: "calls.incrementAndGet(); 'computed:' + objectValue.name")
+            }
+            """.trimIndent(),
+            scriptBindings = mapOf("calls" to calls),
         )
         val schema = fixture.schema
         val itemField = schema.requireObjectField("Query", "item")
@@ -311,27 +304,15 @@ class PassiveValueResolutionLogicTest : ResolutionDispatcherResource {
     @Test
     fun `projection materializes passive values while construction launches active values`() {
         val testWorld =
-            TestWorld.fromSDL(
-                schemaSDL =
-                    """
-                    type Query {
-                      item: Item!
-                    }
-
-                    type Item {
-                      raw: String!
-                      computed: String!
-                      omitted: String
-                    }
-                    """.trimIndent(),
-                fieldResolvers = { schema ->
-                    mapOf(
-                        schema.loweredSchema.requireObjectField("Item", "computed") to
-                            fieldResolverOf(
-                                schema.loweredSchema.emptyFragmentOf("Item"),
-                            ) { _, _ -> "computed" },
-                    )
-                },
+            TestWorld.fromDSL(
+                """
+                extend type Query { item: Item! }
+                type Item {
+                  raw: String!
+                  computed: String! @resolver(script: "'computed'")
+                  omitted: String
+                }
+                """.trimIndent(),
             )
         val world = testWorld.assumptions
         val schema = world.schema
@@ -386,25 +367,13 @@ class PassiveValueResolutionLogicTest : ResolutionDispatcherResource {
     @Test
     fun `source-provided active field coalesces equal invocation and construction keys`() {
         val testWorld =
-            TestWorld.fromSDL(
-                schemaSDL =
-                    """
-                    type Query {
-                      item: Item!
-                    }
-
-                    type Item {
-                      computed: String!
-                    }
-                    """.trimIndent(),
-                fieldResolvers = { schema ->
-                    mapOf(
-                        schema.loweredSchema.requireObjectField("Item", "computed") to
-                            fieldResolverOf(
-                                schema.loweredSchema.emptyFragmentOf("Item"),
-                            ) { _, _ -> error("standard resolver must not run") },
-                    )
-                },
+            TestWorld.fromDSL(
+                """
+                extend type Query { item: Item! }
+                type Item {
+                  computed: String! @resolver(script: "throw 'standard resolver must not run'")
+                }
+                """.trimIndent(),
             )
         val world = testWorld.assumptions
         val schema = world.schema

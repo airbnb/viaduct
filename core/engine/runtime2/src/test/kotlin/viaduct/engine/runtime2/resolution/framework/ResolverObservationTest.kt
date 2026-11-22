@@ -328,38 +328,15 @@ class ResolverObservationTest : ResolutionDispatcherResource {
                             }
                         }
                     val testWorld =
-                        TestWorld.fromSDL(
-                            schemaSDL =
-                                "type Query { reference: Int target: Int dependency: Int }",
-                            fieldResolvers = { schema ->
-                                val target = schema.loweredSchema.requireObjectField("Query", "target")
-                                val empty = schema.loweredSchema.emptyFragmentOf("Query")
-                                mapOf(
-                                    schema.loweredSchema.requireObjectField("Query", "reference") to
-                                        fieldResolverOf(empty) { _, _ ->
-                                            entries += "reference"
-                                            RootFieldReferenceData.of(
-                                                listOf(target),
-                                                emptyMap(),
-                                            )
-                                        },
-                                    target to
-                                        fieldResolverOf(
-                                            empty,
-                                            schema.fragmentFrom(
-                                                "fragment Required on Query { dependency }",
-                                            ),
-                                        ) { _, query, _ ->
-                                            entries += "target"
-                                            query.get("dependency")
-                                        },
-                                    schema.loweredSchema.requireObjectField("Query", "dependency") to
-                                        fieldResolverOf(empty) { _, _ ->
-                                            entries += "dependency"
-                                            7
-                                        },
-                                )
-                            },
+                        TestWorld.fromDSL(
+                            """
+                            extend type Query {
+                              reference: Int @resolver(script: "entries.add('reference'); ref('target')")
+                              target: Int @resolver(qf: "dependency", script: "entries.add('target'); queryValue.dependency")
+                              dependency: Int @resolver(script: "entries.add('dependency'); 7")
+                            }
+                            """.trimIndent(),
+                            scriptBindings = mapOf("entries" to entries),
                         )
                     val world = testWorld.assumptions
                     val operation =

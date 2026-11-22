@@ -4,22 +4,11 @@ import java.util.concurrent.ConcurrentLinkedQueue
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
-import viaduct.engine.api.CheckerResult
-import viaduct.engine.api.EngineObjectData
-import viaduct.engine.runtime2.contract.selectionValues
-import viaduct.engine.runtime2.model.Arguments
 import viaduct.engine.runtime2.model.ObjectEngineResult
-import viaduct.engine.runtime2.model.emptyFragmentOf
-import viaduct.engine.runtime2.model.materializeSelectionForestOf
-import viaduct.engine.runtime2.model.registry.FieldCheckerResolver
-import viaduct.engine.runtime2.model.registry.ResolverFragmentTemplates
-import viaduct.engine.runtime2.model.registry.fieldResolverOf
-import viaduct.engine.runtime2.model.registry.fromArgument
 import viaduct.engine.runtime2.model.requireObjectField
 import viaduct.engine.runtime2.model.requireQueryTypeDef
 import viaduct.engine.runtime2.model.testing.TestWorld
 import viaduct.engine.runtime2.model.testing.fragmentFrom
-import viaduct.engine.runtime2.model.testing.objectOf
 import viaduct.engine.runtime2.model.testing.referenceConstructionDemand
 import viaduct.engine.runtime2.resolution.framework.Demand
 import viaduct.engine.runtime2.resolution.framework.OEROccurrence
@@ -34,58 +23,24 @@ class PrecomputedConstructionDemandTest : ResolutionDispatcherResource {
         for (precomputed in listOf(false, true)) {
             val providers = ConcurrentLinkedQueue<Int>()
             val calls = ConcurrentLinkedQueue<String>()
-            val fixture = TestWorld.fromSDL(
-                schemaSDL = """
-                    type Query { result: Int left: Int right: Int shared(seed: Int): Int base(value: Int): Int item: Item }
-                    type Item { objectValue: Int queryValue: Int }
+            val fixture = TestWorld.fromDSL(
+                """
+                extend type Query {
+                  result: Int @resolver(qf: "left right", script: "queryValue.left + queryValue.right")
+                  left: Int @resolver(qf: "shared(seed: 1)", script: "queryValue.shared")
+                  right: Int @resolver(qf: "shared(seed: 2)", script: "queryValue.shared")
+                  shared(seed: Int): Int @resolver(
+                    of: "item { objectValue }"
+                    qf: "item { queryValue } base(value: ${'$'}provided)"
+                    vars: {names: ["provided"], script: "providers.add(seed); {'provided': seed}"}
+                    script: "objectValue.item.objectValue + queryValue.item.queryValue + queryValue.base"
+                  )
+                  base(value: Int): Int @resolver(script: "value")
+                  item: Item @resolver(script: "{'objectValue': 10, 'queryValue': 20}")
+                }
+                type Item { objectValue: Int queryValue: Int }
                 """.trimIndent(),
-                fieldResolvers = { schemas ->
-                    val schema = schemas.loweredSchema
-                    val empty = schema.emptyFragmentOf("Query")
-                    buildMap {
-                        put(
-                            schema.requireObjectField("Query", "result"),
-                            fieldResolverOf(empty, schemas.fragmentFrom("fragment F on Query { left right }")) { _, query, _ ->
-                                query.selectionValues().values.sumOf { it as Int }
-                            },
-                        )
-                        for ((name, seed) in listOf("left" to 1, "right" to 2)) {
-                            put(
-                                schema.requireObjectField("Query", name),
-                                fieldResolverOf(empty, schemas.fragmentFrom("fragment F on Query { shared(seed: $seed) }")) { _, query, _ ->
-                                    query.selectionValues().getValue("shared")
-                                },
-                            )
-                        }
-                        put(
-                            schema.requireObjectField("Query", "shared"),
-                            fieldResolverOf(
-                                schemas.fragmentFrom("fragment F on Query { item { objectValue } }"),
-                                schemas.fragmentFrom("fragment F on Query { item { queryValue } base(value: ${'$'}provided) }"),
-                            ) { input, query, _ ->
-                                val objectItem = input.selectionValues().getValue("item") as EngineObjectData.Sync
-                                val queryItem = query.selectionValues().getValue("item") as EngineObjectData.Sync
-                                (objectItem.selectionValues().getValue("objectValue") as Int) +
-                                    (queryItem.selectionValues().getValue("queryValue") as Int) +
-                                    (query.selectionValues().getValue("base") as Int)
-                            }.withVariablesProvider(setOf("provided")) { arguments ->
-                                val seed = arguments.fieldValues.getValue("seed") as Int
-                                providers += seed
-                                mapOf("provided" to seed)
-                            },
-                        )
-                        put(schema.requireObjectField("Query", "base"), fieldResolverOf(empty) { _, arguments -> arguments.fieldValues.getValue("value") })
-                        put(
-                            schema.requireObjectField("Query", "item"),
-                            fieldResolverOf(empty) { _, _ ->
-                                schema.objectOf("Item") {
-                                    "objectValue" setTo 10
-                                    "queryValue" setTo 20
-                                }
-                            },
-                        )
-                    }
-                },
+                scriptBindings = mapOf("providers" to providers),
             )
             val operation = SharedOperationContext.create(
                 fixture.newAssumptions(usePrecomputedConstructionDemand = precomputed),
@@ -154,39 +109,23 @@ class PrecomputedConstructionDemandTest : ResolutionDispatcherResource {
         for (precomputed in listOf(false, true)) {
             val providers = ConcurrentLinkedQueue<Int>()
             val calls = ConcurrentLinkedQueue<String>()
-            val fixture = TestWorld.fromSDL(
-                schemaSDL = "type Query { consumer(seed: Int): Int middle(value: Int): Int base(value: Int): Int }",
-                fieldResolvers = { schemas ->
-                    val schema = schemas.loweredSchema
-                    mapOf(
-                        schema.requireObjectField("Query", "consumer") to fieldResolverOf(
-                            schema.emptyFragmentOf("Query"),
-                            schemas.fragmentFrom("fragment F on Query { literal: middle(value: 7) symbolic: middle(value: ${'$'}value) }"),
-                        ) { _, query, _ ->
-                            calls += "consumer"
-                            query.selectionValues().values.sumOf { it as Int }
-                        },
-                        schema.requireObjectField("Query", "middle") to fieldResolverOf(
-                            schema.emptyFragmentOf("Query"),
-                            schemas.fragmentFrom("fragment F on Query { base(value: ${'$'}provided) }"),
-                        ) { _, query, _ ->
-                            calls += "middle"
-                            query.selectionValues().getValue("base")
-                        }.withVariablesProvider(setOf("provided")) { arguments ->
-                            val value = arguments.fieldValues.getValue("value") as Int
-                            providers += value
-                            mapOf("provided" to value * 2)
-                        },
-                        schema.requireObjectField("Query", "base") to fieldResolverOf(schema.emptyFragmentOf("Query")) { _, arguments ->
-                            calls += "base"
-                            arguments.fieldValues.getValue("value")
-                        },
-                    )
-                },
-                variableProviders = { schemas ->
-                    val field = schemas.loweredSchema.requireObjectField("Query", "consumer")
-                    mapOf(Arguments.Variable.of(field, "value") to schemas.loweredSchema.fromArgument(field, "seed"))
-                },
+            val fixture = TestWorld.fromDSL(
+                """
+                extend type Query {
+                  consumer(seed: Int): Int @resolver(
+                    qf: "literal: middle(value: 7) symbolic: middle(value: ${'$'}value)"
+                    variables: [{name: "value", fromArgument: ["seed"]}]
+                    script: "calls.add('consumer'); queryValue.literal + queryValue.symbolic"
+                  )
+                  middle(value: Int): Int @resolver(
+                    qf: "base(value: ${'$'}provided)"
+                    vars: {names: ["provided"], script: "providers.add(value); {'provided': value * 2}"}
+                    script: "calls.add('middle'); queryValue.base"
+                  )
+                  base(value: Int): Int @resolver(script: "calls.add('base'); value")
+                }
+                """.trimIndent(),
+                scriptBindings = mapOf("providers" to providers, "calls" to calls),
             )
             val world = fixture.newAssumptions(usePrecomputedConstructionDemand = precomputed)
             val type = fixture.schema.requireQueryTypeDef()
@@ -219,49 +158,25 @@ class PrecomputedConstructionDemandTest : ResolutionDispatcherResource {
     fun `both closures preserve source activation Query inputs and raw checker inputs`() {
         for (precomputed in listOf(false, true)) {
             val checks = ConcurrentLinkedQueue<String>()
-            val fixture = TestWorld.fromSDL(
-                schemaSDL = """
-                    type Query { item: Item seed: Int backing: Int }
-                    type Item { result: Int supplied: Int middle: Int leaf: Int raw: Int unused: Int }
+            val fixture = TestWorld.fromDSL(
+                """
+                extend type Query {
+                  item: Item @resolver(script: "{'supplied': 17, 'raw': 19}")
+                  seed: Int @resolver(of: "backing", script: "5")
+                  backing: Int @resolver(script: "7")
+                }
+                type Item {
+                  result: Int
+                    @resolver(of: "supplied middle", qf: "seed", script: "23")
+                    @checker(inputs: [{name: "input", of: "raw"}], script: "checks.add('result'); allow")
+                  supplied: Int @resolver(of: "unused", script: "throw 'Source owns supplied'")
+                  middle: Int @resolver(of: "leaf", script: "2")
+                  leaf: Int @resolver(script: "3")
+                  raw: Int @checker(inputs: [{name: "input", of: "unused"}], script: "checks.add('raw'); allow")
+                  unused: Int
+                }
                 """.trimIndent(),
-                fieldResolvers = { schemas ->
-                    val schema = schemas.loweredSchema
-                    mapOf(
-                        schema.requireObjectField("Query", "item") to fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ ->
-                            schema.objectOf("Item") {
-                                "supplied" setTo 17
-                                "raw" setTo 19
-                            }
-                        },
-                        schema.requireObjectField("Item", "result") to fieldResolverOf(
-                            schemas.fragmentFrom("fragment F on Item { supplied middle }"),
-                            schemas.fragmentFrom("fragment F on Query { seed }"),
-                        ) { _, _, _ -> 23 },
-                        schema.requireObjectField("Item", "supplied") to fieldResolverOf(schemas.fragmentFrom("fragment F on Item { unused }")) { _, _ -> error("Source owns supplied") },
-                        schema.requireObjectField("Item", "middle") to fieldResolverOf(schemas.fragmentFrom("fragment F on Item { leaf }")) { _, _ -> 2 },
-                        schema.requireObjectField("Item", "leaf") to fieldResolverOf(schema.emptyFragmentOf("Item")) { _, _ -> 3 },
-                        schema.requireObjectField("Query", "seed") to fieldResolverOf(schemas.fragmentFrom("fragment F on Query { backing }")) { _, _ -> 5 },
-                        schema.requireObjectField("Query", "backing") to fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ -> 7 },
-                    )
-                },
-                fieldCheckers = { schemas ->
-                    listOf("result", "raw").associate { name ->
-                        val field = schemas.loweredSchema.requireObjectField("Item", name)
-                        field to FieldCheckerResolver.of(
-                            field,
-                            schemas.loweredSchema.requireQueryTypeDef(),
-                            mapOf(
-                                "input" to ResolverFragmentTemplates(
-                                    schemas.fragmentFrom(if (name == "result") "fragment F on Item { raw }" else "fragment F on Item { unused }").materializeSelections,
-                                    materializeSelectionForestOf()
-                                )
-                            ),
-                        ) { _, _, _ ->
-                            checks += name
-                            CheckerResult.Success
-                        }
-                    }
-                },
+                scriptBindings = mapOf("checks" to checks),
             )
             val calls = ConcurrentLinkedQueue<String>()
             val operation = SharedOperationContext.create(

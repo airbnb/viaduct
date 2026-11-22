@@ -5,14 +5,9 @@ import kotlin.test.assertTrue
 import viaduct.engine.runtime2.model.Arguments
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.ResolverOccurrenceId
-import viaduct.engine.runtime2.model.emptyFragmentOf
-import viaduct.engine.runtime2.model.registry.fieldResolverOf
-import viaduct.engine.runtime2.model.registry.fromArgument
 import viaduct.engine.runtime2.model.requireObjectField
 import viaduct.engine.runtime2.model.testing.TestWorld
-import viaduct.engine.runtime2.model.testing.emptyFragmentOf
 import viaduct.engine.runtime2.model.testing.engineResultOf
-import viaduct.engine.runtime2.model.testing.fragmentFrom
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
 
 class IsClosedUnderResolverDemandTest {
@@ -31,56 +26,15 @@ class IsClosedUnderResolverDemandTest {
     @Test
     fun `bound variables are substituted in nested resolver demand`() {
         val testWorld =
-            TestWorld.fromSDL(
-                schemaSDL =
-                    """
-                    type Child {
-                      consume(value: Int!): Int!
-                    }
-
-                    type Parent {
-                      child: Child!
-                      result(seed: Int!): Int!
-                    }
-
-                    type Query {
-                      parent: Parent!
-                    }
-                    """.trimIndent(),
-                fieldResolvers = { schema ->
-                    val result = schema.loweredSchema.requireObjectField("Parent", "result")
-                    val consume = schema.loweredSchema.requireObjectField("Child", "consume")
-                    val parent = schema.loweredSchema.requireObjectField("Query", "parent")
-                    mapOf(
-                        result to
-                            fieldResolverOf(
-                                schema.fragmentFrom(
-                                    """
-                                    fragment ignored on Parent {
-                                      child {
-                                        consume(value: ${'$'}seed)
-                                      }
-                                    }
-                                    """.trimIndent(),
-                                ),
-                            ) { _, _ -> 14 },
-                        consume to
-                            fieldResolverOf(
-                                schema.loweredSchema.emptyFragmentOf("Child"),
-                            ) { _, _ -> 14 },
-                        parent to
-                            fieldResolverOf(
-                                schema.loweredSchema.emptyFragmentOf("Query"),
-                            ) { _, _ -> null },
-                    )
-                },
-                variableProviders = { schema ->
-                    val result = schema.loweredSchema.requireObjectField("Parent", "result")
-                    mapOf(
-                        Arguments.Variable.of(result, "seed") to
-                            schema.loweredSchema.fromArgument(result, "seed"),
-                    )
-                },
+            TestWorld.fromDSL(
+                """
+                extend type Query { parent: Parent! @resolver(script: "null") }
+                type Parent {
+                  child: Child!
+                  result(seed: Int!): Int! @resolver(of: "child { consume(value: ${'$'}seed) }", script: "14")
+                }
+                type Child { consume(value: Int!): Int! @resolver(script: "14") }
+                """.trimIndent(),
             )
         val world = testWorld.assumptions
         val operation = SharedOperationContext.create(world)

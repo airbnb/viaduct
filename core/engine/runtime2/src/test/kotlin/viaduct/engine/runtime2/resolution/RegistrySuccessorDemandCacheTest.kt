@@ -183,28 +183,13 @@ private fun recursiveFixture(): TestWorld =
     TestWorld.fromDSL(
         """
         extend type Query { item: Item @resolver(script: "{:}") }
-        type Item {
+        type Item @checker(inputs: [{name: "raw", of: "marker raw"}], script: "allow") {
           child: Item @resolver(script: "null")
           value: Int @resolver(of: "child { marker }", script: "1")
           marker: Int
           raw: Int
         }
         """.trimIndent(),
-        typeCheckers = { schemas ->
-            val item = schemas.loweredSchema.requireType("Item") as ViaductSchema.Object
-            mapOf(
-                item to TypeCheckerResolver.of(
-                    item,
-                    schemas.loweredSchema.requireQueryTypeDef(),
-                    mapOf(
-                        "raw" to ResolverFragmentTemplates(
-                            schemas.fragmentFrom("fragment F on Item { marker raw }").materializeSelections,
-                            materializeSelectionForestOf(),
-                        ),
-                    ),
-                ) { _, _ -> CheckerResult.Success },
-            )
-        },
     )
 
 private fun uncachedWorld(world: Assumptions): Assumptions = Assumptions.of(world.schema, object : ResolverRegistry by world.resolverRegistry {})

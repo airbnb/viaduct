@@ -16,16 +16,10 @@ import viaduct.engine.runtime2.correctresolution.correctResolution
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.ObjectSelectionForest
 import viaduct.engine.runtime2.model.ResolverOccurrenceId
-import viaduct.engine.runtime2.model.emptyFragmentOf
 import viaduct.engine.runtime2.model.merge
-import viaduct.engine.runtime2.model.outputValue
-import viaduct.engine.runtime2.model.registry.fieldResolverOf
-import viaduct.engine.runtime2.model.requireObjectField
 import viaduct.engine.runtime2.model.requireQueryTypeDef
 import viaduct.engine.runtime2.model.testing.TestWorld
-import viaduct.engine.runtime2.model.testing.emptyFragmentOf
 import viaduct.engine.runtime2.model.testing.fragmentFrom
-import viaduct.engine.runtime2.model.testing.objectOf
 import viaduct.engine.runtime2.resolution.framework.ResolverInvocationObservation
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
 
@@ -92,31 +86,17 @@ class SharedQueryCrossScopeWitnessRegressionTest : ResolutionDispatcherResource 
     }
 
     private fun execute(sameScope: Boolean): Run {
-        val world = TestWorld.fromSDL(
-            schemaSDL = """
-                type Query { items: [Payload!]!, source: Int! }
-                type Payload { computed: Int!, sibling: Int! }
+        val world = TestWorld.fromDSL(
+            """
+            extend type Query {
+              items: [Payload!]! @resolver(script: "${if (sameScope) "[{:}]" else "[{:}, {:}]"}")
+              source: Int! @resolver(script: "7")
+            }
+            type Payload {
+              computed: Int! @resolver(qf: "source", script: "queryValue.source")
+              sibling: Int! @resolver(qf: "source", script: "queryValue.source")
+            }
             """.trimIndent(),
-            fieldResolvers = { schema ->
-                mapOf(
-                    schema.loweredSchema.requireObjectField("Query", "items") to
-                        fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ ->
-                            List(if (sameScope) 1 else 2) { schema.loweredSchema.objectOf("Payload") {} }
-                        },
-                    schema.loweredSchema.requireObjectField("Query", "source") to
-                        fieldResolverOf(schema.loweredSchema.emptyFragmentOf("Query")) { _, _ -> 7 },
-                    schema.loweredSchema.requireObjectField("Payload", "computed") to
-                        fieldResolverOf(
-                            objectFragment = schema.loweredSchema.emptyFragmentOf("Payload"),
-                            queryFragment = schema.fragmentFrom("fragment Input on Query { source }"),
-                        ) { _, query, _ -> query.outputValue("source") },
-                    schema.loweredSchema.requireObjectField("Payload", "sibling") to
-                        fieldResolverOf(
-                            objectFragment = schema.loweredSchema.emptyFragmentOf("Payload"),
-                            queryFragment = schema.fragmentFrom("fragment Input on Query { source }"),
-                        ) { _, query, _ -> query.outputValue("source") },
-                )
-            },
         )
         val log = BoundedRecorder<ResolverOccurrenceApplicationRecord>()
         val events = ConcurrentLinkedQueue<ResolverInvocationObservation>()
