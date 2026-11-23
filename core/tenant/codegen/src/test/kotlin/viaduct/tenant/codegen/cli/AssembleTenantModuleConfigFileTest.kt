@@ -12,6 +12,7 @@ import viaduct.bootstrap.ExecutionRegistryConfigFile
 import viaduct.graphql.schema.ViaductSchema
 import viaduct.graphql.schema.binary.extensions.toBinaryFile
 import viaduct.graphql.schema.graphqljava.extensions.fromTypeDefinitionRegistry
+import viaduct.utils.resources.ViaductResourcePaths.KOTLIN_GENERATOR
 
 class AssembleTenantModuleConfigFileTest {
     @TempDir
@@ -43,6 +44,8 @@ class AssembleTenantModuleConfigFileTest {
             executorFactory,
             "--api-name",
             apiName,
+            "--generator-plugin-id",
+            KOTLIN_GENERATOR,
             "--output-dir",
             out.absolutePath,
         )
@@ -162,7 +165,7 @@ class AssembleTenantModuleConfigFileTest {
         }
 
     private fun readRegistry(): ExecutionRegistryConfigFile =
-        outputDir().resolve("$REGISTRY_RESOURCE_PATH/com.example.feature.json")
+        outputDir().resolve("${registryResourcePath("com.example.feature", "com.example", KOTLIN_GENERATOR)}")
             .inputStream().use(ExecutionRegistryConfigFile::parse)
 
     @Test
@@ -215,7 +218,7 @@ class AssembleTenantModuleConfigFileTest {
         val out = outputDir()
         runCli(out = out)
 
-        val outputFile = out.resolve("$REGISTRY_RESOURCE_PATH/com.example.feature.json")
+        val outputFile = out.resolve("${registryResourcePath("com.example.feature", "com.example", KOTLIN_GENERATOR)}")
         assertTrue(outputFile.exists(), "Expected output file to be created at ${outputFile.path}")
     }
 
@@ -224,7 +227,7 @@ class AssembleTenantModuleConfigFileTest {
         val out = outputDir()
         runCli(out = out)
 
-        val json = out.resolve("$REGISTRY_RESOURCE_PATH/com.example.feature.json").readText()
+        val json = out.resolve("${registryResourcePath("com.example.feature", "com.example", KOTLIN_GENERATOR)}").readText()
         assertTrue(json.contains("\"nodes\""), json)
         assertTrue(json.contains("\"fields\""), json)
     }
@@ -234,7 +237,7 @@ class AssembleTenantModuleConfigFileTest {
         val out = outputDir()
         runCli(executorFactory = "com.example.MyExecutorFactory", out = out)
 
-        val json = out.resolve("$REGISTRY_RESOURCE_PATH/com.example.feature.json").readText()
+        val json = out.resolve("${registryResourcePath("com.example.feature", "com.example", KOTLIN_GENERATOR)}").readText()
         assertTrue(json.contains("com.example.MyExecutorFactory"), json)
     }
 
@@ -243,7 +246,7 @@ class AssembleTenantModuleConfigFileTest {
         val out = outputDir()
         runCli(executorFactory = "com.example.feature.ExampleExecutorFactory", out = out)
 
-        val json = out.resolve("$REGISTRY_RESOURCE_PATH/com.example.feature.json").readText()
+        val json = out.resolve("${registryResourcePath("com.example.feature", "com.example", KOTLIN_GENERATOR)}").readText()
         assertTrue(json.contains("\"version\""), json)
         assertTrue(json.contains("\"executorFactory\""), json)
         assertTrue(json.contains("\"tenantName\""), json)
@@ -255,18 +258,16 @@ class AssembleTenantModuleConfigFileTest {
         val out = outputDir()
         runCli(apiName = "kotlin", out = out)
 
-        val json = out.resolve("$REGISTRY_RESOURCE_PATH/com.example.feature.json").readText()
+        val json = out.resolve("${registryResourcePath("com.example.feature", "com.example", KOTLIN_GENERATOR)}").readText()
         assertTrue(json.contains("\"apiName\" : \"kotlin\""), json)
     }
 
     @Test
-    fun `output JSON records apiName from CLI arg independently of executorFactory`() {
+    fun `generator path is independent of apiName and executor factory`() {
         val out = outputDir()
-        // A config's API identity is not derived from its factory FQN: an unrelated factory name must
-        // not change the recorded apiName.
         runCli(executorFactory = "com.example.SomeRenamedFactory", apiName = "java", out = out)
 
-        val json = out.resolve("$REGISTRY_RESOURCE_PATH/com.example.feature.json").readText()
+        val json = out.resolve("viaduct/execution-manifest/module/feature/generated/com.airbnb.viaduct.module-gradle-plugin/com.example.feature.json").readText()
         assertTrue(json.contains("\"apiName\" : \"java\""), json)
         assertTrue(json.contains("com.example.SomeRenamedFactory"), json)
     }
@@ -288,7 +289,7 @@ class AssembleTenantModuleConfigFileTest {
         val out = outputDir()
         runCli(apiName = "builtin_query_node2", out = out)
 
-        val json = out.resolve("$REGISTRY_RESOURCE_PATH/com.example.feature.json").readText()
+        val json = out.resolve("${registryResourcePath("com.example.feature", "com.example", KOTLIN_GENERATOR)}").readText()
         assertTrue(json.contains("\"apiName\" : \"builtin_query_node2\""), json)
     }
 
@@ -301,7 +302,7 @@ class AssembleTenantModuleConfigFileTest {
             out = out,
         )
 
-        val json = out.resolve("$REGISTRY_RESOURCE_PATH/com.example.presentation.pdp.stays.json").readText()
+        val json = out.resolve("${registryResourcePath("com.example.presentation.pdp.stays", "com.example", KOTLIN_GENERATOR)}").readText()
         assertTrue(json.contains("\"tenantName\" : \"presentation/pdp/stays\""), json)
     }
 
@@ -310,7 +311,7 @@ class AssembleTenantModuleConfigFileTest {
         val out = outputDir()
         runCli(tenantPkg = "com.example", tenantPackagePrefix = "com.example", out = out)
 
-        val json = out.resolve("$REGISTRY_RESOURCE_PATH/com.example.json").readText()
+        val json = out.resolve("${registryResourcePath("com.example", null, KOTLIN_GENERATOR)}").readText()
         assertTrue(json.contains("\"tenantName\" : \"com/example\""), json)
     }
 
@@ -336,7 +337,7 @@ class AssembleTenantModuleConfigFileTest {
         val out = outputDir()
         runCli(descriptors = descriptors, out = out)
 
-        val json = out.resolve("$REGISTRY_RESOURCE_PATH/com.example.feature.json").readText()
+        val json = out.resolve("${registryResourcePath("com.example.feature", "com.example", KOTLIN_GENERATOR)}").readText()
         assertTrue(json.contains("ExampleNodeResolver"), json)
         assertTrue(json.contains("ExampleNode"), json)
         assertTrue(json.contains("\"typeName\""), json)
@@ -365,7 +366,7 @@ class AssembleTenantModuleConfigFileTest {
         val out = outputDir()
         runCli(descriptors = descriptors, out = out)
 
-        val json = out.resolve("$REGISTRY_RESOURCE_PATH/com.example.feature.json").readText()
+        val json = out.resolve("${registryResourcePath("com.example.feature", "com.example", KOTLIN_GENERATOR)}").readText()
         assertTrue(json.contains("ExampleNameResolver"), json)
         assertTrue(json.contains("\"fieldName\""), json)
         assertTrue(json.contains("\"name\""), json)
@@ -383,7 +384,7 @@ class AssembleTenantModuleConfigFileTest {
         val out = outputDir()
         runCli(descriptors = descriptors, out = out)
 
-        val json = out.resolve("$REGISTRY_RESOURCE_PATH/com.example.feature.json").readText()
+        val json = out.resolve("${registryResourcePath("com.example.feature", "com.example", KOTLIN_GENERATOR)}").readText()
         assertTrue(json.contains("ANodeResolver"), json)
         assertTrue(json.contains("BNodeResolver"), json)
     }
@@ -398,7 +399,7 @@ class AssembleTenantModuleConfigFileTest {
         val out = outputDir()
         runCli(descriptors = descriptors, out = out)
 
-        val json = out.resolve("$REGISTRY_RESOURCE_PATH/com.example.feature.json").readText()
+        val json = out.resolve("${registryResourcePath("com.example.feature", "com.example", KOTLIN_GENERATOR)}").readText()
         assertFalse(json.contains("something.txt"), json)
     }
 
@@ -408,7 +409,7 @@ class AssembleTenantModuleConfigFileTest {
         assertFalse(out.exists())
         runCli(out = out)
 
-        val outputFile = out.resolve("$REGISTRY_RESOURCE_PATH/com.example.feature.json")
+        val outputFile = out.resolve("${registryResourcePath("com.example.feature", "com.example", KOTLIN_GENERATOR)}")
         assertTrue(outputFile.exists(), "Expected output file to be created even in non-existent nested dir")
     }
 
@@ -422,7 +423,7 @@ class AssembleTenantModuleConfigFileTest {
         val out = outputDir()
         runCli(descriptors = descriptors, out = out)
 
-        val json = out.resolve("$REGISTRY_RESOURCE_PATH/com.example.feature.json").readText()
+        val json = out.resolve("${registryResourcePath("com.example.feature", "com.example", KOTLIN_GENERATOR)}").readText()
         assertTrue(json.contains("ExampleNode"), json)
     }
 
@@ -435,7 +436,7 @@ class AssembleTenantModuleConfigFileTest {
         val out = outputDir()
         runCli(descriptors = descriptors, out = out)
 
-        val json = out.resolve("$REGISTRY_RESOURCE_PATH/com.example.feature.json").readText()
+        val json = out.resolve("${registryResourcePath("com.example.feature", "com.example", KOTLIN_GENERATOR)}").readText()
         assertTrue(json.contains("com.example.resolvers.AResolver"), json)
     }
 
@@ -448,7 +449,7 @@ class AssembleTenantModuleConfigFileTest {
         val out = outputDir()
         runCli(descriptors = descriptors, out = out)
 
-        val json = out.resolve("$REGISTRY_RESOURCE_PATH/com.example.feature.json").readText()
+        val json = out.resolve("${registryResourcePath("com.example.feature", "com.example", KOTLIN_GENERATOR)}").readText()
         assertTrue(json.contains("com.example.feature.FeatureTenantBootstrapper"), json)
         assertTrue(json.contains("bootstrapClass"), json)
     }
@@ -458,7 +459,7 @@ class AssembleTenantModuleConfigFileTest {
         val out = outputDir()
         runCli(out = out)
 
-        val json = out.resolve("$REGISTRY_RESOURCE_PATH/com.example.feature.json").readText()
+        val json = out.resolve("${registryResourcePath("com.example.feature", "com.example", KOTLIN_GENERATOR)}").readText()
         assertFalse(json.contains("bootstrapClass"), json)
     }
 
@@ -490,7 +491,7 @@ class AssembleTenantModuleConfigFileTest {
         val out = outputDir()
         runCli(descriptors = descriptors, out = out)
 
-        val json = out.resolve("$REGISTRY_RESOURCE_PATH/com.example.feature.json").readText()
+        val json = out.resolve("${registryResourcePath("com.example.feature", "com.example", KOTLIN_GENERATOR)}").readText()
         // The registry carries named fragments so ctx.query/ctx.mutation operation strings can
         // resolve their spreads at the tenant boundary.
         assertTrue(json.contains("\"namedFragments\""), json)
@@ -525,7 +526,7 @@ class AssembleTenantModuleConfigFileTest {
         val out = outputDir()
         runCli(descriptors = descriptors, out = out)
 
-        val json = out.resolve("$REGISTRY_RESOURCE_PATH/com.example.feature.json").readText()
+        val json = out.resolve("${registryResourcePath("com.example.feature", "com.example", KOTLIN_GENERATOR)}").readText()
         assertTrue(json.contains("fragment UserFields on User { id name }"), json)
     }
 
@@ -557,7 +558,7 @@ class AssembleTenantModuleConfigFileTest {
         val out = outputDir()
         runCli(descriptors = descriptors, out = out)
 
-        val json = out.resolve("$REGISTRY_RESOURCE_PATH/com.example.feature.json").readText()
+        val json = out.resolve("${registryResourcePath("com.example.feature", "com.example", KOTLIN_GENERATOR)}").readText()
         assertTrue(json.contains("fragment ViewerFields on Query { viewer { name } }"), json)
     }
 
@@ -573,7 +574,7 @@ class AssembleTenantModuleConfigFileTest {
         val out = outputDir()
         runCli(descriptors = descriptors, out = out)
 
-        val json = out.resolve("$REGISTRY_RESOURCE_PATH/com.example.feature.json").readText()
+        val json = out.resolve("${registryResourcePath("com.example.feature", "com.example", KOTLIN_GENERATOR)}").readText()
         assertTrue(json.contains("fragment AFields on A { id }"), json)
     }
 
@@ -605,7 +606,7 @@ class AssembleTenantModuleConfigFileTest {
         val out = outputDir()
         runCli(descriptors = descriptors, out = out)
 
-        val json = out.resolve("$REGISTRY_RESOURCE_PATH/com.example.feature.json").readText()
+        val json = out.resolve("${registryResourcePath("com.example.feature", "com.example", KOTLIN_GENERATOR)}").readText()
         // Not appended into the resolver's objectSelections (no matching spread): the fragment is
         // only ever spread, never inlined into a selections block.
         assertFalse(json.contains("...UnusedFrag"), json)
@@ -641,7 +642,7 @@ class AssembleTenantModuleConfigFileTest {
         val out = outputDir()
         runCli(descriptors = descriptors, out = out)
 
-        val json = out.resolve("$REGISTRY_RESOURCE_PATH/com.example.feature.json").readText()
+        val json = out.resolve("${registryResourcePath("com.example.feature", "com.example", KOTLIN_GENERATOR)}").readText()
         assertTrue(json.contains("fragment Main on User"), "entry fragment should be renamed to Main: $json")
         assertFalse(json.contains("fragment _ on"), "_ entry fragment should have been renamed: $json")
         assertTrue(json.contains("fragment UserFields on User { id name }"), json)
@@ -823,7 +824,7 @@ class AssembleTenantModuleConfigFileTest {
     fun `rooted schema enforces tenant-local field ownership during module config assembly`() {
         val schemas = tenantLocalSourceSchemas().mapIndexed { index, file ->
             val module = if (index == 0) "feature" else "other"
-            sourceSchemaFile("schema/module/$module/source/schema.graphqls", file.readText())
+            sourceSchemaFile("viaduct/schema/module/$module/source/schema.graphqls", file.readText())
         }
         val descriptors = crossTenantLocalDescriptor()
         val exception = assertThrows<IllegalStateException> {
@@ -839,17 +840,17 @@ class AssembleTenantModuleConfigFileTest {
 
         runCli(descriptors = descriptors, tenantPkg = "com.example.other", schemaFiles = schemas, schemaRoot = tempDir)
 
-        assertTrue(outputDir().resolve("META-INF/viaduct/modules/com.example.other.json").exists())
+        assertTrue(outputDir().resolve("viaduct/execution-manifest/module/other/generated/com.airbnb.viaduct.module-gradle-plugin/com.example.other.json").exists())
     }
 
     @Test
     fun `rooted schema accepts plugin scalar directive values during module config assembly`() {
         val plugin = sourceSchemaFile(
-            "schema/plugin/dev.example.fixture/source/directives.graphqls",
+            "viaduct/schema/plugin/dev.example.fixture/source/directives.graphqls",
             "scalar FixtureJson\ndirective @fixture(payload: FixtureJson) on OBJECT",
         )
         val module = sourceSchemaFile(
-            "schema/module/feature/source/schema.graphqls",
+            "viaduct/schema/module/feature/source/schema.graphqls",
             """
             type Query { greeting: String }
             type FixtureProduct @fixture(payload: { items: [1, null, ENUM] }) { id: ID }
@@ -858,7 +859,7 @@ class AssembleTenantModuleConfigFileTest {
 
         runCli(schemaFiles = listOf(plugin, module), schemaRoot = tempDir)
 
-        assertTrue(outputDir().resolve("META-INF/viaduct/modules/com.example.feature.json").exists())
+        assertTrue(outputDir().resolve("viaduct/execution-manifest/module/feature/generated/com.airbnb.viaduct.module-gradle-plugin/com.example.feature.json").exists())
     }
 
     @Test
@@ -934,7 +935,7 @@ class AssembleTenantModuleConfigFileTest {
         val out = outputDir()
         runCliWithSchema(descriptors = descriptors, out = out, schema = schema)
 
-        val json = out.resolve("$REGISTRY_RESOURCE_PATH/com.example.feature.json").readText()
+        val json = out.resolve("${registryResourcePath("com.example.feature", "com.example", KOTLIN_GENERATOR)}").readText()
         assertTrue(json.contains("fragment UserFields on User { id name }"), json)
     }
 

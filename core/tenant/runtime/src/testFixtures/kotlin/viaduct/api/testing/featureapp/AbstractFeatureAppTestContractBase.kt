@@ -47,7 +47,7 @@ abstract class AbstractFeatureAppTestContractBase {
      */
     open fun sdl(): String = sdl
 
-    /** The `META-INF/viaduct/modules/<pkg>.json` sources backing this test, discovered from the classpath. */
+    /** The `META-INF/viaduct/execution-manifest/module/<module-id>/generated/<generator-plugin-id>/<pkg>.json` sources backing this test, discovered from the classpath. */
     protected abstract fun moduleConfigSources(): List<ModuleConfigSource>
 
     /** Kotlin subclasses supply a Guice-backed injector; Java subclasses supply a naive one. */

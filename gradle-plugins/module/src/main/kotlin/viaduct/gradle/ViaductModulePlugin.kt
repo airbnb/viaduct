@@ -4,7 +4,6 @@ import org.gradle.api.GradleException
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.artifacts.Configuration
-import org.gradle.api.plugins.JavaPluginExtension
 import org.gradle.api.specs.Spec
 import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.Sync
@@ -104,6 +103,7 @@ class ViaductModulePlugin : Plugin<Project> {
                 descriptorDir.set(layout.buildDirectory.dir("intermediates/viaduct-registry-descriptors"))
                 executorFactory.set(AssembleTenantModuleConfigFileTask.EXECUTOR_FACTORY)
                 apiName.set(AssembleTenantModuleConfigFileTask.API_NAME)
+                generatorPluginId.set(AssembleTenantModuleConfigFileTask.GENERATOR_PLUGIN_ID)
                 this.codegenClasspath.from(codegenClasspath)
                 centralSchemaFiles.from(
                     centralSchemaIncomingCfg.incoming.artifactView {}.files.asFileTree.matching {
@@ -121,14 +121,7 @@ class ViaductModulePlugin : Plugin<Project> {
                 outgoing.artifact(assembleTask.flatMap { it.outputDir })
             }
 
-            // Wire assembly output into main resources so it lands in the module's JAR
-            pluginManager.withPlugin("java") {
-                project.extensions
-                    .getByType(JavaPluginExtension::class.java)
-                    .sourceSets.named("main").configure {
-                        resources.srcDir(assembleTask.flatMap { it.outputDir })
-                    }
-            }
+            ViaductPluginCommon.wireManifestResources(project, assembleTask.flatMap { it.outputDir })
 
             assembleTask.configure {
                 tenantPackage.set(moduleLayout.fullTenantPackage)

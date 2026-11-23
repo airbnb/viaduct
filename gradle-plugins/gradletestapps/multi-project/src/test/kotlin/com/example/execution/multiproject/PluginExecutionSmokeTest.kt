@@ -17,36 +17,36 @@ class PluginExecutionSmokeTest {
 
     @Test
     fun foundationCapabilitySuppliesSchemaToAssemblyAndRuntimePackaging() {
-        val relative = "schema/plugin/com.airbnb.viaduct.foundation-federation/source/viaduct/federation/foundation.graphqls"
-        val sdl = buildDir.resolve("viaduct/centralSchema/$relative").readText()
+        val relative = "plugin/com.airbnb.viaduct.foundation-federation/source/viaduct/federation/foundation.graphqls"
+        val sdl = buildDir.resolve("viaduct/centralSchema/viaduct/central-schema/$relative").readText()
         assertTrue(sdl.contains("directive @key(fields: FieldSelectionSet!) repeatable on OBJECT | INTERFACE"))
         assertTrue(sdl.contains("directive @provides(fields: FieldSelectionSet!) on FIELD_DEFINITION"))
-        assertEquals(sdl, buildDir.resolve("viaduct/finalSchema/$relative").readText())
-        assertEquals(sdl, javaClass.getResource("/viaduct/centralSchema/$relative")!!.readText())
-        val schema = buildDir.resolve("viaduct/centralSchema/schema/module/alpha/source/schema.graphqls").readText()
+        assertEquals(sdl, buildDir.resolve("viaduct/finalSchema/viaduct/final-schema/$relative").readText())
+        assertEquals(sdl, javaClass.getResource("/META-INF/viaduct/final-schema/$relative")!!.readText())
+        val schema = buildDir.resolve("viaduct/centralSchema/viaduct/central-schema/module/alpha/source/schema.graphqls").readText()
         assertTrue(schema.contains("@key(fields: \"id\")"))
         assertTrue(schema.contains("@provides(fields: \"name\")"))
     }
 
     @Test
     fun finalAdditionsArePackagedWithoutChangingTheCentralSchema() {
-        val relative = "schema/plugin/dev.example.fixture/generated/dev.example.final-generator/final.graphqls"
-        assertFalse(buildDir.resolve("viaduct/centralSchema/$relative").exists())
-        val finalSdl = buildDir.resolve("viaduct/finalSchema/$relative").readText()
+        val relative = "plugin/dev.example.fixture/generated/dev.example.final-generator/final.graphqls"
+        assertFalse(buildDir.resolve("viaduct/centralSchema/viaduct/central-schema/$relative").exists())
+        val finalSdl = buildDir.resolve("viaduct/finalSchema/viaduct/final-schema/$relative").readText()
         assertTrue(finalSdl.contains("type FixtureFinal"))
         assertTrue(finalSdl.contains("extend interface PluginInputs"))
-        assertEquals(finalSdl, javaClass.getResource("/viaduct/centralSchema/$relative")!!.readText())
-        val index = javaClass.getResource("/META-INF/viaduct/indexes/schema-v1.index")!!.readText()
-        assertTrue(index.contains("viaduct/centralSchema/$relative"))
-        val centralRoot = buildDir.resolve("viaduct/centralSchema")
+        assertEquals(finalSdl, javaClass.getResource("/META-INF/viaduct/final-schema/$relative")!!.readText())
+        val index = javaClass.getResource("/META-INF/viaduct/resource-index/application/generated/viaduct.core/schema-v1.index")!!.readText()
+        assertTrue(index.contains("META-INF/viaduct/final-schema/$relative"))
+        val centralRoot = buildDir.resolve("viaduct/centralSchema/viaduct/central-schema")
         centralRoot.toFile().walkTopDown().filter { it.isFile }.forEach { file ->
-            assertEquals(file.readText(), buildDir.resolve("viaduct/finalSchema").resolve(file.toPath().let { centralRoot.relativize(it) }).readText())
+            assertEquals(file.readText(), buildDir.resolve("viaduct/finalSchema/viaduct/final-schema").resolve(file.toPath().let { centralRoot.relativize(it) }).readText())
         }
     }
 
     @Test
     fun pluginResourcesAndGeneratedProviderInputsRetainStablePaths() {
-        val schema = buildDir.resolve("viaduct/centralSchema/schema")
+        val schema = buildDir.resolve("viaduct/centralSchema/viaduct/central-schema")
         val bundled = schema.resolve("plugin/dev.example.fixture/source/dev/example/fixture/schema/directives.graphqls")
         val generated = schema.resolve("plugin/dev.example.fixture/generated/dev.example.generator/fixture-generated.graphqls")
         assertEquals(
@@ -58,15 +58,15 @@ class PluginExecutionSmokeTest {
 
     @Test
     fun generatedSchemaAndResolverOutputsExist() {
-        assertExists(buildDir.resolve("viaduct/centralSchema/schema/plugin/com.airbnb.viaduct/source/BUILTIN_SCHEMA.graphqls"))
-        val alphaPartitionSchemaFile = buildDir.resolve("viaduct/centralSchema/schema/module/alpha/source/schema.graphqls")
-        val betaPartitionSchemaFile = buildDir.resolve("viaduct/centralSchema/schema/module/beta/source/schema.graphqls")
+        assertExists(buildDir.resolve("viaduct/centralSchema/viaduct/central-schema/plugin/viaduct.core/generated/viaduct.core/BUILTIN_SCHEMA.graphqls"))
+        val alphaPartitionSchemaFile = buildDir.resolve("viaduct/centralSchema/viaduct/central-schema/module/alpha/source/schema.graphqls")
+        val betaPartitionSchemaFile = buildDir.resolve("viaduct/centralSchema/viaduct/central-schema/module/beta/source/schema.graphqls")
 
         assertExists(alphaPartitionSchemaFile)
         assertExists(betaPartitionSchemaFile)
         assertExists(
             alphaResolverBasesDir.resolve(
-                "QueryResolvers.kt"
+                "com/example/execution/multiproject/alpha/resolverbases/QueryResolvers.kt"
             )
         )
         assertExists(
@@ -89,10 +89,10 @@ class PluginExecutionSmokeTest {
     @Test
     fun tenantModuleConfigsContainKspAndAptExtractedResolvers() {
         val alphaConfigFile = javaClass.getResource(
-            "/META-INF/viaduct/modules/com.example.execution.multiproject.alpha.json"
+            "/META-INF/viaduct/execution-manifest/module/alpha/generated/com.airbnb.viaduct.module-gradle-plugin/com.example.execution.multiproject.alpha.json"
         )!!
         val betaConfigFile = javaClass.getResource(
-            "/META-INF/viaduct/modules/com.example.execution.multiproject.beta.json"
+            "/META-INF/viaduct/execution-manifest/module/beta/generated/com.airbnb.viaduct.module-java-gradle-plugin/com.example.execution.multiproject.beta.json"
         )!!
 
         assertTrue(alphaConfigFile.readText().contains("GreetingResolver"))
@@ -108,12 +108,12 @@ class PluginExecutionSmokeTest {
     fun resourceIndexContainsEveryModuleRegistry() {
         val registryIndex = buildDir.resolve(
             "generated-resources/viaduct-execution-registry-index/" +
-                "META-INF/viaduct/indexes/execution-registry-v1.index"
+                "viaduct/resource-index/application/generated/viaduct.core/execution-registry-v1.index"
         ).readText()
 
         assertEquals(
-            "META-INF/viaduct/modules/com.example.execution.multiproject.alpha.json\n" +
-                "META-INF/viaduct/modules/com.example.execution.multiproject.beta.json\n",
+            "META-INF/viaduct/execution-manifest/module/alpha/generated/com.airbnb.viaduct.module-gradle-plugin/com.example.execution.multiproject.alpha.json\n" +
+                "META-INF/viaduct/execution-manifest/module/beta/generated/com.airbnb.viaduct.module-java-gradle-plugin/com.example.execution.multiproject.beta.json\n",
             registryIndex,
         )
     }

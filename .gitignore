@@ -126,6 +126,7 @@ reports/
 # Ignore generated sources
 # ----------------------------------------
 **/generated/
+!**/src/test/resources/META-INF/viaduct/**/generated/
 **/generated-sources/
 
 # ----------------------------------------

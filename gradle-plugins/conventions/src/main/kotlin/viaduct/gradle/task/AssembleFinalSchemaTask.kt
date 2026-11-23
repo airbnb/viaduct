@@ -24,6 +24,8 @@ import viaduct.gradle.ScopedSchemaValidator
 import viaduct.gradle.ViaductSchemaValidator
 import viaduct.gradle.ViaductScopesYaml
 import viaduct.graphql.schema.SchemaProvenance
+import viaduct.utils.resources.ViaductResourceClaims
+import viaduct.utils.resources.ViaductResourcePaths
 
 @OptIn(ExperimentalApi::class)
 @InternalApi
@@ -71,16 +73,35 @@ abstract class AssembleFinalSchemaTask
                         null
                     }
                 } ?: throw GradleException("Invalid final plugin SDL provenance: $file")
-            }.distinct().sorted().ifEmpty { listOf("com.airbnb.viaduct final assembly") }
+            }.distinct().sorted().ifEmpty { listOf("viaduct.core final assembly") }
             val staging = temporaryDir.resolve("schema")
             try {
+                val claims = ViaductResourceClaims()
                 fileSystemOperations.sync {
+                    eachFile {
+                        require(path.startsWith("viaduct/central-schema/") || path.startsWith("viaduct/final-schema-contribution/")) {
+                            "Invalid final-schema input '$path' from '$file'"
+                        }
+                        if (path.startsWith("viaduct/final-schema-contribution/")) {
+                            val provenance = SchemaProvenance.parse(path)
+                            require(
+                                provenance?.let {
+                                    it.scope == "plugin" && !it.owner.equals(ViaductResourcePaths.FRAMEWORK, true) &&
+                                        !it.generator.equals(ViaductResourcePaths.FRAMEWORK, true)
+                                } == true
+                            ) { "Invalid or reserved final contributor '$path' from '$file'" }
+                        }
+                        path = ViaductResourcePaths.atStage(path, "final-schema")
+                        claims.claim(path, file.toString())
+                    }
                     from(centralSchemaDirectory)
                     from(pluginSchemaFiles) { include("**/*.graphqls") }
                     into(staging)
                     includeEmptyDirs = false
                     duplicatesStrategy = DuplicatesStrategy.FAIL
                 }
+            } catch (failure: IllegalArgumentException) {
+                throw GradleException("Final-schema contribution error from ${contributors.joinToString()}: ${failure.message}", failure)
             } catch (failure: GradleException) {
                 throw GradleException("Final-schema contribution error from ${contributors.joinToString()}: ${failure.message}", failure)
             }

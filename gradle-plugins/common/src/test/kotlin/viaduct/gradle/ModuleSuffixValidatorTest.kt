@@ -11,9 +11,9 @@ class ModuleSuffixValidatorTest {
     @Test
     fun `schema module ids preserve dots and use the package prefix for empty suffixes`() {
         DefaultViaductModulePackageLayout("com.example.app", "catalog.pricing").schemaPartitionPrefixPath shouldBe
-            "schema/module/catalog.pricing/source"
+            "viaduct/schema/module/catalog.pricing/source"
         DefaultViaductModulePackageLayout("com.example.app", "").schemaPartitionPrefixPath shouldBe
-            "schema/module/com.example.app/source"
+            "viaduct/schema/module/com.example.app/source"
     }
 
     @Test

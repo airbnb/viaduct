@@ -57,6 +57,7 @@ internal object TenantModuleConfigAssembler {
         descriptorJsons: List<String>,
         executorFactory: String,
         apiName: String,
+        generatorPluginId: String,
         tenantPackage: String,
         tenantPackagePrefix: String? = null,
         outputDir: File,
@@ -70,6 +71,7 @@ internal object TenantModuleConfigAssembler {
             descriptors = descriptorJsons.map(codec::decode),
             executorFactory = executorFactory,
             apiName = apiName,
+            generatorPluginId = generatorPluginId,
             tenantPackage = tenantPackage,
             tenantPackagePrefix = tenantPackagePrefix,
             outputDir = outputDir,
@@ -85,6 +87,7 @@ internal object TenantModuleConfigAssembler {
         descriptors: List<PerSourceDescriptorFile>,
         executorFactory: String,
         apiName: String,
+        generatorPluginId: String,
         tenantPackage: String,
         tenantPackagePrefix: String?,
         outputDir: File,
@@ -125,7 +128,7 @@ internal object TenantModuleConfigAssembler {
             validateAgainstSchema(descriptors, fragmentsByName, schema, viaductSchema, tenantModuleName, forbiddenSelectionDirectives)
         }
 
-        val outputFile = outputDir.resolve(REGISTRY_RESOURCE_PATH).resolve("$tenantPackage.json")
+        val outputFile = outputDir.resolve(registryResourcePath(tenantPackage, tenantPackagePrefix, generatorPluginId))
 
         outputFile.parentFile.mkdirs()
 

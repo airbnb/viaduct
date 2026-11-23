@@ -44,6 +44,7 @@ class ViaductModuleConventionsPlugin : Plugin<Project> {
             val assembleSchemaContributions = tasks.register<Sync>("assembleViaductSchemaContributions") {
                 into(project.layout.buildDirectory.dir("viaduct/schemaContributions"))
                 duplicatesStrategy = DuplicatesStrategy.FAIL
+                ViaductPluginCommon.validateResourcePaths(this)
             }
             val schemaContributions = DefaultViaductSchemaContributions(assembleSchemaContributions, ViaductModulePluginSupport.schemaModuleId(layout))
             extensions.add(SCHEMA_CONTRIBUTIONS_EXTENSION_NAME, schemaContributions)

@@ -13,7 +13,7 @@ import java.io.File
 
 /**
  * Aggregation CLI that combines per-file KSP descriptors into a single tenant module
- * config file at `META-INF/viaduct/modules/<tenantpkg>.json`.
+ * config file at `viaduct/execution-manifest/module/<module-id>/generated/<generator-plugin-id>/<tenantpkg>.json`.
  *
  * Deserializes each per-file [PerSourceDescriptorFile], maps them to a typed [ExecutionRegistry],
  * then serializes that — so the JSON shape is always governed by the real data model and a
@@ -54,6 +54,9 @@ class AssembleTenantModuleConfigFile : CliktCommand(
     private val apiName: String by option("--api-name")
         .required()
 
+    private val generatorPluginId: String by option("--generator-plugin-id")
+        .required()
+
     private val schemaBinary: File? by option("--schema-binary")
         .file(mustExist = true, canBeFile = true)
 
@@ -90,6 +93,7 @@ class AssembleTenantModuleConfigFile : CliktCommand(
             descriptorJsons = descriptorJsons,
             executorFactory = executorFactory,
             apiName = apiName,
+            generatorPluginId = generatorPluginId,
             tenantPackage = tenantPackage,
             tenantPackagePrefix = tenantPackagePrefix,
             tenantMetadata = TenantModuleConfigAssembler.readTenantMetadata(tenantMetadataFile),

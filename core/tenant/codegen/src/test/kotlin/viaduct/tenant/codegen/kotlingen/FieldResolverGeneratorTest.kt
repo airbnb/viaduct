@@ -32,7 +32,7 @@ class FieldResolverGeneratorTest {
                     type Query { placeholder: String }
                     """.trimIndent() + "\n",
                 ),
-                "schema/application/source/schema.graphqls",
+                "viaduct/schema/application/source/schema.graphqls",
             )
             .reader(
                 StringReader(
@@ -41,7 +41,7 @@ class FieldResolverGeneratorTest {
                     type Product implements Node @resolver { id: ID! }
                     """.trimIndent() + "\n",
                 ),
-                "schema/module/catalog.pricing/generated/dev.example.plugin/schema.graphqls",
+                "viaduct/schema/module/catalog.pricing/generated/dev.example.plugin/schema.graphqls",
             )
             .reader(
                 StringReader(
@@ -50,7 +50,7 @@ class FieldResolverGeneratorTest {
                     type Inventory implements Node @resolver { id: ID! }
                     """.trimIndent() + "\n",
                 ),
-                "schema/module/catalog.inventory/source/schema.graphqls",
+                "viaduct/schema/module/catalog.inventory/source/schema.graphqls",
             )
             .build()
         val schema = ViaductSchema.fromTypeDefinitionRegistry(SchemaParser().parse(sources))

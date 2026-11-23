@@ -577,11 +577,13 @@ class JavaRegistryExtractorProcessorTest {
                 "viaduct.java.runtime.bootstrap.ViaductJavaExecutorFactory",
                 "--api-name",
                 "java",
+                "--generator-plugin-id",
+                "com.airbnb.viaduct.module-java-gradle-plugin",
                 "--output-dir",
                 outputDir.absolutePath,
             )
         )
-        return mapper.readTree(File(outputDir, "META-INF/viaduct/modules/com.example.tenant.json"))
+        return mapper.readTree(File(outputDir, "viaduct/execution-manifest/module/com.example.tenant/generated/com.airbnb.viaduct.module-java-gradle-plugin/com.example.tenant.json"))
     }
 
     private fun compileAndReadDescriptors(

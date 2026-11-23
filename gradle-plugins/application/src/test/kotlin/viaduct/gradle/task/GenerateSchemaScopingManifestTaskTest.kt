@@ -37,7 +37,7 @@ class GenerateSchemaScopingManifestTaskTest {
         }
     }
 
-    private fun manifestOf(task: GenerateSchemaScopingManifestTask): File = task.outputDirectory.get().asFile.resolve(SchemaScopingManifest.RESOURCE_PATH)
+    private fun manifestOf(task: GenerateSchemaScopingManifestTask): File = task.outputDirectory.get().asFile.resolve(SchemaScopingManifest.RESOURCE_PATH.removePrefix("META-INF/"))
 
     @Test
     fun `an application that declares no scopes gets no manifest`() {

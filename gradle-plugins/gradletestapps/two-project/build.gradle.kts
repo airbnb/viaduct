@@ -28,3 +28,5 @@ tasks.withType<Test>().configureEach {
     inputs.dir(copyResolverBases.map { it.destinationDir }).withPropertyName("resolverBases").withPathSensitivity(PathSensitivity.RELATIVE)
     systemProperty("resolverBasesDir", layout.buildDirectory.dir("fixture-outputs/resolver").get().asFile.absolutePath)
 }
+
+layout.buildDirectory.convention(layout.projectDirectory.dir("build/layout-verification"))

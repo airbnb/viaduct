@@ -14,7 +14,7 @@ import viaduct.graphql.schema.validation.SchemaValidator
 import viaduct.graphql.schema.validation.ValidationErrorCodes
 
 class PluginScalarReferencesRuleTest {
-    private val plugin = "schema/plugin/dev.example.federation/source/"
+    private val plugin = "viaduct/schema/plugin/dev.example.federation/source/"
     private val validator = SchemaValidator(
         listOf(listOf(NoCustomScalarsRule(GraphQLBuiltIns.SCALARS + GraphQLBuiltIns.VIADUCT_SCALARS), PluginScalarReferencesRule())),
     )
@@ -24,9 +24,9 @@ class PluginScalarReferencesRuleTest {
         val schema = schema(
             "${plugin}scalars.graphqls" to "scalar FieldSet",
             "${plugin}directives.graphqls" to "directive @key(fields: [FieldSet!]) on OBJECT",
-            "schema/module/catalog/source/types.graphqls" to "type Product @key(fields: [\"id\"]) { id: ID }",
-            "schema/application/source/schemabase/query.graphqls" to "type Query { product: Product }",
-            "schema/plugin/other.owner/generated/dev.example.federation/fields.graphqls" to
+            "viaduct/schema/module/catalog/source/types.graphqls" to "type Product @key(fields: [\"id\"]) { id: ID }",
+            "viaduct/schema/application/source/schemabase/query.graphqls" to "type Query { product: Product }",
+            "viaduct/schema/plugin/other.owner/generated/dev.example.federation/fields.graphqls" to
                 "extend type Query { entities(representations: [FieldSet!]!): String }",
         )
 
@@ -53,28 +53,28 @@ class PluginScalarReferencesRuleTest {
 
     @Test
     fun `references use the supplying extension rather than the original type owner`() {
-        val tenant = "schema/module/catalog/source/extension.graphqls"
-        val other = "schema/plugin/dev.example.other/source/extension.graphqls"
+        val tenant = "viaduct/schema/module/catalog/source/extension.graphqls"
+        val other = "viaduct/schema/plugin/dev.example.other/source/extension.graphqls"
         val errors = validator.validate(
             schema(
                 "${plugin}types.graphqls" to "scalar FieldSet\ntype Query { own(arg: FieldSet): String }",
                 tenant to "extend type Query { tenant(arg: [FieldSet!]): String }",
                 other to "extend type Query { other(arg: FieldSet): String }",
-                "schema/plugin/dev.example.federation/generated/dev.example.other/directive.graphqls" to
+                "viaduct/schema/plugin/dev.example.federation/generated/dev.example.other/directive.graphqls" to
                     "directive @other(arg: FieldSet) on OBJECT",
             )
         )
 
         assertEquals(3, errors.size)
-        assertEquals(setOf(tenant, other, "schema/plugin/dev.example.federation/generated/dev.example.other/directive.graphqls"), errors.map { it.location.sourceLocation?.sourceName }.toSet())
+        assertEquals(setOf(tenant, other, "viaduct/schema/plugin/dev.example.federation/generated/dev.example.other/directive.graphqls"), errors.map { it.location.sourceLocation?.sourceName }.toSet())
     }
 
     @Test
     fun `only plugin suppliers may define scalars and standard scalar uses stay unrestricted`() {
         val errors = validator.validate(
             schema(
-                "schema/application/source/schemabase/types.graphqls" to "scalar Custom\ntype Query { json: JSON }\nscalar JSON",
-                "schema/module/catalog/source/types.graphqls" to "scalar Tenant",
+                "viaduct/schema/application/source/schemabase/types.graphqls" to "scalar Custom\ntype Query { json: JSON }\nscalar JSON",
+                "viaduct/schema/module/catalog/source/types.graphqls" to "scalar Tenant",
             )
         )
 

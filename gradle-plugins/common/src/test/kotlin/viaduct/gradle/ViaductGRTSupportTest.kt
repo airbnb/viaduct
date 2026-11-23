@@ -26,8 +26,8 @@ class ViaductGRTSupportTest {
     @Test
     fun `central schema root comes from the file tree rather than provenance-like checkout names`() {
         val project = project("schema-root")
-        val root = directory.resolve("schema/plugin/checkout/source/build/central")
-        root.resolve("schema/module/catalog.pricing/source/nested/types.graphqls").apply {
+        val root = directory.resolve("viaduct/schema/plugin/checkout/source/build/central")
+        root.resolve("viaduct/schema/module/catalog.pricing/source/nested/types.graphqls").apply {
             parentFile.mkdirs()
             writeText("type Product { name: String }")
         }

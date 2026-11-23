@@ -22,7 +22,7 @@ import viaduct.apiannotations.InternalApi
 @OptIn(ExperimentalApi::class)
 object SchemaScopingManifest {
     /** Classpath location of the manifest. */
-    const val RESOURCE_PATH: String = "META-INF/viaduct/schema-scoping.json"
+    const val RESOURCE_PATH: String = "META-INF/viaduct/schema-scoping-manifest/application/generated/viaduct.core/schema-scoping.json"
 
     /**
      * Neither a repeated key nor content trailing the document reaches [SchemaScopeDefinitions]: the

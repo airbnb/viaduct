@@ -6,6 +6,7 @@ import org.gradle.api.tasks.Sync
 import org.gradle.api.tasks.TaskProvider
 import viaduct.apiannotations.StableApi
 import viaduct.graphql.schema.SchemaProvenance
+import viaduct.utils.resources.ViaductResourcePaths
 
 @StableApi
 interface ViaductSchemaContributions {
@@ -27,7 +28,8 @@ internal class DefaultViaductSchemaContributions(
         pluginId: String,
         files: FileCollection,
     ) {
-        require(pluginId.matches(Regex("[A-Za-z0-9_.-]+")) && pluginId != "." && pluginId != "..") { "Invalid plugin ID: $pluginId" }
+        ViaductResourcePaths.requireId(pluginId)
+        require(!pluginId.equals(ViaductResourcePaths.FRAMEWORK, true)) { "Reserved framework producer: $pluginId" }
         assembleTask.configure {
             from(files) {
                 include("**/*.graphqls")

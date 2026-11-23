@@ -4,9 +4,11 @@ import viaduct.bootstrap.ViaductResourceIndexes
 import viaduct.engine.api.bootstrap.executionregistry.ModuleConfigSource
 import viaduct.service.api.spi.InputStreamSource
 import viaduct.utils.resources.ClasspathResourceIndex
+import viaduct.utils.resources.ViaductResourceClaims
+import viaduct.utils.resources.ViaductResourcePaths
 import viaduct.utils.resources.requireResourceUrl
 
-private const val REGISTRY_RESOURCE_PATH = "META-INF/viaduct/modules"
+private const val REGISTRY_RESOURCE_PATH = "META-INF/${ViaductResourcePaths.MANIFEST_ROOT}"
 
 object ExecutionRegistryConfigSourceCollector {
     /** Loads indexed module configs as immutable snapshots, rejecting duplicate tenant/API keys. */
@@ -20,14 +22,22 @@ object ExecutionRegistryConfigSourceCollector {
         packagePrefix: String?,
         classLoader: ClassLoader,
     ): List<ModuleConfigSource> {
-        val prefix = "$REGISTRY_RESOURCE_PATH/" + (packagePrefix?.let { "$it." } ?: "")
+        val prefix = "$REGISTRY_RESOURCE_PATH/"
         val index = requireNotNull(
             ClasspathResourceIndex.load(ViaductResourceIndexes.EXECUTION_REGISTRY, classLoader)
         ) {
             "No Viaduct execution-registry resource index found at '${ViaductResourceIndexes.EXECUTION_REGISTRY}'. " +
-                "Apply the Viaduct application Gradle plugin or supply module config sources explicitly."
+                "Apply the Viaduct application Gradle plugin or supply module config sources explicitly. " +
+                "Rebuild tenant artifacts with module and application plugins compatible with this runtime; " +
+                "legacy META-INF/viaduct/modules manifests are not discovered."
         }
-        return fromResourcePaths(index.paths.filter { it.startsWith(prefix) && it.endsWith(".json") }, classLoader)
+        val claims = ViaductResourceClaims()
+        val paths = index.paths.filter { it.startsWith(prefix) && it.endsWith(".json") }.filter { path ->
+            val resourcePath = ViaductResourcePaths.fromArchive(path)
+            claims.claim(resourcePath, path)
+            ViaductResourcePaths.matchesPackage(ViaductResourcePaths.manifestPackage(resourcePath), packagePrefix)
+        }
+        return fromResourcePaths(paths, classLoader)
     }
 
     fun fromResourcePaths(paths: Iterable<String>): List<ModuleConfigSource> =

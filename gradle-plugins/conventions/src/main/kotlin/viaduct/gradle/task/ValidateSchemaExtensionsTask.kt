@@ -17,6 +17,8 @@ import viaduct.gradle.ViaductSchemaValidator
 import viaduct.graphql.schema.SchemaProvenance
 import viaduct.graphql.schema.graphqljava.readTypesFromFiles
 import viaduct.graphql.utils.DefaultSchemaFactory
+import viaduct.utils.resources.ViaductResourceClaims
+import viaduct.utils.resources.ViaductResourcePaths
 
 @InternalApi
 abstract class ValidateSchemaExtensionsTask
@@ -48,7 +50,13 @@ abstract class ValidateSchemaExtensionsTask
         @TaskAction
         fun taskAction() {
             val staging = temporaryDir.resolve("schema-inputs")
+            val claims = ViaductResourceClaims()
             fileSystemOperations.sync {
+                eachFile {
+                    require(path.startsWith("viaduct/schema/")) { "Invalid prepared schema path '$path' from '$file'" }
+                    path = ViaductResourcePaths.atStage(path, "central-schema")
+                    claims.claim(path, file.toString())
+                }
                 into(staging)
                 duplicatesStrategy = DuplicatesStrategy.FAIL
                 from(baseSchemaFiles) { into(SchemaProvenance.applicationSourceDirectory("schemabase")) }

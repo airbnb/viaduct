@@ -17,6 +17,7 @@ import viaduct.apiannotations.InternalApi
 import viaduct.gradle.ViaductScopesYaml
 import viaduct.scoping.SchemaScopeDefinitions
 import viaduct.scoping.SchemaScopingManifest
+import viaduct.utils.resources.ViaductResourcePaths
 
 /**
  * Writes the application's schema scope definitions as the JSON manifest runtime reads, so the declared
@@ -67,7 +68,7 @@ abstract class GenerateSchemaScopingManifestTask
             val staged = temporaryDir.resolve("staged")
             fileSystemOperations.delete { delete(staged) }
             if (scoping.isScoped) {
-                staged.resolve(SchemaScopingManifest.RESOURCE_PATH).apply {
+                staged.resolve(ViaductResourcePaths.fromArchive(SchemaScopingManifest.RESOURCE_PATH)).apply {
                     parentFile.mkdirs()
                     writeText(SchemaScopingManifest.encode(scoping))
                 }

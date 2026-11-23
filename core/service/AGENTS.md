@@ -30,7 +30,7 @@ These are registry-build hooks, not request hooks. Config reads and executor fac
 
 - For isolated runtime tests, pair `StandardViaduct.Builder.withTenantModuleInjectorFactory(...)` with `withExecutorRegistryConfigSources(...)`. The latter is a test-only override that replaces resource discovery and is ignored unless a factory is supplied. Its optional `grtPackagePrefix` supports tests that generate GRTs outside the production package.
 - [StandardViaductTest](runtime/src/test/kotlin/viaduct/service/runtime/StandardViaductTest.kt) demonstrates supplied config sources, `EngineTestModule.toModuleConfigSource()` with `MockExecutorCodeInjector`, and rebuilding with reused schemas.
-- When a resolver is missing at startup, check that the factory is configured and the tenant artifact contains the expected `META-INF/viaduct/modules/*.json` entry. Follow [engine guidance](../engine/AGENTS.md) to inspect config keys and executor entries.
+- When a resolver is missing at startup, check that the factory is configured and the tenant artifact contains the expected `META-INF/viaduct/execution-manifest/module/<module-id>/generated/<generator-plugin-id>/*.json` entry. Follow [engine guidance](../engine/AGENTS.md) to inspect config keys and executor entries.
 
 ## Module Descriptions
 

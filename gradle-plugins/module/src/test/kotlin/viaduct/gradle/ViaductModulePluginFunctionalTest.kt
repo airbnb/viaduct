@@ -80,7 +80,7 @@ class ViaductModulePluginFunctionalTest {
             .build()
 
         assertTrue(result.output.contains("BUILD SUCCESSFUL"), "Expected build to succeed")
-        val partitionSchemaFile = File(projectDir, "build/viaduct/centralSchema/schema/module/test/source/schema.graphqls")
+        val partitionSchemaFile = File(projectDir, "build/viaduct/centralSchema/viaduct/central-schema/module/test/source/schema.graphqls")
         assertTrue(partitionSchemaFile.isFile, "Expected same-project schema partition to be copied into central schema")
         assertTrue(partitionSchemaFile.readText().contains("field: String"))
     }
@@ -137,10 +137,10 @@ class ViaductModulePluginFunctionalTest {
         assertTrue(result.output.contains("RESOLVER_TENANT_PREFIX=com.example.topology"))
         assertTrue(result.output.contains("RESOLVER_TENANT_PACKAGE=topology"))
         assertTrue(
-            result.output.contains("generated-sources/viaduct/resolverBases/com/example/topology/topology"),
-            "Expected resolver-base output path to use topology package values",
+            result.output.contains("generated/sources/viaduct/resolver-bases/kotlin/main"),
+            "Expected a stable resolver-base source root",
         )
-        assertTrue(result.output.contains("SCHEMA_PREFIX=schema/module/topology/source"))
+        assertTrue(result.output.contains("SCHEMA_PREFIX=viaduct/schema/module/topology/source"))
     }
 
     @Test
@@ -182,10 +182,10 @@ class ViaductModulePluginFunctionalTest {
         assertTrue(result.output.contains("RESOLVER_TENANT_PREFIX=''"))
         assertTrue(result.output.contains("RESOLVER_TENANT_PACKAGE=com.example.blank"))
         assertTrue(
-            result.output.contains("generated-sources/viaduct/resolverBases/com/example/blank"),
-            "Expected resolver-base output path to use topology package prefix",
+            result.output.contains("generated/sources/viaduct/resolver-bases/kotlin/main"),
+            "Expected a stable resolver-base source root",
         )
-        assertTrue(result.output.contains("SCHEMA_PREFIX=schema/module/com.example.blank/source"))
+        assertTrue(result.output.contains("SCHEMA_PREFIX=viaduct/schema/module/com.example.blank/source"))
     }
 
     @Test

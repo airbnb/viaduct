@@ -25,6 +25,8 @@ import viaduct.graphql.schema.validation.SchemaValidator
 import viaduct.graphql.schema.validation.rules.PluginScalarReferencesRule
 import viaduct.graphql.utils.DefaultSchemaFactory
 import viaduct.utils.resources.ClasspathResourceIndex
+import viaduct.utils.resources.ViaductResourceClaims
+import viaduct.utils.resources.ViaductResourcePaths
 import viaduct.utils.slf4j.logger
 
 class SchemaFactory(
@@ -78,6 +80,7 @@ class SchemaFactory(
         classLoader: ClassLoader,
     ): EngineSchema {
         val resourceContents = mutableMapOf<String, String>()
+        val claims = ViaductResourceClaims()
 
         val (resources, elapsedTime) = measureTimedValue {
             val index = requireNotNull(ClasspathResourceIndex.load(ViaductResourceIndexes.SCHEMA, classLoader)) {
@@ -91,6 +94,9 @@ class SchemaFactory(
                         filesIncluded.matches(path)
                 }
                 .map { path ->
+                    val canonical = ViaductResourcePaths.fromArchive(path)
+                    require(canonical.startsWith("viaduct/final-schema/")) { "Invalid indexed final-schema resource '$path'" }
+                    claims.claim(canonical, path)
                     val url = index.resourceUrl(path)
                     val uniqueKey = url.toExternalForm()
                     val content = url.openStream().use { stream ->
@@ -99,7 +105,7 @@ class SchemaFactory(
                     if (content.isEmpty()) {
                         log.warn("Empty schema file found: {}", uniqueKey)
                     }
-                    resourceContents[path.removePrefix("viaduct/centralSchema/")] = content
+                    resourceContents[canonical] = content
                     uniqueKey
                 }
         }

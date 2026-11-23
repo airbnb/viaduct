@@ -25,7 +25,7 @@ internal const val TENANT_BOOTSTRAPPER_ANNOTATION_FQN = "viaduct.service.api.spi
  * [PerSourceDescriptorFile] JSON shape (reusing the shared model + codec from `:tenant:codegen`),
  * written to `viaduct-registry/<package-path>/<TopLevelClass>.json` in the annotation processor's
  * resource output. The aggregation CLI (`AssembleTenantModuleConfigFile`) then consolidates these
- * into `META-INF/viaduct/modules/<pkg>.json`, identical to the Kotlin pipeline — only the
+ * into `META-INF/viaduct/execution-manifest/module/<module-id>/generated/<generator-plugin-id>/<pkg>.json`, identical to the Kotlin pipeline — only the
  * `--executor-factory` differs (`ViaductJavaExecutorFactory`).
  *
  * ## Incrementality

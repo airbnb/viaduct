@@ -3,6 +3,7 @@ package viaduct.gradle
 import io.kotest.matchers.string.shouldContain
 import java.io.File
 import org.gradle.testkit.runner.GradleRunner
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -13,7 +14,7 @@ class ViaductModulePluginModuleConfigExecutionTest {
     lateinit var projectDir: File
 
     @Test
-    fun `module config is generated when schema file collection is empty`() {
+    fun `module config without schema files reconciles identity changes deterministically`() {
         writeStatefulExecutionProject()
         File(projectDir, "build.gradle.kts").appendText(
             """
@@ -31,10 +32,47 @@ class ViaductModulePluginModuleConfigExecutionTest {
         val moduleConfigFile = File(
             projectDir,
             "build/generated-resources/viaduct-registry/" +
-                "META-INF/viaduct/modules/com.example.test.resolvers.json",
+                "viaduct/execution-manifest/module/resolvers/generated/com.airbnb.viaduct.module-gradle-plugin/com.example.test.resolvers.json",
         )
         assertTrue(moduleConfigFile.exists(), "Expected module config JSON to be generated")
         moduleConfigFile.readText() shouldContain "GreetingResolver"
+        val originalConfig = moduleConfigFile.readText()
+
+        File(projectDir, "build.gradle.kts").appendText(
+            """
+
+            tasks.named<viaduct.gradle.task.AssembleTenantModuleConfigFileTask>(
+                "assembleViaductModuleConfigFile"
+            ) {
+                tenantPackagePrefix.set("com.example")
+            }
+            """.trimIndent()
+        )
+        runModuleConfigBuild(skipKsp = true)
+
+        val renamedConfigFile = File(
+            projectDir,
+            "build/generated-resources/viaduct-registry/" +
+                "viaduct/execution-manifest/module/test.resolvers/generated/com.airbnb.viaduct.module-gradle-plugin/com.example.test.resolvers.json",
+        )
+        assertFalse(moduleConfigFile.exists(), "Expected the old module identity to be removed")
+        assertTrue(renamedConfigFile.exists(), "Expected the renamed module identity")
+        renamedConfigFile.readText() shouldContain "GreetingResolver"
+
+        File(projectDir, "build.gradle.kts").appendText(
+            """
+
+            tasks.named<viaduct.gradle.task.AssembleTenantModuleConfigFileTask>(
+                "assembleViaductModuleConfigFile"
+            ) {
+                tenantPackagePrefix.set("com.example.test")
+            }
+            """.trimIndent()
+        )
+        runModuleConfigBuild(skipKsp = true)
+
+        assertFalse(renamedConfigFile.exists(), "Expected the renamed identity to be removed on restoration")
+        assertEquals(originalConfig, moduleConfigFile.readText())
     }
 
     @Test
@@ -76,7 +114,7 @@ class ViaductModulePluginModuleConfigExecutionTest {
         val moduleConfigFile = File(
             projectDir,
             "build/generated-resources/viaduct-registry/" +
-                "META-INF/viaduct/modules/com.example.test.resolvers.json",
+                "viaduct/execution-manifest/module/resolvers/generated/com.airbnb.viaduct.module-gradle-plugin/com.example.test.resolvers.json",
         )
 
         runModuleConfigBuild(skipKsp = false)

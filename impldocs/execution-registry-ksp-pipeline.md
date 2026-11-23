@@ -1,7 +1,7 @@
 # Execution Registry: KSP Pipeline and Incrementality
 
 This document explains the three-stage build pipeline that produces the tenant module config file
-(`META-INF/viaduct/modules/<tenantPackage>.json`) from annotated resolver source code, with
+(`META-INF/viaduct/execution-manifest/module/<module-id>/generated/<generator-plugin-id>/<tenantPackage>.json`) from annotated resolver source code, with
 particular attention to how incrementality and stale-output cleanup work at each stage.
 
 ## Pipeline overview
@@ -20,11 +20,12 @@ Kotlin source files
   ▼
 [Stage 3] assembleViaductModuleConfigFile (AssembleTenantModuleConfigFileTask)
      Reads all descriptors and emits:
-       build/generated-resources/viaduct-registry/META-INF/viaduct/modules/<pkg>.json
+       build/generated-resources/viaduct-registry/viaduct/execution-manifest/module/<module-id>/generated/com.airbnb.viaduct.module-gradle-plugin/<pkg>.json
 ```
 
-The generated resources directory is wired into the `main` source set so the config file
-lands in the module's JAR.
+The generated directory is contributed through `moduleManifests`. The module JAR adds exactly one
+`META-INF/` prefix when copying it; a resources-only JAR supplies the same entries for local runtime
+classpaths. Generation and staging outputs never contain that archive prefix.
 
 ---
 
@@ -93,9 +94,9 @@ files in `descriptorDir` between builds. If a descriptor is added, modified, or 
 by the bridge Sync in response to a KSP deletion), Gradle marks the assembly task out-of-date and
 re-runs it.
 
-**What `clearOwnedModuleConfigs` does:**  Before invoking the CLI, the task deletes all `.json`
-files under `META-INF/viaduct/modules/` in its output directory. This ensures that stale config
-files (e.g., from a renamed tenant package) do not accumulate across builds.
+**What `clearOwnedModuleConfigs` does:**  Before invoking the CLI, the task clears its entire
+exclusive output directory. This removes stale identity subtrees after a module/package rename and
+leaves sibling tasks' output roots untouched. An empty descriptor set leaves no manifest.
 
 **How the assembled config is identified:**  The config emitted here is one entry in a map keyed by
 `<tenantName, apiName>` — the tenant module plus the tenant API that produced it (`kotlin` for this

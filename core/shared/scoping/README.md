@@ -2,7 +2,7 @@
 
 This module holds the model for an application's **scope definitions**: the scope universe and the
 scoped schemas declared in `src/main/viaduct/scopes.yaml`, the rules that validate them, and the
-manifest (`META-INF/viaduct/schema-scoping.json`) that carries them from the build to the runtime.
+manifest (`META-INF/viaduct/schema-scoping-manifest/application/generated/viaduct.core/schema-scoping.json`) that carries them from the build to the runtime.
 
 Contents of `viaduct.scoping`:
 

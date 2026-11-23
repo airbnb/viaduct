@@ -31,7 +31,7 @@ class SchemaFactoryTest {
     fun `indexed plugin scalars coerce literals and variables using JSON`(
         @TempDir tempDir: Path
     ) {
-        val resource = "viaduct/centralSchema/schema/plugin/dev.example.federation/source/schema.graphqls"
+        val resource = "META-INF/viaduct/final-schema/plugin/dev.example.federation/source/schema.graphqls"
         tempDir.resolve(resource).apply {
             parent.createDirectories()
             writeText("\n\nscalar FieldSet\nextend type Query { echo(value: FieldSet): String }")
@@ -43,7 +43,7 @@ class SchemaFactoryTest {
         URLClassLoader(arrayOf(tempDir.toUri().toURL()), null).use { loader ->
             val schema = schemaFactory.fromResources(null, null, loader).schema
             val type = schema.getType("FieldSet") as graphql.schema.GraphQLScalarType
-            assertEquals("schema/plugin/dev.example.federation/source/schema.graphqls", type.definition.sourceLocation.sourceName)
+            assertEquals("viaduct/final-schema/plugin/dev.example.federation/source/schema.graphqls", type.definition.sourceLocation.sourceName)
             assertEquals(3, type.definition.sourceLocation.line)
             val seen = mutableListOf<Any?>()
             val registry = GraphQLCodeRegistry.newCodeRegistry(schema.codeRegistry).dataFetcher(
@@ -90,7 +90,7 @@ class SchemaFactoryTest {
         fun `fromResources loads exact schema resources from the generated index`(
             @TempDir tempDir: Path
         ) {
-            val schemaPath = "viaduct/centralSchema/partition/example/graphql/schema.graphqls"
+            val schemaPath = "META-INF/viaduct/final-schema/module/example/source/schema.graphqls"
             tempDir.resolve(ViaductResourceIndexes.SCHEMA).apply {
                 parent.createDirectories()
                 writeText("$schemaPath\n")
@@ -102,7 +102,7 @@ class SchemaFactoryTest {
 
             URLClassLoader(arrayOf(tempDir.toUri().toURL()), null).use { classLoader ->
                 val schema = schemaFactory.fromResources(
-                    grtPackagePrefix = "viaduct.centralSchema",
+                    grtPackagePrefix = "META-INF.viaduct.final-schema",
                     filesIncluded = Regex(".*\\.graphqls"),
                     classLoader = classLoader,
                 )
@@ -250,8 +250,8 @@ class SchemaFactoryTest {
         fun `indexed parse errors retain resource URLs causes and plugin source locations`(
             @TempDir tempDir: Path
         ) {
-            val first = "viaduct/centralSchema/schema/plugin/dev.example.plugin/source/types.graphqls"
-            val second = "viaduct/centralSchema/schema/module/catalog/generated/dev.example.generator/types.graphqls"
+            val first = "META-INF/viaduct/final-schema/plugin/dev.example.plugin/source/types.graphqls"
+            val second = "META-INF/viaduct/final-schema/module/catalog/generated/dev.example.generator/types.graphqls"
             val variants = listOf(
                 "\n\ntype Broken { value: }" to "type Extra { value: String }",
                 "\n\ntype Shared { value: String }" to "type Shared { value: Int }",
@@ -270,7 +270,7 @@ class SchemaFactoryTest {
                 error.message!! shouldContain tempDir.resolve(first).toUri().toURL().toExternalForm()
                 error.message!! shouldContain tempDir.resolve(second).toUri().toURL().toExternalForm()
                 error.message!! shouldContain "Internal framework/plugin error"
-                error.message!! shouldContain "schema/plugin/dev.example.plugin/source/types.graphqls:3:"
+                error.message!! shouldContain "viaduct/final-schema/plugin/dev.example.plugin/source/types.graphqls:3:"
             }
         }
 
@@ -278,7 +278,7 @@ class SchemaFactoryTest {
         fun `indexed schema validation errors pass through as SchemaProblem`(
             @TempDir tempDir: Path
         ) {
-            val resource = "viaduct/centralSchema/schema/plugin/dev.example.plugin/source/types.graphqls"
+            val resource = "META-INF/viaduct/final-schema/plugin/dev.example.plugin/source/types.graphqls"
             mapOf(resource to "extend type Query { broken: UnknownType }", ViaductResourceIndexes.SCHEMA to "$resource\n").forEach { (path, content) ->
                 tempDir.resolve(path).apply { parent.createDirectories() }.writeText(content)
             }

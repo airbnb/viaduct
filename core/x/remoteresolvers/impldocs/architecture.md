@@ -99,7 +99,7 @@ Selective node resolvers cannot use the current response correlation by node ID 
 The StarWars `TenantBootstrapper` demonstrates the remote process bootstrap:
 
 1. `SchemaFactory.fromResources()` loads the schema from `.graphqls` resources.
-2. `ExecutionRegistryConfigSourceCollector.fromResources()` finds tenant manifests under `META-INF/viaduct/modules/<package>.json`.
+2. `ExecutionRegistryConfigSourceCollector.fromResources()` finds tenant manifests under `META-INF/viaduct/execution-manifest/module/<module-id>/generated/<generator-plugin-id>/<package>.json`.
 3. `BootstrapperFactory` and `SharedTenantModuleInjectorFactory` construct tenant module bootstrappers using the remote process's `CodeInjector`.
 4. `builtinModuleConfigSources(...)` generates the built-in node and field resolver configs (`Query.node`/`Query.nodes` and `@namespaceType`) that are not present in tenant manifests, and they are bootstrapped through the same `BootstrapperFactory` path.
 5. The schema and executors are assembled into one `RemoteResolverRuntime`, indexed by stable executor ID.

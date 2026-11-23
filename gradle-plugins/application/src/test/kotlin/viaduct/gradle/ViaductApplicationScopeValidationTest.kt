@@ -335,9 +335,9 @@ class ViaductApplicationScopeValidationTest {
         val first = run()
         assertEquals(TaskOutcome.SUCCESS, first.task(":generateFixtureSchema")?.outcome)
         val schema = File(projectDir, "build/$centralSchemaDirectoryName")
-        assertEquals(directoryText, schema.resolve("schema/plugin/dev.example.fixture/source/directory/directives.graphqls").readText())
-        assertEquals(jarText, schema.resolve("schema/plugin/dev.example.fixture/source/nested/directives.graphqls").readText())
-        val generatedPath = "schema/plugin/dev.example.fixture/generated/dev.example.generator/removed.graphqls"
+        assertEquals(directoryText, schema.resolve("viaduct/central-schema/plugin/dev.example.fixture/source/directory/directives.graphqls").readText())
+        assertEquals(jarText, schema.resolve("viaduct/central-schema/plugin/dev.example.fixture/source/nested/directives.graphqls").readText())
+        val generatedPath = "viaduct/central-schema/plugin/dev.example.fixture/generated/dev.example.generator/removed.graphqls"
         assertEquals(removed.readText(), schema.resolve(generatedPath).readText())
 
         val repeated = run()
@@ -351,7 +351,7 @@ class ViaductApplicationScopeValidationTest {
         schema.deleteRecursively()
         val restored = run()
         assertEquals(TaskOutcome.FROM_CACHE, restored.task(":assembleViaductCentralSchema")?.outcome)
-        assertEquals(jarText, schema.resolve("schema/plugin/dev.example.fixture/source/nested/directives.graphqls").readText())
+        assertEquals(jarText, schema.resolve("viaduct/central-schema/plugin/dev.example.fixture/source/nested/directives.graphqls").readText())
         assertEquals(false, schema.resolve(generatedPath).exists())
     }
 }

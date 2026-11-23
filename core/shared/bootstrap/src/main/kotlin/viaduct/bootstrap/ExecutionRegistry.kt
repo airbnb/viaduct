@@ -28,7 +28,7 @@ const val KOTLIN_API_NAME = "kotlin"
  * Data model for module index JSON emitted by build tooling (KSP) and consumed by codegen and the engine at runtime.
  *
  * These files are generated build outputs and packaged as resources:
- *   META-INF/viaduct/modules/<tenantpkg>.json
+ *   META-INF/viaduct/execution-manifest/module/<module-id>/generated/<generator-plugin-id>/<tenantpkg>.json
  *
  * Then consumed by the bootstrapper.
  *

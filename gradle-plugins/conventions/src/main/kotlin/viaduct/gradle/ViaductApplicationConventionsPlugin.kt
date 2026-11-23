@@ -30,6 +30,7 @@ import viaduct.gradle.task.GenerateSchemaScopingManifestTask
 import viaduct.gradle.task.ValidateSchemaExtensionsTask
 import viaduct.graphql.schema.SchemaProvenance
 import viaduct.scoping.SchemaScopeDefinitions
+import viaduct.utils.resources.ViaductResourcePaths
 
 @StableApi
 abstract class ViaductApplicationConventionsPlugin : Plugin<Project> {
@@ -45,8 +46,13 @@ abstract class ViaductApplicationConventionsPlugin : Plugin<Project> {
                 into(SchemaProvenance.PLUGIN_DIRECTORY) { with(pluginSchema) }
                 includeEmptyDirs = false
                 duplicatesStrategy = DuplicatesStrategy.FAIL
+                ViaductPluginCommon.validateResourcePaths(this)
                 eachFile {
-                    require(SchemaProvenance.parse(path)?.scope == "plugin") {
+                    require(
+                        SchemaProvenance.parse(
+                            path
+                        )?.let { it.scope == "plugin" && !it.owner.equals(ViaductResourcePaths.FRAMEWORK, true) && !it.generator.equals(ViaductResourcePaths.FRAMEWORK, true) } == true
+                    ) {
                         "Internal framework/plugin error: invalid plugin SDL destination '$path'. " +
                             "Use <plugin-id>/source/<relative-path> or <plugin-id>/generated/<generator-plugin-id>/<relative-path>."
                     }
@@ -66,11 +72,16 @@ abstract class ViaductApplicationConventionsPlugin : Plugin<Project> {
             val pluginFinalSchema = copySpec()
             val preparedFinalSchema = tasks.register<Sync>("prepareViaductPluginFinalSchema") {
                 into(layout.buildDirectory.dir("viaduct/pluginFinalSchema"))
-                into(SchemaProvenance.PLUGIN_DIRECTORY) { with(pluginFinalSchema) }
+                into("viaduct/final-schema-contribution/plugin") { with(pluginFinalSchema) }
                 includeEmptyDirs = false
                 duplicatesStrategy = DuplicatesStrategy.FAIL
+                ViaductPluginCommon.validateResourcePaths(this)
                 eachFile {
-                    require(SchemaProvenance.parse(path)?.scope == "plugin") {
+                    require(
+                        SchemaProvenance.parse(
+                            path
+                        )?.let { it.scope == "plugin" && !it.owner.equals(ViaductResourcePaths.FRAMEWORK, true) && !it.generator.equals(ViaductResourcePaths.FRAMEWORK, true) } == true
+                    ) {
                         "Internal framework/plugin error: invalid final plugin SDL destination '$path'."
                     }
                 }
@@ -236,8 +247,15 @@ abstract class ViaductApplicationConventionsPlugin : Plugin<Project> {
 
     private fun Project.setupExecutionRegistryResourceIndexSource(resourceIndex: TaskProvider<GenerateExecutionRegistryResourceIndexTask>) {
         pluginManager.withPlugin("java") {
-            extensions.getByType(JavaPluginExtension::class.java).sourceSets.named("main").configure {
-                resources.srcDir(resourceIndex.flatMap { it.outputDirectory })
+            val output = resourceIndex.flatMap { it.outputDirectory }
+            val resourceJar = tasks.register<Jar>("generateViaductExecutionRegistryResources") {
+                archiveClassifier.set("viaduct-registry-index")
+                from(output) { into("META-INF") }
+                includeEmptyDirs = false
+            }
+            tasks.named("jar", Jar::class.java).configure { from(output) { into("META-INF") } }
+            extensions.getByType(JavaPluginExtension::class.java).sourceSets.configureEach {
+                runtimeClasspath += files(resourceJar.flatMap { it.archiveFile })
             }
         }
     }
@@ -313,15 +331,16 @@ abstract class ViaductApplicationConventionsPlugin : Plugin<Project> {
             includeEmptyDirs = false
 
             from(finalSchema) {
-                into("viaduct/centralSchema")
-                exclude(BUILTIN_SCHEMA_FILE)
+                into("META-INF")
+                exclude(ViaductResourcePaths.atStage(BUILTIN_SCHEMA_FILE, "final-schema"))
                 includeEmptyDirs = false
             }
 
             from(schemaScopingManifestTask.flatMap { it.outputDirectory }) {
+                into("META-INF")
                 includeEmptyDirs = false
             }
-            from(schemaResourceIndex.flatMap { it.outputDirectory })
+            from(schemaResourceIndex.flatMap { it.outputDirectory }) { into("META-INF") }
         }
 
     private fun Project.setupOutgoingConfigurationForCentralSchema(assembleCentralSchemaTask: TaskProvider<AssembleCentralSchemaTask>) {

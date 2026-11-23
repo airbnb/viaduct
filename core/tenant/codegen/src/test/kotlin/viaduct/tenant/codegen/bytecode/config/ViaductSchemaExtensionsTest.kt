@@ -28,17 +28,30 @@ import viaduct.tenant.codegen.bytecode.util.typedef
 class ViaductSchemaExtensionsTest {
     @Test
     fun `explicit provenance owns tenant identity before nested resource paths`() {
-        assertEquals("catalog", ViaductSchema.SourceLocation("schema/module/catalog/source/modules/other/schema/types.graphqls").tenantModule)
-        assertNull(ViaductSchema.SourceLocation("schema/plugin/dev.example.owner/source/modules/other/schema/types.graphqls").tenantModule)
-        assertNull(ViaductSchema.SourceLocation("schema/application/source/common/modules/other/schema/types.graphqls").tenantModule)
+        assertEquals("catalog", ViaductSchema.SourceLocation("viaduct/schema/module/catalog/source/modules/other/schema/types.graphqls").tenantModule)
+        assertNull(ViaductSchema.SourceLocation("viaduct/schema/plugin/dev.example.owner/source/modules/other/schema/types.graphqls").tenantModule)
+        assertNull(ViaductSchema.SourceLocation("viaduct/schema/application/source/common/modules/other/schema/types.graphqls").tenantModule)
         assertEquals("presentation/catalog", ViaductSchema.SourceLocation("projects/viaduct/modules/presentation/catalog/schema/src/main/resources/types.graphqls").tenantModule)
+    }
+
+    @Test
+    fun bazelSchemaSourceNamesRetainTenantOwnershipThroughSchemaParsing() {
+        for (separator in listOf("/", "\\")) {
+            val sourceName = "projects/viaduct/modules/presentation/catalog/schema/src/main/resources/types.graphqls".replace("/", separator)
+            val reader = MultiSourceReader.newMultiSourceReader()
+                .reader(StringReader("type Query { value: String }"), sourceName).build()
+            val schema = ViaductSchema.fromTypeDefinitionRegistry(SchemaParser().parse(reader))
+            val source = schema.types.getValue("Query").sourceLocation
+            assertEquals(sourceName, source?.sourceName)
+            assertEquals("presentation/catalog", source?.tenantModule)
+        }
     }
 
     @Test
     fun `plugin scalar arguments use JSON Kotlin types through nullable and nonnull wrappers`() {
         val reader = MultiSourceReader.newMultiSourceReader().reader(
             StringReader("scalar FieldSet\ntype Query { echo(value: FieldSet, required: FieldSet!, nested: [[FieldSet!]!]): String }\n"),
-            "schema/plugin/dev.example.federation/source/schema.graphqls",
+            "viaduct/schema/plugin/dev.example.federation/source/schema.graphqls",
         ).build()
         val schema = ViaductSchema.fromTypeDefinitionRegistry(SchemaParser().parse(reader))
         val args = (schema.types.getValue("Query") as ViaductSchema.Object).fields.single().args.toList()

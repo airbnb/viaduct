@@ -21,6 +21,7 @@ import viaduct.bootstrap.ViaductResourceIndexes
 import viaduct.gradle.task.AssembleCentralSchemaTask
 import viaduct.gradle.task.GenerateExecutionRegistryResourceIndexTask
 import viaduct.gradle.task.GenerateSchemaResourceIndexTask
+import viaduct.utils.resources.ViaductResourcePaths
 
 /**
  * Tests for ViaductApplicationPlugin base schema functionality.
@@ -51,17 +52,17 @@ class ViaductApplicationPluginTest {
     @Test
     fun `plugin schema is copied unchanged and removed inputs leave no stale output`() {
         val inputs = tempDir.resolve("plugin-input").toFile()
-        val relative = "schema/plugin/dev.example.fixture/source/nested/directives.graphqls"
+        val relative = "viaduct/schema/plugin/dev.example.fixture/source/nested/directives.graphqls"
         val input = inputs.resolve(relative).apply {
             parentFile.mkdirs()
             writeText("\n\nscalar FieldSet\ndirective @fixture(value: [FieldSet!]) on OBJECT\n")
         }
         task.pluginSchemaFiles.from(inputs)
         task.taskAction()
-        assertEquals(input.readText(), task.outputDirectory.get().asFile.resolve(relative).readText())
+        assertEquals(input.readText(), task.outputDirectory.get().asFile.resolve(ViaductResourcePaths.atStage(relative, "central-schema")).readText())
         input.delete()
         task.taskAction()
-        assertTrue(!task.outputDirectory.get().asFile.resolve(relative).exists())
+        assertTrue(!task.outputDirectory.get().asFile.resolve(ViaductResourcePaths.atStage(relative, "central-schema")).exists())
     }
 
     @Test
@@ -69,19 +70,22 @@ class ViaductApplicationPluginTest {
         val base = tempDir.resolve("base").toFile().apply { mkdirs() }
         base.resolve("types.graphqls").writeText("type Shared { a: Int b: String }")
         val contributions = tempDir.resolve("contributions").toFile()
-        val generated = contributions.resolve("schema/module/catalog/generated/dev.example.defaults/types.graphqls").apply {
+        val generated = contributions.resolve("viaduct/schema/module/catalog/generated/dev.example.defaults/types.graphqls").apply {
             parentFile.mkdirs()
             writeText("type Shared { b: String a: Int }\n\ntype Extra { value: String }\n")
         }
         task.baseSchemaFiles.from(project.fileTree(base))
         task.schemaContributionFiles.from(contributions)
         task.taskAction()
-        assertEquals(generated.readText(), task.outputDirectory.get().asFile.resolve(generated.relativeTo(contributions)).readText())
+        assertEquals(
+            generated.readText(),
+            task.outputDirectory.get().asFile.resolve(ViaductResourcePaths.atStage(generated.relativeTo(contributions).invariantSeparatorsPath, "central-schema")).readText()
+        )
     }
 
     @Test
     fun `invalid bundled and generated schema reports the responsible plugin before validation`() {
-        listOf("schema/plugin/dev.example.fixture/source/bad.graphqls", "schema/module/catalog/generated/dev.example.generator/bad.graphqls").forEachIndexed { index, path ->
+        listOf("viaduct/schema/plugin/dev.example.fixture/source/bad.graphqls", "viaduct/schema/module/catalog/generated/dev.example.generator/bad.graphqls").forEachIndexed { index, path ->
             val input = tempDir.resolve("invalid-$index").toFile()
             input.resolve(path).apply {
                 parentFile.mkdirs()
@@ -90,7 +94,7 @@ class ViaductApplicationPluginTest {
             task.pluginSchemaFiles.setFrom(input)
             val error = assertThrows<IllegalArgumentException> { task.taskAction() }
             assertTrue(error.message!!.contains("Internal framework/plugin error"), error.message)
-            assertTrue(error.message!!.contains(path), error.message)
+            assertTrue(error.message!!.contains(ViaductResourcePaths.atStage(path, "central-schema")), error.message)
             assertTrue(error.message!!.contains(":3:"), error.message)
         }
     }
@@ -98,18 +102,18 @@ class ViaductApplicationPluginTest {
     @Test
     fun `plugin cannot overwrite the reserved built-in source`() {
         val input = tempDir.resolve("reserved-input").toFile()
-        input.resolve(ViaductApplicationPlugin.BUILTIN_SCHEMA_FILE).apply {
+        input.resolve(ViaductApplicationPlugin.BUILTIN_SCHEMA_FILE.replace("viaduct/central-schema/", "viaduct/schema/")).apply {
             parentFile.mkdirs()
             writeText("scalar Hijack")
         }
         task.pluginSchemaFiles.from(input)
-        val error = assertThrows<IllegalStateException> { task.taskAction() }
-        assertTrue(error.message!!.contains("both claim this path"), error.message)
+        val error = assertThrows<IllegalArgumentException> { task.taskAction() }
+        assertTrue(generateSequence(error as Throwable?) { it.cause }.any { it.message.orEmpty().contains("Reserved framework producer") })
     }
 
     @Test
     fun `duplicate schema destinations identify both input claims`() {
-        val path = "schema/plugin/dev.example.fixture/source/types.graphqls"
+        val path = "viaduct/schema/plugin/dev.example.fixture/source/types.graphqls"
         val roots = listOf("first", "second").map { name ->
             tempDir.resolve(name).toFile().also { root ->
                 root.resolve(path).apply {
@@ -120,7 +124,7 @@ class ViaductApplicationPluginTest {
         }
         task.pluginSchemaFiles.from(roots)
 
-        val error = assertThrows<GradleException> { task.taskAction() }
+        val error = assertThrows<IllegalArgumentException> { task.taskAction() }
         val messages = generateSequence(error as Throwable?) { it.cause }.mapNotNull { it.message }.joinToString("\n")
         roots.forEach { assertTrue(messages.contains(it.resolve(path).path), messages) }
     }
@@ -128,7 +132,7 @@ class ViaductApplicationPluginTest {
     @Test
     fun `manifest index drops removed directory contributions`() {
         val root = tempDir.resolve("manifest-output").toFile()
-        val manifest = root.resolve("META-INF/viaduct/modules/example.json").apply {
+        val manifest = root.resolve("viaduct/execution-manifest/module/example/generated/com.airbnb.viaduct.module-gradle-plugin/example.json").apply {
             parentFile.mkdirs()
             writeText(registryJson("example/tenant"))
         }
@@ -138,8 +142,8 @@ class ViaductApplicationPluginTest {
         }
 
         indexTask.generate()
-        val index = indexTask.outputDirectory.get().asFile.resolve(ViaductResourceIndexes.EXECUTION_REGISTRY)
-        assertEquals("META-INF/viaduct/modules/example.json\n", index.readText())
+        val index = indexTask.outputDirectory.get().asFile.resolve(ViaductResourcePaths.fromArchive(ViaductResourceIndexes.EXECUTION_REGISTRY))
+        assertEquals("META-INF/viaduct/execution-manifest/module/example/generated/com.airbnb.viaduct.module-gradle-plugin/example.json\n", index.readText())
 
         manifest.delete()
         indexTask.generate()
@@ -151,7 +155,7 @@ class ViaductApplicationPluginTest {
     fun `manifest index rejects duplicate paths across directory contributions`() {
         val roots = listOf("first", "second").map { name ->
             tempDir.resolve(name).toFile().also { root ->
-                root.resolve("META-INF/viaduct/modules/shared.json").apply {
+                root.resolve("viaduct/execution-manifest/module/shared/generated/com.airbnb.viaduct.module-gradle-plugin/shared.json").apply {
                     parentFile.mkdirs()
                     writeText(registryJson("example/$name"))
                 }
@@ -164,8 +168,76 @@ class ViaductApplicationPluginTest {
 
         val exception = assertThrows<IllegalArgumentException> { indexTask.generate() }
 
-        assertTrue(exception.message.orEmpty().contains("Duplicate execution registry resource contributors"))
-        assertTrue(exception.message.orEmpty().contains("META-INF/viaduct/modules/shared.json"))
+        assertTrue(exception.message.orEmpty().contains("Conflicting Viaduct resource"))
+        assertTrue(exception.message.orEmpty().contains("viaduct/execution-manifest/module/shared/generated/com.airbnb.viaduct.module-gradle-plugin/shared.json"))
+    }
+
+    @Test
+    fun `directory and jar manifests yield identical canonical archive identities`() {
+        val canonical = "viaduct/execution-manifest/module/catalog/generated/dev.generator/resolvers.json"
+        val directory = tempDir.resolve("directory").toFile()
+        directory.resolve(canonical).apply {
+            parentFile.mkdirs()
+            writeText(registryJson("catalog"))
+        }
+        val jar = tempDir.resolve("manifest.jar").toFile()
+        writeJar(jar, "META-INF/$canonical" to registryJson("catalog"))
+        val indexes = listOf(directory, jar).mapIndexed { index, artifact ->
+            project.tasks.register("parity$index", GenerateExecutionRegistryResourceIndexTask::class.java).get().apply {
+                moduleClasspath.from(artifact)
+                outputDirectory.set(project.layout.buildDirectory.dir("parity-$index"))
+                generate()
+            }.outputDirectory.get().asFile.resolve(ViaductResourcePaths.fromArchive(ViaductResourceIndexes.EXECUTION_REGISTRY)).readText()
+        }
+        assertEquals(listOf("META-INF/$canonical\n", "META-INF/$canonical\n"), indexes)
+    }
+
+    @Test
+    fun `manifest index rejects legacy manifests in a mixed-version classpath`() {
+        val legacyPath = "META-INF/viaduct/modules/com.example.legacy.json"
+        val legacyJar = tempDir.resolve("legacy.jar").toFile()
+        writeJar(legacyJar, legacyPath to registryJson("legacy"))
+        val legacyDirectory = tempDir.resolve("legacy-directory").toFile()
+        legacyDirectory.resolve(legacyPath).apply {
+            parentFile.mkdirs()
+            writeText(registryJson("legacy"))
+        }
+        val canonicalJar = tempDir.resolve("canonical.jar").toFile()
+        val canonicalPath = "META-INF/viaduct/execution-manifest/module/catalog/generated/dev.generator/resolvers.json"
+        writeJar(canonicalJar, canonicalPath to registryJson("catalog"))
+
+        listOf(legacyJar, legacyDirectory).forEachIndexed { index, legacyArtifact ->
+            val indexTask = project.tasks.register("legacyManifest$index", GenerateExecutionRegistryResourceIndexTask::class.java).get().apply {
+                moduleClasspath.from(canonicalJar, legacyArtifact)
+                outputDirectory.set(project.layout.buildDirectory.dir("legacy-index-$index"))
+            }
+
+            val failure = assertThrows<IllegalArgumentException> { indexTask.generate() }
+
+            val message = failure.message.orEmpty()
+            assertTrue(message.contains(legacyArtifact.name), message)
+            assertTrue(message.contains(legacyPath), message)
+            assertTrue(message.contains("Rebuild the module"), message)
+        }
+    }
+
+    @Test
+    fun `manifest aliases across a directory and jar fail with both contributors`() {
+        val canonical = "viaduct/execution-manifest/application/generated/dev.generator/Resolvers.json"
+        val directory = tempDir.resolve("directory").toFile()
+        directory.resolve(canonical).apply {
+            parentFile.mkdirs()
+            writeText(registryJson("first"))
+        }
+        val jar = tempDir.resolve("manifest.jar").toFile()
+        writeJar(jar, "META-INF/${canonical.replace("Resolvers.json", "resolvers.json")}" to registryJson("second"))
+        val indexTask = project.tasks.register("portableManifestCollision", GenerateExecutionRegistryResourceIndexTask::class.java).get().apply {
+            moduleClasspath.from(directory, jar)
+            outputDirectory.set(project.layout.buildDirectory.dir("portable-index"))
+        }
+        val failure = assertThrows<IllegalArgumentException> { indexTask.generate() }
+        assertTrue(failure.message!!.contains(directory.path))
+        assertTrue(failure.message!!.contains(jar.path))
     }
 
     @Test
@@ -204,19 +276,19 @@ class ViaductApplicationPluginTest {
     @Test
     fun `resource index task writes sorted schema and registry paths`() {
         val schemaDir = tempDir.resolve("central-schema").toFile()
-        schemaDir.resolve("partition/z.graphqls").apply {
+        schemaDir.resolve("viaduct/final-schema/module/example/source/z.graphqls").apply {
             parentFile.mkdirs()
             writeText("extend type Query { z: String }")
         }
-        schemaDir.resolve("partition/a.graphqls").writeText("extend type Query { a: String }")
-        schemaDir.resolve(ViaductApplicationPlugin.BUILTIN_SCHEMA_FILE).apply {
+        schemaDir.resolve("viaduct/final-schema/module/example/source/a.graphqls").writeText("extend type Query { a: String }")
+        schemaDir.resolve(ViaductResourcePaths.atStage(ViaductApplicationPlugin.BUILTIN_SCHEMA_FILE, "final-schema")).apply {
             parentFile.mkdirs()
             writeText("type Query")
         }
         val moduleJar = tempDir.resolve("module.jar").toFile()
         writeJar(
             moduleJar,
-            "META-INF/viaduct/modules/com.example.module.json" to registryJson("example/module"),
+            "META-INF/viaduct/execution-manifest/module/com.example.module/generated/com.airbnb.viaduct.module-gradle-plugin/com.example.module.json" to registryJson("example/module"),
         )
         val schemaIndexTask = project.tasks.register("testGenerateSchemaResourceIndex", GenerateSchemaResourceIndexTask::class.java).get().apply {
             centralSchemaDirectory.set(schemaDir)
@@ -236,14 +308,14 @@ class ViaductApplicationPluginTest {
 
         assertEquals(
             listOf(
-                "viaduct/centralSchema/partition/a.graphqls",
-                "viaduct/centralSchema/partition/z.graphqls",
+                "META-INF/viaduct/final-schema/module/example/source/a.graphqls",
+                "META-INF/viaduct/final-schema/module/example/source/z.graphqls",
             ),
-            schemaIndexTask.outputDirectory.get().asFile.toPath().resolve(ViaductResourceIndexes.SCHEMA).readLines(),
+            schemaIndexTask.outputDirectory.get().asFile.toPath().resolve(ViaductResourcePaths.fromArchive(ViaductResourceIndexes.SCHEMA)).readLines(),
         )
         assertEquals(
-            listOf("META-INF/viaduct/modules/com.example.module.json"),
-            registryIndexTask.outputDirectory.get().asFile.toPath().resolve(ViaductResourceIndexes.EXECUTION_REGISTRY).readLines(),
+            listOf("META-INF/viaduct/execution-manifest/module/com.example.module/generated/com.airbnb.viaduct.module-gradle-plugin/com.example.module.json"),
+            registryIndexTask.outputDirectory.get().asFile.toPath().resolve(ViaductResourcePaths.fromArchive(ViaductResourceIndexes.EXECUTION_REGISTRY)).readLines(),
         )
     }
 
@@ -252,8 +324,8 @@ class ViaductApplicationPluginTest {
         val moduleJar = tempDir.resolve("duplicate-module.jar").toFile()
         writeJar(
             moduleJar,
-            "META-INF/viaduct/modules/com.example.first.json" to registryJson("example/duplicate"),
-            "META-INF/viaduct/modules/com.example.second.json" to registryJson("example/duplicate"),
+            "META-INF/viaduct/execution-manifest/module/com.example.first/generated/com.airbnb.viaduct.module-gradle-plugin/com.example.first.json" to registryJson("example/duplicate"),
+            "META-INF/viaduct/execution-manifest/module/com.example.second/generated/com.airbnb.viaduct.module-gradle-plugin/com.example.second.json" to registryJson("example/duplicate"),
         )
         val indexTask =
             project.tasks.register(

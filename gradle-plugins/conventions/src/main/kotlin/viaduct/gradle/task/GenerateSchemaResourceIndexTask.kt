@@ -12,6 +12,8 @@ import org.gradle.api.tasks.TaskAction
 import viaduct.apiannotations.InternalApi
 import viaduct.bootstrap.ViaductResourceIndexes
 import viaduct.gradle.ViaductApplicationConventionsPlugin
+import viaduct.utils.resources.ViaductResourceClaims
+import viaduct.utils.resources.ViaductResourcePaths
 
 @CacheableTask
 @InternalApi
@@ -26,19 +28,20 @@ abstract class GenerateSchemaResourceIndexTask : DefaultTask() {
     @TaskAction
     fun generate() {
         val schemaRoot = centralSchemaDirectory.get().asFile
+        val claims = ViaductResourceClaims()
         val schemaPaths =
             schemaRoot.walkTopDown()
                 .filter(File::isFile)
                 .map { it.relativeTo(schemaRoot).invariantSeparatorsPath }
-                .filter { it.endsWith(".graphqls") && it != ViaductApplicationConventionsPlugin.BUILTIN_SCHEMA_FILE }
-                .map { "$SCHEMA_RESOURCE_ROOT/$it" }
+                .filter { it.endsWith(".graphqls") && it != ViaductResourcePaths.atStage(ViaductApplicationConventionsPlugin.BUILTIN_SCHEMA_FILE, "final-schema") }
+                .map { path ->
+                    require(path.startsWith("viaduct/final-schema/")) { "Invalid final schema resource: $path" }
+                    claims.claim(path, schemaRoot.toString())
+                    ViaductResourcePaths.archive(path)
+                }
                 .sorted()
                 .toList()
         writeIndex(outputDirectory.get().asFile, ViaductResourceIndexes.SCHEMA, schemaPaths)
-    }
-
-    private companion object {
-        const val SCHEMA_RESOURCE_ROOT = "viaduct/centralSchema"
     }
 }
 
@@ -48,7 +51,7 @@ internal fun writeIndex(
     paths: List<String>,
 ) {
     outputRoot.deleteRecursively()
-    outputRoot.resolve(resourcePath).apply {
+    outputRoot.resolve(ViaductResourcePaths.fromArchive(resourcePath)).apply {
         parentFile.mkdirs()
         writeText(paths.joinToString(separator = "\n", postfix = if (paths.isEmpty()) "" else "\n"))
     }

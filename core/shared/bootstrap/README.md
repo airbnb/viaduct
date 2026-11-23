@@ -1,7 +1,7 @@
 # Viaduct Bootstrap Data Model
 
 This module holds the data model for Viaduct's **bootstrap data**: the module-index JSON that build
-tooling emits per tenant module (`META-INF/viaduct/modules/<tenantpkg>.json`) and that the engine
+tooling emits per tenant module (`META-INF/viaduct/execution-manifest/module/<module-id>/generated/<generator-plugin-id>/<tenantpkg>.json`) and that the engine
 reads when it bootstraps a dispatcher registry.
 
 Contents of `viaduct.bootstrap`:

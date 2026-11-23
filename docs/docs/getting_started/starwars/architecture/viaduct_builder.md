@@ -17,7 +17,7 @@ This page explains **how the Viaduct runtime is built** in the Star Wars demo, r
 
 ## Builder configuration
 
-Both demos build Viaduct with `ViaductBuilder`, the Micronaut injector factory, and every declared scoped schema. Module discovery uses the generated `META-INF/viaduct/modules/` configuration on the classpath.
+Both demos build Viaduct with `ViaductBuilder`, the Micronaut injector factory, and every declared scoped schema. Module discovery uses the generated `META-INF/viaduct/execution-manifest/module/<module-id>/generated/<generator-plugin-id>/` configuration on the classpath.
 
 
 This excerpt is the demo's configuration:

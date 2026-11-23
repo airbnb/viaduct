@@ -38,7 +38,15 @@ abstract class KotlinFeatureAppTestContractBase : AbstractFeatureAppTestContract
         this::class.java.`package`?.name ?: throw RuntimeException(
             "Unable to read package name from subclass ${this::class.simpleName}"
         )
-    private val tenantRegistryPath = "META-INF/viaduct/modules/$derivedClassPackagePrefix.json"
+    private val tenantRegistryPath: String by lazy {
+        val paths = listOf("com.airbnb.viaduct.module-gradle-plugin", "com.airbnb.viaduct.module-java-gradle-plugin").map { generator ->
+            "META-INF/viaduct/execution-manifest/module/$derivedClassPackagePrefix/generated/$generator/$derivedClassPackagePrefix.json"
+        }
+        val classLoader = Thread.currentThread().contextClassLoader
+        val present = paths.filter { classLoader.getResource(it) != null }
+        require(present.size == 1) { "Expected exactly one contract registry from $paths, found $present" }
+        present.single()
+    }
 
     private val overridesBootstrapper: Boolean = generateSequence<Class<*>>(this::class.java) { it.superclass }
         .takeWhile { it != KotlinFeatureAppTestContractBase::class.java }

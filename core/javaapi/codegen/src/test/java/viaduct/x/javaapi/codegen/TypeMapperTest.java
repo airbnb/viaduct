@@ -34,7 +34,7 @@ class TypeMapperTest {
                     "scalar FieldSet\n"
                         + "type Query { echo(value: FieldSet, required: FieldSet!, nested:"
                         + " [[FieldSet!]!]): String }\n"),
-                "schema/plugin/dev.example.federation/source/schema.graphqls")
+                "viaduct/central-schema/plugin/dev.example.federation/source/schema.graphqls")
             .build();
     var pluginSchema =
         ViaductSchemaFactory.fromTypeDefinitionRegistryInstance(new SchemaParser().parse(reader));

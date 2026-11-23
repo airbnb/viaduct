@@ -148,6 +148,21 @@ class ClasspathResourceIndexTest {
         }
     }
 
+    @Test
+    fun canonicalManifestPackageMatchingHonorsBoundaries() {
+        val path = ViaductResourcePaths.manifest("catalog", "dev.generator", "com.example.catalog.json")
+        val pkg = ViaductResourcePaths.manifestPackage(path)
+        assertThat(pkg).isEqualTo("com.example.catalog")
+        assertThat(ViaductResourcePaths.matchesPackage(pkg, null)).isTrue()
+        assertThat(ViaductResourcePaths.matchesPackage(pkg, pkg)).isTrue()
+        assertThat(ViaductResourcePaths.matchesPackage(pkg, "com.example")).isTrue()
+        assertThat(ViaductResourcePaths.matchesPackage(pkg, "com.exam")).isFalse()
+        assertThatThrownBy { ViaductResourcePaths.manifestPackage(path.replace("execution-manifest", "schema")) }
+            .hasMessageContaining("Invalid execution manifest path")
+        assertThatThrownBy { ViaductResourcePaths.manifestPackage(path.removeSuffix(".json")) }
+            .hasMessageContaining("Invalid execution manifest path")
+    }
+
     private fun writeResource(
         root: Path,
         path: String,
@@ -160,6 +175,6 @@ class ClasspathResourceIndexTest {
     }
 
     private companion object {
-        const val INDEX_PATH = "META-INF/viaduct/indexes/test.index"
+        const val INDEX_PATH = "META-INF/viaduct/resource-index/application/generated/viaduct.core/test.index"
     }
 }

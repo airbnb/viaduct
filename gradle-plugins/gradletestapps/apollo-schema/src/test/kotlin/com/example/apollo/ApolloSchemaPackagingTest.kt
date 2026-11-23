@@ -25,18 +25,18 @@ class ApolloSchemaPackagingTest {
     @Test
     fun `validated additions are packaged and indexed without changing central SDL or GRTs`() {
         val buildDir = Path.of(System.getProperty("projectBuildDir"))
-        val relative = "schema/plugin/com.airbnb.viaduct.apollo-schema/generated/com.airbnb.viaduct.apollo-schema/schema.graphqls"
-        val central = buildDir.resolve("viaduct/centralSchema")
-        val final = buildDir.resolve("viaduct/finalSchema")
+        val relative = "plugin/com.airbnb.viaduct.apollo-schema/generated/com.airbnb.viaduct.apollo-schema/schema.graphqls"
+        val central = buildDir.resolve("viaduct/centralSchema/viaduct/central-schema")
+        val final = buildDir.resolve("viaduct/finalSchema/viaduct/final-schema")
         assertFalse(central.resolve(relative).toFile().exists())
         val generated = final.resolve(relative).toFile().readText()
         assertTrue(generated.contains("= Product | User"), generated)
         assertFalse(generated.contains("Reference"), generated)
-        val packaged = javaClass.getResource("/viaduct/centralSchema/$relative")
+        val packaged = javaClass.getResource("/META-INF/viaduct/final-schema/$relative")
         assertNotNull(packaged)
         assertEquals(generated, packaged!!.readText())
-        val index = javaClass.getResource("/META-INF/viaduct/indexes/schema-v1.index")!!.readText()
-        assertTrue(index.contains("viaduct/centralSchema/$relative"), index)
+        val index = javaClass.getResource("/META-INF/viaduct/resource-index/application/generated/viaduct.core/schema-v1.index")!!.readText()
+        assertTrue(index.contains("META-INF/viaduct/final-schema/$relative"), index)
         central.toFile().walkTopDown().filter { it.isFile }.forEach { source ->
             assertEquals(source.readText(), final.resolve(source.relativeTo(central.toFile()).path).toFile().readText())
         }

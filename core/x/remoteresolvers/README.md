@@ -88,7 +88,7 @@ The resolver runs in the remote server process and returns:
 ```
 
 The remote server builds its node and field resolvers from the tenant-module manifests on its classpath
-(`META-INF/viaduct/modules/<pkg>.json`) via Viaduct's file-based bootstrapper — the
+(`META-INF/viaduct/execution-manifest/module/<module-id>/generated/<generator-plugin-id>/<pkg>.json`) via Viaduct's file-based bootstrapper — the
 manifest entries carry the resolver wiring, so no SDL parsing is needed to construct
 the executors (the schema, loaded from `.graphqls`, is used only to validate them).
 Those manifests are generated at build time and bundled in each module jar; inspect
@@ -96,7 +96,7 @@ one (paths relative to the OSS root) with:
 
 ```bash
 unzip -p demoapps/starwars/modules/filmography/build/libs/filmography.jar \
-  META-INF/viaduct/modules/com.example.starwars.filmography.json | jq .
+  META-INF/viaduct/execution-manifest/module/filmography/generated/com.airbnb.viaduct.module-gradle-plugin/com.example.starwars.filmography.json | jq .
 ```
 
 ## Proxying field resolvers

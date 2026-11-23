@@ -12,6 +12,7 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import viaduct.bootstrap.ExecutionRegistryConfigFile
+import viaduct.utils.resources.ViaductResourcePaths.KOTLIN_GENERATOR
 
 class AssembleTenantModuleConfigJarTest {
     @TempDir
@@ -48,6 +49,7 @@ class AssembleTenantModuleConfigJarTest {
         requireNonEmpty: Boolean = false,
         apiName: String = "kotlin",
         tenantMetadata: String? = null,
+        generatorPluginId: String = KOTLIN_GENERATOR,
     ) {
         val args = mutableListOf(
             "--descriptor-jars-list",
@@ -56,6 +58,8 @@ class AssembleTenantModuleConfigJarTest {
             tenantPkg,
             "--api-name",
             apiName,
+            "--generator-plugin-id",
+            generatorPluginId,
             "--output-jar",
             out.absolutePath,
         )
@@ -103,8 +107,18 @@ class AssembleTenantModuleConfigJarTest {
         )
 
     private fun readRegistry(): ExecutionRegistryConfigFile =
-        requireNotNull(readJarEntry(outputJar(), "$REGISTRY_RESOURCE_PATH/com.example.feature.json"))
+        requireNotNull(readJarEntry(outputJar(), "META-INF/${registryResourcePath("com.example.feature", "com.example", KOTLIN_GENERATOR)}"))
             .byteInputStream().use(ExecutionRegistryConfigFile::parse)
+
+    @Test
+    fun `jar uses the explicit generator identity and preserves the API name`() {
+        runCli(jars = emptyList(), apiName = "java", generatorPluginId = "dev.custom.generator")
+
+        val path = "META-INF/viaduct/execution-manifest/module/feature/generated/dev.custom.generator/com.example.feature.json"
+        val config = requireNotNull(readJarEntry(outputJar(), path)).byteInputStream().use(ExecutionRegistryConfigFile::parse)
+
+        assertEquals("java", config.apiName)
+    }
 
     @Test
     fun `applies tenant metadata to every resolver regardless of implementation package`() {
@@ -181,7 +195,7 @@ class AssembleTenantModuleConfigJarTest {
         val out = outputJar()
         runCli(jars = listOf(firstJar, secondJar), out = out)
 
-        val json = readJarEntry(out, "$REGISTRY_RESOURCE_PATH/com.example.feature.json")
+        val json = readJarEntry(out, "META-INF/${registryResourcePath("com.example.feature", "com.example", KOTLIN_GENERATOR)}")
         assertNotNull(json)
         assertTrue(json!!.contains("ANodeResolver"), json)
         assertTrue(json.contains("BNodeResolver"), json)
@@ -201,7 +215,7 @@ class AssembleTenantModuleConfigJarTest {
         val out = outputJar()
         runCli(jars = listOf(descriptorJar), out = out)
 
-        val json = readJarEntry(out, "$REGISTRY_RESOURCE_PATH/com.example.feature.json")
+        val json = readJarEntry(out, "META-INF/${registryResourcePath("com.example.feature", "com.example", KOTLIN_GENERATOR)}")
         assertNotNull(json)
         assertTrue(json!!.contains("\"version\""), json)
         assertTrue(json.contains("\"executorFactory\""), json)
@@ -217,7 +231,7 @@ class AssembleTenantModuleConfigJarTest {
         val out = outputJar()
         runCli(jars = emptyList(), tenantPkg = "com.example", tenantPackagePrefix = "com.example", out = out)
 
-        val json = readJarEntry(out, "$REGISTRY_RESOURCE_PATH/com.example.json")!!
+        val json = readJarEntry(out, "META-INF/${registryResourcePath("com.example", null, KOTLIN_GENERATOR)}")!!
         assertTrue(json.contains("\"tenantName\" : \"com/example\""), json)
     }
 
@@ -231,7 +245,7 @@ class AssembleTenantModuleConfigJarTest {
             out = out,
         )
 
-        val json = readJarEntry(out, "$REGISTRY_RESOURCE_PATH/com.example.presentation.pdp.stays.json")
+        val json = readJarEntry(out, "META-INF/${registryResourcePath("com.example.presentation.pdp.stays", "com.example", KOTLIN_GENERATOR)}")
         assertNotNull(json)
         assertTrue(json!!.contains("\"tenantName\" : \"presentation/pdp/stays\""), json)
     }
@@ -241,7 +255,7 @@ class AssembleTenantModuleConfigJarTest {
         val out = outputJar()
         runCli(jars = emptyList(), out = out)
 
-        val json = readJarEntry(out, "$REGISTRY_RESOURCE_PATH/com.example.feature.json")
+        val json = readJarEntry(out, "META-INF/${registryResourcePath("com.example.feature", "com.example", KOTLIN_GENERATOR)}")
         assertNotNull(json)
         assertTrue(json!!.contains("\"nodes\""), json)
         assertTrue(json.contains("\"fields\""), json)
@@ -260,7 +274,7 @@ class AssembleTenantModuleConfigJarTest {
         val out = outputJar()
         runCli(jars = listOf(descriptorJar), out = out)
 
-        val json = readJarEntry(out, "$REGISTRY_RESOURCE_PATH/com.example.feature.json")
+        val json = readJarEntry(out, "META-INF/${registryResourcePath("com.example.feature", "com.example", KOTLIN_GENERATOR)}")
         assertNotNull(json)
         assertTrue(json!!.contains("\"bootstrapClass\""), json)
         assertTrue(json.contains("FeatureTenantBootstrapper"), json)
@@ -280,7 +294,7 @@ class AssembleTenantModuleConfigJarTest {
         val out = outputJar()
         runCli(jars = listOf(fieldJar), out = out)
 
-        val json = readJarEntry(out, "$REGISTRY_RESOURCE_PATH/com.example.feature.json")
+        val json = readJarEntry(out, "META-INF/${registryResourcePath("com.example.feature", "com.example", KOTLIN_GENERATOR)}")
         assertNotNull(json)
         assertTrue(json!!.contains("\"namedFragments\""), json)
         assertTrue(json.contains("fragment AFields on A { id }"), json)
@@ -319,7 +333,7 @@ class AssembleTenantModuleConfigJarTest {
         val out = outputJar()
         runCli(jars = listOf(descriptorJar), out = out, requireNonEmpty = true)
 
-        val json = readJarEntry(out, "$REGISTRY_RESOURCE_PATH/com.example.feature.json")
+        val json = readJarEntry(out, "META-INF/${registryResourcePath("com.example.feature", "com.example", KOTLIN_GENERATOR)}")
         assertNotNull(json)
         assertTrue(json!!.contains("ANodeResolver"), json)
     }
@@ -336,7 +350,7 @@ class AssembleTenantModuleConfigJarTest {
         val out = outputJar()
         runCli(jars = listOf(fragmentJar), out = out)
 
-        val json = readJarEntry(out, "$REGISTRY_RESOURCE_PATH/com.example.feature.json")
+        val json = readJarEntry(out, "META-INF/${registryResourcePath("com.example.feature", "com.example", KOTLIN_GENERATOR)}")
         assertNotNull(json)
         assertTrue(json!!.contains("fragment UserFields on User { id name }"), json)
     }

@@ -29,7 +29,7 @@ class FoundationValidationIntegrationTest {
     @Test
     fun `SPI diagnostics retain provider rule source and extension coordinates`() {
         val files = schemaFiles("type Product { id: ID! } type Query { product: Product }")
-        val extension = source("schema/module/example/source/keys.graphqls", "extend type Product @key(fields: 123)")
+        val extension = source("viaduct/schema/module/example/source/keys.graphqls", "extend type Product @key(fields: 123)")
         val diagnostics = mutableListOf<Triple<String, String?, SchemaValidationError>>()
         val errors = validator(diagnostics = diagnostics).validateSchema(files + extension)
 
@@ -39,14 +39,14 @@ class FoundationValidationIntegrationTest {
         assertEquals("viaduct.foundation.field-selections", rule)
         assertEquals("KEY_INVALID_FIELDS_TYPE", error.code)
         assertEquals(listOf("Product"), error.location.path)
-        assertEquals("schema/module/example/source/keys.graphqls", error.location.sourceLocation?.sourceName)
+        assertEquals("viaduct/schema/module/example/source/keys.graphqls", error.location.sourceLocation?.sourceName)
         assertTrue(errors.single().message.contains(provider))
     }
 
     @Test
     fun `final schema revalidation rejects generated federation declarations`() {
         val files = schemaFiles("type Product { id: ID! } type Query { product: Product }")
-        val final = source("schema/plugin/dev.final/generated/dev.generator/final.graphqls", "extend type Product @key(fields: \"missing\")")
+        val final = source("viaduct/schema/plugin/dev.final/generated/dev.generator/final.graphqls", "extend type Product @key(fields: \"missing\")")
         val errors = validator(final = true).validateSchema(files + final)
 
         assertEquals(1, errors.size)
@@ -90,8 +90,8 @@ class FoundationValidationIntegrationTest {
     private fun schemaFiles(body: String): List<File> {
         val sdl = requireNotNull(javaClass.getResourceAsStream("/viaduct/federation/foundation.graphqls")).use { it.reader().readText() }
         return listOf(
-            source("schema/plugin/com.airbnb.viaduct.foundation-federation/source/viaduct/federation/foundation.graphqls", sdl),
-            source("schema/module/example/source/schema.graphqls", body),
+            source("viaduct/schema/plugin/com.airbnb.viaduct.foundation-federation/source/viaduct/federation/foundation.graphqls", sdl),
+            source("viaduct/schema/module/example/source/schema.graphqls", body),
         )
     }
 

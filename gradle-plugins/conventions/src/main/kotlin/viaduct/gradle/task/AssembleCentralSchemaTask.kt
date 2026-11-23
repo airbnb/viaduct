@@ -30,6 +30,8 @@ import viaduct.graphql.schema.graphqljava.readTypesFromFiles
 import viaduct.graphql.utils.DefaultSchemaFactory
 import viaduct.scoping.SchemaScopeDefinitions
 import viaduct.scoping.SchemaScoping
+import viaduct.utils.resources.ViaductResourceClaims
+import viaduct.utils.resources.ViaductResourcePaths
 
 /**
  * This task gathers the various partitions of the schema and
@@ -123,7 +125,19 @@ abstract class AssembleCentralSchemaTask
             }
             val scoping = ViaductScopesYaml.read(declaredScopesFiles.firstOrNull())
 
+            val claims = ViaductResourceClaims()
             fileSystemOperations.sync {
+                eachFile {
+                    require(path.startsWith("viaduct/schema/")) { "Invalid prepared schema path '$path' from '$file'" }
+                    val provenance = SchemaProvenance.parse(path)
+                    require(
+                        provenance?.let { (it.scope != "plugin" || !it.owner.equals(ViaductResourcePaths.FRAMEWORK, true)) && !it.generator.equals(ViaductResourcePaths.FRAMEWORK, true) } == true
+                    ) {
+                        "Reserved framework producer in schema input '$path' from '$file'"
+                    }
+                    path = ViaductResourcePaths.atStage(path, "central-schema")
+                    claims.claim(path, file.toString())
+                }
                 duplicatesStrategy = DuplicatesStrategy.FAIL
                 from(schemaPartitions) { include("**/*.graphqls") }
                 from(pluginSchemaFiles) { include("**/*.graphqls") }

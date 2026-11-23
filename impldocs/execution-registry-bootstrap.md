@@ -77,7 +77,11 @@ under `viaduct.engine.api.bootstrap.executionregistry`, because each needs an en
 Execution-registry JSON is generated build metadata, not durable storage or a cross-version
 protocol. It is regenerated whenever its owning artifact is built, and Viaduct assumes its producer
 and runtime consumer use compatible code. Backward compatibility with registry files produced by
-older Viaduct versions is not a supported invariant.
+older Viaduct versions is not a supported invariant. The canonical-layout cutover requires rebuilding
+tenant artifacts with compatible module plugins, application plugins, and runtime libraries.
+Automatic discovery uses the canonical execution-registry index only; it does not fall back to the
+old `META-INF/viaduct/modules` subtree. Integrations that supply explicit config sources own their
+resource selection.
 
 ### Java selective-resolver materialization
 

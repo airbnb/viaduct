@@ -1,9 +1,11 @@
 package com.example.execution.oneproject
 
 import java.nio.file.Path
+import java.util.jar.JarFile
 import kotlin.io.path.exists
 import kotlin.io.path.readText
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -15,25 +17,53 @@ class PluginExecutionSmokeTest {
     private val buildDir = Path.of(System.getProperty("projectBuildDir"))
 
     @Test
+    fun canonicalResourcesAcquireTheirArchivePrefixOnlyWhenPackaged() {
+        val manifest = "META-INF/viaduct/execution-manifest/module/resolvers/generated/com.airbnb.viaduct.module-gradle-plugin/com.example.execution.oneproject.resolvers.json"
+        assertEquals(1, javaClass.classLoader.getResources(manifest).toList().size)
+        JarFile(System.getProperty("moduleJar")).use { jar ->
+            assertNotNull(jar.getJarEntry(manifest))
+            assertNotNull(jar.getJarEntry("META-INF/viaduct/resource-index/application/generated/viaduct.core/execution-registry-v1.index"))
+        }
+        listOf("moduleJar", "schemaJar").forEach { property ->
+            JarFile(System.getProperty(property)).use { jar ->
+                val entries = jar.entries().asSequence().map { it.name }.toList()
+                assertFalse(entries.any { it.startsWith("META-INF/META-INF/") || it.startsWith("viaduct/") })
+                assertFalse(entries.any { it.startsWith("META-INF/viaduct/modules/") || it.startsWith("META-INF/viaduct/indexes/") })
+            }
+        }
+        listOf(
+            "generated-resources/viaduct-registry",
+            "generated-resources/viaduct-schema-index",
+            "generated-resources/viaduct-execution-registry-index",
+            "viaduct/schemaPartition",
+            "viaduct/centralSchema",
+            "viaduct/finalSchema",
+        ).forEach { output ->
+            assertFalse(buildDir.resolve(output).toFile().walkTopDown().any { it.name == "META-INF" }, output)
+        }
+    }
+
+    @Test
     fun generatedSchemaAndResolverOutputsExist() {
-        assertExists(buildDir.resolve("viaduct/centralSchema/schema/plugin/com.airbnb.viaduct/source/BUILTIN_SCHEMA.graphqls"))
-        val baseSchemaFile = buildDir.resolve("viaduct/centralSchema/schema/application/source/schemabase/directives.graphqls")
-        val commonSchemaFile = buildDir.resolve("viaduct/centralSchema/schema/application/source/common/common.graphqls")
-        val partitionSchemaFile = buildDir.resolve("viaduct/centralSchema/schema/module/resolvers/source/schema.graphqls")
+        assertExists(buildDir.resolve("classes/viaduct/grt/kotlin/main/viaduct/api/grts/Query.class"))
+        assertExists(buildDir.resolve("viaduct/centralSchema/viaduct/central-schema/plugin/viaduct.core/generated/viaduct.core/BUILTIN_SCHEMA.graphqls"))
+        val baseSchemaFile = buildDir.resolve("viaduct/centralSchema/viaduct/central-schema/application/source/schemabase/directives.graphqls")
+        val commonSchemaFile = buildDir.resolve("viaduct/centralSchema/viaduct/central-schema/application/source/common/common.graphqls")
+        val partitionSchemaFile = buildDir.resolve("viaduct/centralSchema/viaduct/central-schema/module/resolvers/source/schema.graphqls")
 
         assertExists(baseSchemaFile)
         assertExists(commonSchemaFile)
         assertExists(partitionSchemaFile)
         assertExists(
             buildDir.resolve(
-                "generated-sources/viaduct/resolverBases/" +
-                    "com/example/execution/oneproject/resolvers/QueryResolvers.kt"
+                "generated/sources/viaduct/resolver-bases/kotlin/main/" +
+                    "com/example/execution/oneproject/resolvers/resolverbases/QueryResolvers.kt"
             )
         )
         assertExists(
             buildDir.resolve(
-                "generated-sources/viaduct/resolverBases/" +
-                    "com/example/execution/oneproject/resolvers/MutationResolvers.kt"
+                "generated/sources/viaduct/resolver-bases/kotlin/main/" +
+                    "com/example/execution/oneproject/resolvers/resolverbases/MutationResolvers.kt"
             )
         )
 
@@ -47,7 +77,7 @@ class PluginExecutionSmokeTest {
     fun tenantModuleConfigContainsKspExtractedResolvers() {
         val configFile = buildDir.resolve(
             "generated-resources/viaduct-registry/" +
-                "META-INF/viaduct/modules/com.example.execution.oneproject.resolvers.json"
+                "viaduct/execution-manifest/module/resolvers/generated/com.airbnb.viaduct.module-gradle-plugin/com.example.execution.oneproject.resolvers.json"
         )
 
         assertExists(configFile)
@@ -61,16 +91,16 @@ class PluginExecutionSmokeTest {
     @Test
     fun resourceIndexesContainGeneratedSchemaAndRegistryPaths() {
         val schemaIndex = buildDir.resolve(
-            "generated-resources/viaduct-schema-index/META-INF/viaduct/indexes/schema-v1.index"
+            "generated-resources/viaduct-schema-index/viaduct/resource-index/application/generated/viaduct.core/schema-v1.index"
         ).readText()
-        assertTrue(schemaIndex.contains("viaduct/centralSchema/schema/module/resolvers/source/schema.graphqls"))
+        assertTrue(schemaIndex.contains("META-INF/viaduct/final-schema/module/resolvers/source/schema.graphqls"))
 
         val registryIndex = buildDir.resolve(
             "generated-resources/viaduct-execution-registry-index/" +
-                "META-INF/viaduct/indexes/execution-registry-v1.index"
+                "viaduct/resource-index/application/generated/viaduct.core/execution-registry-v1.index"
         ).readText()
         assertEquals(
-            "META-INF/viaduct/modules/com.example.execution.oneproject.resolvers.json\n",
+            "META-INF/viaduct/execution-manifest/module/resolvers/generated/com.airbnb.viaduct.module-gradle-plugin/com.example.execution.oneproject.resolvers.json\n",
             registryIndex,
         )
     }

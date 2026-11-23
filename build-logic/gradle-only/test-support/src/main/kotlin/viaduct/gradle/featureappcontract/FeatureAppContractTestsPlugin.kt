@@ -6,6 +6,8 @@ import org.gradle.api.artifacts.VersionCatalogsExtension
 import org.gradle.api.plugins.JavaPluginExtension
 import org.gradle.api.tasks.SourceSet
 import org.gradle.api.tasks.Sync
+import org.gradle.api.tasks.TaskProvider
+import org.gradle.api.tasks.bundling.Jar
 import org.gradle.kotlin.dsl.create
 import org.gradle.kotlin.dsl.getByType
 import org.gradle.kotlin.dsl.register
@@ -128,6 +130,7 @@ class FeatureAppContractTestsPlugin : Plugin<Project> {
             contractSchemaDir.set(project.layout.dir(project.provider { contractSchemas.singleFile }))
             this.codegenClasspath.from(codegenClasspath)
             apiName.convention(KOTLIN_API_NAME)
+            generatorPluginId.set("com.airbnb.viaduct.module-gradle-plugin")
             outputDir.set(
                 project.layout.buildDirectory.dir("generated-resources/viaduct-test-registry")
             )
@@ -138,9 +141,8 @@ class FeatureAppContractTestsPlugin : Plugin<Project> {
         testSourceSet.configure {
             // Wire generated resolver base sources to the test source set
             java.srcDir(codegenTask.flatMap { it.tenantOutputDir })
-            // Wire aggregation output into test resources so it lands on the test classpath
-            resources.srcDir(assembleTask.flatMap { it.outputDir })
         }
+        wireRegistryResources(project, assembleTask)
     }
 
     private fun wireJava(
@@ -231,6 +233,7 @@ class FeatureAppContractTestsPlugin : Plugin<Project> {
             this.codegenClasspath.from(codegenClasspath)
             executorFactory.set(JAVA_EXECUTOR_FACTORY)
             apiName.set(JAVA_API_NAME)
+            generatorPluginId.set("com.airbnb.viaduct.module-java-gradle-plugin")
             outputDir.set(
                 project.layout.buildDirectory.dir("generated-resources/viaduct-java-test-registry")
             )
@@ -244,9 +247,19 @@ class FeatureAppContractTestsPlugin : Plugin<Project> {
             java.srcDir(codegenTask.flatMap { it.grtOutputDir })
             // Wire generated resolver base sources to the test source set
             java.srcDir(codegenTask.flatMap { it.tenantOutputDir })
-            // Wire the assembled registry config into test resources so it lands on the test
-            // classpath, where ExecutionRegistryConfigSourceCollector discovers it.
-            resources.srcDir(assembleTask.flatMap { it.outputDir })
         }
+        wireRegistryResources(project, assembleTask)
+    }
+
+    private fun wireRegistryResources(
+        project: Project,
+        assembly: TaskProvider<AssembleTenantModuleConfigFilesTask>,
+    ) {
+        val resources = project.tasks.register<Jar>("${assembly.name}Resources") {
+            archiveClassifier.set(assembly.name)
+            from(assembly.flatMap { it.outputDir }) { into("META-INF") }
+            includeEmptyDirs = false
+        }
+        project.dependencies.add("testRuntimeOnly", project.files(resources.flatMap { it.archiveFile }))
     }
 }

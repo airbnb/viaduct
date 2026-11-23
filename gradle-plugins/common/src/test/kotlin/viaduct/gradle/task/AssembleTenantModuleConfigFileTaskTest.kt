@@ -6,6 +6,7 @@ import java.io.File
 import org.gradle.api.file.FileType
 import org.gradle.work.ChangeType
 import org.gradle.work.FileChange
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
@@ -197,7 +198,7 @@ class AssembleTenantModuleConfigFileCleanupTest {
     @TempDir
     private lateinit var outputDir: File
 
-    private fun modulesDir(): File = File(outputDir, "META-INF/viaduct/modules").also { it.mkdirs() }
+    private fun modulesDir(): File = File(outputDir, "viaduct/execution-manifest/module/old/generated/dev.generator").also { it.mkdirs() }
 
     @Test
     fun `clearOwnedModuleConfigs removes stale json files`() {
@@ -208,11 +209,11 @@ class AssembleTenantModuleConfigFileCleanupTest {
         val task = createTaskForTest(outputDir)
         task.clearOwnedModuleConfigs()
 
-        assertTrue(modules.listFiles()!!.isEmpty())
+        assertTrue(!modules.exists())
     }
 
     @Test
-    fun `clearOwnedModuleConfigs does not delete non-json files`() {
+    fun `clearOwnedModuleConfigs removes the old identity subtree`() {
         val modules = modulesDir()
         File(modules, "com.example.json").writeText("{}")
         File(modules, "README.txt").writeText("keep me")
@@ -220,16 +221,16 @@ class AssembleTenantModuleConfigFileCleanupTest {
         val task = createTaskForTest(outputDir)
         task.clearOwnedModuleConfigs()
 
-        modules.listFiles()!!.map { it.name }.shouldContainExactly("README.txt")
+        assertTrue(!modules.exists())
     }
 
     @Test
-    fun `clearOwnedModuleConfigs does not touch siblings of META-INF`() {
+    fun `clearOwnedModuleConfigs does not touch sibling task outputs`() {
         modulesDir()
         val sibling = File(outputDir, "other-resources").also { it.mkdirs() }
         File(sibling, "important.txt").writeText("don't touch")
 
-        val task = createTaskForTest(outputDir)
+        val task = createTaskForTest(File(outputDir, "manifest-task"))
         task.clearOwnedModuleConfigs()
 
         assertTrue(File(sibling, "important.txt").exists())
@@ -240,6 +241,29 @@ class AssembleTenantModuleConfigFileCleanupTest {
         val task = createTaskForTest(outputDir)
         task.clearOwnedModuleConfigs()
         // No exception thrown
+    }
+
+    @Test
+    fun `deleteConfig uses the configured generator even when apiName is java`() {
+        val moduleDir = File(outputDir, "viaduct/execution-manifest/module/test/generated")
+        val selected = File(moduleDir, "dev.generator/$TEST_PACKAGE.json").apply {
+            parentFile.mkdirs()
+            writeText("{}")
+        }
+        val java = File(moduleDir, "com.airbnb.viaduct.module-java-gradle-plugin/$TEST_PACKAGE.json").apply {
+            parentFile.mkdirs()
+            writeText("{}")
+        }
+        val task = createTaskForTest(outputDir).apply {
+            tenantPackagePrefix.set("com.example")
+            apiName.set("java")
+            generatorPluginId.set("dev.generator")
+        }
+
+        task.deleteConfig(TEST_PACKAGE)
+
+        assertFalse(selected.exists())
+        assertTrue(java.exists())
     }
 
     private fun createTaskForTest(outputDir: File): AssembleTenantModuleConfigFileTask {

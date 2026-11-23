@@ -8,7 +8,7 @@ For an end-to-end example of a service that embeds Viaduct, see the demonstratio
 
 ## Bootstrapping and service integration
 
-Tenant bootstrapping uses generated module config JSON under `META-INF/viaduct/modules/`. The service supplies a `TenantModuleInjectorFactory`; the engine loads the configs and constructs executors. `TenantAPIBootstrapper` and runtime scanning for resolver classes have been removed.
+Tenant bootstrapping uses generated module config JSON under `META-INF/viaduct/execution-manifest/module/<module-id>/generated/<generator-plugin-id>/`. The service supplies a `TenantModuleInjectorFactory`; the engine loads the configs and constructs executors. `TenantAPIBootstrapper` and runtime scanning for resolver classes have been removed.
 
 - [Service guidance](core/service/AGENTS.md) — builder configuration, injector factory lifecycle, `@TenantBootstrapper`, and test setup.
 - [Engine guidance](core/engine/AGENTS.md) — config discovery, executor loading, built-in resolvers, and startup validation.

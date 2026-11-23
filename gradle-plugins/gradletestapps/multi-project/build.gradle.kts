@@ -99,7 +99,7 @@ abstract class VerifyFoundationValidation : DefaultTask() {
             val sourceRoot = temporaryDir.resolve(code)
             sourceRoot.deleteRecursively()
             centralSchema.get().asFile.copyRecursively(sourceRoot)
-            val source = "schema/module/alpha/source/invalid-foundation.graphqls"
+            val source = "viaduct/central-schema/module/alpha/source/invalid-foundation.graphqls"
             sourceRoot.resolve(source).writeText(declaration)
             val errors = ViaductSchemaValidator(
                 logger,

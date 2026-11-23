@@ -13,7 +13,7 @@ import viaduct.service.api.spi.TenantModuleInjectorFactory
  * Contract test base class for Java tenant resolvers.
  *
  * Provides the Java-specific bootstrapper wiring using the file-based execution registry: the Java
- * registry-extractor annotation processor emits `META-INF/viaduct/modules/<pkg>.json` at build
+ * registry-extractor annotation processor emits `META-INF/viaduct/execution-manifest/module/<module-id>/generated/<generator-plugin-id>/<pkg>.json` at build
  * time, and [ExecutionRegistryConfigSourceCollector] loads that exact resource from the test classpath. The
  * resulting bootstrapper instantiates the [viaduct.java.runtime.bootstrap.ViaductJavaExecutorFactory]
  * recorded in it. This mirrors the Kotlin `KotlinFeatureAppTestContractBase`.
@@ -34,7 +34,7 @@ abstract class FeatureAppTestContractBase : AbstractFeatureAppTestContractBase()
 
     override fun moduleConfigSources(): List<ModuleConfigSource> =
         ExecutionRegistryConfigSourceCollector.fromResourcePaths(
-            listOf("META-INF/viaduct/modules/${featureAppPackagePrefix()}.json")
+            listOf("META-INF/viaduct/execution-manifest/module/${featureAppPackagePrefix()}/generated/com.airbnb.viaduct.module-java-gradle-plugin/${featureAppPackagePrefix()}.json")
         )
 
     override fun tenantModuleInjectorFactory(): TenantModuleInjectorFactory = SharedTenantModuleInjectorFactory(CodeInjector.Naive)

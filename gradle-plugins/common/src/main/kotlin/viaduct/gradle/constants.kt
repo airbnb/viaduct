@@ -14,13 +14,13 @@ fun Project.centralSchemaDirectory() = layout.buildDirectory.dir(centralSchemaDi
 fun Project.schemaScopingManifestDirectory() = layout.buildDirectory.dir("$viaductBuildDirectory/schemaScoping")
 
 @InternalApi
-val grtClassesDirectoryName = "generated-sources/$viaductBuildDirectory/grtClasses"
+val grtClassesDirectoryName = "classes/viaduct/grt/kotlin/main"
 
 @InternalApi
 fun Project.grtClassesDirectory() = layout.buildDirectory.dir(grtClassesDirectoryName)
 
 @InternalApi
-val resolverBasesDirectoryName = "generated-sources/$viaductBuildDirectory/resolverBases"
+val resolverBasesDirectoryName = "generated/sources/viaduct/resolver-bases/kotlin/main"
 
 @InternalApi
 fun Project.resolverBasesDirectory() = layout.buildDirectory.dir(resolverBasesDirectoryName)
@@ -32,19 +32,19 @@ val schemaPartitionDirectoryName = "$viaductBuildDirectory/schemaPartition"
 fun Project.schemaPartitionDirectory() = layout.buildDirectory.dir(schemaPartitionDirectoryName)
 
 @InternalApi
-val javaGrtSourcesDirectoryName = "generated-sources/$viaductBuildDirectory/javaGrtSources"
+val javaGrtSourcesDirectoryName = "generated/sources/viaduct/grt/java/main"
 
 @InternalApi
 fun Project.javaGrtSourcesDirectory() = layout.buildDirectory.dir(javaGrtSourcesDirectoryName)
 
 @InternalApi
-val javaGrtClassesDirectoryName = "classes/$viaductBuildDirectory/javaGrts"
+val javaGrtClassesDirectoryName = "classes/viaduct/grt/java/main"
 
 @InternalApi
 fun Project.javaGrtClassesDirectory() = layout.buildDirectory.dir(javaGrtClassesDirectoryName)
 
 @InternalApi
-val javaResolverBasesDirectoryName = "generated-sources/$viaductBuildDirectory/javaResolverBases"
+val javaResolverBasesDirectoryName = "generated/sources/viaduct/resolver-bases/java/main"
 
 @InternalApi
 fun Project.javaResolverBasesDirectory() = layout.buildDirectory.dir(javaResolverBasesDirectoryName)

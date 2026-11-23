@@ -16,6 +16,7 @@ import org.gradle.api.tasks.PathSensitive
 import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.TaskAction
 import viaduct.apiannotations.InternalApi
+import viaduct.utils.resources.ViaductResourceClaims
 
 @InternalApi
 @CacheableTask
@@ -69,7 +70,9 @@ abstract class AssembleSchemaPartitionTask
                             "Every Viaduct module must define at least one .graphqls schema file."
                     )
             }
+            val claims = ViaductResourceClaims()
             fileSystemOperations.sync { spec ->
+                spec.eachFile { claims.claim(it.path, it.file.toString()) }
                 spec.from(graphqlSrcDir.get()) { copySpec ->
                     copySpec.include("**/*.graphqls")
                     copySpec.into(prefixPath.get())

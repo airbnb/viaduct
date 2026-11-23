@@ -26,22 +26,27 @@ import viaduct.service.api.Viaduct;
 public class PluginExecutionSmokeTest {
 
   private static final String REGISTRY_ENTRY =
-      "META-INF/viaduct/modules/com.example.execution.javaoneproject.resolvers.json";
+      "META-INF/viaduct/execution-manifest/module/resolvers/generated/com.airbnb.viaduct.module-java-gradle-plugin/com.example.execution.javaoneproject.resolvers.json";
 
   private final Path buildDir = Path.of(System.getProperty("projectBuildDir"));
 
   @Test
   void generatedSchemaAndResolverOutputsExist() throws IOException {
     assertExists(
+        buildDir.resolve("generated/sources/viaduct/grt/java/main/viaduct/java/grts/Query.java"));
+    assertExists(buildDir.resolve("classes/viaduct/grt/java/main/viaduct/java/grts/Query.class"));
+    assertExists(
         buildDir.resolve(
-            "viaduct/centralSchema/schema/plugin/com.airbnb.viaduct/source/BUILTIN_SCHEMA.graphqls"));
+            "viaduct/centralSchema/viaduct/central-schema/plugin/viaduct.core/generated/viaduct.core/BUILTIN_SCHEMA.graphqls"));
     Path baseSchemaFile =
         buildDir.resolve(
-            "viaduct/centralSchema/schema/application/source/schemabase/directives.graphqls");
+            "viaduct/centralSchema/viaduct/central-schema/application/source/schemabase/directives.graphqls");
     Path commonSchemaFile =
-        buildDir.resolve("viaduct/centralSchema/schema/application/source/common/common.graphqls");
+        buildDir.resolve(
+            "viaduct/centralSchema/viaduct/central-schema/application/source/common/common.graphqls");
     Path partitionSchemaFile =
-        buildDir.resolve("viaduct/centralSchema/schema/module/resolvers/source/schema.graphqls");
+        buildDir.resolve(
+            "viaduct/centralSchema/viaduct/central-schema/module/resolvers/source/schema.graphqls");
 
     assertExists(baseSchemaFile);
     assertExists(commonSchemaFile);
@@ -49,7 +54,7 @@ public class PluginExecutionSmokeTest {
 
     Path resolverBases =
         buildDir.resolve(
-            "generated-sources/viaduct/javaResolverBases/"
+            "generated/sources/viaduct/resolver-bases/java/main/"
                 + "com/example/execution/javaoneproject/resolvers/resolverbases");
     assertExists(resolverBases.resolve("QueryResolvers.java"));
     assertExists(resolverBases.resolve("MutationResolvers.java"));
@@ -64,7 +69,10 @@ public class PluginExecutionSmokeTest {
 
   @Test
   void tenantModuleConfigContainsAptExtractedResolvers() throws IOException {
-    Path configFile = buildDir.resolve("generated-resources/viaduct-registry/" + REGISTRY_ENTRY);
+    Path configFile =
+        buildDir.resolve(
+            "generated-resources/viaduct-registry/"
+                + REGISTRY_ENTRY.substring("META-INF/".length()));
 
     assertExists(configFile);
 
@@ -89,7 +97,9 @@ public class PluginExecutionSmokeTest {
       assertNotNull(
           jar.getJarEntry(REGISTRY_ENTRY),
           "Expected the assembled registry at " + REGISTRY_ENTRY + " in " + moduleJar);
-      var registryIndex = jar.getJarEntry("META-INF/viaduct/indexes/execution-registry-v1.index");
+      var registryIndex =
+          jar.getJarEntry(
+              "META-INF/viaduct/resource-index/application/generated/viaduct.core/execution-registry-v1.index");
       assertNotNull(registryIndex, "Expected the application's registry index in " + moduleJar);
       try (var stream = jar.getInputStream(registryIndex)) {
         assertEquals(
@@ -105,12 +115,12 @@ public class PluginExecutionSmokeTest {
   void schemaIndexListsTheGeneratedSchema() throws IOException {
     Path schemaIndex =
         buildDir.resolve(
-            "generated-resources/viaduct-schema-index/META-INF/viaduct/indexes/schema-v1.index");
+            "generated-resources/viaduct-schema-index/viaduct/resource-index/application/generated/viaduct.core/schema-v1.index");
 
     assertExists(schemaIndex);
     assertTrue(
         Files.readAllLines(schemaIndex)
-            .contains("viaduct/centralSchema/schema/module/resolvers/source/schema.graphqls"));
+            .contains("META-INF/viaduct/final-schema/module/resolvers/source/schema.graphqls"));
   }
 
   @Test
@@ -123,9 +133,11 @@ public class PluginExecutionSmokeTest {
   @Test
   void schemaResourcesAreIndependentOfGeneratedClasses() throws IOException {
     try (JarFile jar = new JarFile(System.getProperty("schemaJar"))) {
-      assertNotNull(jar.getJarEntry("META-INF/viaduct/indexes/schema-v1.index"));
       assertNotNull(
-          jar.getJarEntry("viaduct/centralSchema/schema/module/resolvers/source/schema.graphqls"));
+          jar.getJarEntry(
+              "META-INF/viaduct/resource-index/application/generated/viaduct.core/schema-v1.index"));
+      assertNotNull(
+          jar.getJarEntry("META-INF/viaduct/final-schema/module/resolvers/source/schema.graphqls"));
       assertFalse(jar.stream().anyMatch(entry -> entry.getName().endsWith(".class")));
       assertFalse(
           jar.stream().anyMatch(entry -> entry.getName().endsWith("BUILTIN_SCHEMA.graphqls")));

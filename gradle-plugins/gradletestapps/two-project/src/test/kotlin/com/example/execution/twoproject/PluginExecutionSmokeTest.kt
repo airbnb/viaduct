@@ -17,10 +17,10 @@ class PluginExecutionSmokeTest {
         val applicationBuildDir = Path.of(System.getProperty("projectBuildDir"))
         val resolverBasesDir = Path.of(System.getProperty("resolverBasesDir"))
         val partitionSchema = applicationBuildDir.resolve(
-            "viaduct/centralSchema/schema/module/resolvers/source/schema.graphqls"
+            "viaduct/centralSchema/viaduct/central-schema/module/resolvers/source/schema.graphqls"
         )
         val resolverBases = resolverBasesDir.resolve(
-            "QueryResolvers.kt"
+            "com/example/execution/twoproject/resolvers/resolverbases/QueryResolvers.kt"
         )
 
         assertTrue(partitionSchema.exists(), "Expected the module partition in the application central schema")
@@ -32,7 +32,7 @@ class PluginExecutionSmokeTest {
     fun moduleExtensionContributionIsTransportedToTheApplicationSchema() {
         val applicationBuildDir = Path.of(System.getProperty("projectBuildDir"))
         val contribution = applicationBuildDir.resolve(
-            "viaduct/centralSchema/schema/module/resolvers/generated/com.example.test-schema-contribution/contribution.graphqls"
+            "viaduct/centralSchema/viaduct/central-schema/module/resolvers/generated/com.example.test-schema-contribution/contribution.graphqls"
         )
 
         assertTrue(
@@ -67,7 +67,7 @@ class PluginExecutionSmokeTest {
     @Test
     fun declaredScopeDefinitionsAreWrittenForPackaging() {
         val applicationBuildDir = Path.of(System.getProperty("projectBuildDir"))
-        val manifest = applicationBuildDir.resolve("viaduct/schemaScoping/META-INF/viaduct/schema-scoping.json")
+        val manifest = applicationBuildDir.resolve("viaduct/schemaScoping/viaduct/schema-scoping-manifest/application/generated/viaduct.core/schema-scoping.json")
 
         assertTrue(manifest.exists(), "Expected the schema scoping manifest to be generated")
         assertEquals(

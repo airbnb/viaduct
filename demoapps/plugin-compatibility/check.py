@@ -193,8 +193,8 @@ def outcome(output, task, expected):
 
 def generated_snapshot(root):
     result = {}
-    for path in root.rglob("build/*"):
-        if path.is_dir() and path.name in ("generated-sources", "generated-resources", "viaduct"):
+    for directory in ("generated-resources", "generated/sources/viaduct", "classes/viaduct", "viaduct"):
+        for path in root.rglob(f"build/{directory}"):
             for file in path.rglob("*"):
                 if file.is_file():
                     result[str(file.relative_to(root))] = hashlib.sha256(file.read_bytes()).hexdigest()
@@ -205,6 +205,14 @@ def generated_snapshot(root):
                     result[f"{path.relative_to(root)}!{name}"] = hashlib.sha256(jar.read(name)).hexdigest()
     assert result, "No generated outputs found"
     return result
+
+
+def execution_manifest(module, language):
+    plugin = "module" if language == "kotlin" else "module-java"
+    return module / (
+        "build/generated-resources/viaduct-registry/viaduct/execution-manifest/"
+        f"module/{language}/generated/com.airbnb.viaduct.{plugin}-gradle-plugin/example.{language}.json"
+    )
 
 
 def check_case(parent, repository, languages, same_project, offline):
@@ -251,7 +259,7 @@ def check_case(parent, repository, languages, same_project, offline):
     invoke(second, "addition", "build")
     for language in languages:
         module = second if same_project else second / language
-        registry = module / f"build/generated-resources/viaduct-registry/META-INF/viaduct/modules/example.{language}.json"
+        registry = execution_manifest(module, language)
         assert "ProbeResolver" in registry.read_text(), registry
         assert any(second.rglob(f"ProbeType{language.capitalize()}.class")), "Added GRT missing"
     for path in added:
@@ -260,7 +268,7 @@ def check_case(parent, repository, languages, same_project, offline):
     invoke(second, "deletion", "build")
     for language in languages:
         module = second if same_project else second / language
-        registry = module / f"build/generated-resources/viaduct-registry/META-INF/viaduct/modules/example.{language}.json"
+        registry = execution_manifest(module, language)
         assert "ProbeResolver" not in registry.read_text(), registry
     assert not list(second.rglob("ProbeResolver.class")), "Deleted resolver class remains"
     assert not list(second.rglob("ProbeType*.class")), "Deleted GRT class remains"

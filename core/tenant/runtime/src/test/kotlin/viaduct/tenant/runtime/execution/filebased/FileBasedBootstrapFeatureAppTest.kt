@@ -28,7 +28,7 @@ class FileBasedBootstrapFeatureAppTest : FileBasedBootstrapContractTest() {
     @Test
     fun `Bazel generated resource supplies executor ownership without discovery`() {
         val pkg = "viaduct.tenant.runtime.execution.filebased"
-        val registry = requireNotNull(javaClass.classLoader.getResourceAsStream("META-INF/viaduct/modules/$pkg.json"))
+        val registry = requireNotNull(javaClass.classLoader.getResourceAsStream("META-INF/viaduct/execution-manifest/module/$pkg/generated/com.airbnb.viaduct.module-gradle-plugin/$pkg.json"))
             .use(ExecutionRegistryConfigFile::parse)
         assertFalse(registry.fields.isEmpty())
         assertFalse(registry.nodes.isEmpty())

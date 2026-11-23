@@ -63,6 +63,9 @@ class AssembleTenantModuleConfigJar : CliktCommand(
     private val apiName: String by option("--api-name")
         .required()
 
+    private val generatorPluginId: String by option("--generator-plugin-id")
+        .required()
+
     private val requireNonEmpty: Boolean by option(
         "--require-non-empty",
         help = "Fail if no descriptors are found. Use for contract tests where an empty registry " +
@@ -100,13 +103,14 @@ class AssembleTenantModuleConfigJar : CliktCommand(
                 descriptorJsons = descriptorJsons,
                 executorFactory = executorFactory,
                 apiName = apiName,
+                generatorPluginId = generatorPluginId,
                 tenantPackage = tenantPackage,
                 tenantPackagePrefix = tenantPackagePrefix,
                 tenantMetadata = TenantModuleConfigAssembler.readTenantMetadata(tenantMetadataFile),
                 schemaBinary = schemaBinary,
                 schemaFiles = schemaFiles,
                 schemaRoot = schemaRoot,
-                outputDir = outputDir,
+                outputDir = outputDir.resolve("META-INF"),
                 forbiddenSelectionDirectives = forbiddenSelectionDirectives.toSet(),
             )
 

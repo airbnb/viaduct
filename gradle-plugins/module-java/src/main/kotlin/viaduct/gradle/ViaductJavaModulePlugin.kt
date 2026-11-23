@@ -58,7 +58,7 @@ class ViaductJavaModulePlugin : Plugin<Project> {
      * Wires the Java registry-extractor APT and the config assembly that consumes its output — the
      * Java counterpart of the Kotlin module plugin's KSP registry extractor. The APT records each
      * `@Resolver` into a per-source descriptor; the assembly task consolidates those into the
-     * `META-INF/viaduct/modules/<pkg>.json` registry the engine bootstraps from.
+     * `META-INF/viaduct/execution-manifest/module/<module-id>/generated/<generator-plugin-id>/<pkg>.json` registry the engine bootstraps from.
      *
      * Unlike KSP, javac's [Filer] writes resources to the class output directory, so descriptors
      * are read from there directly and no bridging copy task is needed.
@@ -85,6 +85,7 @@ class ViaductJavaModulePlugin : Plugin<Project> {
             )
             executorFactory.set(AssembleTenantModuleConfigFileTask.JAVA_EXECUTOR_FACTORY)
             apiName.set(AssembleTenantModuleConfigFileTask.JAVA_API_NAME)
+            generatorPluginId.set(AssembleTenantModuleConfigFileTask.JAVA_GENERATOR_PLUGIN_ID)
             codegenClasspath.from(createOrGetCodegenClasspath(version))
             centralSchemaFiles.from(
                 centralSchemaIncomingCfg.incoming.artifactView {}.files.asFileTree.matching {
@@ -99,17 +100,12 @@ class ViaductJavaModulePlugin : Plugin<Project> {
         }
 
         pluginManager.withPlugin("java") {
-            val javaExt = extensions.getByType(JavaPluginExtension::class.java)
-            javaExt.sourceSets.named("main") {
-                resources.srcDir(assembleTask.flatMap { it.outputDir })
-            }
-            tasks.named("processResources").configure { dependsOn(assembleTask) }
-
             // javac's Filer writes the per-source descriptors into the class output, so without this
             // these build intermediates ship in the JAR alongside the assembled registry.
             tasks.named<Jar>("jar").configure { exclude("$DESCRIPTOR_DIR_NAME/**") }
         }
 
+        ViaductPluginCommon.wireManifestResources(this, assembleTask.flatMap { it.outputDir })
         return assembleTask
     }
 

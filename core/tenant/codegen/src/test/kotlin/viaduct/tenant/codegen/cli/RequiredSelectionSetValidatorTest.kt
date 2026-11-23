@@ -469,8 +469,8 @@ class RequiredSelectionSetValidatorTest {
     @Test
     fun `dotted artifact module may select its own tenant-local fields`() {
         val schemaFiles = listOf(
-            schemaFile("schema/module/catalog.pricing/source/schema.graphqls", FEATURE_SCHEMA_SDL),
-            schemaFile("schema/module/catalog.inventory/source/schema.graphqls", OTHER_SCHEMA_SDL),
+            schemaFile("viaduct/schema/module/catalog.pricing/source/schema.graphqls", FEATURE_SCHEMA_SDL),
+            schemaFile("viaduct/schema/module/catalog.inventory/source/schema.graphqls", OTHER_SCHEMA_SDL),
         )
         val registry = readTypesFromFiles(schemaFiles, tempDir)
         val validator = RequiredSelectionSetValidator(

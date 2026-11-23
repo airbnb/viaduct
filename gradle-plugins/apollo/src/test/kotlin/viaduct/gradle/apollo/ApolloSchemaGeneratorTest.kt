@@ -37,11 +37,11 @@ class ApolloSchemaGeneratorTest {
 
     @Test
     fun `entity union merges definitions and extensions across modules without duplicates`() {
-        write("schema/plugin/dev.apollo/source/directives.graphqls", DIRECTIVES)
-        write("schema/module/z/source/product.graphqls", "type Product @key(fields: \"id\") @key(fields: \"sku\") { id: ID! sku: String }")
-        write("schema/module/a/source/user.graphqls", "type User { id: ID! }\nextend type User @key(fields: \"id\", resolvable: true)")
-        write("schema/application/source/query.graphqls", "type Query { greeting: String }")
-        write("schema/module/a/source/reference.graphqls", "type Reference @key(fields: \"id\", resolvable: false) { id: ID! }")
+        write("viaduct/schema/plugin/dev.apollo/source/directives.graphqls", DIRECTIVES)
+        write("viaduct/schema/module/z/source/product.graphqls", "type Product @key(fields: \"id\") @key(fields: \"sku\") { id: ID! sku: String }")
+        write("viaduct/schema/module/a/source/user.graphqls", "type User { id: ID! }\nextend type User @key(fields: \"id\", resolvable: true)")
+        write("viaduct/schema/application/source/query.graphqls", "type Query { greeting: String }")
+        write("viaduct/schema/module/a/source/reference.graphqls", "type Reference @key(fields: \"id\", resolvable: false) { id: ID! }")
         val generated = ApolloSchemaGenerator.generate(tempDir.toFile())
         val schema = assembled(generated)
 
@@ -134,7 +134,7 @@ class ApolloSchemaGeneratorTest {
     @Test
     fun `removed entities disappear on the next generation`() {
         generate("type Query { greeting: String }")
-        val entity = write("schema/module/catalog/source/product.graphqls", "type Product @key(fields: \"id\") { id: ID! }")
+        val entity = write("viaduct/schema/module/catalog/source/product.graphqls", "type Product @key(fields: \"id\") { id: ID! }")
         assertNotNull(assembled(ApolloSchemaGenerator.generate(tempDir.toFile())).getType("_Entity"))
         entity.delete()
         assertNull(assembled(ApolloSchemaGenerator.generate(tempDir.toFile())).getType("_Entity"))
@@ -143,11 +143,11 @@ class ApolloSchemaGeneratorTest {
     @ParameterizedTest
     @ValueSource(strings = ["fields: 1", "fields: id", "fields: null", "fields: []", "fields: \"\"", "fields: \"id\", resolvable: null", "fields: \"id\", resolvable: \"false\""])
     fun `malformed key literals report their source`(arguments: String) {
-        write("schema/plugin/dev.apollo/source/directives.graphqls", DIRECTIVES)
-        write("schema/application/source/query.graphqls", "type Query { greeting: String }")
-        write("schema/module/catalog/source/product.graphqls", "type Product @key($arguments) { id: ID! }")
+        write("viaduct/schema/plugin/dev.apollo/source/directives.graphqls", DIRECTIVES)
+        write("viaduct/schema/application/source/query.graphqls", "type Query { greeting: String }")
+        write("viaduct/schema/module/catalog/source/product.graphqls", "type Product @key($arguments) { id: ID! }")
         val failure = assertThrows<IllegalArgumentException> { ApolloSchemaGenerator.generate(tempDir.toFile()) }
-        assertTrue(failure.message!!.contains("schema/module/catalog/source/product.graphqls"), failure.message)
+        assertTrue(failure.message!!.contains("viaduct/schema/module/catalog/source/product.graphqls"), failure.message)
     }
 
     @Test

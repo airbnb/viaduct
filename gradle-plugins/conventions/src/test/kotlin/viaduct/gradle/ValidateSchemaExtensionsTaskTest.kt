@@ -87,7 +87,7 @@ class ValidateSchemaExtensionsTaskTest {
 
         listOf("", ".", "..", "dev/example", "dev\\example", "dev:example").forEach { pluginId ->
             val error = assertThrows<IllegalArgumentException> { contributions.register(pluginId, project.files()) }
-            error.message shouldBe "Invalid plugin ID: $pluginId"
+            assert(error.message!!.contains(pluginId))
         }
     }
 

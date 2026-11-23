@@ -103,11 +103,11 @@ class ViaductSchemaValidatorTest {
 
     @Test
     fun `final schema rejects plugin scalar return types with contributor attribution`() {
-        val central = tempDir.resolve("schema/application/source/schema.graphqls").toFile().apply {
+        val central = tempDir.resolve("viaduct/schema/application/source/schema.graphqls").toFile().apply {
             parentFile.mkdirs()
             writeText("type Query { value: String }")
         }
-        val plugin = tempDir.resolve("schema/plugin/dev.final/generated/dev.generator/final.graphqls").toFile().apply {
+        val plugin = tempDir.resolve("viaduct/schema/plugin/dev.final/generated/dev.generator/final.graphqls").toFile().apply {
             parentFile.mkdirs()
             writeText("scalar PluginScalar\nextend type Query { forbidden: PluginScalar }")
         }
@@ -118,7 +118,7 @@ class ViaductSchemaValidatorTest {
         errors shouldHaveSize 1
         errors.single().message shouldContain "PluginScalar"
         errors.single().message shouldContain "Final-schema contribution error from 'dev.generator'"
-        errors.single().message shouldContain "schema/plugin/dev.final/generated/dev.generator/final.graphqls"
+        errors.single().message shouldContain "viaduct/schema/plugin/dev.final/generated/dev.generator/final.graphqls"
     }
 
     @Test
@@ -290,8 +290,8 @@ class ViaductSchemaValidatorTest {
     @Test
     fun `empty bundled and generated plugin types identify their supplier and original location`() {
         val paths = listOf(
-            "schema/plugin/dev.example.bundled/source/nested/types.graphqls" to "dev.example.bundled",
-            "schema/module/example/generated/dev.example.generator/nested/types.graphqls" to "dev.example.generator",
+            "viaduct/schema/plugin/dev.example.bundled/source/nested/types.graphqls" to "dev.example.bundled",
+            "viaduct/schema/module/example/generated/dev.example.generator/nested/types.graphqls" to "dev.example.generator",
         )
         paths.forEach { (path, plugin) ->
             val schemaFile = tempDir.resolve(path).toFile().apply {
@@ -311,11 +311,11 @@ class ViaductSchemaValidatorTest {
 
     @Test
     fun `empty types retain individual responsibility when developer and plugin sources are combined`() {
-        val pluginFile = tempDir.resolve("schema/plugin/dev.example.plugin/source/types.graphqls").toFile().apply {
+        val pluginFile = tempDir.resolve("viaduct/schema/plugin/dev.example.plugin/source/types.graphqls").toFile().apply {
             parentFile.mkdirs()
             writeText("type Query { data: String }\ntype PluginEmpty {}\n")
         }
-        val developerFile = tempDir.resolve("schema/module/example/source/types.graphqls").toFile().apply {
+        val developerFile = tempDir.resolve("viaduct/schema/module/example/source/types.graphqls").toFile().apply {
             parentFile.mkdirs()
             writeText("type DeveloperEmpty {}\n")
         }
@@ -325,10 +325,10 @@ class ViaductSchemaValidatorTest {
         errors shouldHaveSize 2
         val pluginError = errors.single { it.message.contains("PluginEmpty") }.message
         pluginError shouldContain "Internal framework/plugin error from 'dev.example.plugin'"
-        pluginError shouldContain "schema/plugin/dev.example.plugin/source/types.graphqls:2:1"
+        pluginError shouldContain "viaduct/schema/plugin/dev.example.plugin/source/types.graphqls:2:1"
         pluginError shouldNotContain "_placeholder"
         val developerError = errors.single { it.message.contains("DeveloperEmpty") }.message
-        developerError shouldContain "schema/module/example/source/types.graphqls:1:1"
+        developerError shouldContain "viaduct/schema/module/example/source/types.graphqls:1:1"
         developerError shouldContain "_placeholder"
         developerError shouldNotContain "Internal framework"
     }
@@ -355,7 +355,7 @@ class ViaductSchemaValidatorTest {
 
     @Test
     fun `empty plugin interfaces inputs enums and unions retain source attribution`() {
-        val path = "schema/plugin/dev.example.plugin/source/types.graphqls"
+        val path = "viaduct/schema/plugin/dev.example.plugin/source/types.graphqls"
         listOf("interface Empty {}", "input Empty {}", "enum Empty", "union Empty").forEach { definition ->
             val schemaFile = tempDir.resolve(path).toFile().apply {
                 parentFile.mkdirs()
@@ -373,8 +373,8 @@ class ViaductSchemaValidatorTest {
 
     @Test
     fun `final schema validation attributes invalid extension fields to their own supplier`() {
-        val basePath = "schema/module/example/source/types.graphqls"
-        val extensionPath = "schema/plugin/dev.example.plugin/source/extension.graphqls"
+        val basePath = "viaduct/schema/module/example/source/types.graphqls"
+        val extensionPath = "viaduct/schema/plugin/dev.example.plugin/source/extension.graphqls"
         val baseFile = tempDir.resolve(basePath).toFile().apply {
             parentFile.mkdirs()
             writeText("type Query { data: String }\n")
@@ -395,11 +395,11 @@ class ViaductSchemaValidatorTest {
 
     @Test
     fun `invalid developer extension is not attributed to the plugin defining its base type`() {
-        val pluginFile = tempDir.resolve("schema/plugin/dev.example.plugin/source/types.graphqls").toFile().apply {
+        val pluginFile = tempDir.resolve("viaduct/schema/plugin/dev.example.plugin/source/types.graphqls").toFile().apply {
             parentFile.mkdirs()
             writeText("type Query { data: String }\n")
         }
-        val path = "schema/module/example/source/extension.graphqls"
+        val path = "viaduct/schema/module/example/source/extension.graphqls"
         val developerFile = tempDir.resolve(path).toFile().apply {
             parentFile.mkdirs()
             writeText("extend type Query { __invalid: String }\n")
@@ -415,7 +415,7 @@ class ViaductSchemaValidatorTest {
 
     @Test
     fun `final schema validation retains source locations for other GraphQL Java rules`() {
-        val path = "schema/plugin/dev.example.plugin/generated/dev.example.generator/types.graphqls"
+        val path = "viaduct/schema/plugin/dev.example.plugin/generated/dev.example.generator/types.graphqls"
         val schemas = listOf(
             "type Query { data(arg: Int! @deprecated): String }",
             "type Query { data: String }\ninput Options { value: Int! @deprecated }",
@@ -438,11 +438,11 @@ class ViaductSchemaValidatorTest {
 
     @Test
     fun `invalid input extensions retain the supplier of the failing field`() {
-        val baseFile = tempDir.resolve("schema/module/example/source/types.graphqls").toFile().apply {
+        val baseFile = tempDir.resolve("viaduct/schema/module/example/source/types.graphqls").toFile().apply {
             parentFile.mkdirs()
             writeText("type Query { data(arg: Options): String }\ninput Options { value: String }\n")
         }
-        val path = "schema/plugin/dev.example.plugin/source/extension.graphqls"
+        val path = "viaduct/schema/plugin/dev.example.plugin/source/extension.graphqls"
         val extensionFile = tempDir.resolve(path).toFile().apply {
             parentFile.mkdirs()
             writeText("extend input Options { next: Options! }\n")
@@ -457,11 +457,11 @@ class ViaductSchemaValidatorTest {
 
     @Test
     fun `cycle diagnostics retain plugin sources for required input wrappers`() {
-        val developerFile = tempDir.resolve("schema/module/example/source/types.graphqls").toFile().apply {
+        val developerFile = tempDir.resolve("viaduct/schema/module/example/source/types.graphqls").toFile().apply {
             parentFile.mkdirs()
             writeText("type Query { data(arg: Options): String }\ninput Options { value: String }\ntype Empty\n")
         }
-        val path = "schema/plugin/dev.example.plugin/source/extension.graphqls"
+        val path = "viaduct/schema/plugin/dev.example.plugin/source/extension.graphqls"
         val extensionFile = tempDir.resolve(path).toFile().apply { parentFile.mkdirs() }
         listOf("Options!", "[Options!]!").forEach { type ->
             extensionFile.writeText("extend input Options { next: $type }\n")
@@ -478,12 +478,12 @@ class ViaductSchemaValidatorTest {
 
     @Test
     fun `valid plugin input fields are not blamed for an unrelated developer input cycle`() {
-        val path = "schema/module/example/source/types.graphqls"
+        val path = "viaduct/schema/module/example/source/types.graphqls"
         val developerFile = tempDir.resolve(path).toFile().apply {
             parentFile.mkdirs()
             writeText("type Query { data(arg: Options): String }\ninput Options { next: Options! }\ninput Leaf { value: String }\n")
         }
-        val pluginFile = tempDir.resolve("schema/plugin/dev.example.plugin/source/extension.graphqls").toFile().apply {
+        val pluginFile = tempDir.resolve("viaduct/schema/plugin/dev.example.plugin/source/extension.graphqls").toFile().apply {
             parentFile.mkdirs()
             writeText("extend input Options { leaf: Leaf! }\n")
         }

@@ -1,3 +1,15 @@
 package viaduct.tenant.codegen.cli
 
-internal const val REGISTRY_RESOURCE_PATH = "META-INF/viaduct/modules"
+import viaduct.graphql.schema.SchemaProvenance
+import viaduct.utils.resources.ViaductResourcePaths
+
+internal fun registryResourcePath(
+    tenantPackage: String,
+    prefix: String?,
+    generatorPluginId: String
+): String =
+    ViaductResourcePaths.manifest(
+        SchemaProvenance.moduleIdFromPackage(tenantPackage, prefix),
+        generatorPluginId,
+        "$tenantPackage.json",
+    )

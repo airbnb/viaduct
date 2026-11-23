@@ -16,7 +16,7 @@ import viaduct.service.runtime.builtinresolvers.builtinModuleConfigSources
 
 /**
  * Builds the schema and resolver executors used by the remote gRPC service from the tenant-module
- * manifests on the classpath (`META-INF/viaduct/modules/<pkg>.json`).
+ * manifests on the classpath (`META-INF/viaduct/execution-manifest/module/<module-id>/generated/<generator-plugin-id>/<pkg>.json`).
  */
 class TenantBootstrapper(private val tenantCodeInjector: CodeInjector) {
     private val log = LoggerFactory.getLogger(TenantBootstrapper::class.java)

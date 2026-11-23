@@ -11,16 +11,47 @@ import org.gradle.api.file.FileCollection
 import org.gradle.api.file.FileVisitDetails
 import org.gradle.api.file.FileVisitor
 import org.gradle.api.file.RegularFile
+import org.gradle.api.plugins.JavaPluginExtension
 import org.gradle.api.provider.Provider
+import org.gradle.api.tasks.Sync
 import org.gradle.api.tasks.TaskProvider
+import org.gradle.api.tasks.bundling.Jar
 import org.gradle.plugins.ide.idea.model.IdeaModel
 import org.jetbrains.gradle.ext.settings
 import org.jetbrains.gradle.ext.taskTriggers
 import viaduct.apiannotations.InternalApi
 import viaduct.gradle.shared.BuildFlags
+import viaduct.utils.resources.ViaductResourceClaims
 
 @InternalApi
 object ViaductPluginCommon {
+    fun wireManifestResources(
+        project: Project,
+        output: Provider<Directory>
+    ) {
+        project.pluginManager.withPlugin("java") {
+            val resourceJar = project.tasks.register("generateViaductModuleResources", Jar::class.java) {
+                it.archiveClassifier.set("viaduct-resources")
+                it.from(output) { spec -> spec.into("META-INF") }
+                it.setIncludeEmptyDirs(false)
+            }
+            project.tasks.named("jar", Jar::class.java).configure {
+                it.from(output) { spec -> spec.into("META-INF") }
+            }
+            project.extensions.getByType(JavaPluginExtension::class.java).sourceSets.configureEach {
+                it.runtimeClasspath += project.files(resourceJar.flatMap { jar -> jar.archiveFile })
+            }
+        }
+    }
+
+    fun validateResourcePaths(task: Sync) {
+        val claims = ViaductResourceClaims()
+        task.doFirst { claims.clear() }
+        task.eachFile { details ->
+            claims.claim(details.path, details.file.toString())
+        }
+    }
+
     fun schemaArtifactRoot(files: FileCollection): File {
         val roots = mutableSetOf<File>()
         files.asFileTree.visit(object : FileVisitor {
@@ -47,8 +78,6 @@ object ViaductPluginCommon {
         const val SCHEMA_PARTITION = "schema-partition"
         const val SCHEMA_BASE_CONTRIBUTION = "schemabase-contribution"
         const val CENTRAL_SCHEMA = "central-schema"
-        const val KOTLIN_GRT_CLASSES = "kotlin-grt-classes"
-        const val JAVA_GRT_CLASSES = "java-grt-classes"
     }
 
     /** Fixed package for generated Java GRT types. Mirrors the Kotlin convention of a single shared GRT package. */
@@ -65,12 +94,6 @@ object ViaductPluginCommon {
 
         /** Root/app: consumable configuration for the central schema file. */
         const val CENTRAL_SCHEMA_OUTGOING = "viaductCentralSchema"
-
-        /** Root/app: consumable configuration for the Kotlin GRT jar. */
-        const val GRT_CLASSES_KOTLIN_OUTGOING = "viaductKotlinGRTClasses"
-
-        /** Root/app: consumable configuration for the Java GRT jar. */
-        const val GRT_CLASSES_JAVA_OUTGOING = "viaductJavaGRTClasses"
 
         /** Module: consumable configuration for a modules schema partition. */
         const val SCHEMA_PARTITION_OUTGOING = "viaductSchemaPartition"

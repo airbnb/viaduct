@@ -117,18 +117,30 @@ GRT JARs contain classes only. Application assembly packages the final schema in
 
 #### Schema provenance and ownership
 
-Schema paths identify both ownership and origin:
+Viaduct-format resources use `viaduct/<artifact-type>/<scope>/<origin>/<relative-path>` beneath their declared task-owned directory artifact root. Scope is `module/<module-id>`, `plugin/<plugin-id>`, or `application`; origin is `source` or `generated/<generator-plugin-id>`.
 
-| Contributor | Source SDL path |
+| Resource | Canonical path beneath the artifact root |
 | --- | --- |
-| Tenant module | `schema/module/<module-id>/source/<relative-path>` |
-| Application base schema | `schema/application/source/schemabase/<relative-path>` |
-| Application common schema | `schema/application/source/common/<relative-path>` |
-| Plugin | `schema/plugin/<plugin-id>/source/<relative-path>` |
+| Prepared tenant SDL | `viaduct/schema/module/<module-id>/source/<relative-path>` |
+| Prepared application base SDL | `viaduct/schema/application/source/schemabase/<relative-path>` |
+| Prepared application common SDL | `viaduct/schema/application/source/common/<relative-path>` |
+| Prepared bundled plugin SDL | `viaduct/schema/plugin/<plugin-id>/source/<relative-path>` |
+| Prepared generated plugin SDL | `viaduct/schema/plugin/<plugin-id>/generated/<generator-plugin-id>/<relative-path>` |
+| Final-schema additions | `viaduct/final-schema-contribution/plugin/<plugin-id>/generated/<generator-plugin-id>/<relative-path>` |
+| Central SDL | `viaduct/central-schema/<scope>/<origin>/<relative-path>` |
+| Final SDL | `viaduct/final-schema/<scope>/<origin>/<relative-path>` |
+| Module execution manifest | `viaduct/execution-manifest/module/<module-id>/generated/<generator-plugin-id>/<full-tenant-package>.json` |
+| Scoping manifest | `viaduct/schema-scoping-manifest/application/generated/viaduct.core/schema-scoping.json` |
+| Schema index | `viaduct/resource-index/application/generated/viaduct.core/schema-v1.index` |
+| Execution-registry index | `viaduct/resource-index/application/generated/viaduct.core/execution-registry-v1.index` |
 
-The module ID is the configured module package suffix, with dots retained as literal characters. An empty suffix identifies the sole module by the application package prefix; settings reject a blank prefix and reject an empty suffix alongside sibling modules. Shared package-to-module identity is used by schema provenance, resolver generation, and manifest assembly. Generated SDL replaces `source` with `generated/<generator-plugin-id>` under the same owner; for example, `schema/module/<module-id>/generated/<generator-plugin-id>/<relative-path>` or `schema/plugin/<plugin-id>/generated/<generator-plugin-id>/<relative-path>`. This distinguishes the tenant that owns a declaration from the plugin that generates it. Viaduct built-in SDL uses the plugin identity `com.airbnb.viaduct`.
+The module ID is the configured module package suffix, with dots retained as literal characters. An empty suffix identifies the sole module by the application package prefix; settings reject a blank prefix and reject an empty suffix alongside sibling modules. Shared package-to-module identity is used by schema provenance, resolver generation, and manifest assembly. Generated SDL replaces `source` with `generated/<generator-plugin-id>` under the same owner. The reserved framework producer is `viaduct.core`; generated built-in SDL is `viaduct/central-schema/plugin/viaduct.core/generated/viaduct.core/BUILTIN_SCHEMA.graphqls`. Contributions cannot claim that producer identity. Plugin IDs remain literal components; a manifest's `apiName` is a separate identity.
 
-The `pluginSchema` and `pluginFinalSchema` copy specifications supply destinations beneath `schema/plugin/`, starting with `<plugin-id>/source/` or `<plugin-id>/generated/<generator-plugin-id>/`. Staging preserves contributed SDL bytes and relative file paths, rejects destination collisions, and removes stale staged files. The same provenance paths survive central and final assembly and appear in validation diagnostics.
+The existing `pluginSchema` and `pluginFinalSchema` copy specifications supply destinations beneath `viaduct/schema/plugin/` and `viaduct/final-schema-contribution/plugin/`, respectively, starting with `<plugin-id>/source/` or `<plugin-id>/generated/<generator-plugin-id>/`. Each task exclusively owns its staging root. Staging preserves original SDL bytes and meaningful relative directories and removes stale files. Central and final assembly translate only the artifact-type component, retaining owner, origin and filename for validation and runtime source locations.
+
+IDs use ASCII letters, digits, dots, underscores and hyphens and contain a letter or digit. Paths reject traversal, empty components, unsafe filenames, trailing dots/spaces and platform-reserved names. Collection rejects duplicate canonical paths after NFC normalization and case normalization, identifying both contributors. Directory collectors consume roots containing `viaduct/...`; JAR collectors remove exactly one `META-INF/` prefix before validating the same identity.
+
+Generation and staging outputs contain no `META-INF/` directory. Archive packaging adds that prefix exactly once; indexes contain the complete archive entry names. Build-only prepared and central SDL are not runtime resources. Final SDL is authoritative at runtime, with generated built-ins excluded because runtime supplies them.
 
 #### Restricted plugin scalars
 
@@ -140,7 +152,19 @@ Plugin scalars use a fixed JSON value representation: Java `Object` or Kotlin `A
 
 The Kotlin and Java module plugins generate resolver bases and extract resolver descriptors through Kotlin Symbol Processing (KSP) or Java annotation processing. Manifest assembly uses the central schema to validate resolver selections, including required selection sets, and determine tenant-local field ownership.
 
-Each assembled module manifest is a JSON resource under `META-INF/viaduct/modules/`. The language plugin contributes its generated directory through `moduleManifests` and adds it to the module's resources source set. The module JAR carries the manifest alongside compiled tenant code.
+The language plugin contributes its canonical generated directory through `moduleManifests`. The Kotlin and Java generators use producer IDs `com.airbnb.viaduct.module-gradle-plugin` and `com.airbnb.viaduct.module-java-gradle-plugin`. The module JAR adds `META-INF/` when copying the manifest alongside compiled tenant code. Existing first-party local execution uses a resources-only JAR with the same entries on source-set runtime classpaths; the generated directory itself remains unprefixed.
+
+Framework generators resolve these roots through `layout.buildDirectory`:
+
+| Output | Root |
+| --- | --- |
+| Java GRT source | `generated/sources/viaduct/grt/java/main` |
+| Java GRT bytecode | `classes/viaduct/grt/java/main` |
+| Kotlin GRT bytecode | `classes/viaduct/grt/kotlin/main` |
+| Java resolver-base source | `generated/sources/viaduct/resolver-bases/java/main` |
+| Kotlin resolver-base source | `generated/sources/viaduct/resolver-bases/kotlin/main` |
+
+Files beneath these roots follow package paths. GRT packages remain `viaduct.java.grts` and `viaduct.api.grts`; resolver bases remain `<full-module-package>.resolverbases`. Dedicated source and bytecode tasks own disjoint directories and remove stale output, including after package renames. Registered source roots and active JVM GRT variants retain their task dependencies, so module compilation does not depend on application classes or its JAR.
 
 Generated resolver-base directories are added to the appropriate source sets. Task-output providers connect schema assembly, generation, compilation, descriptor extraction, and manifest assembly in dependency order. See [the KSP pipeline](../../impldocs/execution-registry-ksp-pipeline.md) for descriptor extraction and stale-output handling.
 
@@ -150,7 +174,9 @@ This stage assembles the final schema as well as the runtime artifacts. A plugin
 
 The neutral `generateViaductSchemaResources` task packages the final contributed SDL, its resource index, and the schema scoping manifest together in a separate JAR; Viaduct supplies built-in definitions at runtime. The application's `runtimeOnly` includes that JAR, so Java-only applications do not require Kotlin GRTs to load schema resources. Module conventions select the same JAR for test and test-fixture runtimes without depending on application classes.
 
-The application's `allModuleManifestsIn` selects explicit manifest contributions. `generateViaductExecutionRegistryResourceIndex` lists their resource paths and rejects duplicate paths and duplicate `(tenantName, apiName)` identities. The resulting index becomes an application resource; the manifests remain in module JARs. Index generation does not scan the application's runtime dependency JARs to discover contributions.
+The application's `allModuleManifestsIn` selects explicit manifest contributions. `generateViaductExecutionRegistryResourceIndex` lists their resource paths and rejects duplicate paths and duplicate `(tenantName, apiName)` identities. The resulting index becomes an application resource; the manifests remain in module JARs. Index generation does not scan the application's runtime dependency JARs to discover contributions. The index is copied into the application JAR with one archive prefix and supplied by a resources-only JAR for existing local execution.
+
+This layout migration retains the current explicit configurations and copy specifications, including the separate schema-resource JAR as an intermediate carrier. Public reader/contribution helpers, registration-driven resource delivery, final production resource placement and manifest ownership/injection changes remain subsequent work. The canonical paths do not rename public configuration members or variant attribute values.
 
 The application's `runtimeOnly` inherits its declared module dependencies. Each module exposes artifactless metadata identifying its required GRT languages. The application resolves that metadata non-transitively and combines it with any same-project module requirements to connect only the required local GRT task outputs to `api`. Application compilation therefore does not resolve module runtime dependencies or require compiled tenant code. Enabling an unused tenant API does not add its GRTs to either classpath.
 

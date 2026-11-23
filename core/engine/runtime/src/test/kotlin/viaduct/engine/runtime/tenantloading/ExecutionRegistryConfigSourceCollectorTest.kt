@@ -19,22 +19,47 @@ class ExecutionRegistryConfigSourceCollectorTest {
 
     @Test
     fun `fromResources loads only indexed resources within the package boundary`() {
-        val matchingPath = "META-INF/viaduct/modules/com.example.indexed.json"
-        val packagePath = "META-INF/viaduct/modules/com.example.json"
-        val lookalikePath = "META-INF/viaduct/modules/com.exampleish.json"
-        val unrelatedPath = "META-INF/viaduct/modules/com.other.unrelated.json"
+        val matchingPath = "META-INF/viaduct/execution-manifest/module/com.example.indexed/generated/com.airbnb.viaduct.module-gradle-plugin/com.example.indexed.json"
+        val packagePath = "META-INF/viaduct/execution-manifest/module/com.example/generated/com.airbnb.viaduct.module-gradle-plugin/com.example.json"
+        val lookalikePath = "META-INF/viaduct/execution-manifest/module/com.exampleish/generated/com.airbnb.viaduct.module-gradle-plugin/com.exampleish.json"
+        val unrelatedPath = "META-INF/viaduct/execution-manifest/module/com.other.unrelated/generated/com.airbnb.viaduct.module-gradle-plugin/com.other.unrelated.json"
         val paths = listOf(matchingPath, packagePath, lookalikePath, unrelatedPath).sorted()
         writeResource(ViaductResourceIndexes.EXECUTION_REGISTRY, paths.joinToString("\n", postfix = "\n"))
         writeResource(matchingPath, registryJson("indexed"))
         writeResource(packagePath, registryJson("package"))
         writeResource(lookalikePath, "not a module config")
         writeResource(unrelatedPath, "not a module config")
-        writeResource("META-INF/viaduct/modules/com.example.unlisted.json", "not a module config")
+        writeResource("META-INF/viaduct/execution-manifest/module/com.example.unlisted/generated/com.airbnb.viaduct.module-gradle-plugin/com.example.unlisted.json", "not a module config")
 
         URLClassLoader(arrayOf(tempDir.toUri().toURL()), null).use { classLoader ->
             val sources = ExecutionRegistryConfigSourceCollector.fromResources("com.example", classLoader)
 
             assertThat(sources.map { it.tenantName }).containsExactly("indexed", "package")
+        }
+    }
+
+    @Test
+    fun `indexed manifests reject portable path aliases before parsing`() {
+        val first = "META-INF/viaduct/execution-manifest/module/catalog/generated/dev.generator/Resolvers.json"
+        val second = first.replace("Resolvers.json", "resolvers.json")
+        writeResource(ViaductResourceIndexes.EXECUTION_REGISTRY, "$first\n$second\n")
+
+        URLClassLoader(arrayOf(tempDir.toUri().toURL()), null).use { classLoader ->
+            assertThatThrownBy { ExecutionRegistryConfigSourceCollector.fromResources(null, classLoader) }
+                .isInstanceOf(IllegalArgumentException::class.java)
+                .hasMessageContaining(first)
+                .hasMessageContaining(second)
+        }
+    }
+
+    @Test
+    fun `indexed legacy module paths are not discovered`() {
+        val legacy = "META-INF/viaduct/modules/com.example.legacy.json"
+        writeResource(ViaductResourceIndexes.EXECUTION_REGISTRY, "$legacy\n")
+        writeResource(legacy, registryJson("legacy"))
+
+        URLClassLoader(arrayOf(tempDir.toUri().toURL()), null).use { classLoader ->
+            assertThat(ExecutionRegistryConfigSourceCollector.fromResources(null, classLoader)).isEmpty()
         }
     }
 
@@ -45,7 +70,9 @@ class ExecutionRegistryConfigSourceCollectorTest {
                 ExecutionRegistryConfigSourceCollector.fromResources(null, classLoader)
             }
 
-            assertTrue(exception.message.orEmpty().contains("Apply the Viaduct application Gradle plugin"))
+            assertThat(exception).hasMessageContaining("Apply the Viaduct application Gradle plugin")
+                .hasMessageContaining("plugins compatible with this runtime")
+                .hasMessageContaining("legacy META-INF/viaduct/modules manifests are not discovered")
         }
     }
 
@@ -79,8 +106,8 @@ class ExecutionRegistryConfigSourceCollectorTest {
 
     @Test
     fun `fromResourcePaths loads exact resources in path order`() {
-        val alphaPath = "META-INF/viaduct/modules/com.example.alpha.json"
-        val betaPath = "META-INF/viaduct/modules/com.example.beta.json"
+        val alphaPath = "META-INF/viaduct/execution-manifest/module/com.example.alpha/generated/com.airbnb.viaduct.module-gradle-plugin/com.example.alpha.json"
+        val betaPath = "META-INF/viaduct/execution-manifest/module/com.example.beta/generated/com.airbnb.viaduct.module-gradle-plugin/com.example.beta.json"
         writeResource(alphaPath, registryJson("alpha"))
         writeResource(betaPath, registryJson("beta"))
 
@@ -96,7 +123,7 @@ class ExecutionRegistryConfigSourceCollectorTest {
 
     @Test
     fun `fromResourcePaths requires every resource`() {
-        val missingPath = "META-INF/viaduct/modules/com.example.missing.json"
+        val missingPath = "META-INF/viaduct/execution-manifest/module/com.example.missing/generated/com.airbnb.viaduct.module-gradle-plugin/com.example.missing.json"
 
         URLClassLoader(arrayOf(tempDir.toUri().toURL()), null).use { classLoader ->
             assertThatThrownBy {
@@ -110,7 +137,7 @@ class ExecutionRegistryConfigSourceCollectorTest {
 
     @Test
     fun `fromResourcePaths rejects duplicate classpath resources`() {
-        val path = "META-INF/viaduct/modules/com.example.duplicate.json"
+        val path = "META-INF/viaduct/execution-manifest/module/com.example.duplicate/generated/com.airbnb.viaduct.module-gradle-plugin/com.example.duplicate.json"
         val firstRoot = tempDir.resolve("first")
         val secondRoot = tempDir.resolve("second")
         writeResource(firstRoot, path, registryJson("first"))
@@ -128,8 +155,8 @@ class ExecutionRegistryConfigSourceCollectorTest {
 
     @Test
     fun `fromResourcePaths rejects configs with the same tenant and API`() {
-        val alphaPath = "META-INF/viaduct/modules/com.example.alpha.json"
-        val betaPath = "META-INF/viaduct/modules/com.example.beta.json"
+        val alphaPath = "META-INF/viaduct/execution-manifest/module/com.example.alpha/generated/com.airbnb.viaduct.module-gradle-plugin/com.example.alpha.json"
+        val betaPath = "META-INF/viaduct/execution-manifest/module/com.example.beta/generated/com.airbnb.viaduct.module-gradle-plugin/com.example.beta.json"
         writeResource(alphaPath, registryJson("duplicate"))
         writeResource(betaPath, registryJson("duplicate"))
 

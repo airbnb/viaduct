@@ -197,6 +197,6 @@ class SchemaScopingManifestTest {
     }
 
     private companion object {
-        const val SOURCE = "jar:file:/app.jar!/META-INF/viaduct/schema-scoping.json"
+        const val SOURCE = "jar:file:/app.jar!/META-INF/viaduct/schema-scoping-manifest/application/generated/viaduct.core/schema-scoping.json"
     }
 }

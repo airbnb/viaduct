@@ -192,7 +192,7 @@ class ViaductJavaModulePluginFunctionalTest {
         assertTrue(result.output.contains("JAVA_TENANT_PREFIX=com.example.topology"))
         assertTrue(result.output.contains("JAVA_TENANT_PACKAGE=javaresolvers"))
         assertTrue(
-            result.output.contains("generated-sources/viaduct/javaResolverBases"),
+            result.output.contains("generated/sources/viaduct/resolver-bases/java/main"),
             "Expected Java resolver-base output root to be configured",
         )
     }
@@ -209,10 +209,9 @@ class ViaductJavaModulePluginFunctionalTest {
                     def annotationProcessors =
                         configurations.getByName('annotationProcessor').allDependencies
                             .collect { "${'$'}{it.group}:${'$'}{it.name}" }
-                    def resourceDirs =
-                        project.extensions.getByType(org.gradle.api.plugins.JavaPluginExtension)
-                            .sourceSets.getByName('main').resources.srcDirs
-                            .collect { it.absolutePath.replace(File.separatorChar, '/' as char) }
+                    def jarDependencies = tasks.named('jar').get().taskDependencies
+                        .getDependencies(tasks.named('jar').get()).collect { it.name }
+                    def localResources = tasks.named('generateViaductModuleResources').get()
                     def codegenDependencies =
                         tasks.named('viaductCodegen').get().taskDependencies
                             .getDependencies(tasks.named('viaductCodegen').get())
@@ -224,7 +223,8 @@ class ViaductJavaModulePluginFunctionalTest {
                     println "HAS_ASSEMBLE_TASK=${'$'}{tasks.names.contains('assembleViaductModuleConfigFile')}"
                     println "JAVA_API_NAME=${'$'}apiName"
                     println "ANNOTATION_PROCESSORS=${'$'}annotationProcessors"
-                    println "RESOURCE_DIRS=${'$'}resourceDirs"
+                    println "JAR_DEPENDS_ON_ASSEMBLY=${'$'}{jarDependencies.contains('assembleViaductModuleConfigFile')}"
+                    println "LOCAL_RESOURCE_TASK=${'$'}{localResources.name}"
                     println "CODEGEN_DEPENDS_ON_ASSEMBLY=${'$'}{codegenDependencies.contains('assembleViaductModuleConfigFile')}"
                     println "JAR_EXCLUDES_RAW_DESCRIPTORS=${'$'}{jarExcludes.contains('viaduct-registry/**')}"
                 }
@@ -245,7 +245,7 @@ class ViaductJavaModulePluginFunctionalTest {
             result.output,
         )
         assertTrue(
-            result.output.contains("generated-resources/viaduct-registry"),
+            result.output.contains("JAR_DEPENDS_ON_ASSEMBLY=true") && result.output.contains("LOCAL_RESOURCE_TASK=generateViaductModuleResources"),
             result.output,
         )
         assertTrue(result.output.contains("CODEGEN_DEPENDS_ON_ASSEMBLY=true"), result.output)

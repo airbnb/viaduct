@@ -35,7 +35,7 @@ import viaduct.service.api.spi.CodeInjector
  * engine (via [viaduct.engine.runtime.tenantloading.ModuleConfigBootstrapper])
  * instantiates this class reflectively using the production
  * `(CodeInjector, ExecutionRegistryConfigFile)` constructor named in each
- * `META-INF/viaduct/modules/<pkg>.json` registry file. Production uses the fixed Java GRT package;
+ * `META-INF/viaduct/execution-manifest/module/<module-id>/generated/<generator-plugin-id>/<pkg>.json` registry file. Production uses the fixed Java GRT package;
  * tests may override that package through the primary three-argument constructor. The engine then
  * calls [createFieldResolverExecutor] / [createNodeResolverExecutor] once per entry.
  *

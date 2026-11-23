@@ -68,6 +68,7 @@ abstract class GenerateResolverBasesTask
             ViaductSchema.fromGraphQLSchema(readTypesFromFiles(centralSchemaFiles.files.toList(), ViaductPluginCommon.schemaArtifactRoot(centralSchemaFiles)))
                 .toBinaryFile(binarySchemaFile)
 
+            val generated = temporaryDir.resolve("generated")
             workerExecutor.runCodegen(
                 classpath,
                 mainClass.get(),
@@ -85,18 +86,22 @@ abstract class GenerateResolverBasesTask
                     "--tenant_pkg",
                     tenantPackage.get(),
                     "--resolver_generated_directory",
-                    outputDirectory.get().asFile.absolutePath
+                    generated.absolutePath
                 )
             )
+            val root = outputDirectory.get().asFile
+            root.deleteRecursively()
+            root.mkdirs()
+            val packagePath = listOf(tenantPackagePrefix.get(), tenantPackage.get().replace('_', '.'), "resolverbases")
+                .filter(String::isNotBlank).joinToString("/") { it.replace('.', '/') }
+            generated.walkTopDown().filter { it.isFile && it.extension == "kt" }.forEach { source ->
+                source.copyTo(root.resolve("$packagePath/${source.name}"))
+            }
         }
 
         fun Project.wireToModuleLayout(moduleLayout: ViaductModulePackageLayout) {
             tenantPackagePrefix.set(moduleLayout.resolverBasePackagePrefix)
             tenantPackage.set(moduleLayout.resolverBasePackage)
-            outputDirectory.set(
-                resolverBasesDirectory().map { base ->
-                    base.dir(moduleLayout.fullTenantPackagePath)
-                }
-            )
+            outputDirectory.set(resolverBasesDirectory())
         }
     }

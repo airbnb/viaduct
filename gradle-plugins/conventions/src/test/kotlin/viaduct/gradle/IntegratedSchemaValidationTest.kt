@@ -183,11 +183,11 @@ class IntegratedSchemaValidationTest {
 
     @Test
     fun `final errors attribute final contributors even at central or absent locations`() {
-        val central = tempDir.resolve("schema/module/tenant/source/schema.graphqls").toFile().apply {
+        val central = tempDir.resolve("viaduct/schema/module/tenant/source/schema.graphqls").toFile().apply {
             parentFile.mkdirs()
             writeText("type Query { value: String } interface Added { value: String } type Central implements Added { value: String }")
         }
-        val final = tempDir.resolve("schema/plugin/dev.final/generated/dev.generator/final.graphqls").toFile().apply {
+        val final = tempDir.resolve("viaduct/schema/plugin/dev.final/generated/dev.generator/final.graphqls").toFile().apply {
             parentFile.mkdirs()
             writeText("extend interface Added { missing: String }")
         }
@@ -230,7 +230,7 @@ class IntegratedSchemaValidationTest {
 
     @Test
     fun `plugin rule diagnostics survive builtin framework failures`() {
-        val file = tempDir.resolve("schema/plugin/dev.central/source/invalid.graphqls").toFile().apply {
+        val file = tempDir.resolve("viaduct/schema/plugin/dev.central/source/invalid.graphqls").toFile().apply {
             parentFile.mkdirs()
             writeText("scalar InvalidScalar type Query { value: String }")
         }

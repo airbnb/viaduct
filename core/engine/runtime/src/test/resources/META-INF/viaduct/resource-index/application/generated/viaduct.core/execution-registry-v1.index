@@ -1,0 +1,3 @@
+META-INF/viaduct/execution-manifest/module/com.example.bootstrapped/generated/com.airbnb.viaduct.module-gradle-plugin/com.example.bootstrapped.json
+META-INF/viaduct/execution-manifest/module/com.example.test/generated/com.airbnb.viaduct.module-gradle-plugin/com.example.test.json
+META-INF/viaduct/execution-manifest/module/com.example.unknown/generated/com.airbnb.viaduct.module-gradle-plugin/com.example.unknown.json

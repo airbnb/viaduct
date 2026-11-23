@@ -24,12 +24,14 @@ import viaduct.apiannotations.InternalApi
 import viaduct.gradle.CodegenWorkAction
 import viaduct.gradle.ViaductPluginCommon
 import viaduct.gradle.runCodegen
+import viaduct.graphql.schema.SchemaProvenance
+import viaduct.utils.resources.ViaductResourcePaths
 
 /**
  * Assembles the tenant module config file by invoking the aggregation CLI.
  *
  * Reads per-source descriptor JSON files from [descriptorDir] and produces
- * a single `META-INF/viaduct/modules/<tenantPackage>.json` in [outputDir].
+ * a single `viaduct/execution-manifest/module/<module-id>/generated/<generator-plugin-id>/<tenantPackage>.json` in [outputDir].
  *
  * Gradle's up-to-date checking handles skipping this task when inputs haven't
  * changed. When the task does execute, it always reconciles outputs from the
@@ -69,6 +71,9 @@ abstract class AssembleTenantModuleConfigFileTask : DefaultTask(), IncrementalAc
      */
     @get:Input
     abstract val apiName: Property<String>
+
+    @get:Input
+    abstract val generatorPluginId: Property<String>
 
     @get:Classpath
     abstract val codegenClasspath: ConfigurableFileCollection
@@ -115,18 +120,8 @@ abstract class AssembleTenantModuleConfigFileTask : DefaultTask(), IncrementalAc
         assembleConfig(descRoot)
     }
 
-    /**
-     * Removes all task-owned registry files under the `META-INF/viaduct/modules`
-     * subtree of [outputDir]. This ensures stale configs (e.g., from a renamed
-     * tenant package) are cleaned up before regeneration.
-     *
-     * Scoped to the modules subtree only — does not touch unrelated siblings.
-     */
     internal fun clearOwnedModuleConfigs() {
-        val modulesDir = outputDir.get().asFile.resolve("META-INF/viaduct/modules")
-        if (modulesDir.exists()) {
-            modulesDir.listFiles()?.forEach { if (it.extension == "json") it.delete() }
-        }
+        outputDir.get().asFile.deleteRecursively()
     }
 
     // ── IncrementalActions implementation ────────────────────────────────────
@@ -141,6 +136,8 @@ abstract class AssembleTenantModuleConfigFileTask : DefaultTask(), IncrementalAc
             executorFactory.get(),
             "--api-name",
             apiName.get(),
+            "--generator-plugin-id",
+            generatorPluginId.get(),
             "--output-dir",
             outputDir.get().asFile.absolutePath,
         )
@@ -168,12 +165,21 @@ abstract class AssembleTenantModuleConfigFileTask : DefaultTask(), IncrementalAc
 
     override fun deleteConfig(pkg: String) {
         val configFile = outputDir.get().asFile
-            .resolve("META-INF/viaduct/modules/$pkg.json")
+            .resolve(
+                ViaductResourcePaths.manifest(
+                    SchemaProvenance.moduleIdFromPackage(pkg, tenantPackagePrefix.orNull),
+                    generatorPluginId.get(),
+                    "$pkg.json",
+                )
+            )
         configFile.delete()
         logger.info("Removed config for package {}", pkg)
     }
 
     companion object {
+        const val GENERATOR_PLUGIN_ID = ViaductResourcePaths.KOTLIN_GENERATOR
+        const val JAVA_GENERATOR_PLUGIN_ID = ViaductResourcePaths.JAVA_GENERATOR
+
         const val EXECUTOR_FACTORY = "viaduct.tenant.runtime.bootstrap.ViaductModernExecutorFactory"
 
         /**

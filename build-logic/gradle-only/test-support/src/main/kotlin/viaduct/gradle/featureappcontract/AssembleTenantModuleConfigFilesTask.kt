@@ -39,7 +39,7 @@ import viaduct.gradle.common.runCodegen
  * - The contract's `schema.graphql` file
  * - The tenant package name (derived from the schema file's directory path)
  *
- * Output: one `META-INF/viaduct/modules/<tenantpkg>.json` per contract in [outputDir].
+ * Output: one canonical `viaduct/execution-manifest/.../<tenantpkg>.json` per contract in [outputDir].
  */
 @CacheableTask
 abstract class AssembleTenantModuleConfigFilesTask : DefaultTask(), IncrementalActions {
@@ -91,6 +91,9 @@ abstract class AssembleTenantModuleConfigFilesTask : DefaultTask(), IncrementalA
      */
     @get:Input
     abstract val apiName: Property<String>
+
+    @get:Input
+    abstract val generatorPluginId: Property<String>
 
     /** Output directory for generated config files. */
     @get:OutputDirectory
@@ -153,6 +156,8 @@ abstract class AssembleTenantModuleConfigFilesTask : DefaultTask(), IncrementalA
                 executorFactory.getOrElse(MODERN_KOTLIN_EXECUTOR_FACTORY),
                 "--api-name",
                 apiName.get(),
+                "--generator-plugin-id",
+                generatorPluginId.get(),
                 "--output-dir",
                 outputDir.get().asFile.absolutePath,
             ),
@@ -160,9 +165,9 @@ abstract class AssembleTenantModuleConfigFilesTask : DefaultTask(), IncrementalA
     }
 
     override fun deleteConfig(pkg: String) {
-        val configFile = outputDir.get().asFile
-            .resolve("META-INF/viaduct/modules/$pkg.json")
-        configFile.delete()
+        outputDir.get().asFile.walkTopDown()
+            .filter { it.isFile && it.name == "$pkg.json" }
+            .forEach(File::delete)
         logger.info("Removed config for package {}", pkg)
     }
 
