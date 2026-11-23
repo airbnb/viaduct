@@ -3,7 +3,10 @@ package viaduct.engine.runtime2.coverage
 import java.io.Reader
 import viaduct.engine.api.ResolverType
 import viaduct.engine.runtime2.arbitrary.Config
+import viaduct.engine.runtime2.arbitrary.InputObjectsEnabled
 import viaduct.engine.runtime2.arbitrary.ListsEnabled
+import viaduct.engine.runtime2.arbitrary.ResolverFragmentsEnabled
+import viaduct.engine.runtime2.arbitrary.ResolverFromArgumentNestedPathWeight
 import viaduct.engine.runtime2.arbitrary.ResolverFromArgumentVariablesEnabled
 import viaduct.engine.runtime2.arbitrary.ResolverFromObjectFieldVariablesEnabled
 import viaduct.engine.runtime2.arbitrary.ResolverFromQueryFieldVariablesEnabled
@@ -11,10 +14,11 @@ import viaduct.engine.runtime2.arbitrary.ResolverVariablesEnabled
 import viaduct.engine.runtime2.propertytest.PropertyTestJson
 import viaduct.engine.runtime2.propertytest.ResolverTestCaseId
 import viaduct.engine.runtime2.propertytest.ResolverTestShardIds
+import viaduct.engine.runtime2.resolution.framework.CheckerKind
 import viaduct.engine.runtime2.resolution.framework.ProviderCellOutcome
 
 /** Version of the RFC-271 coverage data and companion report, independent of saved-suite storage versions. */
-const val RESOLVER_COVERAGE_MODEL_VERSION = 12
+const val RESOLVER_COVERAGE_MODEL_VERSION = 13
 
 enum class ResolutionRole { INVOKED, SOURCE_SUPPLIED, ARGUMENT_ERROR_NOT_INVOKED, UNKNOWN }
 
@@ -67,6 +71,7 @@ data class ResolverCoverageRow(
     val listAncestorCount: Int,
     val bindingSources: Set<ResolverBindingSource>,
     val maxProviderPathDepth: Int?,
+    val maxArgumentPathDepth: Int = 0,
     val argumentState: ArgumentState,
     val declaredOutputShape: DeclaredOutputShape,
     val outputKind: OutputKind,
@@ -79,7 +84,7 @@ data class ResolverCoverageRow(
 
     init {
         require(listOf(runId, executionId, batchId, schemaId, registryId, queryId, occurrenceId, resultPath, fieldCoordinate, resolverName).none(String::isBlank))
-        require(listAncestorCount >= 0 && (maxProviderPathDepth == null || maxProviderPathDepth > 0))
+        require(listAncestorCount >= 0 && (maxProviderPathDepth == null || maxProviderPathDepth > 0) && maxArgumentPathDepth >= 0)
     }
 }
 
@@ -134,7 +139,25 @@ data class ResolverDependencyOccurrence(
 data class ResolverCoverageRecords(
     val occurrences: List<ResolverCoverageRow>,
     val dependencies: List<ResolverDependencyRow>,
+    val checkerOccurrences: List<CheckerCoverageOccurrence> = emptyList(),
 )
+
+/** One checker call, with runtime binding sources and any matching field-resolver role. */
+data class CheckerCoverageOccurrence(
+    val execution: CoverageExecution,
+    val occurrenceId: String,
+    val occurrencePath: String,
+    val checkerKind: CheckerKind,
+    val checkedCoordinate: String,
+    val bindingSources: Set<ResolverBindingSource>,
+    val maxArgumentPathDepth: Int,
+    val correspondingResolverRole: ResolutionRole?,
+) {
+    init {
+        require(listOf(execution.runId, execution.executionId, occurrenceId, occurrencePath, checkedCoordinate).none(String::isBlank))
+        require(maxArgumentPathDepth >= 0)
+    }
+}
 
 /** Counts support at occurrence and saved-suite levels. */
 data class CoverageSupport(
@@ -152,10 +175,23 @@ enum class CoverageEvidenceKind { LOCAL_COMBINATION, RESULT_TREE_PATH, DEPENDENC
 internal data class ResolverCoverageEvidence(
     val rows: Set<ResolverCoverageRow> = emptySet(),
     val dependencyGroups: List<List<ResolverDependencyRow>> = emptyList(),
+    val checkerOccurrences: Set<CheckerCoverageOccurrence> = emptySet(),
 ) {
-    val isEmpty: Boolean get() = rows.isEmpty() && dependencyGroups.isEmpty()
+    val isEmpty: Boolean get() = rows.isEmpty() && dependencyGroups.isEmpty() && checkerOccurrences.isEmpty()
 
-    fun support(): CoverageSupport = if (dependencyGroups.isNotEmpty()) dependencyGroups.dependencySupport() else rows.toList().support()
+    fun support(): CoverageSupport =
+        when {
+            dependencyGroups.isNotEmpty() -> dependencyGroups.dependencySupport()
+            checkerOccurrences.isEmpty() -> rows.toList().support()
+            else -> {
+                val executionIds = rows.map { it.runId to it.executionId } + checkerOccurrences.map { it.execution.runId to it.execution.executionId }
+                val tests = rows.map { it.test } + checkerOccurrences.map { it.execution.test }
+                val registries = rows.map { it.batchId to it.registryId } + checkerOccurrences.map { it.execution.test.batchId to it.execution.test.registryId }
+                val batches = rows.map { it.batchId } + checkerOccurrences.map { it.execution.test.batchId }
+                val schemas = rows.map { it.schemaId } + checkerOccurrences.map { it.execution.test.schemaId }
+                CoverageSupport(rows.size + checkerOccurrences.size, executionIds.distinct().size, tests.distinct().size, registries.distinct().size, batches.distinct().size, schemas.distinct().size)
+            }
+        }
 }
 
 enum class ResolverCoverageRequirementKind { OBLIGATION, ATTRIBUTE }
@@ -230,6 +266,9 @@ private fun Config.generatesObjectFieldBindings(): Boolean = this[ResolverVariab
 private fun Config.generatesProviderReads(): Boolean = this[ResolverVariablesEnabled] && (this[ResolverFromObjectFieldVariablesEnabled] || this[ResolverFromQueryFieldVariablesEnabled])
 
 private fun Config.generatesBothSources(): Boolean = generatesArgumentBindings() && generatesObjectFieldBindings()
+
+private fun Config.generatesNestedArgumentPaths(): Boolean =
+    this[ResolverFragmentsEnabled] && this[ResolverFromArgumentVariablesEnabled] && this[InputObjectsEnabled] && this[ResolverFromArgumentNestedPathWeight] > 0.0
 
 /** Obligations whose evidence [config] cannot generate, so a suite built from it reports them as not applicable rather than not exercised. */
 fun inapplicableObligationIds(config: Config): Set<String> = resolverCoverageMetricCatalog.filterNot { it.applicableTo(config) }.mapTo(sortedSetOf()) { it.id }
@@ -394,6 +433,51 @@ internal val resolverCoverageMetricCatalog =
             evidenceKind = CoverageEvidenceKind.DEPENDENCY_RELATIONSHIP,
             description = "A recorded read delivers a null or error provider outcome to a consumer occurrence.",
             evidence = ResolverCoverageMeasurement::providerNullOrErrorReachesConsumerEvidence,
+        ),
+        ResolverCoverageMetricDefinition(
+            id = "argument_backed_variable_bound",
+            code = "AVB",
+            applicableTo = { it[ResolverFragmentsEnabled] && it[ResolverFromArgumentVariablesEnabled] },
+            evidenceKind = CoverageEvidenceKind.LOCAL_COMBINATION,
+            description = "An invoked resolver or checker uses a variable bound from an argument.",
+            evidence = { measurement -> measurement.argumentBackedVariableEvidence() },
+        ),
+        ResolverCoverageMetricDefinition(
+            id = "argument_binding_path_has_multiple_steps",
+            code = "AM",
+            applicableTo = Config::generatesNestedArgumentPaths,
+            evidenceKind = CoverageEvidenceKind.LOCAL_COMBINATION,
+            description = "An invoked resolver or checker binds a variable through multiple input-object fields.",
+            evidence = { measurement -> measurement.multiStepArgumentPathEvidence() },
+        ),
+        ResolverCoverageMetricDefinition(
+            id = "checker_uses_runtime_bound_variable",
+            code = "CRV",
+            applicableTo = { it[ResolverFragmentsEnabled] && (it[ResolverVariablesEnabled] || it[ResolverFromArgumentVariablesEnabled]) },
+            evidenceKind = CoverageEvidenceKind.LOCAL_COMBINATION,
+            description = "An invoked checker has a variable bound at runtime from an argument, field, or provider.",
+            evidence = { measurement -> measurement.checkerRuntimeVariableEvidence() },
+        ),
+        ResolverCoverageMetricDefinition(
+            id = "field_checker_invoked",
+            code = "FCI",
+            evidenceKind = CoverageEvidenceKind.LOCAL_COMBINATION,
+            description = "A field checker is invoked for a generated occurrence.",
+            evidence = { measurement -> measurement.checkerEvidence { it.checkerKind == CheckerKind.FIELD } },
+        ),
+        ResolverCoverageMetricDefinition(
+            id = "field_resolver_invoked",
+            code = "FRI",
+            evidenceKind = CoverageEvidenceKind.LOCAL_COMBINATION,
+            description = "A field resolver is invoked for a generated occurrence.",
+            evidence = { measurement -> ResolverCoverageEvidence(rows = measurement.rows.filter { it.resolutionRole == ResolutionRole.INVOKED }.toSet()) },
+        ),
+        ResolverCoverageMetricDefinition(
+            id = "field_checker_without_resolver",
+            code = "FCWR",
+            evidenceKind = CoverageEvidenceKind.LOCAL_COMBINATION,
+            description = "A field checker is invoked for an occurrence supplied without invoking its field resolver.",
+            evidence = { measurement -> measurement.checkerEvidence { it.checkerKind == CheckerKind.FIELD && it.correspondingResolverRole == ResolutionRole.SOURCE_SUPPLIED } },
         ),
     ) +
         objectFragmentObligations.map { obligation ->
@@ -803,6 +887,7 @@ data class ResolverCoverageMeasurement(
     val rows: List<ResolverCoverageRow>,
     val modelVersion: Int = RESOLVER_COVERAGE_MODEL_VERSION,
     val dependencies: List<ResolverDependencyRow> = emptyList(),
+    val checkerOccurrences: List<CheckerCoverageOccurrence> = emptyList(),
 ) {
     init {
         require(modelVersion == RESOLVER_COVERAGE_MODEL_VERSION) { "Incompatible coverage model" }
@@ -811,6 +896,10 @@ data class ResolverCoverageMeasurement(
         require(rows.all { it.execution in completedExecutions }) { "Occurrence does not belong to a completed execution" }
         require(rows.distinctBy { Triple(it.runId, it.executionId, it.occurrenceId) }.size == rows.size) { "Duplicate occurrence ID" }
         require(dependencies.all { it.execution in completedExecutions }) { "Dependency does not belong to a completed execution" }
+        require(checkerOccurrences.all { it.execution in completedExecutions }) { "Checker occurrence does not belong to a completed execution" }
+        require(checkerOccurrences.distinctBy { Triple(it.execution.runId to it.execution.executionId, it.occurrenceId, it.checkerKind to it.checkedCoordinate) }.size == checkerOccurrences.size) {
+            "Duplicate checker occurrence"
+        }
         val occurrencesById = rows.associateBy { Triple(it.runId, it.executionId, it.occurrenceId) }
         require(
             dependencies.all { dependency ->
@@ -825,6 +914,22 @@ data class ResolverCoverageMeasurement(
     }
 
     fun support(obligation: OccurrenceCoverageObligation): CoverageSupport = occurrenceEvidence(obligation).support()
+
+    internal fun checkerEvidence(matches: (CheckerCoverageOccurrence) -> Boolean) = ResolverCoverageEvidence(checkerOccurrences = checkerOccurrences.filter(matches).toSet())
+
+    internal fun argumentBackedVariableEvidence(): ResolverCoverageEvidence =
+        ResolverCoverageEvidence(
+            rows = rows.filter { it.resolutionRole == ResolutionRole.INVOKED && ResolverBindingSource.ARGUMENT in it.bindingSources }.toSet(),
+            checkerOccurrences = checkerOccurrences.filter { ResolverBindingSource.ARGUMENT in it.bindingSources }.toSet(),
+        )
+
+    internal fun multiStepArgumentPathEvidence(): ResolverCoverageEvidence =
+        ResolverCoverageEvidence(
+            rows = rows.filter { it.resolutionRole == ResolutionRole.INVOKED && it.maxArgumentPathDepth > 1 }.toSet(),
+            checkerOccurrences = checkerOccurrences.filter { it.maxArgumentPathDepth > 1 }.toSet(),
+        )
+
+    internal fun checkerRuntimeVariableEvidence(): ResolverCoverageEvidence = checkerEvidence { it.bindingSources.isNotEmpty() }
 
     internal fun occurrenceEvidence(obligation: OccurrenceCoverageObligation) = rowsEvidence { it.resolutionRole == ResolutionRole.INVOKED && obligation.matches(it) }
 
@@ -985,11 +1090,20 @@ data class ResolverInteractionVector(
 data class ResolverInteractionParticipant(
     val role: String,
     val taxonomy: ResolverOccurrenceSignature?,
+    val checkerTaxonomy: CheckerOccurrenceSignature? = null,
 ) {
     init {
         require(role.isNotBlank())
     }
 }
+
+/** Taxonomy for a checker call, kept separate from field-resolver signatures. */
+data class CheckerOccurrenceSignature(
+    val checkerKind: CheckerKind,
+    val bindingSources: Set<ResolverBindingSource>,
+    val maxArgumentPathDepth: Int,
+    val correspondingResolverRole: ResolutionRole?,
+)
 
 /** Existing provider-read properties that describe a relationship between participants. */
 data class ResolverInteractionRelationship(
@@ -1019,6 +1133,7 @@ fun ResolverCoverageMeasurement.interactionVectorObservations(): List<ResolverIn
         execution: CoverageExecution,
         endpointRows: Collection<ResolverCoverageRow>,
         edges: Collection<ResolverDependencyRow> = emptyList(),
+        checkerOccurrences: Collection<CheckerCoverageOccurrence> = emptyList(),
     ) {
         observations += ResolverInteractionVectorObservation(
             vector = vector,
@@ -1026,8 +1141,10 @@ fun ResolverCoverageMeasurement.interactionVectorObservations(): List<ResolverIn
             executionId = execution.executionId,
             test = execution.test,
             resolverNames = endpointRows.mapTo(sortedSetOf(), ResolverCoverageRow::resolverName) +
+                checkerOccurrences.mapTo(sortedSetOf()) { it.checkedCoordinate } +
                 edges.flatMapTo(sortedSetOf()) { listOf(it.providerFieldCoordinate, it.consumerFieldCoordinate) },
             fieldCoordinates = endpointRows.mapTo(sortedSetOf(), ResolverCoverageRow::fieldCoordinate) +
+                checkerOccurrences.mapTo(sortedSetOf()) { it.checkedCoordinate } +
                 edges.flatMapTo(sortedSetOf()) { listOf(it.providerFieldCoordinate, it.consumerFieldCoordinate) },
         )
     }
@@ -1035,15 +1152,34 @@ fun ResolverCoverageMeasurement.interactionVectorObservations(): List<ResolverIn
     resolverCoverageMetricCatalog.forEach { definition ->
         val evidence = definition.evidence(this)
         when (definition.evidenceKind) {
-            CoverageEvidenceKind.LOCAL_COMBINATION -> evidence.rows.forEach { row ->
-                append(
-                    ResolverInteractionVector(
-                        categoryId = definition.id,
-                        participants = listOf(ResolverInteractionParticipant("occurrence", row.interactionTaxonomy())),
-                    ),
-                    row.execution,
-                    listOf(row),
-                )
+            CoverageEvidenceKind.LOCAL_COMBINATION -> {
+                evidence.rows.forEach { row ->
+                    append(
+                        ResolverInteractionVector(
+                            categoryId = definition.id,
+                            participants = listOf(ResolverInteractionParticipant("occurrence", row.interactionTaxonomy())),
+                        ),
+                        row.execution,
+                        listOf(row),
+                    )
+                }
+                evidence.checkerOccurrences.forEach { checker ->
+                    append(
+                        ResolverInteractionVector(
+                            categoryId = definition.id,
+                            participants = listOf(
+                                ResolverInteractionParticipant(
+                                    role = "checker",
+                                    taxonomy = null,
+                                    checkerTaxonomy = checker.interactionTaxonomy(),
+                                ),
+                            ),
+                        ),
+                        checker.execution,
+                        emptyList(),
+                        checkerOccurrences = listOf(checker),
+                    )
+                }
             }
 
             CoverageEvidenceKind.EXECUTION_COEXISTENCE -> evidence.rows.groupBy { it.execution }.forEach { (execution, groupRows) ->
@@ -1121,9 +1257,18 @@ private fun ResolverCoverageRow.interactionTaxonomy() =
         listAncestorCount = listAncestorCount,
         bindingSources = bindingSources,
         maxProviderPathDepth = maxProviderPathDepth,
+        maxArgumentPathDepth = maxArgumentPathDepth,
         argumentState = argumentState,
         declaredOutputShape = declaredOutputShape,
         outputKind = outputKind,
+    )
+
+private fun CheckerCoverageOccurrence.interactionTaxonomy() =
+    CheckerOccurrenceSignature(
+        checkerKind = checkerKind,
+        bindingSources = bindingSources,
+        maxArgumentPathDepth = maxArgumentPathDepth,
+        correspondingResolverRole = correspondingResolverRole,
     )
 
 private fun ResolverOccurrenceSignature.interactionTaxonomyKey(): String =
@@ -1134,6 +1279,7 @@ private fun ResolverOccurrenceSignature.interactionTaxonomyKey(): String =
         listAncestorCount.toString(),
         bindingSources.map { it.name }.sorted().joinToString("|"),
         maxProviderPathDepth?.toString().orEmpty(),
+        maxArgumentPathDepth.toString(),
         argumentState.name,
         declaredOutputShape.name,
         outputKind.name,
@@ -1161,6 +1307,12 @@ fun combineCoverageMeasurements(measurements: Collection<ResolverCoverageMeasure
                     dependency.copy(execution = executionsById.getValue(dependency.runId to dependency.executionId))
                 }
             },
+        checkerOccurrences =
+            measurements.flatMap { measurement ->
+                measurement.checkerOccurrences.map { occurrence ->
+                    occurrence.copy(execution = executionsById.getValue(occurrence.execution.runId to occurrence.execution.executionId))
+                }
+            },
     )
 }
 
@@ -1173,7 +1325,34 @@ internal fun resolverCoverageAttributes(measurement: ResolverCoverageMeasurement
     val invoked = measurement.rows.filter { it.resolutionRole == ResolutionRole.INVOKED }
     val exactListDepths = invoked.map { it.listAncestorCount }.distinct().sorted()
     val exactProviderPathDepths = invoked.mapNotNull { it.maxProviderPathDepth }.distinct().sorted()
+    val exactArgumentPathDepths = invoked.map { it.maxArgumentPathDepth }.distinct().sorted()
     val exactFragmentDepths = invoked.map { it.objectFragment.depth }.distinct().sorted()
+    val checkerAttributes = buildList {
+        CheckerKind.values().forEach { kind ->
+            add(
+                ResolverCoverageAttributeDefinition("checker_kind:${kind.name.lowercase()}", "A ${kind.name.lowercase()} checker is invoked.") { current ->
+                    current.checkerOccurrences.filter { it.checkerKind == kind }.checkerSupport()
+                },
+            )
+        }
+        ResolverBindingSource.values().forEach { source ->
+            add(
+                ResolverCoverageAttributeDefinition(
+                    "checker_binding_source:${source.name.lowercase()}",
+                    "An invoked checker uses a runtime variable bound from ${source.name.lowercase().replace('_', ' ')}."
+                ) { current ->
+                    current.checkerOccurrences.filter { source in it.bindingSources }.checkerSupport()
+                },
+            )
+        }
+        measurement.checkerOccurrences.map { it.maxArgumentPathDepth }.distinct().sorted().forEach { depth ->
+            add(
+                ResolverCoverageAttributeDefinition("checker_argument_path_depth:$depth", "An invoked checker has an argument input path of exactly $depth steps.") { current ->
+                    current.checkerOccurrences.filter { it.maxArgumentPathDepth == depth }.checkerSupport()
+                },
+            )
+        }
+    }
     val openEndedAttributes =
         buildList {
             exactFragmentDepths.forEach { depth ->
@@ -1185,8 +1364,11 @@ internal fun resolverCoverageAttributes(measurement: ResolverCoverageMeasurement
             exactProviderPathDepths.forEach { depth ->
                 add(resolverAttribute("provider_path_depth:$depth", "An invoked resolver has a provider path of exactly $depth steps.") { it.maxProviderPathDepth == depth })
             }
+            exactArgumentPathDepths.forEach { depth ->
+                add(resolverAttribute("argument_path_depth:$depth", "An invoked resolver has an argument input path of exactly $depth steps.") { it.maxArgumentPathDepth == depth })
+            }
         }
-    return (resolverCoverageAttributeDefinitions + openEndedAttributes).map { it.measure(measurement) }
+    return (resolverCoverageAttributeDefinitions + openEndedAttributes + checkerAttributes).map { it.measure(measurement) }
 }
 
 private fun bindingSourcesLabel(sources: Set<ResolverBindingSource>): String = if (sources.isEmpty()) "none" else sources.map { it.name.lowercase() }.sorted().joinToString("+")
@@ -1248,6 +1430,16 @@ private fun List<ResolverCoverageRow>.support(): CoverageSupport =
         registries = map { it.batchId to it.registryId }.distinct().size,
         batches = map { it.batchId }.distinct().size,
         schemas = map { it.schemaId }.distinct().size,
+    )
+
+private fun List<CheckerCoverageOccurrence>.checkerSupport(): CoverageSupport =
+    CoverageSupport(
+        occurrences = size,
+        executions = map { it.execution.runId to it.execution.executionId }.distinct().size,
+        tests = map { it.execution.test }.distinct().size,
+        registries = map { it.execution.test.batchId to it.execution.test.registryId }.distinct().size,
+        batches = map { it.execution.test.batchId }.distinct().size,
+        schemas = map { it.execution.test.schemaId }.distinct().size,
     )
 
 private fun Collection<List<ResolverDependencyRow>>.dependencySupport(): CoverageSupport {

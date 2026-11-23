@@ -11,11 +11,13 @@ import viaduct.engine.runtime2.arbitrary.ListValueSize
 import viaduct.engine.runtime2.arbitrary.MaxOutputListDepth
 import viaduct.engine.runtime2.arbitrary.MaxSelectionDepth
 import viaduct.engine.runtime2.arbitrary.MinimumSelectionDepth
+import viaduct.engine.runtime2.arbitrary.NestedQueryFieldCount
 import viaduct.engine.runtime2.arbitrary.NodeObjectWeight
 import viaduct.engine.runtime2.arbitrary.NodeResolversEnabled
 import viaduct.engine.runtime2.arbitrary.NullValueWeight
 import viaduct.engine.runtime2.arbitrary.NullableTypeWeight
 import viaduct.engine.runtime2.arbitrary.ObjectFieldCount
+import viaduct.engine.runtime2.arbitrary.ParentDemandPathWeight
 import viaduct.engine.runtime2.arbitrary.ParentFieldsEnabled
 import viaduct.engine.runtime2.arbitrary.QueryFieldCount
 import viaduct.engine.runtime2.arbitrary.QueryScalarFieldWeight
@@ -37,6 +39,7 @@ import viaduct.engine.runtime2.arbitrary.ResolverFromProviderVariablesEnabled
 import viaduct.engine.runtime2.arbitrary.ResolverFromQueryFieldVariablesEnabled
 import viaduct.engine.runtime2.arbitrary.ResolverLiteralVariableConvergenceWeight
 import viaduct.engine.runtime2.arbitrary.ResolverNestedProviderPathWeight
+import viaduct.engine.runtime2.arbitrary.ResolverQueryFragmentValuesAffectOutput
 import viaduct.engine.runtime2.arbitrary.ResolverQueryFragmentWeight
 import viaduct.engine.runtime2.arbitrary.ResolverQueryFragmentsEnabled
 import viaduct.engine.runtime2.arbitrary.ResolverVariableCount
@@ -188,15 +191,19 @@ internal fun rootFieldReferenceFocusedConfig(): Config = ResolutionBroadStressPr
 internal fun parentFocusedConfig(): Config =
     Config.default +
         (ParentFieldsEnabled to true) +
-        (MinimumSelectionDepth to 2) +
+        (ParentDemandPathWeight to 0.5) +
+        (MinimumSelectionDepth to 5) +
         (MaxSelectionDepth to 6) +
+        (SchemaObjectCount to 5..7) +
+        (NestedQueryFieldCount to 1..1) +
         (RandomParentFieldsEnabled to true) +
         (ResolverFragmentsEnabled to true) +
-        (ResolverFragmentWeight to 1.0) +
+        (ResolverFragmentWeight to 0.25) +
         (ResolverFragmentDepth to 3) +
         (FieldArgumentWeight to 0.65) +
         (ResolverFragmentArgumentFieldWeight to 1.0) +
         (ResolverQueryFragmentsEnabled to true) +
+        (ResolverQueryFragmentValuesAffectOutput to true) +
         (ResolverQueryFragmentWeight to 0.25) +
         (ResolverVariablesEnabled to true) +
         (ResolverFromArgumentVariablesEnabled to true) +

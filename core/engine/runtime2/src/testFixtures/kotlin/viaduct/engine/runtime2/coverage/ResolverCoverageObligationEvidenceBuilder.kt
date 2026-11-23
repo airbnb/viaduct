@@ -20,6 +20,7 @@ internal class ResolverCoverageObligationEvidenceBuilder(
 private fun ResolverCoverageEvidence.locations(): Set<CoverageEvidenceLocation> =
     buildSet {
         rows.forEach { row -> add(CoverageEvidenceLocation(row.fieldCoordinate, row.resultPath.stableOccurrenceCoordinate())) }
+        checkerOccurrences.forEach { occurrence -> add(CoverageEvidenceLocation(occurrence.checkedCoordinate, occurrence.occurrencePath.stableOccurrenceCoordinate())) }
         dependencyGroups.flatten().forEach { edge ->
             add(CoverageEvidenceLocation(edge.providerFieldCoordinate, edge.provider.occurrenceCoordinate?.stableOccurrenceCoordinate()))
             add(CoverageEvidenceLocation(edge.consumerFieldCoordinate, edge.consumer.occurrenceCoordinate?.stableOccurrenceCoordinate()))

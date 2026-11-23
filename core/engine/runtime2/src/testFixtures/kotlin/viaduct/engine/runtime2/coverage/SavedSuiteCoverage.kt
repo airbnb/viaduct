@@ -25,6 +25,7 @@ suspend fun ResolverContract.measureCoverage(
     val executions = mutableListOf<CoverageExecution>()
     val rows = mutableListOf<ResolverCoverageRow>()
     val dependencies = mutableListOf<ResolverDependencyRow>()
+    val checkerOccurrences = mutableListOf<CheckerCoverageOccurrence>()
     val expectedCases = candidate.replay { world, testCase, test ->
         val observation = observeGeneratedCase(world, testCase).assertAll(
             GeneratedCaseAssertions.defaultGeneratedContract + GeneratedCaseAssertions.fromFieldBindings,
@@ -35,9 +36,10 @@ suspend fun ResolverContract.measureCoverage(
         val records = observation.ordinary.subject.coverageRecords(execution)
         rows += records.occurrences
         dependencies += records.dependencies
+        checkerOccurrences += records.checkerOccurrences
     }
     check(executions.size == expectedCases) { "Incomplete ${candidate.label} measurement: ${executions.size} of $expectedCases cases" }
-    return ResolverCoverageMeasurement(executions, rows, dependencies = dependencies)
+    return ResolverCoverageMeasurement(executions, rows, dependencies = dependencies, checkerOccurrences = checkerOccurrences)
 }
 
 /** Compares saved suites through the same correctness-checked replay used for coverage measurement. */

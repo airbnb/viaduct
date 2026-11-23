@@ -146,6 +146,12 @@ private class QueryGenerator(
         val requiredField =
             schema.deepFields[typeName]
                 ?.takeIf { depth < config[MinimumSelectionDepth] }
+                ?.takeIf { fieldName ->
+                    fieldName != GENERATED_PARENT_ROOT_FIELD ||
+                        !config[ParentFieldsEnabled] ||
+                        config[ParentDemandPathWeight] >= 1.0 ||
+                        (config[ParentDemandPathWeight] > 0.0 && chance(config[ParentDemandPathWeight]))
+                }
                 ?.let { fieldName -> candidates.single { it.name == fieldName } }
         val requiredRootReferenceFields =
             when {

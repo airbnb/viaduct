@@ -25,6 +25,7 @@ object ResolverCoverageCsv {
         "list_ancestor_count",
         "binding_sources",
         "max_provider_path_depth",
+        "max_argument_path_depth",
         "argument_state",
         "declared_output_shape",
         "output_kind",
@@ -56,6 +57,7 @@ object ResolverCoverageCsv {
                         row.listAncestorCount,
                         row.bindingSources.sortedBy { it.ordinal }.joinToString("|") { it.name },
                         row.maxProviderPathDepth ?: "",
+                        row.maxArgumentPathDepth,
                         row.argumentState.name,
                         row.declaredOutputShape.name,
                         row.outputKind.name,
@@ -95,10 +97,11 @@ object ResolverCoverageCsv {
                         ?.toSet()
                         ?: emptySet(),
                     maxProviderPathDepth = record[16].takeIf(String::isNotEmpty)?.toInt(),
-                    argumentState = ArgumentState.valueOf(record[17]),
-                    declaredOutputShape = DeclaredOutputShape.valueOf(record[18]),
-                    outputKind = OutputKind.valueOf(record[19]),
-                    objectFragment = ObjectFragmentShape.fromCsvValues((20 until header.size).map { record[it].toInt() }),
+                    maxArgumentPathDepth = record[17].toInt(),
+                    argumentState = ArgumentState.valueOf(record[18]),
+                    declaredOutputShape = DeclaredOutputShape.valueOf(record[19]),
+                    outputKind = OutputKind.valueOf(record[20]),
+                    objectFragment = ObjectFragmentShape.fromCsvValues((21 until header.size).map { record[it].toInt() }),
                 )
             }
         }

@@ -36,6 +36,7 @@ private fun ResolverCoverageRow.behaviorSignature() =
         listAncestorCount = listAncestorCount,
         bindingSources = bindingSources,
         maxProviderPathDepth = maxProviderPathDepth,
+        maxArgumentPathDepth = maxArgumentPathDepth,
         argumentState = argumentState,
         declaredOutputShape = declaredOutputShape,
         outputKind = outputKind,

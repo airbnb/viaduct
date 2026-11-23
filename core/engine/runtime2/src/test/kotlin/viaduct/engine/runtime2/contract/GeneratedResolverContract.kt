@@ -30,6 +30,9 @@ import viaduct.engine.runtime2.arbitrary.ResolverFromFieldProviderArgumentVariab
 import viaduct.engine.runtime2.arbitrary.ResolverFromProviderVariablesEnabled
 import viaduct.engine.runtime2.arbitrary.ResolverFromQueryFieldVariablesEnabled
 import viaduct.engine.runtime2.arbitrary.ResolverNestedProviderPathWeight
+import viaduct.engine.runtime2.arbitrary.ResolverProgramKind
+import viaduct.engine.runtime2.arbitrary.ResolverProgramMutation
+import viaduct.engine.runtime2.arbitrary.ResolverQueryFragmentValuesAffectOutput
 import viaduct.engine.runtime2.arbitrary.ResolverQueryFragmentsEnabled
 import viaduct.engine.runtime2.arbitrary.ResolverTestCase
 import viaduct.engine.runtime2.arbitrary.ResolverTestRun
@@ -41,6 +44,7 @@ import viaduct.engine.runtime2.arbitrary.SchemaObjectCount
 import viaduct.engine.runtime2.arbitrary.resolutionDigest
 import viaduct.engine.runtime2.correctresolution.CorrectnessResolverObserver
 import viaduct.engine.runtime2.model.requireObjectField
+import viaduct.engine.runtime2.model.sameCompletedResultAs
 import viaduct.engine.runtime2.model.selectionForestOf
 import viaduct.engine.runtime2.model.testing.TestWorld
 import viaduct.engine.runtime2.propertytest.ResolverTestSuiteDefinition
@@ -320,6 +324,9 @@ interface QueryFragmentGeneratedResolverContract : GeneratedCaseAssertionPolicy 
             var activatedQueryFragments = 0
             var activatedArgumentVariableApplications = 0
             var activatedQueryPathVariableApplications = 0
+            var queryInputSensitiveApplications = 0
+            val queryInputMutationKillCases = linkedSetOf<String>()
+            val queryInputMutationKillBatches = linkedSetOf<String>()
             var queryValueWitnesses = 0
             val config =
                 Config.default +
@@ -328,6 +335,7 @@ interface QueryFragmentGeneratedResolverContract : GeneratedCaseAssertionPolicy 
                     (NodeResolversEnabled to false) +
                     (ResolverFragmentsEnabled to true) +
                     (ResolverFragmentWeight to 1.0) +
+                    (ResolverQueryFragmentValuesAffectOutput to true) +
                     (ResolverFromArgumentVariablesEnabled to true) +
                     (ResolverQueryFragmentsEnabled to true) +
                     (ResolverVariableWeight to 1.0) +
@@ -359,9 +367,45 @@ interface QueryFragmentGeneratedResolverContract : GeneratedCaseAssertionPolicy 
                             testWorld,
                             testCase,
                         )
+                    val operationQueryFields = linkedSetOf<String>()
+                    observation.ordinary.fragment.subselections.forEach { selection ->
+                        operationQueryFields += selection.key.field.name
+                    }
+                    val queryFragmentApplications =
+                        observation.ordinaryApplications.filter { application ->
+                            testCase.registry.hasNonemptyQueryFragment(application) &&
+                                testCase.registry.queryFragments.getValue(application.key.field).selections.any { selection ->
+                                    selection.fieldName !in operationQueryFields
+                                }
+                        }
+                    if (queryFragmentApplications.isNotEmpty()) {
+                        val mutantWorld =
+                            testCase.registry.world(
+                                schema = testCase.schema,
+                                resolverProgramMutation = ResolverProgramMutation.IGNORE_QUERY_FRAGMENT_INPUT,
+                                selectiveResolvers = selectiveResolvers,
+                            )
+                        val mutant = observeGeneratedCase(mutantWorld, testCase).ordinary.result
+                        if (!mutant.sameCompletedResultAs(observation.ordinary.result)) {
+                            testCase.testCaseId?.let(queryInputMutationKillCases::add)
+                            testCase.testCaseId?.split("/")?.getOrNull(1)?.let(queryInputMutationKillBatches::add)
+                        }
+                    }
                     activatedQueryFragments +=
                         observation.ordinaryApplications.count { application ->
                             testCase.registry.hasNonemptyQueryFragment(application)
+                        }
+                    queryInputSensitiveApplications +=
+                        observation.ordinaryApplications.count { application ->
+                            testCase.registry.hasNonemptyQueryFragment(application) &&
+                                testCase.registry.queryFragments.getValue(application.key.field).selections.any { selection ->
+                                    selection.fieldName !in operationQueryFields
+                                } &&
+                                testCase.registry.resolverProgram(application.key.field) in
+                                setOf(
+                                    ResolverProgramKind.INPUT_SENSITIVE,
+                                    ResolverProgramKind.INPUT_AND_ARGUMENT_SENSITIVE,
+                                )
                         }
                     activatedArgumentVariableApplications +=
                         observation.ordinaryApplications.count { application ->
@@ -412,12 +456,111 @@ interface QueryFragmentGeneratedResolverContract : GeneratedCaseAssertionPolicy 
                 "Generated query-fragment profile activated no query fragments",
             )
             run.requireCoverage(
+                queryInputSensitiveApplications > 0,
+                "Generated query-fragment profile activated no resolver whose output depends on its query input",
+            )
+            run.requireCoverage(
+                queryInputMutationKillCases.size >= 5 && queryInputMutationKillBatches.size >= 2,
+                "Generated query-fragment profile needs query-input mutation failures in at least five cases and two batches; " +
+                    "observed ${queryInputMutationKillCases.size} cases in ${queryInputMutationKillBatches.size} batches",
+            )
+            run.requireCoverage(
                 activatedArgumentVariableApplications > 0,
                 "Generated query-fragment profile activated no FromArgument variables",
             )
             run.requireCoverage(
                 queryValueWitnesses > 0,
                 "Generated query-fragment profile produced no query-value witnesses",
+            )
+        }
+}
+
+/** Generated parent-field profile must invoke resolvers whose input reads a parent-dependent field. */
+interface ParentReadingResolverInputGeneratedContract : GeneratedCaseAssertionPolicy {
+    @Test
+    fun `generated parent-reading resolver inputs reach input-sensitive resolver outputs`(): Unit =
+        runBlocking {
+            var invokedParentReaders = 0
+            val parentInputMutationKillCases = linkedSetOf<String>()
+            val parentInputMutationKillBatches = linkedSetOf<String>()
+            var invokedDeepParentDemandResolvers = 0
+            val deepParentDemandMutationKillCases = linkedSetOf<String>()
+            val deepParentDemandMutationKillBatches = linkedSetOf<String>()
+            val run =
+                checkResolverTestSuite(ResolverTestSuiteDefinition.RESOLUTION_PARENT_FIELDS, selectiveResolvers = selectiveResolvers) { testWorld, testCase ->
+                    val observation = observeGeneratedCase(testWorld, testCase)
+                    invokedParentReaders +=
+                        observation.ordinaryApplications.count { application ->
+                            application.key.field in testCase.registry.parentReadingResolverInputOwnerFields &&
+                                testCase.registry.resolverProgram(application.key.field) in
+                                setOf(
+                                    ResolverProgramKind.INPUT_SENSITIVE,
+                                    ResolverProgramKind.INPUT_AND_ARGUMENT_SENSITIVE,
+                                )
+                        }
+                    val deepParentDemandApplications =
+                        observation.ordinaryApplications.filter { application ->
+                            (
+                                testCase.registry.parentDemandOwnerFields[
+                                    application.key.field,
+                                ] ?: 0
+                            ) >= 3 &&
+                                testCase.registry.resolverProgram(application.key.field) in
+                                setOf(
+                                    ResolverProgramKind.INPUT_SENSITIVE,
+                                    ResolverProgramKind.INPUT_AND_ARGUMENT_SENSITIVE,
+                                )
+                        }
+                    invokedDeepParentDemandResolvers += deepParentDemandApplications.size
+                    if (deepParentDemandApplications.isNotEmpty()) {
+                        val mutantWorld =
+                            testCase.registry.world(
+                                schema = testCase.schema,
+                                resolverProgramMutation = ResolverProgramMutation.IGNORE_DEEP_PARENT_DEMAND_INPUT,
+                                selectiveResolvers = selectiveResolvers,
+                            )
+                        val mutant = observeGeneratedCase(mutantWorld, testCase).ordinary.result
+                        if (!mutant.sameCompletedResultAs(observation.ordinary.result)) {
+                            testCase.testCaseId?.let(deepParentDemandMutationKillCases::add)
+                            testCase.testCaseId?.split("/")?.getOrNull(1)?.let(deepParentDemandMutationKillBatches::add)
+                        }
+                    }
+                    if (
+                        observation.ordinaryApplications.any { application ->
+                            application.key.field in testCase.registry.parentReadingResolverInputOwnerFields
+                        }
+                    ) {
+                        val mutantWorld =
+                            testCase.registry.world(
+                                schema = testCase.schema,
+                                resolverProgramMutation = ResolverProgramMutation.IGNORE_PARENT_READING_INPUT,
+                                selectiveResolvers = selectiveResolvers,
+                            )
+                        val mutant = observeGeneratedCase(mutantWorld, testCase).ordinary.result
+                        if (!mutant.sameCompletedResultAs(observation.ordinary.result)) {
+                            testCase.testCaseId?.let(parentInputMutationKillCases::add)
+                            testCase.testCaseId?.split("/")?.getOrNull(1)?.let(parentInputMutationKillBatches::add)
+                        }
+                    }
+                }
+            run.requireCoverage(
+                invokedParentReaders > 0,
+                "Generated parent-fields profile invoked no input-sensitive resolver that reads parent-dependent data",
+            )
+            run.requireCoverage(
+                parentInputMutationKillCases.size >= 5 && parentInputMutationKillBatches.size >= 2,
+                "Generated parent-fields profile needs parent-input mutation failures in at least five cases and two batches; " +
+                    "observed ${parentInputMutationKillCases.size} cases in ${parentInputMutationKillBatches.size} batches",
+            )
+            run.requireCoverage(
+                invokedDeepParentDemandResolvers >= 5,
+                "Generated parent-fields profile invoked fewer than five input-sensitive resolvers with at least three parent-demand steps; " +
+                    "observed $invokedDeepParentDemandResolvers",
+            )
+            run.requireCoverage(
+                deepParentDemandMutationKillCases.size >= 5 && deepParentDemandMutationKillBatches.size >= 2,
+                "Generated parent-fields profile needs deep parent-demand input mutation failures in at least five cases and two batches; " +
+                    "observed ${deepParentDemandMutationKillCases.size} cases in ${deepParentDemandMutationKillBatches.size} batches",
             )
         }
 }

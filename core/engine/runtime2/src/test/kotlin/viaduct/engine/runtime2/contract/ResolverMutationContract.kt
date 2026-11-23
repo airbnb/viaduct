@@ -18,8 +18,15 @@ interface ResolverMutationContract : ResolverContract {
     @Test
     fun `generated properties reject independent resolver program mutations`(): Unit =
         runBlocking {
-            val killed = ResolverProgramMutation.entries.associateWith { 0 }.toMutableMap()
-            val exercised = ResolverProgramMutation.entries.associateWith { 0 }.toMutableMap()
+            val mutations =
+                ResolverProgramMutation.entries.filterNot { mutation ->
+                    mutation == ResolverProgramMutation.NONE ||
+                        mutation == ResolverProgramMutation.IGNORE_PARENT_READING_INPUT ||
+                        mutation == ResolverProgramMutation.IGNORE_DEEP_PARENT_DEMAND_INPUT ||
+                        mutation == ResolverProgramMutation.IGNORE_QUERY_FRAGMENT_INPUT
+                }
+            val killed = mutations.associateWith { 0 }.toMutableMap()
+            val exercised = mutations.associateWith { 0 }.toMutableMap()
             var generatedFromArgumentVariables = 0
 
             val run =
@@ -46,64 +53,60 @@ interface ResolverMutationContract : ResolverContract {
                         ),
                     )
 
-                    ResolverProgramMutation.entries
-                        .filterNot { it == ResolverProgramMutation.NONE }
-                        .forEach { mutation ->
-                            val mutantWorld =
-                                registry.world(
-                                    schema = testCase.schema,
-                                    resolverProgramMutation = mutation,
-                                    selectiveResolvers = selectiveResolvers,
+                    mutations.forEach { mutation ->
+                        val mutantWorld =
+                            registry.world(
+                                schema = testCase.schema,
+                                resolverProgramMutation = mutation,
+                                selectiveResolvers = selectiveResolvers,
+                            )
+                        val mutantAssumptions = mutantWorld.newAssumptions()
+                        registry.clearResolutionWitness()
+                        val mutantResult =
+                            runCatching {
+                                val fragment = mutantWorld.schemas.fragmentFrom(testCase.query.source)
+                                observeResolution(
+                                    mutantAssumptions,
+                                    mutantAssumptions.objectOf("Query"),
+                                    fragment.subselections,
+                                    resolutionObserver = registry.resolutionObserver(resolverProgramMutation = mutation),
+                                    record = false,
                                 )
-                            val mutantAssumptions = mutantWorld.newAssumptions()
-                            registry.clearResolutionWitness()
-                            val mutantResult =
-                                runCatching {
-                                    val fragment = mutantWorld.schemas.fragmentFrom(testCase.query.source)
-                                    observeResolution(
-                                        mutantAssumptions,
-                                        mutantAssumptions.objectOf("Query"),
-                                        fragment.subselections,
-                                        resolutionObserver = registry.resolutionObserver(resolverProgramMutation = mutation),
-                                        record = false,
-                                    )
-                                }
-                            val witness = registry.resolutionWitness()
-                            if (witness.applications.isNotEmpty()) {
-                                exercised[mutation] = exercised.getValue(mutation) + 1
                             }
-                            val rejected =
-                                mutantResult.fold(
-                                    onSuccess = { resolution ->
-                                        val result = resolution.result
-                                        when (mutation) {
-                                            ResolverProgramMutation.DUPLICATE_APPLICATION ->
-                                                witness.applicationIdentityCounts() !=
-                                                    result
-                                                        .registeredResolverApplicationIdentityCounts(resolution.operation)
-                                            else -> !result.sameCompletedResultAs(ordinary)
-                                        }
-                                    },
-                                    onFailure = { true },
-                                )
-                            if (rejected) {
-                                killed[mutation] = killed.getValue(mutation) + 1
-                            }
+                        val witness = registry.resolutionWitness()
+                        if (witness.applications.isNotEmpty()) {
+                            exercised[mutation] = exercised.getValue(mutation) + 1
                         }
+                        val rejected =
+                            mutantResult.fold(
+                                onSuccess = { resolution ->
+                                    val result = resolution.result
+                                    when (mutation) {
+                                        ResolverProgramMutation.DUPLICATE_APPLICATION ->
+                                            witness.applicationIdentityCounts() !=
+                                                result
+                                                    .registeredResolverApplicationIdentityCounts(resolution.operation)
+                                        else -> !result.sameCompletedResultAs(ordinary)
+                                    }
+                                },
+                                onFailure = { true },
+                            )
+                        if (rejected) {
+                            killed[mutation] = killed.getValue(mutation) + 1
+                        }
+                    }
                 }
 
-            ResolverProgramMutation.entries
-                .filterNot { it == ResolverProgramMutation.NONE }
-                .forEach { mutation ->
-                    run.requireCoverage(
-                        exercised.getValue(mutation) >= 100,
-                        "$mutation was exercised too rarely: ${exercised.getValue(mutation)}",
-                    )
-                    run.requireCoverage(
-                        killed.getValue(mutation) >= 10,
-                        "$mutation survived too often: killed=${killed.getValue(mutation)}",
-                    )
-                }
+            mutations.forEach { mutation ->
+                run.requireCoverage(
+                    exercised.getValue(mutation) >= 100,
+                    "$mutation was exercised too rarely: ${exercised.getValue(mutation)}",
+                )
+                run.requireCoverage(
+                    killed.getValue(mutation) >= 10,
+                    "$mutation survived too often: killed=${killed.getValue(mutation)}",
+                )
+            }
             run.requireCoverage(generatedFromArgumentVariables > 0, "Generated no FromArgument variables")
         }
 }

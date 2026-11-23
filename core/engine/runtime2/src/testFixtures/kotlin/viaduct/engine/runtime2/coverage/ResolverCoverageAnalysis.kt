@@ -41,6 +41,7 @@ data class ResolverOccurrenceSignature(
     val listAncestorCount: Int,
     val bindingSources: Set<ResolverBindingSource>,
     val maxProviderPathDepth: Int?,
+    val maxArgumentPathDepth: Int = 0,
     val argumentState: ArgumentState,
     val declaredOutputShape: DeclaredOutputShape,
     val outputKind: OutputKind,

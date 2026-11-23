@@ -70,6 +70,19 @@ Testing:
 - [Resolver DSL](impldocs/testing/resolver-dsl.md) defines the deterministic schema-embedded resolver-world DSL.
 - [Performance](impldocs/testing/performance.md) documents benchmark and profiling practice.
 
+### Required test coverage
+
+Generated ARB suites should be able to produce each behavior below. For every behavior, keep saved test cases whose results depend on it, and verify that those tests fail when the behavior is disabled. A generator setting or count alone is not enough: a test must run the behavior and use its result. Keep each required behavior in several cases and batches so regenerating a suite is unlikely to remove all of its coverage. Queries may omit these behaviors; tune generation settings so they appear often enough across the suite and set minimum case counts.
+
+- **Parent-reading resolver inputs:** run a descendant resolver whose `ParentKey` input reads a value supplied by an ancestor resolver, even though the operation did not request that ancestor value directly. The descendant's expected output must depend on the value it reads. Generate longer ancestor paths often enough to appear across batches, while allowing ordinary queries to omit them. Selecting a field, prefetching a fragment, or requesting only `__typename` does not test this behavior.
+- **Variables in type-checker inputs:** invoke a checker whose object or Query input contains a variable bound at runtime from an argument, resolver field, or provider; its allow/deny result must depend on that binding.
+- **Query fragments:** invoke a resolver with a nonempty Query fragment selecting a value not independently supplied by the operation; the resolver's asserted output must depend on that value.
+- **Nested `fromArgument` paths:** bind and consume a `FromArgument` variable reached through at least two nested input-object fields.
+- **Root-field references:** invoke a consumer that reads a Query resolver value through a root-field reference, and assert a result that depends on the referenced value.
+- **Passive checked fields:** invoke and assert a field checker for a source-supplied field when no field resolver runs for that value.
+
+For each behavior, count the saved test cases and batches that exercise it, then run those tests with the behavior disabled. The current parent-input and ancestor-value installation checks cause saved tests to fail. A separate change that disables only the helper that makes ancestor fields available to descendant resolvers still passes; the suite does not yet protect that specific code path. The [RFC-271 saved-suite coverage table](impldocs/testing/rfc-271-saved-suite-coverage.md#check-that-saved-tests-catch-feature-removal) records the evidence and remaining gaps.
+
 Correctness and evidence:
 
 - [Claims](impldocs/correctness/claims.md) indexes scoped correctness propositions.

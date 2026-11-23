@@ -1,5 +1,6 @@
 package viaduct.engine.runtime2.arbitrary
 
+import com.fasterxml.jackson.annotation.JsonInclude
 import viaduct.engine.runtime2.model.registry.ProviderFragment
 
 internal data class RegistryDocument(
@@ -7,6 +8,8 @@ internal data class RegistryDocument(
     val nodeResolvers: List<NodeResolverDocument>,
     val variables: List<VariableProviderDocument>,
     val features: RegistryFeatures,
+    @get:JsonInclude(JsonInclude.Include.NON_DEFAULT)
+    val resolverQueryFragmentValuesAffectOutput: Boolean = false,
 )
 
 internal data class FieldResolverDocument(
@@ -138,6 +141,7 @@ internal fun ArbitraryRegistry.toRegistryDocument(): RegistryDocument =
         variables =
             variableProviders.map(VariableProviderPlan::toDocument),
         features = features,
+        resolverQueryFragmentValuesAffectOutput = resolverQueryFragmentValuesAffectOutput,
     )
 
 internal fun RegistryDocument.toRegistry(schema: ArbitrarySchema): ArbitraryRegistry {
@@ -190,6 +194,7 @@ internal fun RegistryDocument.toRegistry(schema: ArbitrarySchema): ArbitraryRegi
         queryFragments = queryFragments,
         variableProviders = variableProviders,
         resolverPrograms = resolverPrograms,
+        resolverQueryFragmentValuesAffectOutput = resolverQueryFragmentValuesAffectOutput,
         parentDemandOwnerFields = schema.parentDemandOwnerFields(objectFragments),
         parentSelectingFragmentOwnerFields = schema.parentSelectingFragmentOwnerFields(objectFragments, queryFragments),
         parentReadingResolverInputOwnerFields = schema.parentReadingResolverInputOwnerFields(objectFragments, queryFragments),

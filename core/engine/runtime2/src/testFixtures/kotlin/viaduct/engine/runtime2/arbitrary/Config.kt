@@ -128,11 +128,15 @@ object RecursiveOutputEdgesEnabled : ConfigKey<Boolean>("recursiveOutputEdgesEna
 
 object ParentFieldsEnabled : ConfigKey<Boolean>("parentFieldsEnabled", ConfigValueType.BOOLEAN, false, { null })
 
+object ParentDemandPathWeight : ConfigKey<Double>("parentDemandPathWeight", ConfigValueType.DOUBLE, 1.0, ::weight)
+
 object RandomParentFieldsEnabled : ConfigKey<Boolean>("randomParentFieldsEnabled", ConfigValueType.BOOLEAN, false, { null })
 
 object QueryFragmentsEnabled : ConfigKey<Boolean>("queryFragmentsEnabled", ConfigValueType.BOOLEAN, true, { null })
 
 object ResolverQueryFragmentsEnabled : ConfigKey<Boolean>("resolverQueryFragmentsEnabled", ConfigValueType.BOOLEAN, false, { null })
+
+object ResolverQueryFragmentValuesAffectOutput : ConfigKey<Boolean>("resolverQueryFragmentValuesAffectOutput", ConfigValueType.BOOLEAN, false, { null })
 
 object ResolverQueryFragmentWeight : ConfigKey<Double>("resolverQueryFragmentWeight", ConfigValueType.DOUBLE, 1.0, ::weight)
 
@@ -245,9 +249,11 @@ object ConfigKeys {
             RecursiveInputTypesEnabled,
             RecursiveOutputEdgesEnabled,
             ParentFieldsEnabled,
+            ParentDemandPathWeight,
             RandomParentFieldsEnabled,
             QueryFragmentsEnabled,
             ResolverQueryFragmentsEnabled,
+            ResolverQueryFragmentValuesAffectOutput,
             ResolverQueryFragmentWeight,
             InterfacesEnabled,
             UnionsEnabled,

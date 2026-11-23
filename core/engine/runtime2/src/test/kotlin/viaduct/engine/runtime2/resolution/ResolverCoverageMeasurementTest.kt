@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import viaduct.engine.api.ResolverType
 import viaduct.engine.runtime2.coverage.ArgumentState
+import viaduct.engine.runtime2.coverage.CheckerCoverageOccurrence
 import viaduct.engine.runtime2.coverage.CoverageEvidenceKind
 import viaduct.engine.runtime2.coverage.CoverageExecution
 import viaduct.engine.runtime2.coverage.CoverageSupport
@@ -38,9 +39,55 @@ import viaduct.engine.runtime2.coverage.combineCoverageMeasurements
 import viaduct.engine.runtime2.coverage.compareCandidate
 import viaduct.engine.runtime2.coverage.compareSuiteSetCandidate
 import viaduct.engine.runtime2.propertytest.PropertyTestJson
+import viaduct.engine.runtime2.resolution.framework.CheckerKind
 import viaduct.engine.runtime2.resolution.framework.ProviderCellOutcome
 
 class ResolverCoverageMeasurementTest {
+    @Test
+    fun `generic feature obligations use observed resolver and checker occurrences`() {
+        val resolver = row("E1", "field", ARGUMENT_ONLY).copy(maxArgumentPathDepth = 2)
+        val checker =
+            CheckerCoverageOccurrence(
+                execution = resolver.execution,
+                occurrenceId = "checker-1",
+                occurrencePath = resultPath("Item.computed"),
+                checkerKind = CheckerKind.FIELD,
+                checkedCoordinate = "Item.computed",
+                bindingSources = setOf(ResolverBindingSource.OBJECT_FIELD),
+                maxArgumentPathDepth = 0,
+                correspondingResolverRole = ResolutionRole.SOURCE_SUPPLIED,
+            )
+        val report = measurement(
+            listOf(resolver.copy(resolutionRole = ResolutionRole.INVOKED), resolver.copy(occurrenceId = "passive", resolutionRole = ResolutionRole.SOURCE_SUPPLIED)),
+            checkerOccurrences = listOf(checker)
+        ).report()
+        val support = report.metrics.associate { it.id to it.support }
+
+        assertEquals(1, support.getValue("argument_backed_variable_bound").occurrences)
+        assertEquals(1, support.getValue("argument_binding_path_has_multiple_steps").occurrences)
+        assertEquals(1, support.getValue("checker_uses_runtime_bound_variable").occurrences)
+        assertEquals(1, support.getValue("field_checker_invoked").occurrences)
+        assertEquals(1, support.getValue("field_resolver_invoked").occurrences)
+        assertEquals(1, support.getValue("field_checker_without_resolver").occurrences)
+        assertTrue(report.analysis.signatures.single().obligations.containsAll(support.filterValues { it.tests > 0 }.keys))
+    }
+
+    @Test
+    fun `passive field obligation requires a source-supplied resolver occurrence`() {
+        val checker =
+            CheckerCoverageOccurrence(
+                execution = row("E1", "field", emptySet()).execution,
+                occurrenceId = "checker-1",
+                occurrencePath = resultPath("Item.computed"),
+                checkerKind = CheckerKind.FIELD,
+                checkedCoordinate = "Item.computed",
+                bindingSources = emptySet(),
+                maxArgumentPathDepth = 0,
+                correspondingResolverRole = ResolutionRole.UNKNOWN,
+            )
+        assertEquals(0, measurement(emptyList(), checkerOccurrences = listOf(checker)).report().metrics.single { it.id == "field_checker_without_resolver" }.support.tests)
+    }
+
     @Test
     fun `one resolver occurrence can use both argument and object field sources`() {
         assertEquals(CoverageSupport(2, 1, 1, 1, 1, 1), measurement(workedExampleRows()).bothSourcesOnOneOccurrence())
@@ -134,6 +181,12 @@ class ResolverCoverageMeasurementTest {
                         "provider_read_crosses_list_boundary" to CoverageEvidenceKind.DEPENDENCY_RELATIONSHIP,
                         "provider_dependency_diamond" to CoverageEvidenceKind.DEPENDENCY_RELATIONSHIP,
                         "provider_null_or_error_reaches_consumer" to CoverageEvidenceKind.DEPENDENCY_RELATIONSHIP,
+                        "argument_backed_variable_bound" to CoverageEvidenceKind.LOCAL_COMBINATION,
+                        "argument_binding_path_has_multiple_steps" to CoverageEvidenceKind.LOCAL_COMBINATION,
+                        "checker_uses_runtime_bound_variable" to CoverageEvidenceKind.LOCAL_COMBINATION,
+                        "field_checker_invoked" to CoverageEvidenceKind.LOCAL_COMBINATION,
+                        "field_resolver_invoked" to CoverageEvidenceKind.LOCAL_COMBINATION,
+                        "field_checker_without_resolver" to CoverageEvidenceKind.LOCAL_COMBINATION,
                         "object_fragment_resolver_field_in_list_element" to CoverageEvidenceKind.LOCAL_COMBINATION,
                         "object_fragment_reads_failed_resolver_field" to CoverageEvidenceKind.LOCAL_COMBINATION,
                     ),
@@ -166,6 +219,12 @@ class ResolverCoverageMeasurementTest {
                         "object_fragment:crosses_list",
                         "object_fragment:type_conditioned",
                         "object_fragment:traverses_parent",
+                        "checker_kind:field",
+                        "checker_kind:type",
+                        "checker_binding_source:provider",
+                        "checker_binding_source:argument",
+                        "checker_binding_source:object_field",
+                        "checker_binding_source:query_field",
                     ) + bindingSourceAttributeIds(),
             ),
             MetricAndAttributeCatalog(
@@ -836,11 +895,13 @@ class ResolverCoverageMeasurementTest {
     private fun measurement(
         rows: List<ResolverCoverageRow>,
         dependencies: List<ResolverDependencyRow> = emptyList(),
+        checkerOccurrences: List<CheckerCoverageOccurrence> = emptyList(),
     ): ResolverCoverageMeasurement =
         ResolverCoverageMeasurement(
-            executions = rows.map { it.execution }.distinct(),
+            executions = (rows.map { it.execution } + checkerOccurrences.map { it.execution }).distinct(),
             rows = rows,
             dependencies = dependencies,
+            checkerOccurrences = checkerOccurrences,
         )
 
     private fun suiteMeasurement(
