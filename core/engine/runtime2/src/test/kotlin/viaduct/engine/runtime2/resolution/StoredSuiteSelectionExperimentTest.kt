@@ -129,6 +129,7 @@ class StoredSuiteSelectionExperimentTest : CorrectResolutionPostTestPolicy, Reso
             "selection suite=${definition.id} pool=${pool.executions.size} cases stored=${stored.executions.size} cases selected=${selected.executions.size} cases in ${selection.selectedBatchIds.size} batches"
         )
         println("  not applicable by config: ${inapplicable.ifEmpty { setOf("none") }.joinToString()}")
+        println("  selected batches: ${selection.selectedBatchIds.joinToString { it.substringAfterLast('/') }}")
         listOf(
             Triple("pool", pool, poolMeasurement.vectorD0()),
             Triple("stored", stored, storedMeasurement.vectorD0()),

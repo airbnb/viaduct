@@ -512,9 +512,13 @@ tasks.withType<org.gradle.api.tasks.testing.Test>().configureEach {
     }
 }
 
+val rfc271ExperimentTags = listOf("Rfc271CoverageExperiment", "Rfc271BatchLineCoverage")
+
 tasks.named<Test>("test") {
     systemProperty("standardViaductStrictValidation", standardViaductStrictValidation.get())
     maxHeapSize = "2g"
+    // Pool-sized coverage experiments exceed this heap; run them through rfc271CoverageExperiments.
+    useJUnitPlatform { excludeTags(*rfc271ExperimentTags.toTypedArray()) }
     maxParallelForks =
         providers.gradleProperty("runtime2TestForks")
             .map { configured ->
@@ -661,6 +665,16 @@ tasks.named<Test>("test") {
             systemProperty("kotest.proptest.default.seed", configured)
         }
     }
+}
+
+tasks.register<org.gradle.api.tasks.testing.Test>("rfc271CoverageExperiments") {
+    group = "verification"
+    description = "Runs the RFC-271 saved-suite coverage experiments excluded from test."
+    maxHeapSize = "4g"
+    testClassesDirs = sourceSets["test"].output.classesDirs
+    classpath = sourceSets["test"].runtimeClasspath
+    useJUnitPlatform { includeTags(*rfc271ExperimentTags.toTypedArray()) }
+    outputs.upToDateWhen { false }
 }
 
 val resolverPropertyProfiles =

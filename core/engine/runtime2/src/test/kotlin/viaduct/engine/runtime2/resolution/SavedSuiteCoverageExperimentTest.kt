@@ -36,6 +36,7 @@ import viaduct.engine.runtime2.propertytest.ResolverTestSuiteDefinition
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
 
 private const val RFC_271_COVERAGE_EXPERIMENT_ENV = "VIADUCT_RFC271_COVERAGE_EXPERIMENT"
+private const val ROUND_TRIP_CASE_LIMIT = 200
 
 class SavedSuiteCoverageExperimentTest : CorrectResolutionPostTestPolicy, ResolutionDispatcherResource {
     override fun resolve(
@@ -52,8 +53,10 @@ class SavedSuiteCoverageExperimentTest : CorrectResolutionPostTestPolicy, Resolu
     fun `coverage measurements round trip for representative saved suites`(definition: ResolverTestSuiteDefinition): Unit =
         runTest {
             val suite = ResolverTestSuite.load(definition)
-            val measurement = measureSavedSuiteCoverage(suite)
-            assertEquals(suite.caseCount, measurement.executions.size)
+            // Every row of the selected mixed-variables suite exceeds the default Gradle test heap; one batch exercises the codecs.
+            val batch = suite.batches.first().takeIf { suite.caseCount > ROUND_TRIP_CASE_LIMIT }
+            val measurement = measureSavedSuiteCoverage(suite, selectedBatchId = batch?.id)
+            assertEquals(batch?.queries?.size ?: suite.caseCount, measurement.executions.size)
             assertTrue(measurement.rows.isNotEmpty(), "${definition.id} produced no resolver coverage rows")
             assertTrue(
                 measurement.rows.any { it.resolutionRole == ResolutionRole.INVOKED },
