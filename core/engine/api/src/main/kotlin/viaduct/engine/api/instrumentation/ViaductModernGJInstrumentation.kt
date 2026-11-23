@@ -33,6 +33,12 @@ import viaduct.engine.api.spi.ShadowFieldExecutionComparison
  * execution strategy.
  */
 interface ViaductModernGJInstrumentation : Instrumentation {
+    /** @see IViaductInstrumentation.beginIncrementalExecution */
+    fun beginIncrementalExecution(
+        parameters: InstrumentationExecutionParameters,
+        state: InstrumentationState?
+    ): IncrementalExecutionInstrumentationContext? = null
+
     companion object {
         fun fromStandardInstrumentation(stdInstrumentation: Instrumentation) =
             object : ViaductModernGJInstrumentation {

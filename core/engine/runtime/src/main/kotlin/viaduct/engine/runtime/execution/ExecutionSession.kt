@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.withContext
 import viaduct.engine.api.IncrementalExecutionResult
 import viaduct.engine.api.IncrementalExecutionResult.Update
+import viaduct.engine.api.instrumentation.IncrementalExecutionInstrumentationContext
 import viaduct.engine.api.spi.CoroutineInterop
 
 /**
@@ -26,7 +27,11 @@ import viaduct.engine.api.spi.CoroutineInterop
  * The session cleans up the request when execution finishes or is cancelled.
  */
 @Suppress("TooGenericExceptionCaught")
-internal class ExecutionSession {
+internal class ExecutionSession(
+    private val beginIncrementalExecution: () -> IncrementalExecutionInstrumentationContext? = { null }
+) {
+    private var observer: IncrementalExecutionInstrumentationContext? = null
+
     /** Completes with the initial response while deferred work may still be running. */
     val initialResult = CompletableFuture<ExecutionResult>()
 
@@ -51,10 +56,16 @@ internal class ExecutionSession {
                 var synchronousResult: ExecutionResult? = null
                 withContext(context) {
                     RequestScope { supervisorFactory ->
+                        observer = try {
+                            beginIncrementalExecution()
+                        } catch (_: Exception) {
+                            null
+                        }
                         val result = execute(supervisorFactory)
                         if (result is IncrementalExecutionResult) {
                             forwardIncrementalResult(result)
                         } else {
+                            observe { onInitialResult(result) }
                             synchronousResult = result
                         }
                     }
@@ -64,6 +75,7 @@ internal class ExecutionSession {
                 failure = t
                 initialResult.completeExceptionally(t)
             } finally {
+                observe { onCompleted(failure) }
                 if (failure == null) completion.complete(Unit) else completion.completeExceptionally(failure)
                 updates.close(failure)
             }
@@ -107,14 +119,24 @@ internal class ExecutionSession {
             }
         }
         try {
+            observe { onInitialResult(result) }
             // Wrap the result so callers read buffered updates and cancellation stops the whole session.
             initialResult.complete(IncrementalExecutionResultImpl(result, result.pending, result.hasNext, continuation) { cancel() })
             result.updates.collect {
                 currentCoroutineContext().ensureActive()
+                observe { onUpdate(it) }
                 updates.send(it)
             }
         } finally {
             result.cancel()
+        }
+    }
+
+    private fun observe(callback: IncrementalExecutionInstrumentationContext.() -> Unit) {
+        try {
+            observer?.callback()
+        } catch (_: Exception) {
+            // Instrumentation failures must not prevent response delivery.
         }
     }
 }

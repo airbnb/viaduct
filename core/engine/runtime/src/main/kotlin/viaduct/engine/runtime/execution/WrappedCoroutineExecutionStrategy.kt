@@ -8,10 +8,13 @@ import graphql.execution.ExecutionContext
 import graphql.execution.ExecutionStrategy
 import graphql.execution.ExecutionStrategyParameters
 import graphql.execution.SimpleDataFetcherExceptionHandler
+import graphql.execution.instrumentation.parameters.InstrumentationExecutionParameters
 import java.util.concurrent.CompletableFuture
 import kotlin.coroutines.EmptyCoroutineContext
 import kotlinx.coroutines.future.await
+import viaduct.engine.api.instrumentation.ViaductModernGJInstrumentation
 import viaduct.engine.api.spi.CoroutineInterop
+import viaduct.engine.runtime.EngineExecutionContextImpl
 import viaduct.engine.runtime.context.DispatcherLocalContext
 import viaduct.engine.runtime.context.getLocalContextForType
 
@@ -33,7 +36,19 @@ class WrappedCoroutineExecutionStrategy(
         parameters: ExecutionStrategyParameters
     ): CompletableFuture<ExecutionResult> {
         if (parameters.parent == null) {
-            return ExecutionSession().also { session ->
+            // Reuse ViaductExecutionStrategy's session to avoid calling incremental instrumentation twice.
+            if (executionStrategy is ViaductExecutionStrategy) return executionStrategy.execute(executionContext, parameters)
+            return ExecutionSession {
+                val engineExecutionContext = executionContext.executionInput.getLocalContextForType<EngineExecutionContextImpl>()
+                if (engineExecutionContext?.incrementalExecutionEnabled == true) {
+                    (executionContext.instrumentation as? ViaductModernGJInstrumentation)?.beginIncrementalExecution(
+                        InstrumentationExecutionParameters(executionContext.executionInput, executionContext.graphQLSchema),
+                        executionContext.instrumentationState
+                    )
+                } else {
+                    null
+                }
+            }.also { session ->
                 val dispatcher = executionContext.executionInput.getLocalContextForType<DispatcherLocalContext>()?.dispatcher
                 session.start(coroutineInterop, dispatcher ?: EmptyCoroutineContext) {
                     executionStrategy.execute(executionContext, parameters).await()

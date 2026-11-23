@@ -7,6 +7,7 @@ import graphql.execution.instrumentation.FieldFetchingInstrumentationContext
 import graphql.execution.instrumentation.InstrumentationContext
 import graphql.execution.instrumentation.InstrumentationState
 import graphql.execution.instrumentation.SimpleInstrumentationContext.noOp
+import graphql.execution.instrumentation.parameters.InstrumentationExecutionParameters
 import graphql.execution.instrumentation.parameters.InstrumentationExecutionStrategyParameters
 import graphql.execution.instrumentation.parameters.InstrumentationFieldCompleteParameters
 import graphql.execution.instrumentation.parameters.InstrumentationFieldFetchParameters
@@ -28,6 +29,19 @@ import viaduct.engine.api.spi.CheckerExecutor
 import viaduct.engine.api.spi.ShadowFieldExecutionComparison
 
 class ViaductInstrumentationAdapterTest {
+    @Test
+    fun `the adapter returns an incremental observer only when the wrapped instrumentation supplies one`() {
+        val parameters = mockk<InstrumentationExecutionParameters>()
+        val state = object : InstrumentationState {}
+        val context = object : IncrementalExecutionInstrumentationContext {}
+        val instrumentation = mockk<IViaductInstrumentation> {
+            every { beginIncrementalExecution(parameters, state) } returns context
+        }
+        assertSame(context, ViaductInstrumentationAdapter(instrumentation).beginIncrementalExecution(parameters, state))
+        assertNull(ViaductInstrumentationBase().asStandardInstrumentation().beginIncrementalExecution(parameters, state))
+        assertNull(ViaductModernGJInstrumentation.fromStandardInstrumentation(mockk()).beginIncrementalExecution(parameters, state))
+    }
+
     class TestModernInstrumentation :
         ViaductInstrumentationBase(),
         IViaductInstrumentation.WithBeginFetchObject,

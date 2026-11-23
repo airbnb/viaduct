@@ -79,6 +79,14 @@ class ConditionallyEnabledInstrumentationTest {
         )
 
     @TestFactory
+    fun beginIncrementalExecution() =
+        createTestCases<InstrumentationExecutionParameters>(
+            createParameters = { ei -> InstrumentationExecutionParameters(ei, mockk()) },
+            runAdapter = { p, s -> beginIncrementalExecution(p, s) },
+            verifyMock = { p, _ -> beginIncrementalExecution(p, null) }
+        )
+
+    @TestFactory
     fun beginParse() =
         createTestCases<InstrumentationExecutionParameters>(
             createParameters = { ei ->

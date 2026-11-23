@@ -1,11 +1,14 @@
 package viaduct.engine.api.instrumentation
 
+import graphql.ExecutionResult
 import graphql.execution.instrumentation.InstrumentationContext
 import graphql.execution.instrumentation.InstrumentationState
+import graphql.execution.instrumentation.parameters.InstrumentationExecutionParameters
 import graphql.execution.instrumentation.parameters.InstrumentationExecutionStrategyParameters
 import graphql.execution.instrumentation.parameters.InstrumentationFieldParameters
 import graphql.schema.DataFetchingEnvironment
 import viaduct.apiannotations.InternalApi
+import viaduct.engine.api.IncrementalExecutionResult
 import viaduct.engine.api.spi.CheckerExecutor
 import viaduct.engine.api.spi.ShadowFieldExecutionComparison
 
@@ -23,6 +26,21 @@ import viaduct.engine.api.spi.ShadowFieldExecutionComparison
 open class ChainedModernGJInstrumentation(
     val gjInstrumentations: List<ViaductModernGJInstrumentation>
 ) : ChainedInstrumentation(gjInstrumentations), ViaductModernGJInstrumentation {
+    override fun beginIncrementalExecution(
+        parameters: InstrumentationExecutionParameters,
+        state: InstrumentationState?
+    ): IncrementalExecutionInstrumentationContext? {
+        val contexts = gjInstrumentations.mapNotNull { it.beginIncrementalExecution(parameters, getState(it, state)) }
+        if (contexts.isEmpty()) return null
+        return object : IncrementalExecutionInstrumentationContext {
+            override fun onInitialResult(result: ExecutionResult) = contexts.forEach { it.onInitialResult(result) }
+
+            override fun onUpdate(update: IncrementalExecutionResult.Update) = contexts.forEach { it.onUpdate(update) }
+
+            override fun onCompleted(throwable: Throwable?) = contexts.forEach { it.onCompleted(throwable) }
+        }
+    }
+
     override fun beginFetchObject(
         parameters: InstrumentationExecutionStrategyParameters,
         state: InstrumentationState?

@@ -1,7 +1,9 @@
 package viaduct.engine.runtime.instrumentation
 
+import graphql.ExecutionResult
 import graphql.execution.instrumentation.InstrumentationContext
 import graphql.execution.instrumentation.InstrumentationState
+import graphql.execution.instrumentation.parameters.InstrumentationExecutionParameters
 import graphql.execution.instrumentation.parameters.InstrumentationExecutionStrategyParameters
 import graphql.execution.instrumentation.parameters.InstrumentationFieldParameters
 import graphql.schema.DataFetchingEnvironment
@@ -18,7 +20,9 @@ import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import viaduct.engine.api.IncrementalExecutionResult
 import viaduct.engine.api.instrumentation.ChainedModernGJInstrumentation
+import viaduct.engine.api.instrumentation.IncrementalExecutionInstrumentationContext
 import viaduct.engine.api.instrumentation.ViaductModernGJInstrumentation
 import viaduct.engine.api.spi.CheckerExecutor
 import viaduct.engine.api.spi.ShadowFieldExecutionComparison
@@ -30,6 +34,76 @@ class ChainedModernGJInstrumentationTest {
 
     @AfterEach
     fun tearDown() = unmockkAll()
+
+    @Test
+    fun `chained instrumentation forwards initial results, updates, and completion to every observer`() {
+        val parameters = mockk<InstrumentationExecutionParameters>()
+        val initial = mockk<ExecutionResult>()
+        val update = mockk<IncrementalExecutionResult.Update>()
+        val failure = IllegalStateException("deferred failure")
+        val states = List(2) { object : InstrumentationState {} }
+        val contexts = List(2) { mockk<IncrementalExecutionInstrumentationContext>(relaxed = true) }
+        val delegates = states.mapIndexed { index, delegateState ->
+            mockk<ViaductModernGJInstrumentation> {
+                every { createStateAsync(any()) } returns CompletableFuture.completedFuture(delegateState)
+                every { beginIncrementalExecution(parameters, delegateState) } returns contexts[index]
+            }
+        }
+        val chained = ChainedModernGJInstrumentation(delegates)
+        val state = chained.createStateAsync(mockk())?.get()
+        val context = requireNotNull(chained.beginIncrementalExecution(parameters, state))
+
+        context.onInitialResult(initial)
+        context.onUpdate(update)
+        context.onCompleted(failure)
+
+        contexts.forEach {
+            verify(exactly = 1) { it.onInitialResult(initial) }
+            verify(exactly = 1) { it.onUpdate(update) }
+            verify(exactly = 1) { it.onCompleted(failure) }
+        }
+        assertNull(ChainedModernGJInstrumentation(emptyList()).beginIncrementalExecution(parameters, null))
+    }
+
+    @Test
+    fun `chained observers can each implement only the callback they need`() {
+        val initial = mockk<ExecutionResult>()
+        val update = mockk<IncrementalExecutionResult.Update>()
+        val failure = IllegalStateException("deferred failure")
+        val events = mutableListOf<Any>()
+        val observers = listOf(
+            object : IncrementalExecutionInstrumentationContext {
+                override fun onInitialResult(result: ExecutionResult) {
+                    events.add(result)
+                }
+            },
+            object : IncrementalExecutionInstrumentationContext {
+                override fun onUpdate(update: IncrementalExecutionResult.Update) {
+                    events.add(update)
+                }
+            },
+            object : IncrementalExecutionInstrumentationContext {
+                override fun onCompleted(throwable: Throwable?) {
+                    events.add(requireNotNull(throwable))
+                }
+            },
+        )
+        val delegates = observers.map { observer ->
+            object : ViaductModernGJInstrumentation {
+                override fun beginIncrementalExecution(
+                    parameters: InstrumentationExecutionParameters,
+                    state: InstrumentationState?
+                ) = observer
+            }
+        }
+        val context = requireNotNull(ChainedModernGJInstrumentation(delegates).beginIncrementalExecution(mockk(), null))
+
+        context.onInitialResult(initial)
+        context.onUpdate(update)
+        context.onCompleted(failure)
+
+        assertEquals(listOf(initial, update, failure), events)
+    }
 
     @Test
     fun `beginFetchObject delegates to all instrumentations`() {

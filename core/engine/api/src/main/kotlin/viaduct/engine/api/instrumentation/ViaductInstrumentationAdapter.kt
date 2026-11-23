@@ -48,6 +48,11 @@ open class ViaductInstrumentationAdapter(
         state: InstrumentationState?
     ): InstrumentationContext<ExecutionResult>? = viaductInstrumentation.beginExecution(parameters, state)
 
+    override fun beginIncrementalExecution(
+        parameters: InstrumentationExecutionParameters,
+        state: InstrumentationState?
+    ): IncrementalExecutionInstrumentationContext? = viaductInstrumentation.beginIncrementalExecution(parameters, state)
+
     override fun beginParse(
         parameters: InstrumentationExecutionParameters,
         state: InstrumentationState?

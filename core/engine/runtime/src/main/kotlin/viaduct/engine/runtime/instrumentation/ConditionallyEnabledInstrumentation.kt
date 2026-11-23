@@ -88,6 +88,15 @@ class ConditionallyEnabledInstrumentationAdapter(
         { default.beginExecution(parameters, it) }
     )
 
+    override fun beginIncrementalExecution(
+        parameters: InstrumentationExecutionParameters,
+        state: InstrumentationState?
+    ) = dispatch(
+        state,
+        { super.beginIncrementalExecution(parameters, it) },
+        { null }
+    )
+
     override fun beginParse(
         parameters: InstrumentationExecutionParameters,
         state: InstrumentationState?

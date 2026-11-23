@@ -26,6 +26,7 @@ import graphql.validation.ValidationError
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionStage
 import viaduct.apiannotations.InternalApi
+import viaduct.engine.api.IncrementalExecutionResult
 import viaduct.engine.api.spi.CheckerExecutor
 import viaduct.engine.api.spi.ShadowFieldExecutionComparison
 
@@ -61,6 +62,25 @@ fun transformDataFetcherResult(
     }
 }
 
+/**
+ * Observes a request with incremental execution enabled.
+ * Initial and update callbacks run before delivery. Completion runs once after request cleanup,
+ * including on failure or cancellation, without waiting for the caller to read buffered updates.
+ */
+interface IncrementalExecutionInstrumentationContext {
+    /** Runs before the initial result is returned. */
+    fun onInitialResult(result: ExecutionResult) {}
+
+    /** Runs before each update is buffered. */
+    fun onUpdate(update: IncrementalExecutionResult.Update) {}
+
+    /**
+     * Runs once after execution and cleanup.
+     * [throwable] reports an execution or cleanup failure; GraphQL errors are reported in the initial result and updates.
+     */
+    fun onCompleted(throwable: Throwable?) {}
+}
+
 interface IViaductInstrumentation {
     val default: Instrumentation
         get() = SimplePerformantInstrumentation.INSTANCE
@@ -71,6 +91,14 @@ interface IViaductInstrumentation {
         parameters: InstrumentationExecutionParameters,
         state: InstrumentationState?
     ): InstrumentationContext<ExecutionResult>? = default.beginExecution(parameters, state)
+
+    /**
+     * Runs before operation execution when incremental execution is enabled.
+     */
+    fun beginIncrementalExecution(
+        parameters: InstrumentationExecutionParameters,
+        state: InstrumentationState?
+    ): IncrementalExecutionInstrumentationContext? = null
 
     fun beginParse(
         parameters: InstrumentationExecutionParameters,
