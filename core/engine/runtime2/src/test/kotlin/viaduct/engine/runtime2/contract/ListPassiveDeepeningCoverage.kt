@@ -1,66 +1,21 @@
-@file:Suppress("ForbiddenImport")
-
 package viaduct.engine.runtime2.contract
 
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertTrue
-import kotlinx.coroutines.runBlocking
-import viaduct.engine.runtime2.correctresolution.correctResolution
 import viaduct.engine.runtime2.model.SelectionForest
 import viaduct.engine.runtime2.model.merge
 import viaduct.engine.runtime2.model.requireQueryTypeDef
-import viaduct.engine.runtime2.model.testing.fragmentFrom
-import viaduct.engine.runtime2.model.testing.objectOf
-import viaduct.engine.runtime2.propertytest.ResolverTestSuiteDefinition
-import viaduct.engine.runtime2.propertytest.checkResolverTestSuite
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
 import viaduct.engine.runtime2.resolution.framework.instantiateBindings
 import viaduct.engine.runtime2.resolvers.instantiateBindings
 import viaduct.graphql.schema.ViaductSchema
 
-/** Generated coverage for demand deepening through passive list-valued fields. */
-interface ListPassiveDeepeningGeneratedResolverContract : ResolverContract {
-    @Test
-    fun `list-heavy passive deepening worlds resolve with exact witnessed applications`(): Unit =
-        runBlocking {
-            var listDeepeningCases = 0
-
-            val run =
-                checkResolverTestSuite(ResolverTestSuiteDefinition.LIST_PASSIVE_DEEPENING, selectiveResolvers = selectiveResolvers) { testWorld, testCase ->
-                    val registry = testCase.registry
-                    val world = testWorld.newAssumptions()
-                    val fragment = testWorld.schemas.fragmentFrom(testCase.query.source)
-                    listDeepeningCases +=
-                        countListPassiveDeepening(
-                            SharedOperationContext.create(world),
-                            fragment.subselections,
-                            world.schema.requireQueryTypeDef(),
-                        )
-                    registry.clearResolutionWitness()
-                    val observation =
-                        observeResolution(
-                            world = world,
-                            root = world.objectOf("Query"),
-                            selections = fragment.subselections,
-                            resolutionObserver = registry.resolutionObserver(),
-                            record = false,
-                        )
-                    val result = observation.result
-                    val operation = observation.operation
-                    val witness = registry.resolutionWitness()
-
-                    assertEquals(
-                        result.registeredResolverApplicationIdentityCounts(operation),
-                        witness.applicationIdentityCounts(),
-                    )
-                    assertTrue(
-                        result.correctResolution(operation, fragment),
-                    )
-                }
-
-            run.requireCoverage(listDeepeningCases > 0, "Generated list-passive-deepening profile deepened no passive list demand")
-        }
+internal fun listPassiveDeepeningCoverage(): ResolverPropertyCoverage {
+    var cases = 0
+    return ResolverPropertyCoverage(
+        record = { observation ->
+            cases += countListPassiveDeepening(observation.ordinary.operation, observation.ordinary.fragment.subselections, observation.ordinary.world.schema.requireQueryTypeDef())
+        },
+        requireCovered = { run -> run.requireCoverage(cases > 0, "Generated list-passive-deepening profile deepened no passive list demand") },
+    )
 }
 
 private fun countListPassiveDeepening(

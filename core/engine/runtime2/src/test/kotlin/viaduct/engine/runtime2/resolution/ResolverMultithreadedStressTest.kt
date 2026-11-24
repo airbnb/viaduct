@@ -5,23 +5,22 @@ package viaduct.engine.runtime2.resolution
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.coroutines.CoroutineContext
-import kotlin.test.assertEquals
-import kotlin.test.assertTrue
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.AfterEach
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
 import viaduct.engine.api.EngineObjectData
-import viaduct.engine.runtime2.arbitrary.Config
 import viaduct.engine.runtime2.arbitrary.ResolverTestCase
 import viaduct.engine.runtime2.arbitrary.ResolverTestExecution
 import viaduct.engine.runtime2.arbitrary.ResolverTestRun
-import viaduct.engine.runtime2.arbitrary.ResolverVariableSingletonCoercionEnabled
 import viaduct.engine.runtime2.arbitrary.TestCaseCount
 import viaduct.engine.runtime2.arbitrary.executeResolverTestCases
 import viaduct.engine.runtime2.arbitrary.parseResolverTestSize
-import viaduct.engine.runtime2.contract.GeneratedTypeCheckerContract
+import viaduct.engine.runtime2.contract.ResolverContract
+import viaduct.engine.runtime2.contract.checkResolverProperties
 import viaduct.engine.runtime2.contract.validateFromFieldBindings
 import viaduct.engine.runtime2.correctresolution.CorrectnessResolverObserver
 import viaduct.engine.runtime2.correctresolution.correctResolution
@@ -39,12 +38,18 @@ import viaduct.engine.runtime2.resolution.framework.ResolverInvocationObservatio
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
 
 @Tag("BazelIgnore")
-class ResolverMultithreadedStressTest : GeneratedTypeCheckerContract, ResolutionDispatcherResource {
-    override val typeCheckerProfilePrefix = "resolution"
-    override val runtimeTypeCheckerVariables = true
+class ResolverMultithreadedStressTest : ResolverContract, ResolutionDispatcherResource {
     override val selectiveResolvers = true
-    override val generatedResolverConfigOverrides = Config.default + (ResolverVariableSingletonCoercionEnabled to true)
     private var checkerDispatcher: RecordingCoroutineDispatcher? = null
+
+    @Test
+    fun `generated successful type checker worlds resolve correctly`(): Unit = checkResolverProperties(ResolverTestSuiteDefinition.RESOLUTION_TYPE_CHECKER_SUCCESS)
+
+    @Test
+    fun `generated denying type checker worlds resolve correctly`(): Unit = checkResolverProperties(ResolverTestSuiteDefinition.RESOLUTION_TYPE_CHECKER_DENIAL)
+
+    @Test
+    fun `generated mixed type checker worlds resolve correctly`(): Unit = checkResolverProperties(ResolverTestSuiteDefinition.RESOLUTION_TYPE_CHECKER_MIXED)
 
     override fun resolve(
         operation: SharedOperationContext<*>,

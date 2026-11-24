@@ -3,13 +3,13 @@
 package viaduct.engine.runtime2.contract
 
 import io.kotest.property.PropertyTesting
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertTrue
 import kotlinx.coroutines.runBlocking
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
 import viaduct.engine.runtime2.arbitrary.ArbitraryRegistry
 import viaduct.engine.runtime2.arbitrary.Config
 import viaduct.engine.runtime2.arbitrary.FieldCoordinate
+import viaduct.engine.runtime2.arbitrary.ResolutionWitness
 import viaduct.engine.runtime2.arbitrary.ResolverTestCase
 import viaduct.engine.runtime2.arbitrary.ResolverTestRun
 import viaduct.engine.runtime2.arbitrary.TestCaseCount
@@ -20,43 +20,29 @@ import viaduct.engine.runtime2.model.nodeReferenceIdentityOrNull
 import viaduct.engine.runtime2.model.registry.Assumptions
 import viaduct.engine.runtime2.model.requireField
 import viaduct.engine.runtime2.model.testing.TestWorld
-import viaduct.engine.runtime2.model.testing.fragmentFrom
 import viaduct.engine.runtime2.model.testing.mayDemandFrom
-import viaduct.engine.runtime2.model.testing.objectOf
 import viaduct.engine.runtime2.propertytest.ResolverTestSuiteDefinition
 import viaduct.engine.runtime2.propertytest.checkResolverTestSuite
 import viaduct.engine.runtime2.propertytest.deepResolverStressConfig
 import viaduct.engine.runtime2.schema.SourceSchemaAdapter
 import viaduct.graphql.schema.ViaductSchema
 
-/** Opt-in high-volume coverage for deep dependency-heavy generated worlds. */
-interface DeepResolverStressContract : ResolverContract {
-    val resolverName: String
-    val objectPathVariablesEnabled: Boolean
-        get() = false
-    val queryPathVariablesEnabled: Boolean
-        get() = false
-    val nodeResolversEnabled: Boolean
-        get() = true
-    val mixedVariableCoverageRequired: Boolean
-        get() = false
-    val nestedObjectPathCoverageRequired: Boolean
-        get() = false
-    val minimumActivatedObjectPathResolverChainLength: Int
-        get() = 0
-    val sometimesPassiveCoverageRequired: Boolean
-        get() = false
-    val rootFieldReferenceCoverageRequired: Boolean
-        get() = false
-    val queryFragmentCoverageRequired: Boolean
-        get() = false
-    val minimumDemandedQueryOERDepth: Int
-        get() = 0
-    val stressConfigOverrides: Config
-        get() = Config.default
-
-    @Test
-    fun `deep dependency-heavy arbitrary worlds resolve correctly`(): Unit =
+class ResolverStressSuite(
+    private val subject: ResolverContract,
+    val resolverName: String,
+    val objectPathVariablesEnabled: Boolean = false,
+    val queryPathVariablesEnabled: Boolean = false,
+    val nodeResolversEnabled: Boolean = true,
+    val mixedVariableCoverageRequired: Boolean = false,
+    val nestedObjectPathCoverageRequired: Boolean = false,
+    val minimumActivatedObjectPathResolverChainLength: Int = 0,
+    val sometimesPassiveCoverageRequired: Boolean = false,
+    val rootFieldReferenceCoverageRequired: Boolean = false,
+    val queryFragmentCoverageRequired: Boolean = false,
+    val minimumDemandedQueryOERDepth: Int = 0,
+    val stressConfigOverrides: Config = Config.default,
+) {
+    fun check(): Unit =
         runBlocking {
             val config =
                 deepResolverStressConfig(
@@ -128,8 +114,20 @@ interface DeepResolverStressContract : ResolverContract {
 
             val run: ResolverTestRun
             try {
-                run = checkStressCases(suite, liveCounts) { testWorld, testCase ->
-                    attemptedCases += 1
+                run = subject.checkResolverPropertyCases(
+                    replay = { property ->
+                        checkStressCases(suite, liveCounts) { world, testCase ->
+                            attemptedCases += 1
+                            property(world, testCase)
+                        }
+                    },
+                    assertions = listOf(
+                        GeneratedCaseAssertions.correctResolution,
+                        if (sometimesPassiveCoverageRequired) GeneratedCaseAssertions.boundedOrdinaryApplicationCounts else GeneratedCaseAssertions.exactOrdinaryApplicationCounts,
+                    ),
+                    comparePermutation = false,
+                ) { observation ->
+                    val testCase = observation.testCase
                     generatedNodeResolvers += testCase.registry.nodeResolverTypes.size
                     generatedFromArgumentVariables +=
                         testCase.registry.features.fromArgumentVariableCount
@@ -147,19 +145,9 @@ interface DeepResolverStressContract : ResolverContract {
                     generatedQueryFragments += caseQueryFragmentCount
                     if (caseQueryFragmentCount == 0) queryFragmentFreeCases += 1
                     assertTrue(testCase.query.selectionDepth >= 4)
-                    val world = testWorld.newAssumptions()
-                    val fragment = testWorld.schemas.fragmentFrom(testCase.query.source)
-                    testCase.registry.clearResolutionWitness()
-                    val resolution =
-                        observeResolution(
-                            world,
-                            world.objectOf("Query"),
-                            fragment.subselections,
-                            resolutionObserver = testCase.registry.resolutionObserver(),
-                            record = false,
-                        )
-                    val result = resolution.result
-                    val operation = resolution.operation
+                    val world = observation.ordinary.world
+                    val result = observation.ordinary.result
+                    val operation = observation.ordinary.operation
                     val correctnessObserver =
                         operation.resolutionObserver as CorrectnessResolverObserver
                     val demandedQueryOERs =
@@ -197,11 +185,11 @@ interface DeepResolverStressContract : ResolverContract {
                             correctnessObserver.rootFieldReferenceInvocations()
                         activatedRootFieldReferences += references.size
                         activatedNodeRootFieldReferences +=
-                            references.count { observation ->
-                                observation.reference.nodeReferenceIdentityOrNull() != null
+                            references.count { invocation ->
+                                invocation.reference.nodeReferenceIdentityOrNull() != null
                             }
                     }
-                    val witness = testCase.registry.resolutionWitness()
+                    val witness = ResolutionWitness(observation.ordinaryApplications)
                     val activatedSourceResolvers =
                         witness.applications.mapTo(linkedSetOf()) { application ->
                             testCase.registry.sourceResolverCoordinate(application.key.field)
@@ -214,24 +202,9 @@ interface DeepResolverStressContract : ResolverContract {
                                 .entries
                                 .groupingBy { entry -> entry.key.applicationKey }
                                 .fold(0) { count, entry -> count + entry.value }
-                        witness.applicationCounts().forEach { (key, count) ->
-                            assertTrue(
-                                count <= resultOccurrenceCounts.getOrDefault(key, 0),
-                                "Observed $count applications of $key but result contains only " +
-                                    "${resultOccurrenceCounts.getOrDefault(key, 0)} occurrences",
-                            )
-                        }
                         activatedSometimesPassiveOccurrences +=
                             resultOccurrenceCounts.values.sum() - witness.applications.size
-                    } else {
-                        assertEquals(
-                            result.registeredResolverApplicationIdentityCounts(operation),
-                            witness.applicationIdentityCounts(),
-                        )
                     }
-                    assertTrue(
-                        result.correctResolution(operation, fragment),
-                    )
                     resolverApplications += witness.applications.size
                     var activatedFromArgument = false
                     var activatedObjectPath = false
@@ -547,9 +520,9 @@ interface DeepResolverStressContract : ResolverContract {
         property: suspend (TestWorld, ResolverTestCase) -> Unit,
     ): ResolverTestRun =
         if (liveCounts == null) {
-            checkResolverTestSuite(suite, selectiveResolvers = selectiveResolvers, property = property)
+            checkResolverTestSuite(suite, selectiveResolvers = subject.selectiveResolvers, property = property)
         } else {
-            checkResolverTestCases(liveCounts, suite.config, profile = suite.profile, selectiveResolvers = selectiveResolvers, property = property)
+            checkResolverTestCases(liveCounts, suite.config, profile = suite.profile, selectiveResolvers = subject.selectiveResolvers, property = property)
         }
 
     private val displayName: String

@@ -1,21 +1,25 @@
 package viaduct.engine.runtime2.resolvers.resolver23
 
 import org.junit.jupiter.api.Tag
+import org.junit.jupiter.api.Test
 import viaduct.engine.api.EngineObjectData
-import viaduct.engine.runtime2.arbitrary.Config
-import viaduct.engine.runtime2.contract.DeepResolverStressContract
+import viaduct.engine.runtime2.contract.ResolverContract
+import viaduct.engine.runtime2.contract.ResolverStressSuite
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.SelectionForest
 import viaduct.engine.runtime2.propertytest.RESOLVER23_STRESS_CONFIG_OVERRIDES
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
 
 @Tag("BazelIgnore")
-class ResolverStressTest : DeepResolverStressContract {
-    override val resolverName: String = "resolver23"
-
-    override val queryFragmentCoverageRequired: Boolean = true
-
-    override val stressConfigOverrides: Config = RESOLVER23_STRESS_CONFIG_OVERRIDES
+class ResolverStressTest : ResolverContract {
+    @Test
+    fun `deep dependency-heavy arbitrary worlds resolve correctly`(): Unit =
+        ResolverStressSuite(
+            subject = this,
+            resolverName = "resolver23",
+            queryFragmentCoverageRequired = true,
+            stressConfigOverrides = RESOLVER23_STRESS_CONFIG_OVERRIDES,
+        ).check()
 
     override fun resolve(
         operation: SharedOperationContext<*>,
