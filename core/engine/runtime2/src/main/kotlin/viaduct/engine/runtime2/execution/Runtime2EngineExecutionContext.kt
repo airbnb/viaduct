@@ -1,18 +1,25 @@
 package viaduct.engine.runtime2.execution
 
+import graphql.language.FragmentDefinition
 import graphql.schema.GraphQLObjectType
+import viaduct.engine.api.BatchExecutionContext
+import viaduct.engine.api.CompleteSelectionSetOptions
 import viaduct.engine.api.Engine
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.EngineSelectionSet
+import viaduct.engine.api.ExecutionAttribution
 import viaduct.engine.api.NodeEngineObjectData
 import viaduct.engine.api.NodeReference
+import viaduct.engine.api.RequiredSelectionSet
+import viaduct.engine.api.ResolutionPolicy
 import viaduct.engine.api.ResolveSelectionSetOptions
 import viaduct.engine.api.RootFieldReference
 import viaduct.engine.api.spi.FieldResolverExecutor
 import viaduct.engine.api.spi.NodeResolverExecutor
 import viaduct.engine.runtime.DispatcherExecutionContext
 import viaduct.engine.runtime.FieldDataLoader
+import viaduct.engine.runtime.InternalEngineExecutionContext
 import viaduct.engine.runtime.NodeDataLoader
 import viaduct.engine.runtime2.model.RootFieldReferenceData
 import viaduct.engine.runtime2.model.RootFieldReferenceDataCarrier
@@ -34,7 +41,10 @@ internal class Runtime2EngineExecutionContext(
     private val schemas: ViaductAndGJSchema,
     private val resolutionContext: ResolutionExecutionContext,
 ) : EngineExecutionContext by delegate,
+    InternalEngineExecutionContext,
     DispatcherExecutionContext {
+    override fun forBatch(invocationContexts: Map<Any, EngineExecutionContext>): EngineExecutionContext = Runtime2BatchExecutionContext(this, invocationContexts)
+
     override val executionHandle: EngineExecutionContext.ExecutionHandle by lazy {
         Runtime2ExecutionHandle(delegate.engine, schemas, resolutionContext)
     }
@@ -66,6 +76,43 @@ internal class Runtime2EngineExecutionContext(
         type: GraphQLObjectType,
         args: Map<String, Any?>,
     ): RootFieldReference = runtime2RootFieldReferenceOf(schemas.loweredSchema, rootFieldPath, type, args)
+}
+
+private class Runtime2BatchExecutionContext(
+    private val delegate: Runtime2EngineExecutionContext,
+    private val invocationContexts: Map<Any, EngineExecutionContext>,
+) : InternalEngineExecutionContext by delegate,
+    BatchExecutionContext,
+    DispatcherExecutionContext {
+    override val executionHandle: EngineExecutionContext.ExecutionHandle? = null
+    override val fieldScope: EngineExecutionContext.FieldExecutionScope = EmptyFieldExecutionScope
+
+    override fun fieldDataLoader(resolver: FieldResolverExecutor): FieldDataLoader = delegate.fieldDataLoader(resolver)
+
+    override fun nodeDataLoader(resolver: NodeResolverExecutor): NodeDataLoader = delegate.nodeDataLoader(resolver)
+
+    override fun invocationContextFor(selector: Any): EngineExecutionContext =
+        checkNotNull(invocationContexts[selector]) {
+            "No invocation context was captured for selector $selector"
+        }
+
+    override suspend fun resolveSelectionSet(
+        selectionSet: EngineSelectionSet,
+        options: ResolveSelectionSetOptions,
+    ): EngineObjectData.Sync = error("Batch selection execution requires invocationContextFor(selector)")
+
+    override suspend fun completeSelectionSet(
+        selectionSet: RequiredSelectionSet,
+        arguments: Map<String, Any?>,
+        options: CompleteSelectionSetOptions,
+    ): graphql.ExecutionResult = throw UnsupportedOperationException("Engine2 does not yet support completeSelectionSet")
+}
+
+internal object EmptyFieldExecutionScope : EngineExecutionContext.FieldExecutionScope {
+    override val fragments = emptyMap<String, FragmentDefinition>()
+    override val variables = emptyMap<String, Any?>()
+    override val resolutionPolicy = ResolutionPolicy.STANDARD
+    override val attribution = ExecutionAttribution.DEFAULT
 }
 
 internal fun runtime2NodeReferenceOf(

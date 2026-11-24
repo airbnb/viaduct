@@ -26,6 +26,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.cancelAndJoin
@@ -33,8 +34,10 @@ import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.runtime2.contract.get
@@ -56,11 +59,14 @@ import viaduct.engine.runtime2.model.testing.fragmentFrom
 import viaduct.engine.runtime2.resolution.framework.CycleCheckState
 import viaduct.engine.runtime2.resolution.framework.CycleSlotKind
 import viaduct.engine.runtime2.resolution.framework.DeferredCycleCheckState
+import viaduct.engine.runtime2.resolution.framework.MutationOrchestrationTask
 import viaduct.engine.runtime2.resolution.framework.OEROccurrence
 import viaduct.engine.runtime2.resolution.framework.ResolutionObserver
+import viaduct.engine.runtime2.resolution.framework.ResolutionTask
 import viaduct.engine.runtime2.resolution.framework.ResolverInvocationObservation
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
 import viaduct.engine.runtime2.resolution.framework.fieldResolverCycleTask
+import viaduct.engine.runtime2.schema.mutationSelections
 import viaduct.engine.runtime2.schema.operationSelectionsFrom
 import viaduct.graphql.schema.ViaductSchema
 
@@ -453,6 +459,216 @@ class ResolverStartTest : ResolutionDispatcherResource {
                 assertIs<CancellationException>(root.cell("outer").value.awaitFailure())
                 assertTrue(requestJob.isActive)
                 assertFalse(gate.isCompleted)
+            } finally {
+                requestJob.cancelAndJoin()
+            }
+        }
+
+    @Test
+    @OptIn(ExperimentalCoroutinesApi::class)
+    fun `cancelled nested mutation finishes cleanup before its caller can start another mutation`() =
+        runTest {
+            val owner = CompletableDeferred<FieldResolverTask>()
+            val firstStarted = CompletableDeferred<Unit>()
+            val cleanupStarted = CompletableDeferred<Unit>()
+            val finishCleanup = CompletableDeferred<Unit>()
+            val firstStopped = CompletableDeferred<Unit>()
+            val secondStarted = CompletableDeferred<Unit>()
+            val world = TestWorld.fromSDL(
+                "type Query { idle: Int } type Mutation { outer: Int first: Int second: Int }",
+                fieldResolvers = { schemas ->
+                    val schema = schemas.loweredSchema
+                    mapOf(
+                        schema.requireObjectField("Mutation", "outer") to fieldResolverOf(schema.emptyFragmentOf("Mutation")) { _, _, context ->
+                            owner.complete(assertIs<FieldResolverTask>(context))
+                            awaitCancellation()
+                        },
+                        schema.requireObjectField("Mutation", "first") to fieldResolverOf(schema.emptyFragmentOf("Mutation")) { _, _ ->
+                            firstStarted.complete(Unit)
+                            try {
+                                awaitCancellation()
+                            } finally {
+                                withContext(NonCancellable) {
+                                    cleanupStarted.complete(Unit)
+                                    finishCleanup.await()
+                                    firstStopped.complete(Unit)
+                                }
+                            }
+                        },
+                        schema.requireObjectField("Mutation", "second") to fieldResolverOf(schema.emptyFragmentOf("Mutation")) { _, _ ->
+                            secondStarted.complete(Unit)
+                            2
+                        },
+                    )
+                },
+            )
+
+            suspend fun mutate(field: String): EngineObjectData.Sync {
+                val selections = world.schemas.fragmentFrom("fragment Nested on Mutation { $field }").materializeSelections
+                return owner.await().resolveMutationSelectionSet(
+                    selections,
+                    selections.mutationSelections(world.schemas.loweredSchema, requireNotNull(world.schemas.loweredSchema.mutationTypeDef)),
+                )
+            }
+            val requestJob = Job()
+            try {
+                SharedOperationContext.create(world.assumptions).startResolve(
+                    world.schemas.operationSelectionsFrom("mutation { outer }"),
+                    CoroutineScope(StandardTestDispatcher(testScheduler) + requestJob),
+                )
+                val firstCaller = async { mutate("first") }
+                runCurrent()
+                assertTrue(firstStarted.isCompleted)
+
+                val followingMutation = async {
+                    firstCaller.cancelAndJoin()
+                    mutate("second")
+                }
+                runCurrent()
+
+                assertTrue(cleanupStarted.isCompleted)
+                assertFalse(secondStarted.isCompleted, "The next mutation must wait while the first is still cleaning up")
+
+                finishCleanup.complete(Unit)
+                runCurrent()
+
+                assertTrue(firstStopped.isCompleted)
+                assertEquals(2, followingMutation.await().get("second"))
+            } finally {
+                finishCleanup.complete(Unit)
+                requestJob.cancelAndJoin()
+            }
+        }
+
+    @Test
+    fun `nested mutation interruption fails its owner even when shared work catches it`(): Unit = assertNestedMutationFailure(InterruptedException("nested mutation interrupted"), failsRequest = true)
+
+    @Test
+    fun `nested mutation ordinary failure reaches shared work without failing its owner`(): Unit =
+        assertNestedMutationFailure(IllegalStateException("nested mutation startup failed"), failsRequest = false)
+
+    private fun assertNestedMutationFailure(
+        failure: Exception,
+        failsRequest: Boolean
+    ): Unit =
+        runBlocking {
+            val owner = CompletableDeferred<FieldResolverTask>()
+            val reported = CompletableDeferred<Throwable>()
+            val world = TestWorld.fromSDL(
+                "type Query { outer: Int sibling: Int } type Mutation { update: Int }",
+                fieldResolvers = { schemas ->
+                    val schema = schemas.loweredSchema
+                    mapOf(
+                        schema.requireObjectField("Query", "outer") to
+                            fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _, context ->
+                                owner.complete(assertIs<FieldResolverTask>(context))
+                                awaitCancellation()
+                            },
+                        schema.requireObjectField("Query", "sibling") to
+                            fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ -> 7 },
+                        schema.requireObjectField("Mutation", "update") to
+                            fieldResolverOf(schema.emptyFragmentOf("Mutation")) { _, _ -> 1 },
+                    )
+                },
+            )
+            val observer = object : ResolutionObserver {
+                override val onTaskPrepared: (ResolutionTask) -> Unit = { task ->
+                    if (task is MutationOrchestrationTask<*>) throw failure
+                }
+            }
+            val requestJob = Job()
+            val requestScope = CoroutineScope(resolverDispatcher + requestJob + CoroutineExceptionHandler { _, cause -> reported.complete(cause) })
+            try {
+                val root = SharedOperationContext.create(world.assumptions, resolutionObserver = observer).startResolve(
+                    world.schemas.operationSelectionsFrom("query { outer sibling }"),
+                    requestScope,
+                )
+                val task = withTimeout(5_000) { owner.await() }
+                assertEquals(7, root.cell("sibling").value.await())
+                val selections = world.schemas.fragmentFrom("fragment Update on Mutation { update }").materializeSelections
+                val mutations = selections.mutationSelections(
+                    world.schemas.loweredSchema,
+                    requireNotNull(world.schemas.loweredSchema.mutationTypeDef),
+                )
+
+                // Shared work catches the returned failure, so only the nested task can fail its owner.
+                val caught = assertFails { task.resolveMutationSelectionSet(selections, mutations) }
+                assertSame(failure, caught.originalBeforeStackTraceRecovery())
+
+                if (failsRequest) {
+                    assertSame(failure, withTimeout(5_000) { reported.await() }.originalBeforeStackTraceRecovery())
+                    withTimeout(5_000) { requestJob.join() }
+                    assertTrue(requestJob.isCancelled)
+                } else {
+                    assertTrue(requestJob.isActive)
+                    assertTrue(task.fieldTaskScope.coroutineContext.job.isActive)
+                    assertFalse(reported.isCompleted)
+                }
+            } finally {
+                requestJob.cancelAndJoin()
+            }
+        }
+
+    @Test
+    fun `nested mutation called from shared work retains its field task owner`() =
+        runBlocking {
+            val owner = CompletableDeferred<FieldResolverTask>()
+            val nestedStarted = CompletableDeferred<Unit>()
+            val nestedStopped = CompletableDeferred<Unit>()
+            val mutationGate = CompletableDeferred<Unit>()
+            val world = TestWorld.fromSDL(
+                "type Query { outer: Int sibling: Int } type Mutation { update: Int }",
+                fieldResolvers = { schemas ->
+                    val schema = schemas.loweredSchema
+                    mapOf(
+                        schema.requireObjectField("Query", "outer") to
+                            fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _, context ->
+                                owner.complete(assertIs<FieldResolverTask>(context))
+                                awaitCancellation()
+                            },
+                        schema.requireObjectField("Query", "sibling") to
+                            fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ -> 7 },
+                        schema.requireObjectField("Mutation", "update") to
+                            fieldResolverOf(schema.emptyFragmentOf("Mutation")) { _, _ ->
+                                nestedStarted.complete(Unit)
+                                try {
+                                    mutationGate.await()
+                                    1
+                                } finally {
+                                    nestedStopped.complete(Unit)
+                                }
+                            },
+                    )
+                },
+            )
+            val requestJob = Job()
+            val requestScope = CoroutineScope(resolverDispatcher + requestJob)
+            try {
+                val unrelated = requestScope.launch { awaitCancellation() }
+                val root = SharedOperationContext.create(world.assumptions).startResolve(
+                    world.schemas.operationSelectionsFrom("query { outer sibling }"),
+                    requestScope,
+                )
+                val task = withTimeout(5_000) { owner.await() }
+                val selections = world.schemas.fragmentFrom("fragment Update on Mutation { update }").materializeSelections
+                val mutations = selections.mutationSelections(
+                    world.schemas.loweredSchema,
+                    requireNotNull(world.schemas.loweredSchema.mutationTypeDef),
+                )
+                val sharedCall = requestScope.async {
+                    task.resolveMutationSelectionSet(selections, mutations)
+                }
+                withTimeout(5_000) { nestedStarted.await() }
+
+                withTimeout(5_000) { task.fieldTaskScope.coroutineContext.job.cancelAndJoin() }
+
+                assertTrue(nestedStopped.isCompleted, "Cancelling the field task must stop its nested mutation")
+                assertIs<CancellationException>(root.cell("outer").value.awaitFailure())
+                assertEquals(7, root.cell("sibling").value.await())
+                assertTrue(requestJob.isActive)
+                assertTrue(unrelated.isActive)
+                assertFalse(mutationGate.isCompleted)
+                withTimeout(5_000) { sharedCall.join() }
             } finally {
                 requestJob.cancelAndJoin()
             }

@@ -3,12 +3,15 @@ package viaduct.engine.runtime2.resolution
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.async
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.job
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.runtime2.model.Arguments
 import viaduct.engine.runtime2.model.EngineErrorData
@@ -44,6 +47,7 @@ import viaduct.engine.runtime2.resolution.framework.argumentsContainErrorValue
 import viaduct.engine.runtime2.resolution.framework.fetchGroundedArguments
 import viaduct.engine.runtime2.resolution.framework.fieldResolverCycleTask
 import viaduct.engine.runtime2.resolution.framework.materializeResult
+import viaduct.errors.isJvmSignal
 
 /**
  * One field or list-element value publication: its operation, containing object occurrence,
@@ -364,8 +368,26 @@ internal class FieldResolverTask(
         selections: MaterializeSelectionForest,
         mutations: MutationSelectionForest,
     ): EngineObjectData.Sync {
-        val result = coroutineScope {
-            publication.operation.forChildScope(this).startResolve(mutations, creator = this@FieldResolverTask)
+        val nestedMutation = fieldTaskScope.async {
+            try {
+                Result.success(
+                    coroutineScope {
+                        publication.operation.forChildScope(this).startResolve(mutations, creator = this@FieldResolverTask)
+                    },
+                )
+            } catch (cause: Exception) {
+                if (cause.isJvmSignal()) throw cause
+                currentCoroutineContext().ensureActive()
+                Result.failure(cause)
+            }
+        }
+        val result = try {
+            nestedMutation.await().getOrThrow()
+        } finally {
+            // A cancelled caller must still wait for mutation cleanup before starting another mutation.
+            withContext(NonCancellable) {
+                nestedMutation.cancelAndJoin()
+            }
         }
         return result.materializeResult(
             operation = publication.operation,

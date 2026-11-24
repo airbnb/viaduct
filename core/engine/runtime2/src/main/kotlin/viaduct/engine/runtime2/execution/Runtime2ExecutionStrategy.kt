@@ -15,14 +15,18 @@ import graphql.schema.GraphQLSchema
 import java.util.concurrent.CancellationException
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.atomic.AtomicReference
+import kotlin.coroutines.ContinuationInterceptor
 import kotlin.coroutines.CoroutineContext
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.future.future
 import org.reactivestreams.Publisher
 import org.reactivestreams.Subscriber
 import org.reactivestreams.Subscription
+import viaduct.dataloader.NextTickDispatcher
 import viaduct.engine.api.Engine
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.runtime2.model.registry.Assumptions
@@ -49,6 +53,7 @@ class Runtime2ExecutionStrategy(
     private val engineExecutionContextFactory: (ExecutionContext) -> EngineExecutionContext? = { null },
     dataFetcherExceptionHandler: DataFetcherExceptionHandler =
         SimpleDataFetcherExceptionHandler(),
+    private val batchingEnabled: Boolean = false,
 ) : AsyncExecutionStrategy(dataFetcherExceptionHandler) {
     private val resolverExceptionHandler = dataFetcherExceptionHandler
 
@@ -72,16 +77,34 @@ class Runtime2ExecutionStrategy(
             .get<Runtime2CallerCancellation>(Runtime2CallerCancellationKey)
             ?.attach(requestJob)
         val requestFailure = CompletableFuture<Throwable>()
+        val requestExceptionHandler = CoroutineExceptionHandler { _, throwable ->
+            requestFailure.complete(throwable)
+            requestJob.cancel(requestCancellation("QPlan request failed", throwable))
+        }
+        val executionCoroutineContext = if (batchingEnabled) {
+            val resolverDispatcher = resolverCoroutineContext[ContinuationInterceptor] as? CoroutineDispatcher ?: Dispatchers.Default
+            val requestDispatcher = if (resolverDispatcher is NextTickDispatcher) {
+                resolverDispatcher.forRequest(requestJob, requestExceptionHandler)
+            } else {
+                NextTickDispatcher(
+                    wrappedDispatcher = resolverDispatcher,
+                    nextTickQueueDispatcher = if (resolverDispatcher == Dispatchers.IO) Dispatchers.Default else Dispatchers.IO,
+                    nextTickExceptionHandler = requestExceptionHandler,
+                    parentJob = requestJob,
+                )
+            }
+            resolverCoroutineContext + requestDispatcher
+        } else {
+            resolverCoroutineContext
+        }
         val cycleChecker = executionContext.graphQLContext.get<CycleCheckState>(CycleCheckState::class.java)
             ?: CycleCheckState.create()
         // The independent job lets incremental work outlive initial response completion.
         val requestScope =
             CoroutineScope(
-                resolverCoroutineContext +
+                executionCoroutineContext +
                     requestJob +
-                    CoroutineExceptionHandler { _, throwable ->
-                        requestFailure.complete(throwable)
-                    },
+                    requestExceptionHandler,
             )
         val lifetimeKey = Runtime2RequestLifetimeKey(executionContext.executionId)
         executionContext.graphQLContext.put(

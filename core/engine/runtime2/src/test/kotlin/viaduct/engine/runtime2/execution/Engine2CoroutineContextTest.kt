@@ -25,9 +25,11 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.yield
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotSame
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.ValueSource
 import viaduct.engine.api.mocks.EngineTestModule
@@ -37,6 +39,7 @@ import viaduct.engine.api.mocks.MockNodeBatchResolverExecutor
 import viaduct.engine.api.mocks.createEngineObjectData
 import viaduct.engine.api.mocks.createEngineSelectionSetFactory
 import viaduct.engine.api.mocks.createSchema
+import viaduct.engine.api.mocks.fetchAs
 import viaduct.engine.api.spi.CoroutineInterop
 import viaduct.engine.api.spi.FieldResolverExecutor
 import viaduct.engine.api.spi.NodeResolverExecutor
@@ -50,6 +53,8 @@ import viaduct.engine.runtime.execution.DefaultCoroutineInterop
 import viaduct.engine.runtime.mocks.ContextMocks
 import viaduct.engine.runtime2.airbnb.DispatcherResolverRegistryFactory
 import viaduct.engine.runtime2.airbnb.Engine2ResolverRegistryFactory
+import viaduct.engine.runtime2.resolution.currentVariablesProviderResolutionContext
+import viaduct.graphql.test.assertJson
 import viaduct.service.api.ExecutionInput
 import viaduct.service.api.SchemaId
 import viaduct.service.api.Viaduct
@@ -59,6 +64,93 @@ import viaduct.service.runtime.SchemaConfiguration
 import viaduct.service.runtime.StandardViaduct
 
 class Engine2CoroutineContextTest : CoroutineContextContract() {
+    @Test
+    fun `provider owners stay separate and do not leak into the batch`() {
+        val owners = mutableMapOf<Int, Any>()
+        val module = valueWithDerivedDependency(
+            provideVariables = { key ->
+                val owner = currentVariablesProviderResolutionContext()
+                owners[key] = owner
+
+                yield()
+
+                assertSame(owner, currentVariablesProviderResolutionContext())
+                mapOf("derived" to key * 10)
+            },
+            resolveBatch = { dependencyValues ->
+                assertEquals(setOf(10, 20), dependencyValues.toSet())
+                assertThrows<IllegalStateException> { currentVariablesProviderResolutionContext() }
+                dependencyValues
+            },
+        )
+
+        module.withBatchedEngine { service ->
+            service.executeQuery("{ first: value(key: 1) second: value(key: 2) }")
+                .assertJson("""{data: {first: 10, second: 20}}""")
+        }
+
+        assertEquals(setOf(1, 2), owners.keys)
+        assertNotSame(owners.getValue(1), owners.getValue(2))
+    }
+
+    @Test
+    fun `request context survives provider suspension and batch thread handoff`() {
+        val requestIdentity = ThreadLocal<String>()
+        Executors.newSingleThreadExecutor().asCoroutineDispatcher().use { handoff ->
+            val module = valueWithDerivedDependency(
+                provideVariables = { key ->
+                    yield()
+                    assertEquals("request-A", requestIdentity.get())
+                    mapOf("derived" to key * 10)
+                },
+                resolveBatch = { values ->
+                    assertEquals(setOf(10, 20), values.toSet())
+                    assertThrows<IllegalStateException> { currentVariablesProviderResolutionContext() }
+                    val originalThread = Thread.currentThread()
+
+                    withContext(handoff) {
+                        assertNotSame(originalThread, Thread.currentThread())
+                        yield()
+                        assertEquals("request-A", requestIdentity.get())
+                        assertEquals("batch-request", currentCoroutineContext()[CoroutineName]?.name)
+                        assertThrows<IllegalStateException> { currentVariablesProviderResolutionContext() }
+                        values
+                    }
+                },
+            )
+
+            module.withBatchedEngine { service ->
+                withContext(requestIdentity.asContextElement("request-A") + CoroutineName("batch-request")) {
+                    service.executeQuery("{ first: value(key: 1) second: value(key: 2) }")
+                        .assertJson("""{data: {first: 10, second: 20}}""")
+                }
+                assertNull(requestIdentity.get())
+            }
+        }
+    }
+
+    private fun valueWithDerivedDependency(
+        provideVariables: suspend (Int) -> Map<String, Int>,
+        resolveBatch: suspend (List<Int>) -> List<Int>,
+    ) = EngineTestModule(
+        "extend type Query { value(key: Int!): Int @resolver dependency(key: Int!): Int @resolver }",
+    ) {
+        field("Query" to "dependency") {
+            resolver { fn { arguments, _, _, _, _ -> arguments.getValue("key") } }
+        }
+        field("Query" to "value") {
+            resolver {
+                objectSelections("dependency(key: \$derived)") {
+                    variables("derived") { input, _ -> provideVariables(input.arguments.getValue("key") as Int) }
+                }
+                fn { selectors, _ ->
+                    val values = resolveBatch(selectors.map { it.syncObjectValueGetter().fetchAs<Int>("dependency") })
+                    selectors.zip(values).associate { (selector, value) -> selector to Result.success(value) }
+                }
+            }
+        }
+    }
+
     @Test
     fun `Runtime2 invokes a batching-capable field resolver in the calling coroutine`() =
         runTest {

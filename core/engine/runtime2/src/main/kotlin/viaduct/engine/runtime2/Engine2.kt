@@ -12,10 +12,10 @@ import graphql.execution.ExecutionStrategyParameters
 import graphql.execution.instrumentation.ChainedInstrumentation
 import graphql.execution.instrumentation.Instrumentation
 import graphql.execution.preparsed.PreparsedDocumentProvider
-import graphql.language.FragmentDefinition
 import graphql.schema.DataFetchingEnvironment
 import graphql.schema.GraphQLObjectType
 import java.util.concurrent.CompletableFuture
+import java.util.concurrent.ConcurrentHashMap
 import kotlin.coroutines.CoroutineContext
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -28,12 +28,10 @@ import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.EngineSelectionSet
-import viaduct.engine.api.ExecutionAttribution
 import viaduct.engine.api.ExecutionInput
 import viaduct.engine.api.FullSchema
 import viaduct.engine.api.NodeReference
 import viaduct.engine.api.RequiredSelectionSet
-import viaduct.engine.api.ResolutionPolicy
 import viaduct.engine.api.ResolveRootFieldReferenceOptions
 import viaduct.engine.api.ResolveSelectionSetOptions
 import viaduct.engine.api.ResolverType
@@ -54,6 +52,7 @@ import viaduct.engine.runtime.select.EngineSelectionSetFactoryImpl
 import viaduct.engine.runtime.validation.IncrementalDirectiveValidation
 import viaduct.engine.runtime2.airbnb.DispatcherResolverRegistryFactory
 import viaduct.engine.runtime2.airbnb.Engine2ResolverRegistryFactory
+import viaduct.engine.runtime2.execution.EmptyFieldExecutionScope
 import viaduct.engine.runtime2.execution.Engine2ExecutionContext
 import viaduct.engine.runtime2.execution.RequestLifetimeInstrumentation
 import viaduct.engine.runtime2.execution.Runtime2CallerCancellation
@@ -61,6 +60,7 @@ import viaduct.engine.runtime2.execution.Runtime2CallerCancellationKey
 import viaduct.engine.runtime2.execution.Runtime2DispatchStrategy
 import viaduct.engine.runtime2.execution.Runtime2ExecutionHandle
 import viaduct.engine.runtime2.execution.Runtime2ExecutionStrategy
+import viaduct.engine.runtime2.execution.Runtime2ScopedFieldBatchExecutor
 import viaduct.engine.runtime2.execution.Runtime2WiringFactory
 import viaduct.engine.runtime2.execution.completeResolvedData
 import viaduct.engine.runtime2.execution.instrumentForRuntime2
@@ -68,6 +68,7 @@ import viaduct.engine.runtime2.execution.runtime2NodeReferenceOf
 import viaduct.engine.runtime2.execution.runtime2RootFieldReferenceOf
 import viaduct.engine.runtime2.model.registry.Assumptions
 import viaduct.engine.runtime2.schema.ViaductAndGJSchema
+import viaduct.service.api.spi.FlagManager
 import viaduct.service.api.spi.GlobalIDCodec
 
 /** Dispatcher-backed implementation of the Engine API using runtime2 Resolution. */
@@ -84,6 +85,7 @@ class Engine2(
     private val coroutineInterop: CoroutineInterop = DefaultCoroutineInterop,
     resolverRegistryFactory: Engine2ResolverRegistryFactory = DispatcherResolverRegistryFactory,
     usePrecomputedConstructionDemand: Boolean = true,
+    private val flagManager: FlagManager = FlagManager.Disabled,
 ) : Engine, EngineGraphQLJavaCompat {
     private val schemas = ViaductAndGJSchema.fromGraphQLSchema(fullSchema.schema)
     private val engineSelectionSetFactory = EngineSelectionSetFactoryImpl(fullSchema)
@@ -125,13 +127,15 @@ class Engine2(
                         parameters: ExecutionStrategyParameters,
                     ): CompletableFuture<ExecutionResult> =
                         coroutineInterop.scopedFuture {
+                            val batchingEnabled = flagManager.isEnabled(FlagManager.Flags.ENGINE2_BATCHING)
                             // Capture the context after the wrapper selects the request's dispatcher.
                             Runtime2ExecutionStrategy(
                                 world = world,
                                 sourceSchema = schemas.graphQLSchema,
                                 resolverCoroutineContext = coroutineContext,
-                                engineExecutionContextFactory = ::invocationContext,
+                                engineExecutionContextFactory = { invocationContext(it, batchingEnabled) },
                                 dataFetcherExceptionHandler = dataFetcherExceptionHandler,
+                                batchingEnabled = batchingEnabled,
                             ).execute(context, parameters).await()
                         }
                 },
@@ -160,7 +164,10 @@ class Engine2(
         incrementalExecution: Boolean,
     ): EngineExecutionContext = RequestEngineExecutionContext(requestContext)
 
-    private fun invocationContext(invocation: ExecutionContext): DispatcherExecutionContext {
+    private fun invocationContext(
+        invocation: ExecutionContext,
+        batchingEnabled: Boolean
+    ): DispatcherExecutionContext {
         // GraphQL Java substitutes its GraphQLContext when no legacy context was supplied.
         val legacyRequestContext = invocation.getContext<Any?>()?.takeUnless { it === invocation.graphQLContext }
         val request = invocation.graphQLContext.get<RequestContext?>(requestContextKey)?.engineExecutionContext
@@ -168,8 +175,16 @@ class Engine2(
                 ?.get<RequestEngineExecutionContext>()
                 ?.takeIf { it.engine === this }
             ?: RequestEngineExecutionContext(legacyRequestContext)
+        val fieldLoaders = ConcurrentHashMap<FieldResolverExecutor, FieldDataLoader>()
         return object : DispatcherExecutionContext by request, Engine2ExecutionContext {
             override val graphQLExecutionContext = invocation
+
+            override fun fieldDataLoader(resolver: FieldResolverExecutor): FieldDataLoader =
+                if (batchingEnabled && resolver.isBatching) {
+                    fieldLoaders.computeIfAbsent(resolver) { FieldDataLoader(Runtime2ScopedFieldBatchExecutor(it)) }
+                } else {
+                    request.fieldDataLoader(resolver)
+                }
         }
     }
 
@@ -237,7 +252,7 @@ class Engine2(
         override val globalIDCodec: GlobalIDCodec get() = this@Engine2.globalIDCodec
         override val engine: Engine get() = this@Engine2
         override val executionHandle: EngineExecutionContext.ExecutionHandle? = null
-        override val fieldScope: EngineExecutionContext.FieldExecutionScope = RootFieldExecutionScope
+        override val fieldScope: EngineExecutionContext.FieldExecutionScope = EmptyFieldExecutionScope
 
         override suspend fun resolveSelectionSet(
             selectionSet: EngineSelectionSet,
@@ -271,13 +286,12 @@ class Engine2(
         override fun hasModernNodeResolver(typeName: String): Boolean = dispatcherRegistry.getNodeResolverDispatcher(typeName) != null
 
         /**
-         * Runtime2 currently gives each dispatcher invocation a fresh immediate loader so the
-         * production loader cache cannot merge distinct semantic occurrences. This is a
-         * transitional physical-dispatch policy, not a permanent prohibition on safe reuse.
+         * Fallback for disabled batching and non-batching fields. Enabled batching uses the
+         * invocation-local registry so independent GraphQL executions cannot share loaders.
          */
         override fun fieldDataLoader(resolver: FieldResolverExecutor): FieldDataLoader = FieldDataLoader(resolver, dispatchStrategy = Runtime2DispatchStrategy)
 
-        /** See [fieldDataLoader] for the transitional per-invocation loader policy. */
+        /** Nodes retain immediate dispatch with a fresh loader per invocation. */
         override fun nodeDataLoader(resolver: NodeResolverExecutor): NodeDataLoader = NodeDataLoader(resolver, dispatchStrategy = Runtime2DispatchStrategy)
     }
 }
@@ -290,10 +304,3 @@ private data class RequestContext(
     val engineExecutionContext: DispatcherExecutionContext,
     val coroutineContext: CoroutineContext,
 )
-
-private object RootFieldExecutionScope : EngineExecutionContext.FieldExecutionScope {
-    override val fragments = emptyMap<String, FragmentDefinition>()
-    override val variables = emptyMap<String, Any?>()
-    override val resolutionPolicy = ResolutionPolicy.STANDARD
-    override val attribution = ExecutionAttribution.DEFAULT
-}

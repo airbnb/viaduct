@@ -106,8 +106,6 @@ internal class InstrumentedEngineExecutionContextTest {
 
         val testClass = InstrumentedEngineExecutionContext(impl, instrumentation, state)
 
-        // Then — engine-internal code can recover the concrete impl without a cast to the
-        // decorator class, satisfying the InternalEngineExecutionContext contract.
         assertSame(impl, testClass.impl)
     }
 }

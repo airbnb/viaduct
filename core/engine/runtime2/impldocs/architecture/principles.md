@@ -108,6 +108,8 @@ One request-root scope owns all request coroutines. Successful synchronous retur
 
 Resolution treats the request scope as a root-task capability, not as a general-purpose coroutine scope. Only orchestration-task, mutation-orchestration-task, field-resolver-task, field-checker-task, type-checker-task, and GraphQL mutation completion-waiter roots may launch directly on it. Object orchestration retains its own conditionally launched request-root coroutine whenever an OER has active work; an OER with no active work freezes synchronously. Mutation orchestration owns ordered namespace traversal, and the GraphQL waiter delays mutation response completion until resolution finishes. Query-fragment producers, provider readers, binding producers, materializers, and every other auxiliary coroutine are children of the nearest owning task. Nested execution uses a child scope owned by its invoking task. Introducing another request-root task kind requires an explicit architecture change.
 
+The Engine API integration keeps shared field-batch callbacks and scheduler workers under its request job. Each batch callback waits for its tenant child coroutines before returning results to the fields waiting on it.
+
 Ordinary cross-task readiness travels through named promises or value-bearing deferreds, not through another task's call stack or `Job` completion. Mutation sequencing explicitly waits for the preceding field-task scope and its payload completion before advancing, and the GraphQL mutation waiter awaits resolution before response completion. Independent ordinary object and list occurrences do not require a global barrier.
 
 ## Isolate Tenant Failure Without Stranding Work

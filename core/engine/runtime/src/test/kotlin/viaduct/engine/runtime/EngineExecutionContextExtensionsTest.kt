@@ -75,7 +75,7 @@ class EngineExecutionContextExtensionsTest {
         val delegateImpl = createContext(
             flagManager = MockFlagManager.create(FlagManager.Flags.KILLSWITCH_FIELD_RSS_ORIGIN_FILTERING)
         )
-        val wrappedContext: EngineExecutionContext = object : InternalEngineExecutionContext by delegateImpl {
+        val wrappedContext: EngineExecutionContext = object : Runtime1EngineExecutionContext by delegateImpl {
             override val impl: EngineExecutionContextImpl = delegateImpl
         }
 
@@ -283,6 +283,6 @@ class EngineExecutionContextExtensionsTest {
         val exception = assertThrows<IllegalStateException> {
             fakeContext.isFieldMatEligible
         }
-        assertTrue(exception.message!!.contains("Expected InternalEngineExecutionContext"))
+        assertTrue(exception.message!!.contains("Expected Runtime1EngineExecutionContext"))
     }
 }

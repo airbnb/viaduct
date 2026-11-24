@@ -5,6 +5,8 @@ package viaduct.engine.runtime2.execution
 import graphql.ExecutionInput
 import graphql.ExecutionResult
 import graphql.GraphQL
+import graphql.language.FragmentDefinition
+import graphql.parser.Parser
 import graphql.schema.GraphQLObjectType
 import graphql.schema.idl.RuntimeWiring
 import graphql.schema.idl.SchemaGenerator
@@ -29,15 +31,19 @@ import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import viaduct.engine.api.Caller
 import viaduct.engine.api.CheckerResult
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.EngineSchema
+import viaduct.engine.api.ExecutionAttribution
 import viaduct.engine.api.FromArgument
 import viaduct.engine.api.FromFieldVariablesResolver
 import viaduct.engine.api.NodeEngineObjectData
+import viaduct.engine.api.ResolutionPolicy
 import viaduct.engine.api.ResolvedEngineObjectData
 import viaduct.engine.api.instrumentation.resolver.ResolverInstrumentationContext
+import viaduct.engine.api.invocationContextFor
 import viaduct.engine.api.mocks.MockCheckerErrorResult
 import viaduct.engine.api.mocks.MockCheckerExecutor
 import viaduct.engine.api.mocks.MockFieldBatchResolverExecutor
@@ -52,11 +58,13 @@ import viaduct.engine.api.spi.NodeResolverExecutor
 import viaduct.engine.runtime.CheckerDispatcherImpl
 import viaduct.engine.runtime.DispatcherExecutionContext
 import viaduct.engine.runtime.DispatcherRegistry
+import viaduct.engine.runtime.EngineExecutionContextImpl
 import viaduct.engine.runtime.FieldDataLoader
 import viaduct.engine.runtime.FieldResolverDispatcherImpl
 import viaduct.engine.runtime.NodeDataLoader
 import viaduct.engine.runtime.QueryPlanExecutionCondition
 import viaduct.engine.runtime.mocks.ContextMocks
+import viaduct.engine.runtime.withInvocationContexts
 import viaduct.engine.runtime2.airbnb.node.NodeResolverContext
 import viaduct.engine.runtime2.bootstrap.ExecutorRegistryInputs
 import viaduct.engine.runtime2.bootstrap.ResolverOutputAdapter
@@ -256,6 +264,63 @@ class ExecutorRegistryInputsTest {
                     assertSame(value, fixture.invoke(registry, name))
                 }
             }
+        }
+
+    @Test
+    fun `Runtime2 batch contexts retain request state loaders and each invocation`() {
+        val fixture = Fixture("type Query { value: Int }")
+        val first = Runtime2EngineExecutionContext(fixture.dispatcherContext, fixture.schemas, fixture.resolutionContext)
+        val second = Runtime2EngineExecutionContext(fixture.dispatcherContext, fixture.schemas, fixture.resolutionContext)
+
+        val batch = first.withInvocationContexts(mapOf("a" to first, "b" to second))
+
+        assertSame(first.requestContext, batch.requestContext)
+        assertSame(first.fullSchema, batch.fullSchema)
+        assertSame(first.scopedSchema, batch.scopedSchema)
+        assertSame(first.activeSchema, batch.activeSchema)
+        assertSame(first.engine, batch.engine)
+        assertSame(first.engineSelectionSetFactory, batch.engineSelectionSetFactory)
+        assertSame(first.globalIDCodec, batch.globalIDCodec)
+        val dispatchers = assertInstanceOf(DispatcherExecutionContext::class.java, batch)
+        val field = MockFieldBatchResolverExecutor(resolverId = "Query.value")
+        val node = MockNodeBatchResolverExecutor(typeName = "User")
+        assertSame(first.fieldDataLoader(field), dispatchers.fieldDataLoader(field))
+        assertSame(first.nodeDataLoader(node), dispatchers.nodeDataLoader(node))
+        assertSame(first, batch.invocationContextFor("a"))
+        assertSame(second, batch.invocationContextFor("b"))
+        assertThrows<IllegalStateException> { batch.invocationContextFor("missing") }
+    }
+
+    @Test
+    fun `Runtime2 shared batches clear field state and reject execution without a selector`() =
+        runTest {
+            val fixture = Fixture("type Query { value: Int }")
+            val fragment = Parser().parseDocument("fragment F on Query { value }").definitions.single() as FragmentDefinition
+            val fieldScope = EngineExecutionContextImpl.FieldExecutionScopeImpl(
+                fragments = mapOf("F" to fragment),
+                variables = mapOf("key" to 1),
+                resolutionPolicy = ResolutionPolicy.PARENT_MANAGED,
+                attribution = ExecutionAttribution.fromResolver("Query.value"),
+                caller = Caller("tenant", "Query", "value"),
+            )
+            val delegate = object : DispatcherExecutionContext by fixture.dispatcherContext {
+                override val fieldScope = fieldScope
+            }
+            val first = Runtime2EngineExecutionContext(delegate, fixture.schemas, fixture.resolutionContext)
+
+            val batch = first.withInvocationContexts(mapOf("a" to first))
+
+            assertNull(batch.executionHandle)
+            assertTrue(batch.fieldScope.fragments.isEmpty())
+            assertTrue(batch.fieldScope.variables.isEmpty())
+            assertEquals(ResolutionPolicy.STANDARD, batch.fieldScope.resolutionPolicy)
+            assertEquals(ExecutionAttribution.DEFAULT, batch.fieldScope.attribution)
+            assertNull(batch.fieldScope.caller)
+            assertSame(fieldScope, batch.invocationContextFor("a").fieldScope)
+            assertInstanceOf(Runtime2ExecutionHandle::class.java, batch.invocationContextFor("a").executionHandle)
+            val selections = first.engineSelectionSetFactory.engineSelectionSet("Query", "value", emptyMap())
+            assertThrows<IllegalStateException> { batch.resolveSelectionSet(selections) }
+            assertThrows<UnsupportedOperationException> { batch.completeSelectionSet(createRSS("Query", "value")) }
         }
 
     @Test

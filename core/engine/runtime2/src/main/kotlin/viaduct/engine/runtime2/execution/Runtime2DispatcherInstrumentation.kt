@@ -13,6 +13,7 @@ import viaduct.engine.runtime.DispatcherExecutionContext
 import viaduct.engine.runtime.DispatcherRegistry
 import viaduct.engine.runtime.EngineObjectDataFactory
 import viaduct.engine.runtime.FieldResolverDispatcher
+import viaduct.engine.runtime.InternalEngineExecutionContext
 import viaduct.engine.runtime.NodeResolverDispatcher
 import viaduct.engine.runtime.instrumentation.resolver.InstrumentedEngineObjectData
 import viaduct.engine.runtime.instrumentation.resolver.InstrumentedNodeResolverDispatcher
@@ -126,7 +127,10 @@ private class Runtime2InstrumentedExecutionContext(
     attribution: ExecutionAttribution,
     private val instrumentation: ViaductResolverInstrumentation,
     private val state: ViaductResolverInstrumentation.InstrumentationState,
-) : DispatcherExecutionContext by delegate {
+) : DispatcherExecutionContext by delegate,
+    InternalEngineExecutionContext {
+    override fun forBatch(invocationContexts: Map<Any, EngineExecutionContext>): EngineExecutionContext = (delegate as InternalEngineExecutionContext).forBatch(invocationContexts)
+
     override val fieldScope: EngineExecutionContext.FieldExecutionScope =
         object : EngineExecutionContext.FieldExecutionScope by delegate.fieldScope {
             override val attribution = attribution
