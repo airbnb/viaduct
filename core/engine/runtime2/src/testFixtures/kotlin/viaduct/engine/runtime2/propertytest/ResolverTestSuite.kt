@@ -11,7 +11,9 @@ import viaduct.engine.runtime2.arbitrary.Config
 import viaduct.engine.runtime2.arbitrary.GeneratedFieldCheckerMode
 import viaduct.engine.runtime2.arbitrary.GeneratedTypeCheckerMode
 import viaduct.engine.runtime2.arbitrary.GeneratorConfigData
+import viaduct.engine.runtime2.arbitrary.ParentDemandPathWeight
 import viaduct.engine.runtime2.arbitrary.RESOLVER_TEST_CASE_ID_PROPERTY
+import viaduct.engine.runtime2.arbitrary.ResolverQueryFragmentValuesAffectOutput
 import viaduct.engine.runtime2.arbitrary.ResolverTestBatch
 import viaduct.engine.runtime2.arbitrary.ResolverTestCase
 import viaduct.engine.runtime2.arbitrary.ResolverTestCaseCoordinate
@@ -361,7 +363,26 @@ internal fun ResolverTestSuiteDefinition.manifest(
         counts = counts,
         fieldCheckerMode = fieldCheckerMode,
         typeCheckerMode = typeCheckerMode,
-        generatorConfigSha256 = PropertyTestJson.write(GeneratorConfigData.from(id, config)).toByteArray().sha256Hash(),
+        generatorConfigSha256 =
+            PropertyTestJson.write(
+                GeneratorConfigData.from(id, config).let { data ->
+                    // Adding a setting with the default value must not stale every saved suite.
+                    data.copy(
+                        booleans =
+                            if (config[ResolverQueryFragmentValuesAffectOutput] == ResolverQueryFragmentValuesAffectOutput.default) {
+                                data.booleans - ResolverQueryFragmentValuesAffectOutput.wireName
+                            } else {
+                                data.booleans
+                            },
+                        doubles =
+                            if (config[ParentDemandPathWeight] == ParentDemandPathWeight.default) {
+                                data.doubles - ParentDemandPathWeight.wireName
+                            } else {
+                                data.doubles
+                            },
+                    )
+                }
+            ).toByteArray().sha256Hash(),
         schemas = schemas,
         batches = batches,
     )

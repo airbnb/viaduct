@@ -151,8 +151,13 @@ class SuiteCoverageComparisonTest : CorrectResolutionPostTestPolicy, ResolutionD
         val objectFragment = ResolverTestSuiteDefinition.OBJECT_FRAGMENT.config
         val variables = Config.default + (ResolverVariablesEnabled to true) + (ResolverFromArgumentVariablesEnabled to true)
 
-        assertEquals(setOf("A", "FO", "FI", "X", "LOE", "DA", "LX", "DD", "NE"), inapplicableObligationIds(objectFragment).mapTo(mutableSetOf()) { resolverCoverageMetricCodes.getValue(it) })
-        assertEquals(emptySet<String>(), inapplicableObligationIds(variables))
+        assertEquals(
+            setOf("AVB", "AM", "A", "FO", "FI", "X", "LOE", "DA", "LX", "DD", "NE", "CRV"),
+            inapplicableObligationIds(objectFragment).mapTo(mutableSetOf()) {
+                resolverCoverageMetricCodes.getValue(it)
+            }
+        )
+        assertEquals(setOf("argument_binding_path_has_multiple_steps"), inapplicableObligationIds(variables))
         assertEquals(
             setOf("FL", "FE"),
             inapplicableObligationIds(ResolverTestSuiteDefinition.EMPTY_OBJECT_FRAGMENT.config).mapTo(mutableSetOf()) {
@@ -160,10 +165,13 @@ class SuiteCoverageComparisonTest : CorrectResolutionPostTestPolicy, ResolutionD
             } - inapplicableObligationIds(objectFragment).map { resolverCoverageMetricCodes.getValue(it) }
         )
         assertEquals(
-            setOf("list_object_field_error", "provider_read_crosses_list_boundary", "object_fragment_resolver_field_in_list_element"),
+            setOf("argument_binding_path_has_multiple_steps", "list_object_field_error", "provider_read_crosses_list_boundary", "object_fragment_resolver_field_in_list_element"),
             inapplicableObligationIds(variables + (ListsEnabled to false))
         )
-        assertEquals(setOf("both_sources_on_one_occurrence", "both_sources_within_one_execution"), inapplicableObligationIds(Config.default + (ResolverVariablesEnabled to true)))
+        assertEquals(
+            setOf("argument_backed_variable_bound", "argument_binding_path_has_multiple_steps", "both_sources_on_one_occurrence", "both_sources_within_one_execution"),
+            inapplicableObligationIds(Config.default + (ResolverVariablesEnabled to true)),
+        )
     }
 
     @Test

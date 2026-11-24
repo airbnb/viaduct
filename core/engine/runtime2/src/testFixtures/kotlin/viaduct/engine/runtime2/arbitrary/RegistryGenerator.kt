@@ -73,6 +73,9 @@ enum class ResolverProgramMutation {
     NONE,
     CACHE_FIRST_INPUT,
     CACHE_FIRST_ARGUMENTS,
+    IGNORE_PARENT_READING_INPUT,
+    IGNORE_DEEP_PARENT_DEMAND_INPUT,
+    IGNORE_QUERY_FRAGMENT_INPUT,
     DUPLICATE_APPLICATION,
     APPLICATION_ORDINAL_CONTAMINATION,
 }
@@ -147,6 +150,7 @@ class ArbitraryRegistry internal constructor(
     val queryFragments: Map<FieldCoordinate, FragmentPlan>,
     val variableProviders: List<VariableProviderPlan>,
     val resolverPrograms: Map<FieldCoordinate, ResolverProgramKind>,
+    val resolverQueryFragmentValuesAffectOutput: Boolean,
     val parentDemandOwnerFields: Map<FieldCoordinate, Int>,
     val parentSelectingFragmentOwnerFields: Set<FieldCoordinate>,
     val parentReadingResolverInputOwnerFields: Set<FieldCoordinate>,
@@ -595,6 +599,30 @@ class ArbitraryRegistry internal constructor(
                                         } else {
                                             arguments
                                         }
+                                    val inputFingerprint =
+                                        if (
+                                            resolverProgramMutation == ResolverProgramMutation.IGNORE_PARENT_READING_INPUT &&
+                                            coordinate in parentReadingResolverInputOwnerFields ||
+                                            resolverProgramMutation == ResolverProgramMutation.IGNORE_DEEP_PARENT_DEMAND_INPUT &&
+                                            (parentDemandOwnerFields[coordinate] ?: 0) >= 3
+                                        ) {
+                                            "parent-input-ignored"
+                                        } else {
+                                            effectiveInput.resolutionFingerprint().value
+                                        }
+                                    val queryValueFingerprint =
+                                        if (
+                                            resolverQueryFragmentValuesAffectOutput &&
+                                            queryFragments.getValue(coordinate).selections.isNotEmpty()
+                                        ) {
+                                            if (resolverProgramMutation == ResolverProgramMutation.IGNORE_QUERY_FRAGMENT_INPUT) {
+                                                "query-fragment-input-ignored"
+                                            } else {
+                                                queryValue.resolutionFingerprint().value
+                                            }
+                                        } else {
+                                            ""
+                                        }
                                     val ordinal: Int? =
                                         if (
                                             resolverProgramMutation ==
@@ -608,8 +636,8 @@ class ArbitraryRegistry internal constructor(
                                         }
                                     val generatedHashSeed =
                                         stableGeneratedHash(
-                                            effectiveInput.resolutionFingerprint().value,
-                                            queryValue.resolutionFingerprint().value,
+                                            inputFingerprint,
+                                            queryValueFingerprint,
                                             effectiveArguments
                                                 .resolutionFingerprint(field)
                                                 .value,
@@ -627,7 +655,8 @@ class ArbitraryRegistry internal constructor(
                                                             it.graphQLName ==
                                                                 field.type.baseTypeDef.name
                                                         },
-                                                    input = effectiveInput,
+                                                    inputFingerprint = inputFingerprint,
+                                                    queryValueFingerprint = queryValueFingerprint,
                                                     arguments = effectiveArguments,
                                                     argumentField = field,
                                                     applicationOrdinal = ordinal,
@@ -1033,6 +1062,8 @@ private class RegistryGenerator(
             resolverFragments.mapValues { (_, fragments) -> fragments.objectFragment }
         val queryFragments =
             resolverFragments.mapValues { (_, fragments) -> fragments.queryFragment }
+        val parentReadingResolverInputOwnerFields =
+            schema.parentReadingResolverInputOwnerFields(objectFragments, queryFragments)
         val resolverPrograms =
             fieldSites.associateWith { site ->
                 val field = field(site)
@@ -1044,7 +1075,13 @@ private class RegistryGenerator(
                 val supportsSensitiveOutput = scalarOutput || structuredOutput
                 val inputSensitive =
                     supportsSensitiveOutput &&
-                        objectFragments.getValue(site).selections.isNotEmpty()
+                        (
+                            objectFragments.getValue(site).selections.isNotEmpty() ||
+                                (
+                                    config[ResolverQueryFragmentValuesAffectOutput] &&
+                                        queryFragments.getValue(site).selections.isNotEmpty()
+                                )
+                        )
                 val argumentSensitive =
                     supportsSensitiveOutput && field.arguments.isNotEmpty()
                 when {
@@ -1126,9 +1163,10 @@ private class RegistryGenerator(
             queryFragments = queryFragments,
             variableProviders = variableProviders,
             resolverPrograms = resolverPrograms,
+            resolverQueryFragmentValuesAffectOutput = config[ResolverQueryFragmentValuesAffectOutput],
             parentDemandOwnerFields = parentDemandOwnerFields,
             parentSelectingFragmentOwnerFields = schema.parentSelectingFragmentOwnerFields(objectFragments, queryFragments),
-            parentReadingResolverInputOwnerFields = schema.parentReadingResolverInputOwnerFields(objectFragments, queryFragments),
+            parentReadingResolverInputOwnerFields = parentReadingResolverInputOwnerFields,
             schemaRootFieldReferenceFamily = rootFieldReferenceFamily,
             features =
                 RegistryFeatures(
@@ -3690,13 +3728,15 @@ private fun FragmentSelectionPlan.hasPathArguments(): Boolean =
 
 private fun sensitiveScalar(
     scalar: ScalarKind,
-    input: EngineObjectData.Sync,
+    inputFingerprint: String,
+    queryValueFingerprint: String,
     arguments: Arguments.Resolved,
     argumentField: ViaductSchema.Field,
     applicationOrdinal: Int? = null,
 ): EngineOutputData {
     val fingerprint =
-        input.resolutionFingerprint().value +
+        inputFingerprint +
+            queryValueFingerprint.takeIf(String::isNotEmpty)?.let { "|$it" }.orEmpty() +
             "|" +
             arguments.resolutionFingerprint(argumentField).value +
             applicationOrdinal?.let { "|ordinal:$it" }.orEmpty()

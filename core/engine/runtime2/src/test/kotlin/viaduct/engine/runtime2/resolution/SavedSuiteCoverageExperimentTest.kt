@@ -48,6 +48,77 @@ class SavedSuiteCoverageExperimentTest : CorrectResolutionPostTestPolicy, Resolu
     @ParameterizedTest
     @EnumSource(
         value = ResolverTestSuiteDefinition::class,
+        names = [
+            "RESOLUTION_OBJECT_FRAGMENT_FROM_ARGUMENT",
+            "RESOLUTION_OBJECT_FRAGMENT_FROM_ARGUMENT_MUTATION_SENSITIVE",
+            "RESOLUTION_TYPE_CHECKER_SUCCESS",
+            "RESOLUTION_FIELD_CHECKER_PASSIVE",
+            "RESOLUTION_FIELD_CHECKER_ROOT_REFERENCE",
+        ],
+    )
+    fun `saved ARB profiles contain the new feature obligations`(definition: ResolverTestSuiteDefinition): Unit =
+        runTest {
+            val measurement = measureSavedSuiteCoverage(ResolverTestSuite.load(definition))
+            val metrics = measurement.report().metrics.associate { it.id to it.support }
+            val requiredObligations = when (definition) {
+                ResolverTestSuiteDefinition.RESOLUTION_OBJECT_FRAGMENT_FROM_ARGUMENT ->
+                    mapOf(
+                        "argument_backed_variable_bound" to 1,
+                        "argument_binding_path_has_multiple_steps" to 10,
+                        "field_resolver_invoked" to 1,
+                    )
+                ResolverTestSuiteDefinition.RESOLUTION_OBJECT_FRAGMENT_FROM_ARGUMENT_MUTATION_SENSITIVE ->
+                    mapOf(
+                        "argument_backed_variable_bound" to 15,
+                        "argument_binding_path_has_multiple_steps" to 8,
+                        "field_resolver_invoked" to 20,
+                    )
+                ResolverTestSuiteDefinition.RESOLUTION_FIELD_CHECKER_ROOT_REFERENCE ->
+                    mapOf(
+                        "field_checker_invoked" to 1,
+                        "field_resolver_invoked" to 1,
+                    )
+                ResolverTestSuiteDefinition.RESOLUTION_TYPE_CHECKER_SUCCESS ->
+                    mapOf(
+                        "checker_uses_runtime_bound_variable" to 1,
+                        "field_checker_invoked" to 1,
+                        "field_resolver_invoked" to 1,
+                    )
+                ResolverTestSuiteDefinition.RESOLUTION_FIELD_CHECKER_PASSIVE ->
+                    mapOf(
+                        "field_checker_invoked" to 1,
+                        "field_resolver_invoked" to 1,
+                        "field_checker_without_resolver" to 1,
+                    )
+                else -> error("Unexpected obligation profile: $definition")
+            }
+            when (definition) {
+                ResolverTestSuiteDefinition.RESOLUTION_FIELD_CHECKER_ROOT_REFERENCE ->
+                    assertTrue(
+                        measurement.rows.any { it.resolutionRole == ResolutionRole.SOURCE_SUPPLIED },
+                        "${definition.id} produced no source-supplied root-reference values",
+                    )
+                else -> Unit
+            }
+            requiredObligations.forEach { (id, minimumTests) ->
+                val support = metrics.getValue(id)
+                assertTrue(
+                    support.tests >= minimumTests,
+                    "${definition.id} has ${support.tests} tests with $id; expected at least $minimumTests",
+                )
+            }
+            println(
+                "RFC-271 full suite=${definition.id} cases=${measurement.executions.size} " +
+                    "newObligations=" + requiredObligations.keys.joinToString { id ->
+                        val support = metrics.getValue(id)
+                        "$id[occurrences=${support.occurrences},tests=${support.tests},batches=${support.batches}]"
+                    }
+            )
+        }
+
+    @ParameterizedTest
+    @EnumSource(
+        value = ResolverTestSuiteDefinition::class,
         names = ["ROOT_FIELD_REFERENCE", "SOMETIMES_PASSIVE", "RESOLUTION_MIXED_VARIABLES"],
     )
     fun `coverage measurements round trip for representative saved suites`(definition: ResolverTestSuiteDefinition): Unit =

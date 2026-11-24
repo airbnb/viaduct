@@ -25,7 +25,6 @@ import org.gradle.kotlin.dsl.register
 plugins {
     id("com.vanniktech.maven.publish")
     id("conventions.dokka")
-    id("conventions.security-scanning")
     signing
 }
 

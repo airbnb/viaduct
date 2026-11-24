@@ -572,6 +572,9 @@ private class SchemaGenerator(
                     put(GENERATED_PARENT_ROOT_TYPE, GENERATED_PARENT_CHILD_FIELD)
                     put(GENERATED_PARENT_CHILD_TYPE, GENERATED_PARENT_CHILD_FIELD)
                     put(GENERATED_PARENT_GRANDCHILD_TYPE, GENERATED_PARENT_CHILD_FIELD)
+                    if (config[ParentDemandPathWeight] < 1.0) {
+                        put(GENERATED_PARENT_GREAT_GRANDCHILD_TYPE, GENERATED_PARENT_RESULT_FIELD)
+                    }
                 } else {
                     if (minimumDepth > 0) put("Query", "query0")
                     for (index in 0 until (minimumDepth - 1)) {

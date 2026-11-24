@@ -42,7 +42,13 @@ class ResolverCoverageAnalysisTest {
 
         assertEquals(4, suite.testCases)
         assertEquals(
-            setOf("both_sources_on_one_occurrence", "both_sources_within_one_execution", "shared_provider_fan_out"),
+            setOf(
+                "argument_backed_variable_bound",
+                "both_sources_on_one_occurrence",
+                "both_sources_within_one_execution",
+                "field_resolver_invoked",
+                "shared_provider_fan_out",
+            ),
             suite.coveredObligations,
         )
     }
@@ -58,7 +64,12 @@ class ResolverCoverageAnalysisTest {
                 signature =
                     ResolverCoverageSignature(
                         test = test("schema-a", "query-a"),
-                        obligations = setOf("both_sources_on_one_occurrence", "both_sources_within_one_execution"),
+                        obligations = setOf(
+                            "argument_backed_variable_bound",
+                            "both_sources_on_one_occurrence",
+                            "both_sources_within_one_execution",
+                            "field_resolver_invoked",
+                        ),
                         attributes =
                             setOf(
                                 "resolution_role:invoked",
@@ -66,6 +77,7 @@ class ResolverCoverageAnalysisTest {
                                 "stamp_class:variable_free",
                                 "provider_path_depth:none",
                                 "binding_sources:argument+object_field",
+                                "argument_path_depth:0",
                                 "argument_state:none",
                                 "declared_output_shape:scalar",
                                 "output_kind:scalar",
@@ -88,7 +100,21 @@ class ResolverCoverageAnalysisTest {
                                         CoverageEvidenceLocation("Item.computed", stablePath("Item.computed", "two")),
                                     ),
                                 ),
-                            ).sortedBy { it.obligationId },
+                                ResolverCoverageObligationEvidence(
+                                    "argument_backed_variable_bound",
+                                    setOf(
+                                        CoverageEvidenceLocation("Item.computed", stablePath("Item.computed", "one")),
+                                        CoverageEvidenceLocation("Item.computed", stablePath("Item.computed", "two")),
+                                    ),
+                                ),
+                                ResolverCoverageObligationEvidence(
+                                    "field_resolver_invoked",
+                                    setOf(
+                                        CoverageEvidenceLocation("Item.computed", stablePath("Item.computed", "one")),
+                                        CoverageEvidenceLocation("Item.computed", stablePath("Item.computed", "two")),
+                                    ),
+                                ),
+                            ),
                     ),
                 testCases = 1,
             ),
@@ -146,8 +172,8 @@ class ResolverCoverageAnalysisTest {
             CaseSignalsByQuery(
                 obligations =
                     mapOf(
-                        "query-error" to setOf("list_object_field_error"),
-                        "query-tree" to setOf("resolver_output_contains_descendant"),
+                        "query-error" to setOf("field_resolver_invoked", "list_object_field_error"),
+                        "query-tree" to setOf("field_resolver_invoked", "resolver_output_contains_descendant"),
                     ),
                 attributes =
                     mapOf(
@@ -201,15 +227,19 @@ class ResolverCoverageAnalysisTest {
                 obligationsByQuery =
                     mapOf(
                         "query-a" to setOf(
+                            "argument_backed_variable_bound",
                             "both_sources_on_one_occurrence",
                             "both_sources_within_one_execution",
+                            "field_resolver_invoked",
                             "multiple_provider_fan_in",
                             "shared_provider_fan_out",
                             "successful_and_failing_branches_within_one_execution",
                         ),
                         "query-b" to setOf(
+                            "argument_backed_variable_bound",
                             "both_sources_on_one_occurrence",
                             "both_sources_within_one_execution",
+                            "field_resolver_invoked",
                             "multiple_provider_fan_in",
                             "successful_and_failing_branches_within_one_execution",
                         ),
@@ -379,12 +409,12 @@ class ResolverCoverageAnalysisTest {
             CaseComparisonSummary(
                 caseId = changedTest,
                 status = CoverageCaseStatus.CHANGED,
-                baselineObligations = setOf("both_sources_on_one_occurrence", "both_sources_within_one_execution"),
-                candidateObligations = setOf("shared_provider_fan_out"),
+                baselineObligations = setOf("argument_backed_variable_bound", "both_sources_on_one_occurrence", "both_sources_within_one_execution", "field_resolver_invoked"),
+                candidateObligations = setOf("field_resolver_invoked", "shared_provider_fan_out"),
                 baselineAttributes = setOf("binding_sources:argument+object_field"),
                 candidateAttributes = setOf("binding_sources:none"),
                 newlyCovered = setOf("shared_provider_fan_out"),
-                noLongerCovered = setOf("both_sources_on_one_occurrence", "both_sources_within_one_execution"),
+                noLongerCovered = setOf("argument_backed_variable_bound", "both_sources_on_one_occurrence", "both_sources_within_one_execution"),
                 candidateEvidenceCoordinates =
                     setOf("Source.value", "Item.first", "Item.second"),
                 editSummary = CoverageCaseEditSummary(1, 1, 1, 0),
@@ -419,9 +449,9 @@ class ResolverCoverageAnalysisTest {
 
         assertEquals(
             CoverageChangeSummary(
-                schema = setOf("shared_provider_fan_out"),
-                suite = setOf("shared_provider_fan_out"),
-                case = setOf("shared_provider_fan_out"),
+                schema = setOf("field_resolver_invoked", "shared_provider_fan_out"),
+                suite = setOf("field_resolver_invoked", "shared_provider_fan_out"),
+                case = setOf("field_resolver_invoked", "shared_provider_fan_out"),
             ),
             CoverageChangeSummary(
                 schema = schema.noLongerCovered,
@@ -439,9 +469,9 @@ class ResolverCoverageAnalysisTest {
 
         assertEquals(
             CoverageChangeSummary(
-                schema = setOf("shared_provider_fan_out"),
-                suite = setOf("shared_provider_fan_out"),
-                case = setOf("shared_provider_fan_out"),
+                schema = setOf("field_resolver_invoked", "shared_provider_fan_out"),
+                suite = setOf("field_resolver_invoked", "shared_provider_fan_out"),
+                case = setOf("field_resolver_invoked", "shared_provider_fan_out"),
             ),
             CoverageChangeSummary(
                 schema = schema.newlyCovered,

@@ -88,6 +88,7 @@ private class ResolverCoverageSignatureBuilder(
                     rows = testRows,
                     modelVersion = measurement.modelVersion,
                     dependencies = testDependencies,
+                    checkerOccurrences = measurement.checkerOccurrences.filter { it.execution.test == test },
                 )
             val evidence =
                 ResolverCoverageObligationEvidenceBuilder(

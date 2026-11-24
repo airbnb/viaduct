@@ -8,6 +8,7 @@ plugins {
     id("com.gradleup.shadow")
     `maven-publish`
     id("conventions.viaduct-publishing")
+    id("conventions.security-scanning")
 }
 
 // Fat jars this one layers on: their classes, resources and Maven descriptors stay out of this jar,

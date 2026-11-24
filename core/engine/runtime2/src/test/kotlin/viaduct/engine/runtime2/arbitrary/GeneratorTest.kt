@@ -44,6 +44,26 @@ import viaduct.graphql.schema.ViaductSchema
 
 class GeneratorTest {
     @Test
+    fun `parent demand path weight generates feature cases without forcing every query`() {
+        val config =
+            Config.default +
+                (ParentFieldsEnabled to true) +
+                (ParentDemandPathWeight to 0.5) +
+                (MinimumSelectionDepth to 5) +
+                (MaxSelectionDepth to 6) +
+                (SchemaObjectCount to 5..7) +
+                (NestedQueryFieldCount to 1..1)
+        val random = RandomSource.seeded(271_118L)
+        val schema = Arb.schema(config).next(random)
+        val queries = List(200) { schema.query(config).next(random).source }
+        val parentDemandQueries = queries.filter { "generatedParentRoot" in it }
+
+        assertTrue(parentDemandQueries.isNotEmpty())
+        assertTrue(parentDemandQueries.size < queries.size)
+        assertTrue(parentDemandQueries.all { "result" in it })
+    }
+
+    @Test
     fun `generated worlds share one prepared registry across assumptions`() {
         val random = RandomSource.seeded(1L)
         val schema = Arb.schema(Config.default).next(random)
@@ -463,6 +483,7 @@ class GeneratorTest {
         var abstractTargets = 0
         var maximumDepth = 0
         var parentDemandResolvers = 0
+        var inputSensitiveParentReaders = 0
         var argumentBearingParentScalars = 0
         var boundedDiagonalResolvers = 0
         var recursivelyComposedDiagonalResolvers = 0
@@ -504,6 +525,15 @@ class GeneratorTest {
                 registry.parentDemandOwnerFields.keys.count { field ->
                     field.typeName.startsWith(GENERATED_RANDOM_PARENT_TYPE_PREFIX)
                 }
+            inputSensitiveParentReaders +=
+                registry.parentReadingResolverInputOwnerFields.count { field ->
+                    field.typeName.startsWith(GENERATED_RANDOM_PARENT_TYPE_PREFIX) &&
+                        registry.resolverProgram(field) in
+                        setOf(
+                            ResolverProgramKind.INPUT_SENSITIVE,
+                            ResolverProgramKind.INPUT_AND_ARGUMENT_SENSITIVE,
+                        )
+                }
             boundedDiagonalResolvers +=
                 registry.objectFragmentSources.count { (field, source) ->
                     field.typeName.startsWith(GENERATED_RANDOM_PARENT_TYPE_PREFIX) &&
@@ -521,6 +551,7 @@ class GeneratorTest {
         assertTrue(abstractTargets > 0, "Generator sample expected abstractTargets > 0, observed $abstractTargets")
         assertTrue(maximumDepth >= 4, "Generator sample expected maximumDepth >= 4, observed $maximumDepth")
         assertTrue(parentDemandResolvers > 0, "Generator sample expected parentDemandResolvers > 0, observed $parentDemandResolvers")
+        assertTrue(inputSensitiveParentReaders > 0, "Generator sample expected inputSensitiveParentReaders > 0, observed $inputSensitiveParentReaders")
         assertTrue(argumentBearingParentScalars > 0, "Generator sample expected argumentBearingParentScalars > 0, observed $argumentBearingParentScalars")
         assertTrue(boundedDiagonalResolvers > 0, "Generator sample expected boundedDiagonalResolvers > 0, observed $boundedDiagonalResolvers")
         assertTrue(
@@ -1238,6 +1269,7 @@ class GeneratorTest {
                 (ResolverFragmentArgumentFieldWeight to 1.0) +
                 (ResolverFragmentsEnabled to false) +
                 (ResolverQueryFragmentsEnabled to true) +
+                (ResolverQueryFragmentValuesAffectOutput to true) +
                 (ResolverQueryFragmentWeight to 1.0) +
                 (ResolverFromArgumentVariablesEnabled to true) +
                 (ResolverVariableCount to 1..1) +
@@ -1251,6 +1283,21 @@ class GeneratorTest {
 
             registry.world(schema)
             assertTrue(registry.objectFragmentSources.values.all(String::isEmpty))
+            val queryDrivenResolvers =
+                registry.queryFragments
+                    .filterValues { it.selections.isNotEmpty() }
+                    .keys
+            val queryDrivenSensitiveOutputs =
+                queryDrivenResolvers.filter { coordinate ->
+                    val field = schema.field(coordinate)
+                    (!field.type.list && ScalarKind.entries.any { it.graphQLName == field.type.namedType }) ||
+                        registry.fieldValues.getValue(coordinate).containsGeneratedHash()
+                }
+            assertTrue(queryDrivenSensitiveOutputs.isNotEmpty())
+            assertTrue(
+                queryDrivenSensitiveOutputs.all { registry.resolverProgram(it) != ResolverProgramKind.CONSTANT },
+                "A resolver with a nonempty query fragment and a sensitive output must not be constant",
+            )
             registry.variableProviders
                 .filterIsInstance<FromArgumentVariableProviderPlan>()
                 .forEach { provider ->

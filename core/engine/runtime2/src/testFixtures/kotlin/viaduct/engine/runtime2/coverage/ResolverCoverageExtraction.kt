@@ -16,6 +16,7 @@ import viaduct.engine.runtime2.model.ListEngineResult
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.PathComponent
 import viaduct.engine.runtime2.model.ResolverOccurrenceId
+import viaduct.engine.runtime2.model.ResolverTarget
 import viaduct.engine.runtime2.model.fieldExpressions
 import viaduct.engine.runtime2.model.registry.ProviderFragment
 import viaduct.engine.runtime2.model.registry.VariableDefinition
@@ -58,6 +59,8 @@ private class ResolverCoverageExtractor(
             roots.forEach { put(it.result, it) }
         }
         val paths = CoveragePathEncoder(operation, fields)
+        val queryObserver = operation.resolutionObserver as? CorrectnessResolverObserver
+            ?: error("RFC-271 coverage requires checker invocation observations")
         val supplied =
             roots.filter(CoverageRoot::hasValidatedSourceProvenance)
                 .flatMapTo(mutableSetOf()) { it.result.sourceSuppliedResolverOccurrences(operation) }
@@ -74,9 +77,38 @@ private class ResolverCoverageExtractor(
                     ResolverOccurrenceId.at(field.root.result, field.path) !in appliedOccurrences
             }.mapTo(supplied) { field -> ResolverOccurrenceId.at(field.root.result, field.path) }
         }
-        val occurrences = fields.map { field -> occurrenceRow(field, supplied, paths) }
+        val occurrencesByIdentity = fields.associate { field ->
+            ResolverOccurrenceId.at(field.root.result, field.path) to occurrenceRow(field, supplied, paths)
+        }
+        val occurrences = occurrencesByIdentity.values.toList()
+        val checkerOccurrences = queryObserver.allCheckerInvocations().map { checker ->
+            val checkerId = ResolverOccurrenceId.at(checker.logicalQueryRoot, checker.occurrencePath)
+            val root = requireNotNull(rootsByResult[checker.logicalQueryRoot]) { "Checker invocation root was not recorded" }
+            val checkerResolver =
+                when (val target = checker.checkedTarget) {
+                    is ResolverTarget.FieldCheckerTarget -> requireNotNull(operation.world.resolverRegistry.fieldChecker(target.field))
+                    is ResolverTarget.TypeCheckerTarget -> requireNotNull(operation.world.resolverRegistry.typeChecker(target.type))
+                    else -> error("Unsupported checker target: $target")
+                }
+            val definitions = checkerResolver.variables.values
+            CheckerCoverageOccurrence(
+                execution = execution,
+                occurrenceId = paths.id(checkerId),
+                occurrencePath = paths.path(root, checker.occurrencePath),
+                checkerKind = checker.checkerKind,
+                checkedCoordinate =
+                    when (checker.checkedTarget) {
+                        is ResolverTarget.FieldCheckerTarget -> "${checker.checkedCoordinate.containingDef.name}.${checker.checkedCoordinate.name}"
+                        is ResolverTarget.TypeCheckerTarget -> checker.checkedType.name
+                        else -> error("Unsupported checker target: ${checker.checkedTarget}")
+                    },
+                bindingSources = definitions.resolverBindingSources(),
+                maxArgumentPathDepth = definitions.filterIsInstance<VariableDefinition.FromArgument>().maxOfOrNull { it.inputPath.size } ?: 0,
+                correspondingResolverRole = occurrencesByIdentity[checkerId]?.resolutionRole,
+            )
+        }
         val dependencies = dependencyRows(rootsByResult, paths)
-        return ResolverCoverageRecords(occurrences, dependencies)
+        return ResolverCoverageRecords(occurrences, dependencies, checkerOccurrences)
     }
 
     /** Prefer the more specific query-fragment label when one result appears in both collections. */
@@ -277,6 +309,7 @@ private class ResolverCoverageExtractor(
             listAncestorCount = ownerPath.count { it is ListEngineResult.Index },
             bindingSources = sources.resolverBindingSources(),
             maxProviderPathDepth = sources.filterIsInstance<VariableDefinition.FromField>().maxProviderPathDepth(),
+            maxArgumentPathDepth = sources.filterIsInstance<VariableDefinition.FromArgument>().maxOfOrNull { it.inputPath.size } ?: 0,
             argumentState = arguments.argumentState(),
             declaredOutputShape = key.field.declaredOutputShape(),
             outputKind = occurrence.value.outputKind(),

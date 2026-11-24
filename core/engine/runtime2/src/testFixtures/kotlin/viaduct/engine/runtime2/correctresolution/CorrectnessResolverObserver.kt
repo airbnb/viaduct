@@ -55,8 +55,10 @@ open class CorrectnessResolverObserver(
         ConcurrentHashMap<Pair<ResolverTarget, ResolverOccurrenceId>, ConcurrentLinkedQueue<ObjectEngineResult>>()
     private val checkerInputsByOwner =
         ConcurrentHashMap<Pair<ResolverTarget, ResolverOccurrenceId>, ConcurrentLinkedQueue<Map<String, CheckerInput>>>()
+    private val checkerInvocations = ConcurrentLinkedQueue<CheckerInvocationObservation>()
 
     override val onCheckerInvocation: (CheckerInvocationObservation, Map<String, CheckerInput>) -> Unit = { observation, inputs ->
+        checkerInvocations.add(observation)
         val owner = observation.checkedTarget to ResolverOccurrenceId.at(observation.logicalQueryRoot, observation.occurrencePath)
         checkerInputsByOwner.computeIfAbsent(owner) { ConcurrentLinkedQueue() }.add(inputs.toMap())
         delegate.onCheckerInvocation?.invoke(observation, inputs)
@@ -68,6 +70,8 @@ open class CorrectnessResolverObserver(
     ): List<Map<String, CheckerInput>> = checkerInputsByOwner[target to occurrenceId]?.toList().orEmpty()
 
     fun hasCheckerInputs(): Boolean = checkerInputsByOwner.isNotEmpty()
+
+    fun allCheckerInvocations(): List<CheckerInvocationObservation> = checkerInvocations.toList()
 
     override val onCheckerQueryFragmentPrepared: (ResolverTarget, ResolverOccurrenceId, ObjectEngineResult) -> Unit = { target, owner, result ->
         checkerQueryResults.computeIfAbsent(target to owner) { ConcurrentLinkedQueue() }.add(result)
@@ -89,6 +93,7 @@ open class CorrectnessResolverObserver(
         other.checkerInputsByOwner.forEach { (owner, inputs) ->
             checkerInputsByOwner.computeIfAbsent(owner) { ConcurrentLinkedQueue() }.addAll(inputs)
         }
+        checkerInvocations.addAll(other.checkerInvocations)
     }
 
     private val invokedOccurrences = ConcurrentHashMap.newKeySet<ResolverOccurrenceId>()

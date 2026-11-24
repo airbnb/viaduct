@@ -38,6 +38,7 @@ import viaduct.engine.runtime2.arbitrary.ResolverFromObjectFieldVariablesEnabled
 import viaduct.engine.runtime2.arbitrary.ResolverFromProviderVariablesEnabled
 import viaduct.engine.runtime2.arbitrary.ResolverFromQueryFieldVariablesEnabled
 import viaduct.engine.runtime2.arbitrary.ResolverNestedProviderPathWeight
+import viaduct.engine.runtime2.arbitrary.ResolverQueryFragmentValuesAffectOutput
 import viaduct.engine.runtime2.arbitrary.ResolverQueryFragmentWeight
 import viaduct.engine.runtime2.arbitrary.ResolverQueryFragmentsEnabled
 import viaduct.engine.runtime2.arbitrary.ResolverVariableCount
@@ -189,6 +190,12 @@ enum class ResolverTestSuiteDefinition(
         id = "resolution-object-fragment-from-argument",
         config = FROM_ARGUMENT_CONFIG + RESOLUTION_CONFIG_OVERRIDES,
         profile = "object-fragment-from-argument",
+    ),
+    RESOLUTION_OBJECT_FRAGMENT_FROM_ARGUMENT_MUTATION_SENSITIVE(
+        id = "resolution-object-fragment-from-argument-mutation-sensitive",
+        config = FROM_ARGUMENT_CONFIG + RESOLUTION_CONFIG_OVERRIDES,
+        retainedBatches = NESTED_ARGUMENT_PATH_RETAINED_BATCHES,
+        profile = "object-fragment-from-argument-mutation-sensitive",
     ),
     RESOLUTION_OBJECT_FRAGMENT_FROM_OBJECT_FIELD(
         id = "resolution-object-fragment-from-object-field",
@@ -552,6 +559,10 @@ enum class ResolverTestSuiteDefinition(
 
 private val GENERATED_PROFILE_COUNTS = TestCaseCount(schemas = 30, queriesPerSchema = 5)
 
+// These batches contain nested argument paths in 8 of their 45 saved cases.
+private val NESTED_ARGUMENT_PATH_RETAINED_BATCHES =
+    listOf("b004", "b008", "b009", "b010", "b015", "b017", "b018", "b022", "b030")
+
 /** Pool a selected suite is drawn from; one batch per schema. */
 private val SELECTION_POOL_COUNTS = GENERATED_PROFILE_COUNTS.copy(schemas = 500)
 
@@ -761,6 +772,7 @@ private val QUERY_FRAGMENT_CONFIG =
         (NodeResolversEnabled to false) +
         (ResolverFragmentsEnabled to true) +
         (ResolverFragmentWeight to 1.0) +
+        (ResolverQueryFragmentValuesAffectOutput to true) +
         (ResolverFromArgumentVariablesEnabled to true) +
         (ResolverQueryFragmentsEnabled to true) +
         (ResolverVariableWeight to 1.0) +

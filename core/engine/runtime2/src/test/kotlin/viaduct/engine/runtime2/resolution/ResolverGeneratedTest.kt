@@ -13,6 +13,7 @@ import viaduct.engine.runtime2.contract.NodeGeneratedResolverContract
 import viaduct.engine.runtime2.contract.ObjectFragmentFromArgumentGeneratedResolverContract
 import viaduct.engine.runtime2.contract.ObjectFragmentFromObjectPathGeneratedResolverContract
 import viaduct.engine.runtime2.contract.ObjectFragmentGeneratedResolverContract
+import viaduct.engine.runtime2.contract.ParentReadingResolverInputGeneratedContract
 import viaduct.engine.runtime2.contract.QueryFragmentGeneratedResolverContract
 import viaduct.engine.runtime2.contract.RootFieldReferenceGeneratedResolverContract
 import viaduct.engine.runtime2.contract.SelectiveNodeGeneratedResolverContract
@@ -33,6 +34,7 @@ class ResolverGeneratedTest :
     FromProviderGeneratedResolverContract,
     MixedVariableGeneratedResolverContract,
     QueryFragmentGeneratedResolverContract,
+    ParentReadingResolverInputGeneratedContract,
     SometimesPassiveGeneratedResolverContract,
     FeatureInteractionGeneratedResolverContract,
     ResolutionDispatcherResource {
