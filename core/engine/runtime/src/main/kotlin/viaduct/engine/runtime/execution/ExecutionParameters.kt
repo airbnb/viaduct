@@ -250,28 +250,24 @@ data class ExecutionParameters(
     fun withNewDeferMap(deferMap: DeferMap): ExecutionParameters = if (deferMap === this.deferMap) this else copy(deferMap = deferMap)
 
     /**
-     * The field resolver for the field that these parameters execute. Null when that field has no
-     * resolver.
-     *
-     * Uses the coordinate that the field's metadata records as the resolving coordinate. Falls back
-     * to the field's own type and name. A plain data field has no resolver, so it returns null.
+     * The resolver of the field that these parameters execute. Null when the field has no resolver
+     * of its own, even if an enclosing field's resolver produced its value.
      */
-    private val currentFieldResolverCaller: Caller?
+    private val ownFieldResolverCaller: Caller?
         get() {
             val currentField = this@ExecutionParameters.field ?: return null
-            val coordinate =
-                currentField.collectedFieldMetadata?.resolvedByCoordinate
-                    ?: (executionStepInfo.objectType.name to currentField.mergedField.name)
+            val typeName = executionStepInfo.objectType.name
+            val fieldName = currentField.mergedField.name
             val resolver =
                 engineExecutionContext
                     .asImpl()
                     .dispatcherRegistry
-                    .getFieldResolverDispatcher(coordinate.first, coordinate.second)
+                    .getFieldResolverDispatcher(typeName, fieldName)
                     ?: return null
             return Caller(
                 tenantName = resolver.resolverMetadata.tenantMetadata?.name,
-                typeName = coordinate.first,
-                fieldName = coordinate.second,
+                typeName = typeName,
+                fieldName = fieldName,
             )
         }
 
@@ -311,8 +307,8 @@ data class ExecutionParameters(
                 is ExecutionOrigin.Field -> origin.parameters.caller
                 is ExecutionOrigin.ObjectTraversal ->
                     currentNodeResolverCaller
+                        ?: origin.parameters.ownFieldResolverCaller
                         ?: origin.parameters.caller
-                        ?: origin.parameters.currentFieldResolverCaller
                 is ExecutionOrigin.ChildQueryPlan ->
                     origin.parameters.caller ?: resolverCaller(origin.parameters)
             }
@@ -329,7 +325,7 @@ data class ExecutionParameters(
         if (queryPlan.attribution?.type != ExecutionAttribution.Type.RESOLVER) {
             return null
         }
-        return parent.currentFieldResolverCaller
+        return parent.ownFieldResolverCaller
     }
 
     private fun fieldExecutionScopeSupplier(): Supplier<EngineExecutionContext.FieldExecutionScope> =

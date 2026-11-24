@@ -140,6 +140,88 @@ interface RootFieldReferenceResolutionContract : QueryExecutionContract {
     }
 
     @Test
+    fun `caller is the resolver that produced the object, not an enclosing resolver`() {
+        var factoryCaller: Caller? = null
+        var localizedStringCaller: Caller? = null
+
+        runQueryTest(
+            EngineTestModule(
+                """
+            type UGCText {
+                localizedString: String @resolver
+            }
+            type UGCTextFactory @namespaceType {
+                create: UGCText @resolver
+            }
+            type Highlight {
+                title: UGCText
+            }
+            type Page {
+                highlights: [Highlight] @resolver
+            }
+            extend type Query {
+                ugcTextFactory: UGCTextFactory
+                page: Page @resolver
+            }
+        """
+            ) {
+                field("UGCTextFactory" to "create") {
+                    resolver {
+                        fn { _, _, _, _, ctx ->
+                            factoryCaller = ctx.fieldScope.caller
+                            createEngineObjectData(schema.schema.getObjectType("UGCText"), emptyMap())
+                        }
+                    }
+                }
+                field("UGCText" to "localizedString") {
+                    resolver {
+                        fn { _, _, _, _, ctx ->
+                            localizedStringCaller = ctx.fieldScope.caller
+                            "localized"
+                        }
+                    }
+                }
+                field("Page" to "highlights") {
+                    resolver {
+                        fn { _, _, _, _, ctx ->
+                            listOf(
+                                createEngineObjectData(
+                                    schema.schema.getObjectType("Highlight"),
+                                    mapOf(
+                                        "title" to ctx.createRootFieldReference(
+                                            rootFieldPath = listOf("ugcTextFactory", "create"),
+                                            type = schema.schema.getObjectType("UGCText"),
+                                            args = emptyMap(),
+                                        )
+                                    ),
+                                )
+                            )
+                        }
+                    }
+                }
+                field("Query" to "page") {
+                    resolver {
+                        fn { _, _, _, _, _ ->
+                            createEngineObjectData(schema.schema.getObjectType("Page"), emptyMap())
+                        }
+                    }
+                }
+            }
+        ) { runQuery ->
+            runQuery("{ page { highlights { title { localizedString } } } }")
+                .assertJson("""{"data": {"page": {"highlights": [{"title": {"localizedString": "localized"}}]}}}""")
+        }
+
+        val expectedCaller = Caller(
+            tenantName = null,
+            typeName = "Page",
+            fieldName = "highlights",
+        )
+        assertEquals(expectedCaller, factoryCaller)
+        assertEquals(expectedCaller, localizedStringCaller)
+    }
+
+    @Test
     fun `factory backing data remains available to child resolver RSS without duplicate execution`() {
         val factoryCalls = AtomicInteger()
         val localizedStringCalls = AtomicInteger()

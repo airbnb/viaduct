@@ -103,6 +103,11 @@ class Engine2RootFieldReferenceResolutionContractTest : RootFieldReferenceResolu
     }
 
     @Engine2Disabled(Engine2DisabledKind.TODO, "CallerAttr")
+    override fun `caller is the resolver that produced the object, not an enclosing resolver`() {
+        super<RootFieldReferenceResolutionContract>.`caller is the resolver that produced the object, not an enclosing resolver`()
+    }
+
+    @Engine2Disabled(Engine2DisabledKind.TODO, "CallerAttr")
     override fun `factory backing data remains available to child resolver RSS without duplicate execution`() {
         super<RootFieldReferenceResolutionContract>.`factory backing data remains available to child resolver RSS without duplicate execution`()
     }
