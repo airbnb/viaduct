@@ -28,6 +28,10 @@ on:
       destination_branch:
         required: false
         type: string
+      source_sha:
+        description: "Commit to copy instead of the ref's current head; the ref still names it in the commit message"
+        required: true
+        type: string
     outputs:
       destination_branch:
         description: "Branch pushed to in viaduct-dev repos"
@@ -90,7 +94,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
         with:
-          ref: ${{ inputs.ref }}
+          ref: ${{ inputs.source_sha || inputs.ref }}
 
       - uses: actions/setup-java@v5
         with:
@@ -100,7 +104,8 @@ jobs:
       - name: Push ${{ matrix.demoapp }} via Copybara
         env:
           VIADUCT_GRAPHQL_GITHUB_ACCESS_TOKEN: ${{ secrets.VIADUCT_GRAPHQL_GITHUB_ACCESS_TOKEN }}
-          SOURCE_REF: ${{ inputs.ref }}
+          SOURCE_REF: ${{ inputs.source_sha || inputs.ref }}
+          SOURCE_NAME: ${{ inputs.ref }}
           DEST_BRANCH: ${{ needs.compute-dest.outputs.destination_branch }}
         run: |
           .github/copydemoapps/copy "${{ matrix.demoapp }}" "$SOURCE_REF" --target-ref="${DEST_BRANCH}"

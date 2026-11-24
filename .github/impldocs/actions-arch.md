@@ -94,7 +94,7 @@ A listener runs on `workflow_run`, after another run completes. It sees that run
 - RC mode publishes `X.Y.Z-rc.N-SNAPSHOT` artifacts to the Central snapshot repository, after refusing a version that is already there. It pushes demo apps to `rc/vX.Y.Z-rc.N`, checks every published file's signature against the release key in `.github/release-signing-key.asc`, and verifies the demo apps against the snapshot repository.
 - Final mode publishes the final `X.Y.Z` release, pushes demo apps to `main`, verifies them, creates the `vX.Y.Z` tag, and publishes the GitHub release.
 
-`release.yml` delegates the actual artifact publication work to `publish-branch.yml`.
+`release.yml` delegates the actual artifact publication work to `publish-branch.yml`. The `validate` job of `publish-branch.yml` pins the commit `ref` points at, and every later job checks out that commit.
 
 ## run_id Output Convention
 

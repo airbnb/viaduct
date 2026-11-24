@@ -45,6 +45,7 @@ jobs:
     with:
       ref: ${{ inputs.ref }}
       release_mode: false
+      source_sha: ${{ needs.publish.outputs.source_sha }}
     secrets: inherit
 
   # ---------------------------------------------------------------------------

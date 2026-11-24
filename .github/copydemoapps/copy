@@ -10,6 +10,8 @@
 #                         before any EXTRA_COPYBARA_ARGS
 #   EXTRA_COPYBARA_ARGS:  any additional copybara options, e.g.:
 #                           --dry-run
+#   SOURCE_NAME (env):    name for SOURCE_REF in the commit message, e.g. the
+#                         branch a SHA was resolved from; defaults to SOURCE_REF
 #
 # Examples:
 #   Production run (checked out on the release branch):
@@ -83,5 +85,6 @@ exec "$SCRIPT_DIR/run" migrate \
     --git-committer-email=viabot@ductworks.io \
     --git-committer-name=ViaBot \
     --force \
+    --labels="source_name:${SOURCE_NAME:-$SOURCE_REF}" \
     "${TARGET_REF_ARGS[@]}" \
     "$@"

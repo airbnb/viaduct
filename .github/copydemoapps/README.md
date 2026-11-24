@@ -60,6 +60,8 @@ Invokes `./gradlew runCopybara` with the local `copy.bara.sky` config and repo r
 run migrate WORKFLOW SOURCE_REF [OPTIONS]
 ```
 
+Pass `--labels=source_name:NAME` too: the commit message names the source as `NAME`, and `copy` sets it from `SOURCE_NAME` or `SOURCE_REF`.
+
 Use `copy` for normal operations. `run` is there if you need to pass unusual options not covered by `copy`.
 
 ## Production Run

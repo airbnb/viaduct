@@ -49,8 +49,8 @@ on:
         type: string
     outputs:
       source_sha:
-        description: "SHA of the published commit"
-        value: ${{ jobs.publish.outputs.source_sha }}
+        description: "Commit this run builds and publishes"
+        value: ${{ jobs.validate.outputs.source_sha }}
       version:
         description: "Version from VERSION file"
         value: ${{ jobs.validate.outputs.effective_version }}
@@ -92,6 +92,7 @@ jobs:
       effective_version: ${{ steps.validate.outputs.effective_version }}
       snapshot_tag: ${{ steps.validate.outputs.snapshot_tag }}
       is_release_branch: ${{ steps.validate.outputs.is_release_branch }}
+      source_sha: ${{ steps.sha.outputs.source_sha }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -101,6 +102,15 @@ jobs:
         with:
           ref: ${{ inputs.ref }}
           path: source
+
+      # Every later job checks out this commit, so a push to the ref mid-run cannot split them across commits.
+      - name: Pin the commit to publish
+        id: sha
+        run: |
+          set -euo pipefail
+          sha="$(git -C source rev-parse HEAD)"
+          echo "source_sha=${sha}" >> "$GITHUB_OUTPUT"
+        shell: bash
 
       - name: Validate branch and version state
         id: validate
@@ -135,7 +145,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
         with:
-          ref: ${{ inputs.ref }}
+          ref: ${{ needs.validate.outputs.source_sha }}
 
       - uses: ./.github/actions/setup-build
         with:
@@ -152,7 +162,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
         with:
-          ref: ${{ inputs.ref }}
+          ref: ${{ needs.validate.outputs.source_sha }}
 
       - uses: ./.github/actions/setup-build
         with:
@@ -172,21 +182,15 @@ jobs:
     runs-on: ubuntu-latest
     environment: ${{ (inputs.mode == 'release' || inputs.mode == 'rc') && 'release' || '' }}
     outputs:
-      source_sha: ${{ steps.sha.outputs.source_sha }}
       publish_started_at: ${{ steps.started.outputs.publish_started_at }}
     steps:
       - uses: actions/checkout@v6
         with:
-          ref: ${{ inputs.ref }}
+          ref: ${{ needs.validate.outputs.source_sha }}
 
       - uses: ./.github/actions/setup-build
         with:
           java-version: '21'
-
-      - name: Capture source SHA
-        id: sha
-        run: echo "source_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
-        shell: bash
 
       # Must stay ahead of the publish step: a ref that cannot report its coordinates
       # has to fail while nothing is published yet.
