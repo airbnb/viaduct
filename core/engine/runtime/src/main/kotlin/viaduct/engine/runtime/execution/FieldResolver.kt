@@ -37,6 +37,7 @@ import viaduct.engine.api.spi.ShadowFieldExecutionResults
 import viaduct.engine.runtime.Cell
 import viaduct.engine.runtime.EngineExecutionContextExtensions.dispatcherRegistry
 import viaduct.engine.runtime.EngineExecutionContextExtensions.fieldRssOriginFilteringKillSwitchEnabled
+import viaduct.engine.runtime.EngineExecutionContextExtensions.incrementalExecutionEnabled
 import viaduct.engine.runtime.EngineExecutionContextExtensions.materializedFieldValueReader
 import viaduct.engine.runtime.EngineExecutionContextImpl
 import viaduct.engine.runtime.FetchedValueWithExtensions
@@ -167,22 +168,44 @@ class FieldResolver(
         objectType: GraphQLObjectType,
         parameters: ExecutionParameters,
         executionMode: ExecutionMode = ExecutionMode.Normal,
-    ): Value<Unit> {
+    ): Value<Unit> = fetchObjectDispatch(objectType, parameters, executionMode).deep
+
+    private fun fetchObjectDispatch(
+        objectType: GraphQLObjectType,
+        parameters: ExecutionParameters,
+        executionMode: ExecutionMode,
+    ): Dispatch<Unit> {
         val ledgerReader = prepareLedgerReader(parameters)
         if (parameters.currentObjectEngineResult.matSource == null) {
-            return ledgerReader.flatMap { fetchObjectInternal(objectType, parameters, it, executionMode) }
+            return flattenDispatch(
+                ledgerReader.map { fetchObjectInternal(objectType, parameters, it, executionMode) }
+            )
         }
+        val dispatchReady = CompletableDeferred<Dispatch<Unit>>()
         // Keep query cancellation while returning object failures through Value's recovery path.
-        return Value.fromDeferred(
-            coroutineInterop.scopedAsync(parameters.constants.rootCoroutineContext) {
-                runCatching {
-                    withThreadLocalCoroutineContext {
-                        fetchObjectInternal(objectType, parameters, ledgerReader.await(), executionMode).await()
-                    }
+        val queryWork = coroutineInterop.scopedAsync(parameters.constants.rootCoroutineContext) {
+            runCatching {
+                withThreadLocalCoroutineContext {
+                    val dispatch = fetchObjectInternal(objectType, parameters, ledgerReader.await(), executionMode)
+                    dispatchReady.complete(dispatch)
+                    dispatch.deep.await()
                 }
-            }
-        ).flatMap { Value.fromResult(it) }
+            }.onFailure { dispatchReady.completeExceptionally(it) }
+        }
+        queryWork.invokeOnCompletion { failure ->
+            if (failure != null) dispatchReady.completeExceptionally(failure)
+        }
+        return flattenDispatch(Value.fromDeferred(dispatchReady)).copy(
+            deep = Value.fromDeferred(queryWork).flatMap { Value.fromResult(it) },
+        )
     }
+
+    private fun flattenDispatch(dispatch: Value<Dispatch<Unit>>): Dispatch<Unit> =
+        Dispatch(
+            shallow = dispatch.flatMap { it.shallow },
+            deep = dispatch.flatMap { it.deep },
+            nonDeferred = dispatch.flatMap { it.nonDeferred },
+        )
 
     /** Fetches the current object using the prepared scope and the plan's execution mode. */
     private fun fetchObject(parameters: ExecutionParameters): Value<Unit> {
@@ -197,7 +220,7 @@ class FieldResolver(
         parameters: ExecutionParameters,
         ledgerReader: LedgerReader?,
         executionMode: ExecutionMode,
-    ): Value<Unit> {
+    ): Dispatch<Unit> {
         val instrumentationParameters =
             InstrumentationExecutionStrategyParameters(parameters.executionContextWithLocalContext, parameters.gjParameters)
         val resolveObjectCtx = nonNullCtx(
@@ -222,7 +245,7 @@ class FieldResolver(
             }
 
             // Wait for all values to be completed.
-            return dispatch.deep
+            val deep = dispatch.deep
                 .map {
                     resolveObjectCtx.onCompletedNullable(Unit, null)
                     it
@@ -230,6 +253,7 @@ class FieldResolver(
                     resolveObjectCtx.onCompletedNullable(null, t)
                     Value.fromThrowable(t)
                 }
+            return dispatch.copy(deep = deep)
         } catch (e: Exception) {
             resolveObjectCtx.onCompletedNullable(null, e)
             throw e
@@ -247,9 +271,15 @@ class FieldResolver(
             val newParams = parameters.forField(objectType, field)
             resolveField(newParams, field, ledgerReader)
         }
+        val initialFields = if (parameters.engineExecutionContext.incrementalExecutionEnabled) {
+            BuildExecutionPlan(fields.associateBy { it.responseKey }, parameters.deferUsageSet).collectedFieldsMap.keys
+        } else {
+            fields.map { it.responseKey }.toSet()
+        }
         return Dispatch(
             shallow = Value.waitAll(results.map { it.shallow }),
             deep = Value.waitAll(results.map { it.deep }),
+            nonDeferred = Value.waitAll(fields.zip(results).filter { it.first.responseKey in initialFields }.map { it.second.nonDeferred }),
         )
     }
 
@@ -261,21 +291,20 @@ class FieldResolver(
         ledgerReader: LedgerReader?,
     ): Dispatch<Unit> {
         val initial: Value<Unit> = Value.fromValue(Unit)
-        val fieldValues = mutableListOf<Value<FieldResolutionResult>>()
-
-        // iterate over each field to build a chained execution
-        // Each field will kick off only after the previous one completes
-        val deep = fields.fold(initial) { acc, field ->
+        val dispatches = mutableListOf<Dispatch<FieldResolutionResult>>()
+        val serial = fields.fold(initial) { acc, field ->
             acc.flatMap { _ ->
                 val fieldParameters = parameters.forField(objectType, field)
-                val fd = resolveField(fieldParameters, field, ledgerReader)
-                fieldValues.add(fd.shallow)
-                fd.deep
+                val dispatch = resolveField(fieldParameters, field, ledgerReader)
+                dispatches.add(dispatch)
+                // Deferred descendants must not hold up subsequent mutations or initial delivery.
+                dispatch.nonDeferred
             }
         }
         return Dispatch(
-            shallow = Value.waitAll(fieldValues),
-            deep = deep,
+            shallow = serial.flatMap { Value.waitAll(dispatches.map { it.shallow }) },
+            deep = serial.flatMap { Value.waitAll(dispatches.map { it.deep }) },
+            nonDeferred = serial,
         )
     }
 
@@ -371,7 +400,7 @@ class FieldResolver(
 
     /**
      * A handle on an in-flight dispatch of a field, or of a whole object's fields, for resolution.
-     * The two properties are the shallow and deep completion signals for that dispatch.
+     * It tracks resolution of the field itself, its initial descendants, and all descendants.
      *
      * For a single field ([Dispatch]<[FieldResolutionResult]>, as returned by [resolveField]),
      * [shallow] carries the field's own resolved value. For a whole object
@@ -385,10 +414,13 @@ class FieldResolver(
      * @property deep A [Value] that completes after [shallow] and field execution
      *   instrumentation. When nested selection resolution is enabled, it also waits for nested
      *   objects and lazy data; shallow-only dispatches do not traverse them.
+     * @property nonDeferred This completes after initial descendants, allowing serial mutations to advance.
+     *   It equals [deep] when incremental execution is disabled.
      */
     internal data class Dispatch<T>(
         val shallow: Value<T>,
-        val deep: Value<Unit>
+        val deep: Value<Unit>,
+        val nonDeferred: Value<Unit> = deep,
     )
 
     /**
@@ -521,11 +553,12 @@ class FieldResolver(
             slotSetter.setCheckerValue(fieldFetchResult.checkerResult)
         } as Value<FieldResolutionResult>
 
-        val deep = fieldResolutionResultValue.thenCompose { v, e ->
+        val nested = fieldResolutionResultValue.thenApply { v, e ->
             fieldInstrumentationCtx?.onCompletedNullable(v, e)
             if (e != null || !resolveNestedSelections) {
                 // Failed fields and shallow-only callers do not traverse nested objects.
-                Value.fromValue(Unit)
+                val done = Value.fromValue(Unit)
+                Dispatch(done, done)
             } else {
                 // otherwise, proceed with nested object resolution
                 maybeFetchNestedObject(
@@ -539,7 +572,8 @@ class FieldResolver(
 
         val productionDispatch = Dispatch(
             shallow = fieldResolutionResultValue,
-            deep = deep
+            deep = nested.flatMap { it.deep },
+            nonDeferred = nested.flatMap { it.nonDeferred },
         )
         if (parameters.isShadowFieldExecution) {
             return productionDispatch
@@ -1338,9 +1372,12 @@ class FieldResolver(
         outputType: GraphQLOutputType,
         field: CollectedField,
         parameters: ExecutionParameters,
-    ): Value<Unit> {
+    ): Dispatch<Unit> {
         // if engineResult is null, then there is no nested object to fetch and we can return early
-        if (fieldResolutionResult.engineResult == null) return Value.fromValue(Unit)
+        if (fieldResolutionResult.engineResult == null) {
+            val done = Value.fromValue(Unit)
+            return Dispatch(done, done)
+        }
         return when (outputType) {
             is GraphQLNonNull -> maybeFetchNestedObject(fieldResolutionResult, GraphQLTypeUtil.unwrapOneAs(outputType), field, parameters)
             is GraphQLList -> {
@@ -1348,26 +1385,54 @@ class FieldResolver(
                 val fetchItems = {
                     val values = engineResult.mapIndexed { i, item ->
                         check(item is Cell) { "Expected engine result to be a Cell." }
-                        item.getValue(RAW_VALUE_SLOT).flatMap { raw ->
+                        item.getValue(RAW_VALUE_SLOT).map { raw ->
                             val frr = raw as? FieldResolutionResult
                                 ?: throw IllegalStateException("Expected FieldResolutionResult but got $raw")
                             val newParams = updateListItemParameters(parameters, i)
                             maybeFetchNestedObject(frr, GraphQLTypeUtil.unwrapOneAs(outputType), field, newParams)
-                        }.recover { Value.fromValue(Unit) } // Contain per-item failures so they don't propagate to the parent object
+                        }.recover {
+                            val done = Value.fromValue(Unit)
+                            Value.fromValue(Dispatch(done, done))
+                        }
                     }
-                    Value.waitAll(values)
+                    val dispatches = values.map { value ->
+                        val dispatch = flattenDispatch(value)
+                        dispatch.copy(
+                            shallow = dispatch.shallow.recover { Value.fromValue(Unit) },
+                            deep = dispatch.deep.recover { Value.fromValue(Unit) },
+                            nonDeferred = dispatch.nonDeferred.recover { Value.fromValue(Unit) },
+                        )
+                    }
+                    Dispatch(
+                        shallow = Value.waitAll(dispatches.map { it.shallow }),
+                        deep = Value.waitAll(dispatches.map { it.deep }),
+                        nonDeferred = Value.waitAll(dispatches.map { it.nonDeferred }),
+                    )
                 }
                 if (GraphQLTypeUtil.isLeaf(GraphQLTypeUtil.unwrapAll(outputType))) {
                     fetchItems()
                 } else {
                     // Let sibling fields and lists progress while keeping each list's item traversal together.
-                    Value.fromDeferred(parameters.asyncOnRootScope { fetchItems().await() })
+                    val dispatch = CompletableDeferred<Dispatch<Unit>>()
+                    parameters.asyncOnRootScope {
+                        try {
+                            // Publish the barriers before structured concurrency waits for deferred children.
+                            dispatch.complete(fetchItems())
+                        } catch (e: Exception) {
+                            dispatch.completeExceptionally(e)
+                        }
+                    }
+                    flattenDispatch(Value.fromDeferred(dispatch))
                 }
             }
 
             else -> {
                 // if engineResult is a scalar or simple value, then no nesting is possible and we can return
-                val oer = fieldResolutionResult.engineResult as? ObjectEngineResultImpl ?: return Value.fromValue(Unit)
+                val oer = fieldResolutionResult.engineResult as? ObjectEngineResultImpl
+                if (oer == null) {
+                    val done = Value.fromValue(Unit)
+                    return Dispatch(done, done)
+                }
                 val traversalParameters =
                     if (parameters.executionStepInfo.fieldDefinition.isParentField()) {
                         val parentFieldValue = fieldResolutionResult.originalSource as? ParentFieldValue
@@ -1377,7 +1442,7 @@ class FieldResolver(
                         parameters.forObjectTraversal(field, oer, fieldResolutionResult.localContext, fieldResolutionResult.originalSource, fieldResolutionResult.resolutionPolicy)
                     }
                 val executionMode = if (isMutationNamespace(parameters, oer.type)) ExecutionMode.Serial else ExecutionMode.Normal
-                fetchObject(oer.type, traversalParameters, executionMode = executionMode)
+                fetchObjectDispatch(oer.type, traversalParameters, executionMode = executionMode)
             }
         }
     }

@@ -5,6 +5,7 @@ package viaduct.engine.api.mocks
 
 import com.google.inject.ProvisionException
 import graphql.ExecutionResult
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import viaduct.engine.EngineConfiguration
@@ -179,6 +180,15 @@ class FeatureTest(
         require(timeoutMillis > 0) { "Timeout must be positive" }
         return execute(query, variables, timeoutMillis)
     }
+
+    fun reactiveQuery(
+        query: String,
+        variables: Map<String, Any?> = emptyMap(),
+    ): Flow<viaduct.service.api.ExecutionResult> =
+        viaduct.reactiveExecute(
+            ExecutionInput.create(operationText = query, variables = variables, requestContext = Any()),
+            schemaId,
+        )
 
     /**
      * Assert that this result serializes to same value as [expectedJson].
