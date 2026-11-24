@@ -260,6 +260,55 @@ class TestMain(unittest.TestCase):
                 self.assertIn(expected, output)
 
 
+@skip_without_gpg_outside_ci
+class TestLocalRepository(unittest.TestCase):
+
+    def setUp(self):
+        self.root = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.root)
+        os.makedirs(os.path.join(self.root, "build/reports/publication"))
+        Path(self.root, "build/reports/publication/coordinates.txt").write_text(
+            "central com.airbnb.viaduct:api:4.0.0\n"
+            f"portal com.airbnb.viaduct.module-gradle-plugin:{MARKER}:4.0.0\n"
+        )
+        self.repo = os.path.join(self.root, "m2")
+        self.api_dir = os.path.join(self.repo, "com/airbnb/viaduct/api/4.0.0")
+        marker_dir = os.path.join(self.repo, f"com/airbnb/viaduct/module-gradle-plugin/{MARKER}/4.0.0")
+        for directory, names in [(self.api_dir, ["api-4.0.0.jar", "api-4.0.0.pom"]), (marker_dir, [f"{MARKER}-4.0.0.pom"])]:
+            os.makedirs(directory)
+            for name in names:
+                Path(directory, name).write_bytes(PAYLOAD)
+                Path(directory, f"{name}.asc").write_bytes(SIGNATURE)
+                Path(directory, f"{name}.sha1").write_text("unsigned")
+
+    def run_main(self):
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output):
+            code = main(["--root", self.root, "--version", "4.0.0", "--local-repo", self.repo, "--key", KEY])
+        return code, output.getvalue()
+
+    def test_passes_when_every_file_is_signed(self):
+        code, output = self.run_main()
+        self.assertEqual(code, 0, output)
+        self.assertIn(f"all 3 files of 2 coordinates are signed by {KEY_FINGERPRINT}", output)
+
+    def test_fails_on_each_publication_defect(self):
+        def jar():
+            return os.path.join(self.api_dir, "api-4.0.0.jar")
+        cases = [
+            ("missing signature", lambda: os.remove(f"{jar()}.asc"), "missing signature"),
+            ("tampered file", lambda: Path(jar()).write_bytes(PAYLOAD + b"x"), "BADSIG"),
+            ("unpublished coordinate", lambda: shutil.rmtree(self.api_dir), "no files"),
+        ]
+        for name, damage, expected in cases:
+            with self.subTest(name):
+                self.setUp()
+                damage()
+                code, output = self.run_main()
+                self.assertEqual(code, 1, output)
+                self.assertIn(expected, output)
+
+
 class TestFetch(unittest.TestCase):
 
     def response(self, body):
