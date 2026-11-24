@@ -94,7 +94,7 @@ A listener runs on `workflow_run`, after another run completes. It sees that run
 - RC mode publishes `X.Y.Z-rc.N-SNAPSHOT` artifacts to the Central snapshot repository, after refusing a version that is already there. It pushes demo apps to `rc/vX.Y.Z-rc.N`, checks every published file's signature against the release key in `.github/release-signing-key.asc`, and verifies the demo apps against the snapshot repository.
 - Final mode publishes the final `X.Y.Z` release, pushes demo apps to `main`, verifies them, creates the `vX.Y.Z` tag, and publishes the GitHub release.
 
-`release.yml` delegates the actual artifact publication work to `publish-branch.yml`.
+`release.yml` delegates the actual artifact publication work to `publish-branch.yml`. In RC and final mode, `publish-branch.yml` first runs `rehearse-release.yml`, and publishes only if it passes. `rehearse-release.yml` sets a throwaway version, `X.Y.Z[-rc.N]-rehearsal.<run id>.<run attempt>`, only in its runner. Under that version it builds and signs everything into a local repository and checks every signature against the release key. It then uploads everything to Maven Central as `USER_MANAGED`, which Central validates but does not publish, waits for Central to validate every upload, and drops them all. Last, it validates every plugin against the Gradle Plugin Portal without uploading. For a final version, it first checks that the version is on neither Central nor the Portal. Dispatch it on `main`, with `branch` set to `main` or a release branch.
 
 ## run_id Output Convention
 
@@ -392,6 +392,7 @@ Notifications are suppressed on manual dispatch, because the person who triggere
 | `periodic-green-check.yml` | Run scheduled checks without waiting for cron | `branch`, `mode` (ci-check / staleness-check / all) |
 | `post-alerts.yml` | Verify Slack and Discord connectivity | `mode: test-posts` |
 | `conventional-commit.yml` | Test the PR title validator itself | — |
+| `rehearse-release.yml` | Rehearse the release under a throwaway version: Maven Central upload, validation and drop, and Plugin Portal validation | `branch` (`main`, the default, or a release branch) |
 | `release.yml` | Publish either a public release candidate or the final release (see [.github/impldocs/release-runbook.md](release-runbook.md)) | `release_version`, `rc_ver`, `final`, `release_notes` |
 
 ## Appendix: Future Work
