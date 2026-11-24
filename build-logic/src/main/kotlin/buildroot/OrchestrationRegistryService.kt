@@ -8,7 +8,7 @@ import org.gradle.api.services.BuildServiceParameters
 
 /**
  * Build-scoped service that lets a project self-report a task under a well-known aggregate key
- * (e.g. "detekt", "securityScan"), so a root aggregate task can depend on every contributor
+ * (e.g. "detekt", "apiCheck"), so a root aggregate task can depend on every contributor
  * without reading other projects' task containers. Registration and lookup are backed by
  * concurrent collections because projects configure concurrently under parallel configuration.
  */

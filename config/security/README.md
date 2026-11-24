@@ -1,7 +1,7 @@
 # Viaduct OSS Security Scanning Configuration
 
 This directory holds configuration for the CVE + license scanning pipeline
-applied to all publishable Viaduct OSS modules.
+applied to every publication (the fat JARs under `publications/`).
 
 ## Files
 
@@ -24,14 +24,14 @@ brew install trivy
 ```bash
 cd projects/viaduct/oss
 
-# Run the full security scan (CVE + SBOM + license report) for all modules
-./gradlew securityScan
+# Run the full security scan (CVE + SBOM + license report) for every publication
+./gradlew -p publications securityScan
 
-# Per-module scan (faster while iterating)
-./gradlew :core:engine:api:securityScan
+# One publication (faster while iterating)
+./gradlew -p publications :runtime:securityScan
 
 # Inspect reports
-ls -R */build/reports/{trivy,sbom,license}
+ls -R publications/*/build/reports/{trivy,sbom,license}
 ```
 
 Trivy auto-fetches its vulnerability DB on first run and caches it at

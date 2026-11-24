@@ -11,10 +11,14 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from compare_cve_findings import (
+    BUNDLED_MODULES,
+    GENERATED_POM,
+    SBOM_SCAN_REPORT,
     STICKY_COMMENT_MARKER,
     SUPPORTED_TRIVY_SCHEMA_VERSIONS,
     Finding,
     compare,
+    compare_publications,
     filter_by_severity,
     main,
     parse_trivy_json,
@@ -360,134 +364,189 @@ class TestCompare(unittest.TestCase):
         self.assertEqual(chosen.fixed_version, "2.0")
 
 
-class TestRenderMarkdown(unittest.TestCase):
+class _PublicationsTree:
+    def __init__(self, test: unittest.TestCase):
+        tmp = tempfile.TemporaryDirectory()
+        test.addCleanup(tmp.cleanup)
+        self.publications = Path(tmp.name) / "publications"
+        self.jar_scans = Path(tmp.name) / "jar-scans"
+        self.jar_scans.mkdir(parents=True)
 
-    def _f(self, cve: str) -> Finding:
-        return Finding(
-            cve_id=cve,
-            purl=f"pkg:maven/x/y@1.0#{cve}",
-            severity="HIGH",
-            pkg_name="x:y",
-            installed_version="1.0",
-            fixed_version="2.0",
-            title="title",
+    def add(
+        self,
+        name: str,
+        lower_jars=(),
+        sbom=(),
+        jar=(),
+        jar_packages=(),
+        other_group_dependencies=(),
+        bundled=None,
+    ) -> "_PublicationsTree":
+        project = self.publications / name
+        (project / GENERATED_POM).parent.mkdir(parents=True)
+        (project / SBOM_SCAN_REPORT).parent.mkdir(parents=True)
+        (project / "build.gradle.kts").touch()
+        dependencies = "".join(
+            f"<dependency><groupId>{group}</groupId><artifactId>{artifact}</artifactId></dependency>"
+            for group, artifact in [("com.airbnb.viaduct", lower) for lower in lower_jars]
+            + [tuple(coordinate.split(":")) for coordinate in other_group_dependencies]
         )
-
-    def test_includes_html_marker(self):
-        out = render_markdown([], [], [], "HIGH")
-        self.assertTrue(out.startswith(STICKY_COMMENT_MARKER))
-
-    def test_lists_gaps_in_first_section(self):
-        gap = self._f("CVE-GAP")
-        out = render_markdown([gap], [], [], "HIGH")
-        gaps_idx = out.index("### Parity gaps")
-        common_section_idx = out.index("<strong>Common findings</strong>")
-        self.assertLess(gaps_idx, common_section_idx)
-        gaps_section = out[gaps_idx:common_section_idx]
-        self.assertIn("CVE-GAP", gaps_section)
-
-    def test_renders_empty_state(self):
-        out = render_markdown([], [], [], "HIGH")
-        self.assertEqual(out.count("_(none)_"), 3)
-
-    def test_escapes_pipes_in_titles(self):
-        f = Finding(
-            cve_id="CVE-X",
-            purl="pkg:maven/x/y@1",
-            severity="HIGH",
-            pkg_name="x:y",
-            installed_version="1",
-            fixed_version=None,
-            title="bad | title",
+        (project / GENERATED_POM).write_text(
+            '<project xmlns="http://maven.apache.org/POM/4.0.0"><groupId>com.airbnb.viaduct</groupId>'
+            f"<dependencies>{dependencies}</dependencies></project>"
         )
-        out = render_markdown([f], [], [], "HIGH")
-        self.assertIn("bad \\| title", out)
+        (project / SBOM_SCAN_REPORT).write_text(json.dumps(_trivy_doc(list(sbom))))
+        modules = [v["PkgName"] for v in sbom] if bundled is None else bundled
+        (project / BUNDLED_MODULES).write_text("\n".join(modules) + "\n")
+        jar_scan = _trivy_doc(list(jar))
+        jar_scan["Results"][0]["Packages"] = [{"Name": n, "Version": v} for n, v in jar_packages]
+        (self.jar_scans / f"{name}.json").write_text(json.dumps(jar_scan))
+        return self
+
+    def rows(self):
+        return {row.name: row for row in compare_publications(self.publications, self.jar_scans, "HIGH")}
+
+    def main(self, *extra: str) -> int:
+        return main([
+            "--publications-dir", str(self.publications),
+            "--jar-scans-dir", str(self.jar_scans),
+            "--output", os.devnull,
+            *extra,
+        ])
 
 
-class TestRenderJson(unittest.TestCase):
+_GUAVA = _vuln("CVE-GUAVA", "com.google.guava:guava", "33.3.1-jre")
+_JACKSON = _vuln("CVE-JACKSON", "com.fasterxml.jackson.core:jackson-core", "2.17.3")
+_MICROMETER = _vuln("CVE-MICROMETER", "io.micrometer:micrometer-core", "1.10.8")
 
-    def test_round_trips(self):
-        f = Finding(
-            cve_id="CVE-1",
-            purl="pkg:maven/x/y@1.0",
-            severity="HIGH",
-            pkg_name="x:y",
-            installed_version="1.0",
-            fixed_version=None,
-            title="t",
+
+def _cves(findings) -> set[str]:
+    return {f.cve_id for f in findings}
+
+
+class TestComparePublications(unittest.TestCase):
+
+    def test_compares_each_jar_with_its_lower_jars(self):
+        rows = (
+            _PublicationsTree(self)
+            .add("api", sbom=[_JACKSON], jar=[_GUAVA])
+            .add("runtime", lower_jars=["api"], sbom=[_GUAVA], jar=[_JACKSON])
+            .rows()
         )
-        out = render_json([f], [], [], "HIGH")
-        parsed = json.loads(out)
-        self.assertEqual(parsed["severity_floor"], "HIGH")
-        self.assertEqual(len(parsed["parity_gaps"]), 1)
-        self.assertEqual(parsed["parity_gaps"][0]["cve_id"], "CVE-1")
-        self.assertEqual(parsed["common"], [])
-        self.assertEqual(parsed["fat_jar_only"], [])
+        self.assertEqual(_cves(rows["runtime"].common), {"CVE-GUAVA", "CVE-JACKSON"})
+        self.assertEqual(rows["runtime"].gaps, frozenset())
+
+    def test_follows_lower_jars_transitively(self):
+        rows = (
+            _PublicationsTree(self)
+            .add("api")
+            .add("runtime", lower_jars=["api"])
+            .add("test-fixtures", lower_jars=["runtime"])
+            .rows()
+        )
+        self.assertEqual(rows["test-fixtures"].lower_jars, ("api", "runtime"))
+
+    def test_ignores_dependencies_outside_the_publications_group(self):
+        rows = (
+            _PublicationsTree(self)
+            .add("api")
+            .add("buildtime", other_group_dependencies=["org.example:api"])
+            .rows()
+        )
+        self.assertEqual(rows["buildtime"].lower_jars, ())
+
+    def test_reports_findings_in_modules_no_jar_in_the_stack_bundles_as_not_bundled(self):
+        rows = (
+            _PublicationsTree(self)
+            .add("api", sbom=[_JACKSON, _GUAVA], bundled=["com.google.guava:guava"])
+            .add("runtime", lower_jars=["api"], sbom=[_JACKSON], jar=[_JACKSON])
+            .rows()
+        )
+        self.assertEqual(_cves(rows["api"].gaps), {"CVE-GUAVA"})
+        self.assertEqual(_cves(rows["api"].not_bundled), {"CVE-JACKSON"})
+        self.assertEqual(_cves(rows["runtime"].gaps), {"CVE-GUAVA"})
+        self.assertEqual(rows["runtime"].not_bundled, frozenset())
+
+    def test_keys_bundled_modules_on_the_purl(self):
+        without_pkg_name = {k: v for k, v in _GUAVA.items() if k != "PkgName"}
+        retitled = dict(_JACKSON, Title="Another title")
+        rows = (
+            _PublicationsTree(self)
+            .add("runtime", sbom=[without_pkg_name, _JACKSON, retitled], bundled=["com.google.guava:guava"])
+            .rows()
+        )
+        self.assertEqual(_cves(rows["runtime"].gaps), {"CVE-GUAVA"})
+        self.assertEqual(len(rows["runtime"].not_bundled), 1)
+
+    def test_does_not_compare_a_jar_whose_stack_lacks_a_readable_report(self):
+        tree = (
+            _PublicationsTree(self)
+            .add("api")
+            .add("runtime", lower_jars=["api"])
+            .add("buildtime")
+            .add("javaapi-buildtime")
+            .add("javaapi-api")
+        )
+        (tree.publications / "javaapi-api" / GENERATED_POM).write_text(
+            '<!DOCTYPE project [<!ENTITY lower "api">]>'
+            '<project xmlns="http://maven.apache.org/POM/4.0.0"><groupId>com.airbnb.viaduct</groupId></project>'
+        )
+        (tree.jar_scans / "api.json").unlink()
+        (tree.jar_scans / "buildtime.json").write_text("null")
+        (tree.publications / "javaapi-buildtime" / BUNDLED_MODULES).write_bytes(b"\xff\xfe")
+        rows = tree.rows()
+        self.assertEqual(rows["runtime"].missing_inputs, ("no jar scan report for `api`",))
+        self.assertEqual(rows["buildtime"].missing_inputs, ("unreadable jar scan report for `buildtime`",))
+        self.assertEqual(
+            rows["javaapi-buildtime"].missing_inputs, ("unreadable bundled-module list for `javaapi-buildtime`",)
+        )
+        self.assertEqual(rows["javaapi-api"].missing_inputs, ("unreadable POM for `javaapi-api`",))
+        stdout = io.StringIO()
+        with contextlib.redirect_stdout(stdout):
+            self.assertEqual(tree.main(), 1)
+        self.assertIn("::warning::Not compared: api, buildtime, javaapi-api, javaapi-buildtime, runtime.", stdout.getvalue())
 
 
 class TestMain(unittest.TestCase):
 
-    def setUp(self):
-        self._paths: list[str] = []
+    def test_exit_codes(self):
+        clean = _PublicationsTree(self).add("api", sbom=[_GUAVA], jar=[_GUAVA])
+        gap = _PublicationsTree(self).add("api", sbom=[_GUAVA])
+        low = _PublicationsTree(self).add("api", sbom=[_vuln("CVE-LOW", "x:y", "1.0", severity="LOW")])
+        self.assertEqual(clean.main(), 0)
+        self.assertEqual(gap.main(), 1)
+        self.assertEqual(low.main(), 0)
+        self.assertEqual(main(["--publications-dir", "/nonexistent", "--jar-scans-dir", "/nonexistent"]), 2)
 
-    def tearDown(self):
-        for p in self._paths:
-            try:
-                os.unlink(p)
-            except FileNotFoundError:
-                pass
-
-    def _scan(self, vulns: list[dict]) -> str:
-        path = _write_trivy_json(_trivy_doc(vulns))
-        self._paths.append(path)
-        return path
-
-    def test_returns_0_on_parity(self):
-        v = _vuln("CVE-A", "com.google.guava:guava", "32.1.2-jre")
-        fine = self._scan([v])
-        fat = self._scan([v])
-        rc = main([
-            "--fine-grained", fine,
-            "--fat-jar", fat,
-            "--output-format", "json",
-            "--output", os.devnull,
-        ])
-        self.assertEqual(rc, 0)
-
-    def test_returns_1_on_gaps(self):
-        gap = _vuln("CVE-GAP", "com.google.guava:guava", "32.1.2-jre")
-        fine = self._scan([gap])
-        fat = self._scan([])
-        rc = main([
-            "--fine-grained", fine,
-            "--fat-jar", fat,
-            "--output-format", "json",
-            "--output", os.devnull,
-        ])
-        self.assertEqual(rc, 1)
-
-    def test_returns_2_on_missing_input(self):
-        fat = self._scan([])
-        rc = main([
-            "--fine-grained", "/nonexistent/path/does-not-exist.json",
-            "--fat-jar", fat,
-        ])
-        self.assertEqual(rc, 2)
-
-    def test_severity_floor_filters_out_low(self):
-        low = _vuln(
-            "CVE-LOW", "com.google.guava:guava", "32.1.2-jre", severity="LOW"
+    def test_renders_one_row_per_jar_and_the_finding_tables(self):
+        tree = (
+            _PublicationsTree(self)
+            .add(
+                "api",
+                sbom=[_vuln("CVE-PIPE", "x:y", "1.0", title="bad | title"), _JACKSON],
+                jar_packages=[("x:y", "0.9")],
+                bundled=["x:y"],
+            )
+            .add("runtime", lower_jars=["api"])
+            .add("test-fixtures", lower_jars=["runtime"])
         )
-        fine = self._scan([low])
-        fat = self._scan([])
-        rc = main([
-            "--fine-grained", fine,
-            "--fat-jar", fat,
-            "--severity-floor", "HIGH",
-            "--output-format", "json",
-            "--output", os.devnull,
-        ])
-        self.assertEqual(rc, 0)
+        (tree.jar_scans / "test-fixtures.json").unlink()
+        rows = list(compare_publications(tree.publications, tree.jar_scans, "HIGH"))
+        out = render_markdown(rows, "HIGH")
+        not_bundled = out[out.index("<strong>Not bundled</strong>"):out.index("<strong>Fat-JAR-only")]
+        self.assertTrue(out.startswith(STICKY_COMMENT_MARKER))
+        self.assertIn("| `api` | — | 1 | 0 | 0 | 1 |", out)
+        self.assertIn("| `test-fixtures` | `api`, `runtime` | ⚠️ Not compared: no jar scan report for `test-fixtures` |", out)
+        self.assertIn("| CVE-JACKSON | HIGH | com.fasterxml.jackson.core:jackson-core | 2.17.3 | 1.0.0 | `api`, `runtime` |", not_bundled)
+        self.assertIn("| CVE-PIPE | HIGH | x:y | 1.0 | 1.0.0 | 0.9 | `api`, `runtime` | bad \\| title |", out)
+
+    def test_renders_json_per_jar(self):
+        tree = _PublicationsTree(self).add("api", sbom=[_GUAVA])
+        rows = list(compare_publications(tree.publications, tree.jar_scans, "HIGH"))
+        parsed = json.loads(render_json(rows, "HIGH"))
+        self.assertEqual(parsed["severity_floor"], "HIGH")
+        self.assertEqual([jar["name"] for jar in parsed["jars"]], ["api"])
+        self.assertEqual([f["cve_id"] for f in parsed["jars"][0]["parity_gaps"]], ["CVE-GUAVA"])
 
 
 if __name__ == "__main__":

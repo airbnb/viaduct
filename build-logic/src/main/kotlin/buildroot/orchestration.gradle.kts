@@ -182,9 +182,9 @@ registerServiceBackedAggregate(
     aggregateKey = "test",
     description = "[orchestration] Tests all SUBPROJECTS in THIS build.",
 )
-// detekt, ktlintCheck, findWarningsForCleanup, and securityScan are each added by exactly one
+// detekt, ktlintCheck, and findWarningsForCleanup are each added by exactly one
 // convention plugin, which self-reports its task to the shared OrchestrationRegistryService
-// (see conventions.kotlin-static-analysis / conventions.security-scanning).
+// (see conventions.kotlin-static-analysis).
 registerServiceBackedAggregate(
     aggregateName = "orchestrationDetektAll",
     aggregateKey = "detekt",
@@ -204,11 +204,6 @@ registerServiceBackedAggregate(
     aggregateName = "orchestrationFindWarningsForCleanupAll",
     aggregateKey = "findWarningsForCleanup",
     description = "[orchestration] Runs findWarningsForCleanup on all SUBPROJECTS in THIS build.",
-)
-registerServiceBackedAggregate(
-    aggregateName = "orchestrationSecurityScanAll",
-    aggregateKey = "securityScan",
-    description = "[orchestration] Runs CVE/SBOM/license scans on all SUBPROJECTS in THIS build.",
 )
 
 // CI-oriented aggregate: compile main + test sources without running tests or producing jars
@@ -316,12 +311,6 @@ if (gradle.parent != null) {
         group = "verification",
         description = "Runs findWarningsForCleanup on all subprojects in this included build."
     )
-    aliasConventionalTaskToAggregate(
-        conventionalName = "securityScan",
-        aggregateName = "orchestrationSecurityScanAll",
-        group = "verification",
-        description = "Runs CVE/SBOM/license scans on all subprojects in this included build."
-    )
 }
 
 // ---------------- Workspace-wide tasks (ROOT ONLY) ----------------
@@ -408,13 +397,6 @@ if (gradle.parent == null) {
         usesService(orchestrationRegistry)
         dependsOn(provider { orchestrationRegistry.get().tasksFor("findWarningsForCleanup") })
         dependsOn(participatingIncludedBuilds().map { it.task(":orchestrationFindWarningsForCleanupAll") })
-    }
-
-    // securityScan: root subprojects (via registry) + included builds' aggregate
-    ensureTask("securityScan", "verification", "Runs CVE/SBOM/license scans across root and participating included builds.") {
-        usesService(orchestrationRegistry)
-        dependsOn(provider { orchestrationRegistry.get().tasksFor("securityScan") })
-        dependsOn(participatingIncludedBuilds().map { it.task(":orchestrationSecurityScanAll") })
     }
 
     // buildRepoForCI: compile main + test classes across the repo (no test execution, no jars)
