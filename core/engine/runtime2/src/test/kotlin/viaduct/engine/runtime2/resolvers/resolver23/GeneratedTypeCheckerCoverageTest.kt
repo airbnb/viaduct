@@ -3,21 +3,31 @@ package viaduct.engine.runtime2.resolvers.resolver23
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import org.junit.jupiter.api.Test
+import viaduct.engine.api.EngineObjectData
 import viaduct.engine.runtime2.arbitrary.GeneratedTypeCheckerMode
 import viaduct.engine.runtime2.contract.CheckerApplicationRecorder
 import viaduct.engine.runtime2.contract.GeneratedResolutionObservation
 import viaduct.engine.runtime2.contract.GeneratedTypeCheckerSignature
+import viaduct.engine.runtime2.contract.ResolverContract
 import viaduct.engine.runtime2.contract.requiredGeneratedTypeCheckerSignatures
 import viaduct.engine.runtime2.contract.typeCheckerCoverage
 import viaduct.engine.runtime2.correctresolution.CorrectnessResolverObserver
 import viaduct.engine.runtime2.model.ListEngineResult
+import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.ResolverOccurrenceId
+import viaduct.engine.runtime2.model.SelectionForest
 import viaduct.engine.runtime2.model.testing.TestWorld
 import viaduct.engine.runtime2.model.testing.fragmentFrom
 import viaduct.engine.runtime2.model.testing.objectOf
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
 
-class GeneratedTypeCheckerCoverageTest {
+class GeneratedTypeCheckerCoverageTest : ResolverContract {
+    override fun resolve(
+        operation: SharedOperationContext<*>,
+        root: EngineObjectData.Sync,
+        selections: SelectionForest,
+    ): ObjectEngineResult = operation.resolve(selections)
+
     @Test
     fun `argument errors in type inputs are optional in every profile size`() {
         GeneratedTypeCheckerMode.entries.forEach { mode ->
@@ -132,7 +142,7 @@ class GeneratedTypeCheckerCoverageTest {
         )
         val fragment = world.schemas.fragmentFrom("fragment Test on Query { item { value } }")
         val recorder = CheckerApplicationRecorder()
-        val subject = ResolverGeneratedTest().observeResolution(world.newAssumptions(), world.schema.objectOf("Query"), fragment.subselections, resolutionObserver = recorder)
+        val subject = observeResolution(world.newAssumptions(), world.schema.objectOf("Query"), fragment.subselections, resolutionObserver = recorder)
         return GeneratedResolutionObservation(subject.operation, fragment, subject, recorder.checkerApplications())
     }
 }

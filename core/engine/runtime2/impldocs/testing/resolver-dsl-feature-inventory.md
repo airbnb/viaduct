@@ -113,8 +113,8 @@ All filenames in this table are under [the contract package](../../src/test/kotl
 | `SelectiveFieldCheckerExactnessContract`, `SelectiveTypeCheckerExactnessContract` | D1–D5; H1 for controlled publication and exact error observations. Selectivity belongs to the value producer. |
 | `GroundedTypeCheckerLifecycleContract`, `CoroutineResolverContract` | H1 for suspension/cancellation and task ownership; D1–D4 for checker declarations where applicable. |
 | `DepthFirstQueryFringeOrderingContract`, `ResolutionRecordingSourceTest`, `CheckerQueryResolverWitnessTest` | Ordinary fixtures are already expressible; checker declarations need D1–D3. Ordering/recording assertions remain Kotlin. |
-| `DeepResolverStressContract`, `GeneratedResolverContract`, `ListPassiveDeepeningGeneratedResolverContract`, `GeneratedFieldCheckerContract`, `GeneratedTypeCheckerContract` | Generated/stress fixture construction remains programmatic. Missing declarative counterparts are D1–D6, not a requirement to hand-write every generated schema. |
-| `GeneratedFieldCheckerCoverageTest`, `GeneratedFieldCheckerOracleTest`, `ResolverMutationContract`, `ResolverWitnessContract` | Boundary: generator activation, oracle sensitivity, registry/observation mutation, and exact evidence. A valid base world may use the DSL without replacing deliberate corruption. |
+| `ResolverPropertySuite`, `ResolverStressSuite`, and the property-suite coverage collectors | Generated/stress fixture construction remains programmatic. Missing declarative counterparts are D1–D6, not a requirement to hand-write every generated schema. |
+| `GeneratedFieldCheckerCoverageTest`, `GeneratedFieldCheckerOracleTest`, `ResolverMutationContract`, `GeneratedResolverOracle` | Boundary: generator activation, oracle sensitivity, registry/observation mutation, and exact evidence. A valid base world may use the DSL without replacing deliberate corruption. |
 | `CorrectResolutionPostTestPolicy`, `ResolverApplicationArguments` | Assertion/observation support; no schema-language feature. |
 
 ### Focused Resolution Suites

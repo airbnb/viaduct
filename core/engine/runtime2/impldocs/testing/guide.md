@@ -59,7 +59,7 @@ Generated failures report a stable profile ID, seed, one-based `S:Q` coordinate,
 
 ```shell
 ./gradlew :core:engine:runtime2:resolverPropertyReplay \
-  -PresolverPropertyClass=viaduct.engine.runtime2.resolution.ResolverGeneratedTest \
+  -PresolverPropertyImplementation=resolution \
   -PresolverPropertyProfile=feature-interaction \
   -PresolverPropertySeed=424242 \
   -PresolverPropertyCase=2:1

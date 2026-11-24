@@ -677,63 +677,37 @@ tasks.register<org.gradle.api.tasks.testing.Test>("rfc271CoverageExperiments") {
     outputs.upToDateWhen { false }
 }
 
-val resolverPropertyProfiles =
+val resolverPropertyReplayMethods =
     mapOf(
-        "empty-object-fragment" to
-            "generated empty object fragment worlds resolve correctly",
-        "node" to "generated node worlds resolve correctly",
-        "sometimes-passive" to "generated sometimes-passive fields resolve correctly",
-        "object-fragment" to
-            "generated object fragment worlds without variables resolve correctly",
-        "query-fragment" to
-            "generated query fragment worlds resolve correctly",
-        "object-fragment-from-argument" to
-            "generated object fragment worlds with fromArgument resolve correctly",
-        "resolution-field-checker-success" to "generated successful field checker worlds resolve correctly",
-        "resolution-field-checker-denial" to "generated denying field checker worlds resolve correctly",
-        "resolution-field-checker-mixed" to "generated mixed field checker worlds resolve correctly",
-        "resolution-field-checker-passive" to "generated passive field checker worlds resolve correctly",
-        "resolution-field-checker-root-reference" to "generated root-reference field checker worlds resolve correctly",
-        "resolution-type-checker-success" to "generated successful type checker worlds resolve correctly",
-        "resolution-type-checker-denial" to "generated denying type checker worlds resolve correctly",
-        "resolution-type-checker-mixed" to "generated mixed type checker worlds resolve correctly",
-        "resolver23-type-checker-success" to
-            "generated successful type checker worlds resolve correctly",
-        "resolver23-type-checker-denial" to
-            "generated denying type checker worlds resolve correctly",
-        "resolver23-type-checker-mixed" to
-            "generated mixed type checker worlds resolve correctly",
-        "resolver23-field-checker-success" to
-            "generated successful field checker worlds resolve correctly",
-        "resolver23-field-checker-denial" to
-            "generated denying field checker worlds resolve correctly",
-        "resolver23-field-checker-mixed" to
-            "generated mixed field checker worlds resolve correctly",
-        "resolver23-field-checker-passive" to
-            "generated passive field checker worlds resolve correctly",
-        "resolver23-field-checker-root-reference" to
-            "generated root-reference field checker worlds resolve correctly",
-        "object-fragment-from-object-field" to
-            "generated object fragment worlds with fromObjectField resolve correctly",
-        "mixed-variables" to
-            "generated mixed resolver variable worlds resolve correctly",
-        "resolution-broad-stress" to
-            "broad full-feature worlds resolve correctly",
-        "resolution-broad-descendant-variables" to
-            "broad full-feature worlds resolve correctly",
-        "resolution-broad-nullable-errors" to
-            "broad full-feature worlds resolve correctly",
-        "resolution-broad-symbolic-identity" to
-            "broad full-feature worlds resolve correctly",
-        "resolution-broad-multiple-owners" to
-            "broad full-feature worlds resolve correctly",
-        "resolution-root-field-references" to
-            "root field reference focused randomized worlds resolve correctly",
-        "feature-interaction" to "generated full feature interactions resolve correctly",
-        "construction-witness" to
-            "generated construction witness is exact minimal and permutation invariant",
+        "resolution-broad-stress" to "broad full-feature worlds resolve correctly",
+        "resolution-broad-descendant-variables" to "broad full-feature worlds resolve correctly",
+        "resolution-broad-nullable-errors" to "broad full-feature worlds resolve correctly",
+        "resolution-broad-symbolic-identity" to "broad full-feature worlds resolve correctly",
+        "resolution-broad-multiple-owners" to "broad full-feature worlds resolve correctly",
+        "resolution-root-field-references" to "root field reference focused randomized worlds resolve correctly",
     )
 val resolverPropertyReplayClass = providers.gradleProperty("resolverPropertyClass")
+val resolverPropertyReplayImplementation = providers.gradleProperty("resolverPropertyImplementation")
+val resolverPropertyShardClass = "viaduct.engine.runtime2.propertytest.ResolverPropertyShard*Test"
+
+fun org.gradle.api.tasks.testing.Test.selectResolverPropertyTests(
+    implementation: String,
+    profiles: Collection<String> = emptyList(),
+) {
+    filter.includeTestsMatching(resolverPropertyShardClass)
+    systemProperty("resolver.property.implementation", implementation)
+    if (profiles.isNotEmpty()) systemProperty("resolver.property.profiles", profiles.joinToString(","))
+}
+
+tasks.named<Test>("test") {
+    inputs.property("resolverPropertyImplementation", resolverPropertyReplayImplementation.orElse("all"))
+    doFirst {
+        resolverPropertyReplayImplementation.orNull?.let { implementation ->
+            systemProperty("resolver.property.implementation", implementation)
+        }
+    }
+}
+
 val resolverPropertyReplayProfile = providers.gradleProperty("resolverPropertyProfile")
 val resolverPropertyReplayCase =
     providers.gradleProperty("resolverPropertyCase").orElse("all")
@@ -751,24 +725,16 @@ tasks.register<org.gradle.api.tasks.testing.Test>("resolverPropertyReplay") {
     outputs.upToDateWhen { false }
 
     doFirst {
-        val className =
-            resolverPropertyReplayClass.orNull
-                ?: throw GradleException("Set -PresolverPropertyClass=<fully-qualified-class>")
-        require(className.matches(jvmClassNamePattern)) {
+        val className = resolverPropertyReplayClass.orNull
+        val implementation = resolverPropertyReplayImplementation.orNull
+        require(className == null || implementation == null) { "Select resolverPropertyImplementation or resolverPropertyClass, not both" }
+        require(className != null || implementation != null) {
+            "Set -PresolverPropertyImplementation=<implementation>, or -PresolverPropertyClass=<fully-qualified-class>"
+        }
+        require(className == null || className.matches(jvmClassNamePattern)) {
             "resolverPropertyClass must be a fully qualified JVM class name: $className"
         }
-        val profile =
-            resolverPropertyReplayProfile.orNull
-                ?: throw GradleException(
-                    "Set -PresolverPropertyProfile=<profile>; profiles=" +
-                        resolverPropertyProfiles.keys.sorted().joinToString(),
-                )
-        val method =
-            resolverPropertyProfiles[profile]
-                ?: throw GradleException(
-                    "Unknown resolverPropertyProfile $profile; profiles=" +
-                        resolverPropertyProfiles.keys.sorted().joinToString(),
-                )
+        val profile = resolverPropertyReplayProfile.orNull ?: throw GradleException("Set -PresolverPropertyProfile=<profile>")
         val seed =
             resolverPropertySeed.orNull
                 ?: throw GradleException("Set -PresolverPropertySeed=<long>")
@@ -789,7 +755,13 @@ tasks.register<org.gradle.api.tasks.testing.Test>("resolverPropertyReplay") {
             "resolverPropertySize must have S:Q form with positive integers: $size"
         }
 
-        filter.includeTestsMatching("$className.$method")
+        if (implementation == null) {
+            val method = resolverPropertyReplayMethods[profile]
+                ?: throw GradleException("No class-based replay for profile $profile; use -PresolverPropertyImplementation=<implementation>")
+            filter.includeTestsMatching("$className.$method")
+        } else {
+            selectResolverPropertyTests(implementation)
+        }
         systemProperty("resolver.property.seed", seed)
         systemProperty("kotest.proptest.default.seed", seed)
         systemProperty("resolver.property.profile", profile)
@@ -815,8 +787,20 @@ tasks.register<org.gradle.api.tasks.testing.Test>("resolverTestCase") {
             resolverTestCase.orNull
                 ?: throw GradleException("Set -PresolverTestCase=<suite/batch/query>")
         val className = resolverPropertyReplayClass.orNull
-        if (className == null) {
-            listOf("*GeneratedTest", "*WitnessTest", "*MutationTest", "*.ResolverStressTest", "*.ResolverBroadStressTest", "*.ResolverBroadStressCampaignTest").forEach(filter::includeTestsMatching)
+        val implementation = resolverPropertyReplayImplementation.orNull
+        require(className == null || implementation == null) { "Select resolverPropertyImplementation or resolverPropertyClass, not both" }
+        if (implementation != null) {
+            selectResolverPropertyTests(implementation)
+        } else if (className == null) {
+            listOf(
+                resolverPropertyShardClass,
+                "*GeneratedTest",
+                "*WitnessTest",
+                "*MutationTest",
+                "*.ResolverStressTest",
+                "*.ResolverBroadStressTest",
+                "*.ResolverBroadStressCampaignTest",
+            ).forEach(filter::includeTestsMatching)
         } else {
             require(className.matches(jvmClassNamePattern)) {
                 "resolverPropertyClass must be a fully qualified JVM class name: $className"
@@ -834,7 +818,11 @@ tasks.register<org.gradle.api.tasks.testing.Test>("resolverTestCase") {
         if (!resolverTestCaseMarker.get().asFile.exists()) {
             throw GradleException(
                 "No test ran test case ${resolverTestCase.get()}; " +
-                    (resolverPropertyReplayClass.orNull?.let { "$it does not use its suite" } ?: "no generated, witness, mutation, or stress test uses its suite"),
+                    (
+                        resolverPropertyReplayImplementation.orNull?.let { "$it does not use its suite" }
+                            ?: resolverPropertyReplayClass.orNull?.let { "$it does not use its suite" }
+                            ?: "no generated, witness, mutation, or stress test uses its suite"
+                    ),
             )
         }
     }
@@ -880,12 +868,12 @@ stressResolverNames.forEach(::registerResolverStressTask)
 // Keep the field-only entry point and add a default campaign spanning both checker kinds.
 val resolver23CheckerStressProfiles =
     mapOf(
-        "success" to ("resolver23-field-checker-success" to "generated successful field checker worlds resolve correctly"),
-        "denial" to ("resolver23-field-checker-denial" to "generated denying field checker worlds resolve correctly"),
-        "mixed" to ("resolver23-field-checker-mixed" to "generated mixed field checker worlds resolve correctly"),
-        "type-success" to ("resolver23-type-checker-success" to "generated successful type checker worlds resolve correctly"),
-        "type-denial" to ("resolver23-type-checker-denial" to "generated denying type checker worlds resolve correctly"),
-        "type-mixed" to ("resolver23-type-checker-mixed" to "generated mixed type checker worlds resolve correctly"),
+        "success" to "resolver23-field-checker-success",
+        "denial" to "resolver23-field-checker-denial",
+        "mixed" to "resolver23-field-checker-mixed",
+        "type-success" to "resolver23-type-checker-success",
+        "type-denial" to "resolver23-type-checker-denial",
+        "type-mixed" to "resolver23-type-checker-mixed",
     )
 
 fun registerResolver23CheckerStressTask(
@@ -923,13 +911,11 @@ fun registerResolver23CheckerStressTask(
                     )
                 )
             }
-            profiles.forEach { (_, method) ->
-                filter.includeTestsMatching("viaduct.engine.runtime2.resolvers.resolver23.ResolverGeneratedTest.$method")
-            }
+            selectResolverPropertyTests("resolver23", profiles)
             if (selected == "all") {
                 systemProperties.remove("resolver.property.profile")
             } else {
-                systemProperty("resolver.property.profile", profiles.single().first)
+                systemProperty("resolver.property.profile", profiles.single())
             }
             systemProperty("resolver.property.case", "all")
             checkerStressSuites(propertyStem, seedSetting, sizeSetting)
@@ -1213,8 +1199,7 @@ tasks.register<org.gradle.api.tasks.testing.Test>("resolutionFieldCheckerStress"
     testLogging { showStandardStreams = true }
     doFirst {
         val profile = "resolution-field-checker-" + providers.gradleProperty("resolutionFieldCheckerStressProfile").orElse("success").get()
-        val method = resolverPropertyProfiles[profile] ?: throw GradleException("Unknown field-checker profile $profile")
-        filter.includeTestsMatching("viaduct.engine.runtime2.resolution.FieldCheckerGeneratedTest.$method")
+        selectResolverPropertyTests("resolution", listOf(profile))
         systemProperty("resolver.property.profile", profile)
         systemProperty("resolver.property.case", "all")
         checkerStressSuites("resolutionFieldCheckerStress")
@@ -1235,11 +1220,8 @@ tasks.register<org.gradle.api.tasks.testing.Test>("resolutionTypeCheckerStress")
     doFirst {
         val selected = providers.gradleProperty("resolutionTypeCheckerStressProfile").orElse("all").get()
         val profiles = if (selected == "all") listOf("success", "denial", "mixed") else listOf(selected)
-        profiles.forEach { suffix ->
-            val profile = "resolution-type-checker-$suffix"
-            val method = resolverPropertyProfiles[profile] ?: throw GradleException("Unknown type-checker profile $profile")
-            filter.includeTestsMatching("viaduct.engine.runtime2.resolution.TypeCheckerGeneratedTest.$method")
-        }
+        val selectedProfiles = profiles.map { suffix -> "resolution-type-checker-$suffix" }
+        selectResolverPropertyTests("resolution", selectedProfiles)
         if (selected == "all") {
             systemProperties.remove("resolver.property.profile")
         } else {
