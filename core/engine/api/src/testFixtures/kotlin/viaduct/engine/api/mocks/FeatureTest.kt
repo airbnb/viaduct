@@ -6,6 +6,8 @@ package viaduct.engine.api.mocks
 import com.google.inject.ProvisionException
 import graphql.ExecutionResult
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import viaduct.engine.EngineConfiguration
@@ -14,6 +16,7 @@ import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.EngineSchema
 import viaduct.engine.api.GraphQLBuildError
 import viaduct.graphql.test.assertJson as realAssertJson
+import viaduct.graphql.test.assertJsonStream as assertResultStream
 import viaduct.service.api.ExecutionInput
 import viaduct.service.api.SchemaId
 import viaduct.service.api.spi.mocks.MockFlagManager
@@ -197,6 +200,14 @@ class FeatureTest(
      *  including unquoted object keys, trailing commas, and comments
      */
     fun ExecutionResult.assertJson(expectedJson: String): Unit = this.realAssertJson(expectedJson)
+
+    fun Flow<viaduct.service.api.ExecutionResult>.assertJsonStream(expectedJson: String) {
+        runBlocking {
+            withTimeout(5_000) {
+                map { it.toSpecification() }.toList().assertResultStream(expectedJson)
+            }
+        }
+    }
 
     private fun execute(
         query: String,
