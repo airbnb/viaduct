@@ -26,8 +26,8 @@ object EngineExecutionContextExtensions {
      * consistent error handling if an unexpected implementation is encountered.
      */
     internal fun EngineExecutionContext.asImpl(): EngineExecutionContextImpl {
-        return (this as? InternalEngineExecutionContext)?.impl
-            ?: error("Expected InternalEngineExecutionContext but got ${this::class.qualifiedName}")
+        return (this as? Runtime1EngineExecutionContext)?.impl
+            ?: error("Expected Runtime1EngineExecutionContext but got ${this::class.qualifiedName}")
     }
 
     val EngineExecutionContext.matResolutionEnabled: Boolean

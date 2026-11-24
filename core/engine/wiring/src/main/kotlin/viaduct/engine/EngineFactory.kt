@@ -57,6 +57,7 @@ class EngineFactory(
                 additionalInstrumentation = config.additionalInstrumentation,
                 coroutineInterop = config.coroutineInterop,
                 resolverRegistryFactory = config.engine2ResolverRegistryFactory,
+                flagManager = config.flagManager,
             )
             EngineKind.CURRENT -> EngineImpl(
                 config,

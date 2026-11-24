@@ -65,15 +65,37 @@ import viaduct.service.api.spi.FlagManager
  * @property nextTickExceptionHandler Exception handler for the next tick queue. This is an advanced feature -- most of
  *                                    the time exception handling for nextTick callbacks should happen within the
  *                                    callback block itself.
+ * @param parentJob optional owner of queue workers and callbacks; cancel it when the request ends.
  */
-open class NextTickDispatcher(
-    private val wrappedDispatcher: CoroutineDispatcher = Dispatchers.Default,
-    private val nextTickQueueDispatcher: CoroutineDispatcher = Dispatchers.IO,
-    private val nextTickExceptionHandler: CoroutineExceptionHandler? = null,
-    flagManager: FlagManager = FlagManager.Disabled,
-    metricsEnabled: Boolean = false,
+open class NextTickDispatcher private constructor(
+    private val wrappedDispatcher: CoroutineDispatcher,
+    private val nextTickQueueDispatcher: CoroutineDispatcher,
+    private val nextTickExceptionHandler: CoroutineExceptionHandler?,
+    private val flagManager: FlagManager,
+    private val metrics: Metrics,
+    parentJob: Job?,
 ) : CoroutineDispatcher() {
-    /********************/
+    constructor(
+        wrappedDispatcher: CoroutineDispatcher = Dispatchers.Default,
+        nextTickQueueDispatcher: CoroutineDispatcher = Dispatchers.IO,
+        nextTickExceptionHandler: CoroutineExceptionHandler? = null,
+        flagManager: FlagManager = FlagManager.Disabled,
+        metricsEnabled: Boolean = false,
+        parentJob: Job? = null,
+    ) : this(wrappedDispatcher, nextTickQueueDispatcher, nextTickExceptionHandler, flagManager, Metrics(metricsEnabled), parentJob)
+
+    constructor() : this(wrappedDispatcher = Dispatchers.Default)
+
+    private class Metrics(enabled: Boolean) {
+        val flushes = if (enabled) AtomicLong() else null
+        val batchRounds = if (enabled) AtomicLong() else null
+    }
+
+    /** Creates an independent request queue over the same workers, sharing operation metrics. */
+    fun forRequest(
+        parentJob: Job,
+        exceptionHandler: CoroutineExceptionHandler
+    ): NextTickDispatcher = NextTickDispatcher(wrappedDispatcher, nextTickQueueDispatcher, exceptionHandler, flagManager, metrics, parentJob)
 
     private val nonBlockingEnqueueFlushKillSwitchEnabled = flagManager.isEnabled(FlagManager.Flags.KILLSWITCH_NON_BLOCKING_ENQUEUE_FLUSH)
 
@@ -93,7 +115,10 @@ open class NextTickDispatcher(
     /**
      * A scope wrapping our queue dispatcher where the internals of the next tick dispatchers will operate
      */
-    private val batchQueueScope = CoroutineScope(nextTickQueueDispatcher)
+    private val batchQueueScope = CoroutineScope(
+        nextTickQueueDispatcher + (parentJob ?: Job()) +
+            (nextTickExceptionHandler ?: kotlin.coroutines.EmptyCoroutineContext)
+    )
 
     /**
      * A thread safe counter used to track the number of current runnable blocks. When this is 0,
@@ -101,17 +126,14 @@ open class NextTickDispatcher(
      */
     private val counter = AtomicInteger(0)
 
-    private val flushes = if (metricsEnabled) AtomicLong() else null
-    private val batchRounds = if (metricsEnabled) AtomicLong() else null
-
-    val flushCount: Long get() = flushes?.get() ?: 0L
-    val batchRoundCount: Long get() = batchRounds?.get() ?: 0L
+    val flushCount: Long get() = metrics.flushes?.get() ?: 0L
+    val batchRoundCount: Long get() = metrics.batchRounds?.get() ?: 0L
 
     /**
      * This supervisor job is the parent job of all `nextTick` callbacks. It can be used to observe (or cancel!) these
      * jobs.
      */
-    internal val nextTickSupervisorJob = SupervisorJob()
+    internal val nextTickSupervisorJob = SupervisorJob(parentJob)
 
     /**
      * CoroutineScope for the "nextTick" execution queue.
@@ -133,7 +155,7 @@ open class NextTickDispatcher(
             batchQueueScope = batchQueueScope
         ) { batch, nextTickDispatchingContext ->
             if (batch.isNotEmpty()) {
-                batchRounds?.incrementAndGet()
+                metrics.batchRounds?.incrementAndGet()
             }
             val jobs =
                 batch.map { (nextTickBlock, nextTickCoroutineContext) ->
@@ -196,7 +218,7 @@ open class NextTickDispatcher(
             } finally {
                 runningDispatcher.set(previous)
                 if (counter.decrementAndGet() == 0) {
-                    flushes?.incrementAndGet()
+                    metrics.flushes?.incrementAndGet()
                     val debugInfo = debug.getNextTickMetadataAndReset()
 
                     if (nonBlockingEnqueueFlushKillSwitchEnabled) {

@@ -12,7 +12,7 @@ Runtime2 executes queries and ordered mutations with selective and non-selective
 
 Subscription operations execute one result from the Subscription root when subscriptions are enabled by the service. This permits subscription resolver guards to run; it is not streaming subscription support.
 
-Major exclusions from the current Engine API integration include batching, streaming subscriptions, application-defined custom scalars, `@stream`, and some resolver combinations documented with the integration boundary. Runtime2 reuses the production dispatcher bootstrap and service wiring behind an opt-in feature flag; that path is not yet the default.
+Field-resolver batching is available through `ENGINE2_BATCHING`, which defaults to disabled. Major exclusions from the current Engine API integration include node batching, streaming subscriptions, application-defined custom scalars, `@stream`, and some resolver combinations documented with the integration boundary. Runtime2 reuses the production dispatcher bootstrap and service wiring behind an opt-in feature flag; that path is not yet the default.
 
 ## Source Layout
 

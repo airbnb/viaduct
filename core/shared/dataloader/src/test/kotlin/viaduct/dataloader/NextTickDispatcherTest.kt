@@ -5,6 +5,7 @@ package viaduct.dataloader
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
+import java.util.concurrent.RejectedExecutionException
 import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.EmptyCoroutineContext
 import kotlinx.coroutines.CompletableDeferred
@@ -12,15 +13,20 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
@@ -31,10 +37,124 @@ import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.ValueSource
 import viaduct.service.api.spi.FlagManager
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class NextTickDispatcherTest {
+    @ParameterizedTest
+    @ValueSource(booleans = [false, true])
+    fun `request dispatcher preserves worker instrumentation and counts each flush once`(metricsEnabled: Boolean) =
+        runTest {
+            val worker = StandardTestDispatcher(testScheduler)
+            var instrumentedRuns = 0
+            val instrumentedWorker = object : CoroutineDispatcher() {
+                override fun dispatch(
+                    context: CoroutineContext,
+                    block: Runnable
+                ) {
+                    worker.dispatch(context) {
+                        instrumentedRuns++
+                        block.run()
+                    }
+                }
+            }
+            val sourceOwner = Job()
+            val requestOwner = Job()
+            try {
+                val source = NextTickDispatcher(instrumentedWorker, UnconfinedTestDispatcher(testScheduler), metricsEnabled = metricsEnabled, parentJob = sourceOwner)
+                val request = source.forRequest(requestOwner, CoroutineExceptionHandler { _, cause -> throw cause })
+
+                CoroutineScope(request + requestOwner).launch {}
+                advanceUntilIdle()
+
+                assertEquals(1, instrumentedRuns)
+                assertEquals(if (metricsEnabled) 1L else 0L, source.flushCount)
+                assertEquals(source.flushCount, request.flushCount)
+            } finally {
+                requestOwner.cancel()
+                sourceOwner.cancel()
+            }
+        }
+
+    @Test
+    fun `cancelling one request stops its callback while another request keeps working`() =
+        runTest {
+            val sourceOwner = Job()
+            val firstOwner = Job()
+            val secondOwner = Job()
+            val started = CompletableDeferred<Unit>()
+            val stopped = CompletableDeferred<Unit>()
+            val releaseSecond = CompletableDeferred<Unit>()
+            val secondResult = CompletableDeferred<Int>()
+            val unexpectedFailure = CoroutineExceptionHandler { _, cause -> throw cause }
+            try {
+                val source = NextTickDispatcher(StandardTestDispatcher(testScheduler), UnconfinedTestDispatcher(testScheduler), parentJob = sourceOwner)
+                val first = source.forRequest(firstOwner, unexpectedFailure)
+                val second = source.forRequest(secondOwner, unexpectedFailure)
+                CoroutineScope(first + firstOwner).launch {
+                    nextTick(coroutineContext) {
+                        started.complete(Unit)
+                        try {
+                            awaitCancellation()
+                        } finally {
+                            stopped.complete(Unit)
+                        }
+                    }
+                }
+                CoroutineScope(second + secondOwner).launch {
+                    nextTick(coroutineContext) {
+                        releaseSecond.await()
+                        secondResult.complete(42)
+                    }
+                }
+                runCurrent()
+                assertTrue(started.isCompleted)
+
+                firstOwner.cancel()
+                runCurrent()
+                assertTrue(stopped.isCompleted)
+
+                releaseSecond.complete(Unit)
+                advanceUntilIdle()
+                assertEquals(42, secondResult.await())
+                assertTrue(sourceOwner.isActive)
+                assertTrue(secondOwner.isActive)
+            } finally {
+                firstOwner.cancel()
+                secondOwner.cancel()
+                sourceOwner.cancel()
+            }
+        }
+
+    @Test
+    fun `a queue worker that cannot start reports failure to the supplied handler without a parent job`() =
+        runBlocking {
+            val failure = RejectedExecutionException("queue executor is unavailable")
+            val reported = CompletableDeferred<Throwable>()
+            val rejectingQueue = object : CoroutineDispatcher() {
+                override fun dispatch(
+                    context: CoroutineContext,
+                    block: Runnable
+                ) {
+                    throw failure
+                }
+            }
+            assertSame(
+                failure,
+                assertThrows(RejectedExecutionException::class.java) {
+                    NextTickDispatcher(
+                        nextTickQueueDispatcher = rejectingQueue,
+                        nextTickExceptionHandler = CoroutineExceptionHandler { _, cause -> reported.complete(cause) },
+                        parentJob = null,
+                    )
+                }
+            )
+
+            assertSame(failure, withTimeout(5_000) { reported.await() })
+        }
+
     @Test
     fun `undispatched start requires the exact running dispatcher`(): Unit =
         runTest {
@@ -121,6 +241,53 @@ class NextTickDispatcherTest {
             advanceUntilIdle()
 
             assertEquals(listOf("child", "parent", "tick"), order)
+        }
+
+    @Test
+    fun `parent cancellation stops callbacks and queue workers`() =
+        runBlocking {
+            withTimeout(5_000) {
+                val parent = Job()
+                val queueJobs = ConcurrentLinkedQueue<Job>()
+                val queueDispatcher = object : CoroutineDispatcher() {
+                    override fun dispatch(
+                        context: CoroutineContext,
+                        block: Runnable
+                    ) {
+                        queueJobs.add(checkNotNull(context[Job]))
+                        Dispatchers.IO.dispatch(context, block)
+                    }
+                }
+                val dispatcher = NextTickDispatcher(nextTickQueueDispatcher = queueDispatcher, parentJob = parent)
+                val callbackStarted = CompletableDeferred<Unit>()
+                val callbackStopped = CompletableDeferred<Unit>()
+                try {
+                    withContext(dispatcher) {
+                        nextTick(coroutineContext) {
+                            callbackStarted.complete(Unit)
+                            try {
+                                awaitCancellation()
+                            } finally {
+                                callbackStopped.complete(Unit)
+                            }
+                        }
+                    }
+                    callbackStarted.await()
+
+                    parent.cancelAndJoin()
+
+                    callbackStopped.await()
+                    assertTrue(queueJobs.isNotEmpty())
+                    queueJobs.toSet().forEach { worker ->
+                        worker.join()
+                        assertTrue(worker.isCancelled)
+                    }
+                } finally {
+                    parent.cancel()
+                    dispatcher.nextTickSupervisorJob.cancel()
+                    queueJobs.forEach { it.cancel() }
+                }
+            }
         }
 
     private fun nextTickDispatcher() =

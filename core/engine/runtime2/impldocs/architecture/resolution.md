@@ -2,7 +2,7 @@
 
 ## Role
 
-Resolution is Runtime2's production field-resolution implementation. It executes selective queries and ordered mutations using structured concurrency, synchronous symbolic closure for ordinary demand, and a shared ordered mutation traversal.
+Resolution is Runtime2's production field-resolution implementation. It executes selective queries and ordered mutations using structured concurrency, synchronous symbolic closure for ordinary demand, and a shared ordered mutation traversal. The Engine API integration can collect ready field invocations through shared production loaders without changing semantic demand or occurrence identity.
 
 Dispatched Resolution field-resolver-task roots terminate their owned field and binding promises when their `Job` reaches cancelled completion, including when cancellation prevents the task body from entering. Field-resolution and helper computation boundaries convert ordinary `Exception`s into modeled outcomes; unexpected non-cancellation exceptions escaping a launched orchestration task fail the request. `Error`s escape without a cleanup guarantee. [Failure And Cancellation Protocol](#failure-and-cancellation-protocol) distinguishes the rules shared with [Resolver21-23](../../impldocs/architecture/resolver-families.md#comparison-grid) from Resolution-specific mechanisms.
 

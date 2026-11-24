@@ -10,6 +10,7 @@ import graphql.util.FpKit
 import io.micrometer.core.instrument.MeterRegistry
 import java.util.concurrent.ConcurrentHashMap
 import java.util.function.Supplier
+import viaduct.engine.api.BatchExecutionContext
 import viaduct.engine.api.Caller
 import viaduct.engine.api.CompleteSelectionSetOptions
 import viaduct.engine.api.Coordinate
@@ -155,9 +156,19 @@ class EngineExecutionContextImpl internal constructor(
     internal val currentResolver: Caller? = null,
     val incrementalExecutionEnabled: Boolean = false,
     private val nodeResolverCachingEnabled: Boolean = true,
-) : InternalEngineExecutionContext,
+) : Runtime1EngineExecutionContext,
     DispatcherExecutionContext {
     public override val impl: EngineExecutionContextImpl get() = this
+
+    override fun forBatch(invocationContexts: Map<Any, EngineExecutionContext>): EngineExecutionContext =
+        BatchEngineExecutionContext(
+            impl = copy(
+                fieldScopeSupplier = { FieldExecutionScopeImpl() },
+                dataFetchingEnvironment = null,
+                currentResolver = null,
+            ),
+            invocationContexts = invocationContexts,
+        )
 
     companion object {
         const val SUBQUERY_EXECUTION_METER_NAME = "viaduct.subquery.execution"
@@ -435,3 +446,19 @@ internal data class FieldDataLoaderKey(
     val resolverId: String,
     val matBatchDepth: Int,
 )
+
+private class BatchEngineExecutionContext(
+    override val impl: EngineExecutionContextImpl,
+    private val invocationContexts: Map<Any, EngineExecutionContext>,
+) : BatchExecutionContext,
+    Runtime1EngineExecutionContext by impl,
+    DispatcherExecutionContext {
+    override fun fieldDataLoader(resolver: FieldResolverExecutor): FieldDataLoader = impl.fieldDataLoader(resolver)
+
+    override fun nodeDataLoader(resolver: NodeResolverExecutor): NodeDataLoader = impl.nodeDataLoader(resolver)
+
+    override fun invocationContextFor(selector: Any): EngineExecutionContext =
+        checkNotNull(invocationContexts[selector]) {
+            "No invocation context was captured for selector $selector"
+        }
+}

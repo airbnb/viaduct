@@ -10,8 +10,8 @@ import viaduct.engine.api.spi.NodeResolverExecutor
 import viaduct.engine.runtime.DispatcherExecutionContext
 import viaduct.engine.runtime.EngineExecutionContextImpl
 import viaduct.engine.runtime.FieldDataLoader
-import viaduct.engine.runtime.InternalEngineExecutionContext
 import viaduct.engine.runtime.NodeDataLoader
+import viaduct.engine.runtime.Runtime1EngineExecutionContext
 
 /**
  * Wraps [EngineExecutionContextImpl] to intercept [resolveSelectionSet] so that fetch-selection
@@ -27,7 +27,7 @@ internal class InstrumentedEngineExecutionContext(
     override val impl: EngineExecutionContextImpl,
     private val resolverInstrumentation: ViaductResolverInstrumentation,
     private val instrumentationState: ViaductResolverInstrumentation.InstrumentationState,
-) : InternalEngineExecutionContext by impl,
+) : Runtime1EngineExecutionContext by impl,
     DispatcherExecutionContext {
     override fun fieldDataLoader(resolver: FieldResolverExecutor): FieldDataLoader = impl.fieldDataLoader(resolver)
 

@@ -71,7 +71,7 @@ interface FlagManager {
         @InternalApi
         USE_ENGINE2("use_engine2"),
 
-        /** Reserved gate for engine2 dispatcher batching; currently accepted without changing dispatch. */
+        /** Enables field-resolver batching in engine2. */
         ENGINE2_BATCHING("engine2_batching"),
 
         /** Enables the Mat-based resolver workflow, which differentially executes resolvers */

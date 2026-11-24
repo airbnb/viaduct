@@ -19,10 +19,14 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.ValueSource
+import viaduct.engine.EngineConfiguration
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.api.invocationContextFor
 import viaduct.engine.api.mocks.EngineTestModule
 import viaduct.engine.api.mocks.MockExecutorCodeInjector
+import viaduct.engine.api.mocks.featureTestDefault
 import viaduct.engine.api.mocks.fetchAs
 import viaduct.engine.api.spi.CoroutineInterop
 import viaduct.engine.runtime.execution.DefaultCoroutineInterop
@@ -160,8 +164,9 @@ class MutationExecutionTest {
         assertEquals(8, count)
     }
 
-    @Test
-    fun `ctx mutation finishes payloads before advancing nested and outer mutations`() {
+    @ParameterizedTest(name = "ENGINE2_BATCHING={0}")
+    @ValueSource(booleans = [false, true])
+    fun `ctx mutation finishes payloads before advancing nested and outer mutations`(batchingEnabled: Boolean) {
         var count = 0
         val events = mutableListOf<String>()
         EngineTestModule(
@@ -208,14 +213,15 @@ class MutationExecutionTest {
                     }
                 }
             }
-        }.runRuntime2FeatureTest {
+        }.runRuntime2FeatureTest(engineConfig = batchingConfiguration(batchingEnabled)) {
             runQuery("mutation { outer later }").assertJson("""{"data":{"outer":"1:2","later":3}}""")
         }
         assertEquals(listOf("outer:start", "update:1", "payload:1", "update:2", "payload:2", "outer:end", "later"), events)
     }
 
-    @Test
-    fun `ctx mutation finishes later effects after nonnull failures`() {
+    @ParameterizedTest(name = "ENGINE2_BATCHING={0}")
+    @ValueSource(booleans = [false, true])
+    fun `ctx mutation finishes later effects after nonnull failures`(batchingEnabled: Boolean) {
         for (nullResult in listOf(false, true)) {
             var count = 0
             EngineTestModule("extend type Query { trigger: Int @resolver } extend type Mutation { update: Int! @resolver }") {
@@ -239,7 +245,7 @@ class MutationExecutionTest {
                         }
                     }
                 }
-            }.runRuntime2FeatureTest {
+            }.runRuntime2FeatureTest(engineConfig = batchingConfiguration(batchingEnabled)) {
                 runQuery("{ trigger }").assertJson("""{"data":{"trigger":3}}""")
             }
             assertEquals(3, count, "nullResult=$nullResult")
@@ -408,6 +414,15 @@ class MutationExecutionTest {
             assertEquals(listOf("failed"), result.errors.single().path)
         }
         assertEquals(3, count)
+    }
+
+    private fun batchingConfiguration(enabled: Boolean): EngineConfiguration {
+        val defaults = EngineConfiguration.featureTestDefault
+        return defaults.copy(
+            flagManager = object : FlagManager by defaults.flagManager {
+                override fun isEnabled(flag: FlagManager.Flag): Boolean = if (flag == FlagManager.Flags.ENGINE2_BATCHING) enabled else defaults.flagManager.isEnabled(flag)
+            }
+        )
     }
 
     private fun versionedProductMutations(

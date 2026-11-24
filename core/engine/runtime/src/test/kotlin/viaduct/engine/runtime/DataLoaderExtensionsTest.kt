@@ -6,6 +6,8 @@ import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.ValueSource
 import viaduct.dataloader.BatchLoaderEnvironment
 import viaduct.dataloader.DataLoader
 import viaduct.dataloader.DispatchingContext
@@ -13,7 +15,11 @@ import viaduct.engine.api.Caller
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.instrumentation.resolver.ResolverInstrumentationContext
 import viaduct.engine.api.invocationContextFor
+import viaduct.engine.api.mocks.MockFieldBatchResolverExecutor
+import viaduct.engine.api.mocks.MockNodeBatchResolverExecutor
+import viaduct.engine.runtime.EngineExecutionContextExtensions.asImpl
 import viaduct.engine.runtime.EngineExecutionContextExtensions.copy
+import viaduct.engine.runtime.instrumentation.resolver.InstrumentedEngineExecutionContext
 import viaduct.engine.runtime.mocks.ContextMocks
 
 class DataLoaderExtensionsTest {
@@ -49,11 +55,12 @@ class DataLoaderExtensionsTest {
 
     @Test
     fun `withInvocationContexts exposes the context captured for each selector`() {
-        val first = context()
+        val first = context().copy(currentResolver = Caller("tenant", "Query", "field"))
         val second = context()
 
-        val batch = context().withInvocationContexts(mapOf("a" to first, "b" to second))
+        val batch = first.withInvocationContexts(mapOf("a" to first, "b" to second))
 
+        assertNull(batch.asImpl().currentResolver)
         assertSame(first, batch.invocationContextFor("a"))
         assertSame(second, batch.invocationContextFor("b"))
     }
@@ -69,11 +76,13 @@ class DataLoaderExtensionsTest {
 
     @Test
     fun `invocationContextForBatchLoadFromKeys returns the sole context for a single key`() {
-        val only = context()
+        val handle = mockk<EngineExecutionContext.ExecutionHandle>()
+        val only = ContextMocks().invocationContext(EngineExecutionContextImpl.FieldExecutionScopeImpl(), null, handle)
 
         val result = loader.invocationContextForBatchLoadFromKeys(setOf("a"), environment(mapOf("a" to only)))
 
         assertSame(only, result.executionContext)
+        assertSame(handle, result.executionContext.executionHandle)
     }
 
     @Test
@@ -106,29 +115,41 @@ class DataLoaderExtensionsTest {
         assertTrue(error.message!!.contains("No resolver invocation context provided for selector b"))
     }
 
-    @Test
-    fun `invocationContextForBatchLoadFromKeys clears field scope and keeps a context per key`() {
-        val scoped = context().copy(
+    @ParameterizedTest(name = "instrumented={0}")
+    @ValueSource(booleans = [false, true])
+    fun `combined batches clear field state and retain request state`(instrumented: Boolean) {
+        val scoped = ContextMocks(myRequestContext = Any()).engineExecutionContext.copy(
             fieldScopeSupplier = {
                 EngineExecutionContextImpl.FieldExecutionScopeImpl(
                     fragments = mapOf("TestFragment" to mockk(relaxed = true)),
                     variables = mapOf("testVar" to "testValue"),
                 )
             },
+            dataFetchingEnvironment = mockk(),
             currentResolver = Caller(tenantName = "tenant", typeName = "Query", fieldName = "field"),
         )
+        val first = if (instrumented) InstrumentedEngineExecutionContext(scoped, mockk(), mockk()) else scoped
         val other = context()
 
         val result = loader.invocationContextForBatchLoadFromKeys(
             setOf("a", "b"),
-            environment(mapOf("a" to scoped, "b" to other)),
+            environment(mapOf("a" to first, "b" to other)),
         )
 
         val batch = result.executionContext
         assertTrue(batch.fieldScope.fragments.isEmpty())
         assertTrue(batch.fieldScope.variables.isEmpty())
-        assertNull((batch as InternalEngineExecutionContext).impl.currentResolver)
-        assertSame(scoped, batch.invocationContextFor("a"))
+        assertNull(batch.asImpl().currentResolver)
+        assertNull(batch.asImpl().dataFetchingEnvironment)
+        assertSame(scoped.fullSchema, batch.fullSchema)
+        assertSame(scoped.requestContext, batch.requestContext)
+        assertSame(scoped.engine, batch.engine)
+        val fieldResolver = MockFieldBatchResolverExecutor(resolverId = "Query.field")
+        val nodeResolver = MockNodeBatchResolverExecutor(typeName = "User")
+        val dispatchers = batch as DispatcherExecutionContext
+        assertSame(scoped.fieldDataLoader(fieldResolver), dispatchers.fieldDataLoader(fieldResolver))
+        assertSame(scoped.nodeDataLoader(nodeResolver), dispatchers.nodeDataLoader(nodeResolver))
+        assertSame(first, batch.invocationContextFor("a"))
         assertSame(other, batch.invocationContextFor("b"))
     }
 }

@@ -87,8 +87,9 @@ interface FieldResolverExecutor {
      * Resolves a list of selectors in a batch if isBatching is true.
      * If isBatching is false, it enforces the selectors list size to be 1.
      *
-     * @param selector The input to resolve
-     * @param context The execution context for the resolver
+     * @param selectors The inputs to resolve
+     * @param context The batch execution context. Use `context.invocationContextFor(selector)`
+     * for each selector's tenant context and nested execution; selectors may have different contexts.
      * @return A map of selectors to their resolved results.
      */
     suspend fun batchResolve(

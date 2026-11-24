@@ -1248,6 +1248,7 @@ class QueryPlanTest {
         runExecutionTest {
             factory.build(params, document)
             factory.build(params, document)
+            meterRegistry.awaitSuccessfulCacheLoad()
 
             assertEquals(
                 1.0,
@@ -1304,6 +1305,7 @@ class QueryPlanTest {
         runExecutionTest {
             factory.buildFromParsedSelections(params, parsedSelections)
             factory.buildFromParsedSelections(params, parsedSelections)
+            meterRegistry.awaitSuccessfulCacheLoad()
 
             assertEquals(
                 1.0,
@@ -2229,6 +2231,15 @@ private fun QueryPlan.planFor(requiredSelectionSetId: RequiredSelectionSet.Id): 
     checkNotNull(index.find(requiredSelectionSetId)) {
         "Missing QueryPlan for RequiredSelectionSet $requiredSelectionSetId"
     }
+
+// Caffeine can complete the plan's future before its load-statistics callback finishes.
+private suspend fun SimpleMeterRegistry.awaitSuccessfulCacheLoad() {
+    withTimeout(5_000) {
+        while (timerCount(QueryPlanFactoryStats.CACHE_LOAD_DURATION_METRIC_NAME, QueryPlanFactoryStats.RESULT_TAG_NAME, "success") == 0L) {
+            delay(10)
+        }
+    }
+}
 
 internal fun SimpleMeterRegistry.counterCount(
     metricName: String,
