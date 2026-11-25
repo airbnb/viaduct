@@ -661,7 +661,7 @@ The workflow runs these steps in sequence:
 1. **Preflight** — verifies release branch exists and tag does not
 2. **Publish** — validates versions, runs checks, publishes to Plugin Portal + Maven Central (via `publish-branch.yml`)
 3. **Push demo apps** — updates the 5 standalone `viaduct-dev/*` repos on `main` (via `push-demoapps.yml`)
-4. **Wait for new artifacts** — polls Maven Central and the Gradle Plugin Portal until every published coordinate is visible
+4. **Wait for new artifacts** — polls Maven Central and the Gradle Plugin Portal until every published coordinate is visible, then warns about each plugin the Portal does not host itself
 5. **Verify demo apps** — confirms standalone repos build against published artifacts
 6. **Create release** — creates the `v${RELEASE_VER}` tag and publishes the GitHub release with your changelog
 
@@ -808,6 +808,8 @@ Artifacts are already on Maven Central, but no tag or GitHub release exists yet.
 - **`no coordinates found` / `no '<repository>' coordinates found`** — the `published-coordinates` artifact arrived with nothing the probe could use. The derivation itself runs in `publish`, so this points at the artifact hand-off rather than at the Gradle task.
 - **A signature error** (RC mode), such as `missing signature: <url>.asc` or `BADSIG: <url>` — the RC is published but a file is unsigned, altered, or signed by another key. `NO_PUBKEY` means the signing secret holds a key other than `.github/release-signing-key.asc`; `EXPKEYSIG` means the key has expired. Fix the secret or the key file before the final release. When the release key is rotated, replace `.github/release-signing-key.asc` with the new public key in the same change.
 - **`coordinates carry version X, expected Y`** — the published `VERSION` disagrees with the version being probed. `validate` catches an `rc_ver` mismatch before publication, so reaching this points at the release branch moving between `validate` and `publish` rather than at a bad `rc_ver`. Check the branch's history for a push mid-release.
+- **`::warning::the Plugin Portal does not host <url>`** — a warning, not a failure: the Portal answered with a redirect (HTTP 3xx). Builds still resolve the plugin, because the Portal redirects requests for files it does not host to Maven Central. Expect it for a plugin ID's first release while the Portal reviews the new ID, and for `module-java-gradle-plugin`, which the Portal has not hosted in any release through 3.0.0. For a plugin the Portal hosted in an earlier release, check the `Publish artifacts` log for its `publishPlugins` task. A re-check can repeat the warning for up to 12 hours: the Portal lets caches keep its redirect that long (`Cache-Control: max-age=43200`).
+- **`::warning::could not check whether the Plugin Portal hosts <url>`** — the Portal answered with neither `200` nor a redirect, such as a timeout or a `503`. Check by hand with `curl -s -o /dev/null -w '%{http_code}' <url>`, which does not follow redirects.
 
 ### Demo app tests fail after push
 

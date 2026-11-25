@@ -1,10 +1,12 @@
 import contextlib
 import http.client
+import http.server
 import io
 import os
 import shutil
 import sys
 import tempfile
+import threading
 import unittest
 import urllib.error
 from pathlib import Path
@@ -18,6 +20,7 @@ from probe_published_artifacts import (
     find_coordinate_files,
     find_problems,
     http_status,
+    http_status_without_redirects,
     main,
     parse_coordinates,
     probe,
@@ -132,6 +135,24 @@ class TestHttpStatus(unittest.TestCase):
         # IncompleteRead is not an OSError, so it needs its own except clause.
         error = http.client.IncompleteRead(b"partial")
         self.assertEqual(self.status_when_urlopen_raises(error), 0)
+
+    def test_without_redirects_reports_the_redirect_instead_of_its_target(self):
+        class RedirectingHandler(http.server.BaseHTTPRequestHandler):
+            def do_GET(self):
+                self.send_response(303 if self.path == "/marker.pom" else 200)
+                self.send_header("Location", "/central/marker.pom")
+                self.end_headers()
+
+            def log_message(self, *args):
+                pass
+
+        server = http.server.HTTPServer(("127.0.0.1", 0), RedirectingHandler)
+        threading.Thread(target=server.serve_forever, daemon=True).start()
+        self.addCleanup(server.server_close)
+        self.addCleanup(server.shutdown)
+        url = f"http://127.0.0.1:{server.server_port}/marker.pom"
+        self.assertEqual(http_status(url), 200)
+        self.assertEqual(http_status_without_redirects(url), 303)
 
 
 class TempDirTestCase(unittest.TestCase):
@@ -286,11 +307,12 @@ class TestProbe(unittest.TestCase):
 class TestMain(TempDirTestCase):
     """Covers the exit codes and ::error:: output that release.yml depends on."""
 
-    def run_main(self, version, fetch=lambda url: 200, extra_args=()):
+    def run_main(self, version, fetch=lambda url: 200, extra_args=(), fetch_without_redirects=lambda url: 200):
         with contextlib.redirect_stdout(io.StringIO()) as captured:
             code = main(
                 ["--version", version, "--root", self.tmpdir, "--timeout-seconds", "0", *extra_args],
                 fetch=fetch,
+                fetch_without_redirects=fetch_without_redirects,
             )
         return code, captured.getvalue()
 
@@ -326,6 +348,31 @@ class TestMain(TempDirTestCase):
         self.assertIn("::error::not visible", output)
         self.assertIn("last status HTTP 404", output)
         self.assertIn("/com/airbnb/viaduct/api/2.0.0/api-2.0.0.pom", output)
+
+    def test_warns_about_each_plugin_the_portal_redirects_or_cannot_confirm(self):
+        redirected = PORTAL.replace("application-gradle-plugin", "module-java-gradle-plugin")
+        unknown = PORTAL.replace("application-gradle-plugin", "settings-gradle-plugin")
+        write_coordinate_file(self.tmpdir, "publications/api", CENTRAL, PORTAL, redirected, unknown)
+        statuses = {"module-java": 303, "settings": 503}
+        code, output = self.run_main(
+            "2.0.0",
+            fetch_without_redirects=lambda url: next((s for k, s in statuses.items() if k in url), 200),
+        )
+        self.assertEqual(code, 0)
+        warnings = [line for line in output.splitlines() if line.startswith("::warning::")]
+        self.assertEqual(len(warnings), 2)
+        self.assertIn("does not host", warnings[0])
+        self.assertIn("module-java-gradle-plugin.gradle.plugin-2.0.0.pom (HTTP 303)", warnings[0])
+        self.assertIn("could not check", warnings[1])
+        self.assertIn("settings-gradle-plugin.gradle.plugin-2.0.0.pom (HTTP 503)", warnings[1])
+        self.assertIn("hosts 1 of 3 plugins", output)
+
+    def test_snapshot_versions_skip_the_portal_check(self):
+        write_coordinate_file(self.tmpdir, "publications/api", RC_CENTRAL, RC_PORTAL)
+        checked = []
+        code, _ = self.run_main("2.0.0-rc.1-SNAPSHOT", fetch_without_redirects=checked.append)
+        self.assertEqual(code, 0)
+        self.assertEqual(checked, [])
 
     def test_require_unpublished_succeeds_when_every_artifact_is_absent(self):
         write_coordinate_file(self.tmpdir, "publications/api", RC_CENTRAL, RC_PORTAL)
