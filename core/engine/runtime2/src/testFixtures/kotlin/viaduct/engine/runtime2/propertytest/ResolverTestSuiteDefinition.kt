@@ -61,9 +61,10 @@ import viaduct.engine.runtime2.resolution.parentFocusedConfig
 import viaduct.engine.runtime2.resolution.rootFieldReferenceFocusedConfig
 
 /**
- * Generation inputs for a stored suite; changing any of them requires regenerating its resources.
+ * A stored suite and the inputs for its live exploration and its next generation; its archive records what each stored batch was generated from.
+ * The keys [config] sets must match the suite's latest generation, while keys left at their defaults and generator internals may change freely.
  * [profile] is the replay profile name, shared by suites that differ only in a family's configuration.
- * A nonempty [retainedBatches] stores only those batches, chosen from all [counts] generated ones by coverage selection.
+ * A nonempty [retainedBatches] names the pool positions, of all [counts] generated batches, that materializing keeps; coverage selection chooses them.
  * Selection also requires every pool attribute starting with one of [selectionAttributePrefixes]; each requirement needs
  * [selectionMinimumCases] cases across [selectionMinimumBatches] batches, and each obligation combination the pool produces
  * needs [selectionMinimumCombinationCases] cases so one regenerated schema cannot drop it.

@@ -3,17 +3,20 @@ package viaduct.engine.runtime2.coverage
 import viaduct.engine.runtime2.arbitrary.Config
 import viaduct.engine.runtime2.arbitrary.ResolverTestBatch
 import viaduct.engine.runtime2.arbitrary.ResolverTestCase
+import viaduct.engine.runtime2.arbitrary.SelectiveNodeResolversEnabled
 import viaduct.engine.runtime2.arbitrary.TestCaseCount
 import viaduct.engine.runtime2.arbitrary.generateResolverTestBatches
 import viaduct.engine.runtime2.arbitrary.parseResolverTestSize
 import viaduct.engine.runtime2.arbitrary.withOverrides
 import viaduct.engine.runtime2.model.testing.TestWorld
+import viaduct.engine.runtime2.propertytest.FIRST_GENERATION_ID
 import viaduct.engine.runtime2.propertytest.NumberedResolverTestBatch
 import viaduct.engine.runtime2.propertytest.ResolverTestCaseId
 import viaduct.engine.runtime2.propertytest.ResolverTestShardIds
 import viaduct.engine.runtime2.propertytest.ResolverTestSuite
 import viaduct.engine.runtime2.propertytest.ResolverTestSuiteDefinition
 import viaduct.engine.runtime2.propertytest.checkNumberedBatch
+import viaduct.engine.runtime2.propertytest.generationBatchId
 import viaduct.engine.runtime2.propertytest.numberBatches
 
 data class CandidateBatch(
@@ -72,12 +75,13 @@ sealed interface CoverageCandidate {
         override suspend fun batches(): List<CandidateBatch> = suite.batches.map { stored -> CandidateBatch(stored.id, idsByBatch.getValue(stored.id), suite.loadShard(stored.id)) }
     }
 
-    /** Numbers batches as the materializer does, so a promoted candidate keeps the batch IDs measured here. */
+    /** Numbers batches as the materializer does for [generation], so a promoted candidate keeps the batch IDs measured here. */
     class Generated(
         override val definition: ResolverTestSuiteDefinition,
         val seed: Long = definition.seed,
         val counts: TestCaseCount = definition.counts,
         val configOverrides: String = "",
+        val generation: String = FIRST_GENERATION_ID,
     ) : CoverageCandidate {
         override val config: Config = definition.config.withOverrides(configOverrides)
 
@@ -90,7 +94,11 @@ sealed interface CoverageCandidate {
             numbered()
         }
 
-        private suspend fun numbered(): List<NumberedResolverTestBatch> = generated ?: definition.numberBatches(generateResolverTestBatches(counts, config, seed)).also { generated = it }
+        private suspend fun numbered(): List<NumberedResolverTestBatch> =
+            generated ?: definition
+                .numberBatches(generateResolverTestBatches(counts, config, seed))
+                .map { numbered -> numbered.copy(id = generationBatchId(generation, numbered.id)) }
+                .also { generated = it }
 
         override suspend fun replay(property: suspend (TestWorld, ResolverTestCase, CoverageTestId) -> Unit): Int {
             val batches = numbered()
@@ -102,7 +110,7 @@ sealed interface CoverageCandidate {
                     schemaIndex = offset + 1,
                     seed = seed,
                     counts = counts,
-                    config = config,
+                    selectiveNodeResolvers = config[SelectiveNodeResolversEnabled],
                 ) { world, testCase ->
                     property(world, testCase, CoverageTestId.from(ResolverTestCaseId.parse(requireNotNull(testCase.testCaseId)), numbered.ids))
                 }

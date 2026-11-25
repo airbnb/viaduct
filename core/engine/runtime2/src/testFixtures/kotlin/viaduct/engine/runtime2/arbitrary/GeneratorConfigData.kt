@@ -52,22 +52,26 @@ data class GeneratorConfigData(
         }
         val resolved =
             ConfigKeys.all.associateWith { key ->
-                val value: Any =
-                    when (key.wireType) {
-                        ConfigValueType.BOOLEAN ->
-                            requireNotNull(booleans[key.wireName])
-                        ConfigValueType.INTEGER ->
-                            requireNotNull(integers[key.wireName])
-                        ConfigValueType.DOUBLE ->
-                            requireNotNull(doubles[key.wireName])
-                        ConfigValueType.INTEGER_RANGE ->
-                            requireNotNull(ranges[key.wireName]).toRange()
-                    }
+                val value: Any = requireNotNull(rawValue(key))
                 validateValue(key, value)
                 value
             }
         return Config.fromResolvedValues(resolved)
     }
+
+    /** [key]'s recorded value, or its current default when this record predates the key; unlike [toConfig], it never feeds generation. */
+    fun <T> recordedValue(key: ConfigKey<T>): T {
+        @Suppress("UNCHECKED_CAST")
+        return (rawValue(key) ?: key.default) as T
+    }
+
+    private fun rawValue(key: ConfigKey<*>): Any? =
+        when (key.wireType) {
+            ConfigValueType.BOOLEAN -> booleans[key.wireName]
+            ConfigValueType.INTEGER -> integers[key.wireName]
+            ConfigValueType.DOUBLE -> doubles[key.wireName]
+            ConfigValueType.INTEGER_RANGE -> ranges[key.wireName]?.toRange()
+        }
 
     companion object {
         fun from(

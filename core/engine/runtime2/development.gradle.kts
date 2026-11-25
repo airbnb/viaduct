@@ -572,14 +572,15 @@ tasks.register<JavaExec>("materializeGeneratorConfigs") {
 
 tasks.register<JavaExec>("materializeResolverTestSuites") {
     group = "verification"
-    description = "Pre-generates stored resolver property-test suites so tests replay them instead of generating."
+    description = "Stores the first generation of resolver property-test suites that have no archive; pass -PresolverTestSuites=\"[--regenerate] <suite-id>...\" to select suites."
     dependsOn("testFixturesClasses")
     classpath = sourceSets["testFixtures"].output + configurations["testFixturesRuntimeClasspath"]
     mainClass.set("viaduct.engine.runtime2.propertytest.ResolverTestSuiteMaterializer")
     maxHeapSize = "4g"
     val resourcesRoot = layout.projectDirectory.dir("src/testFixtures/resources")
     outputs.dir(resourcesRoot.dir("viaduct/engine/runtime2/property-tests/suites"))
-    args(resourcesRoot.asFile.absolutePath)
+    outputs.upToDateWhen { false }
+    args(listOf(resourcesRoot.asFile.absolutePath) + providers.gradleProperty("resolverTestSuites").orNull.orEmpty().split(' ').filter(String::isNotBlank))
 }
 
 tasks.register<JavaExec>("compareResolverTestSuites") {

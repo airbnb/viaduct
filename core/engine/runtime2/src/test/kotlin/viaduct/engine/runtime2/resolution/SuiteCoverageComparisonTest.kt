@@ -18,6 +18,7 @@ import viaduct.engine.runtime2.arbitrary.ResolverFromArgumentVariablesEnabled
 import viaduct.engine.runtime2.arbitrary.ResolverVariableCount
 import viaduct.engine.runtime2.arbitrary.ResolverVariablesEnabled
 import viaduct.engine.runtime2.arbitrary.TestCaseCount
+import viaduct.engine.runtime2.arbitrary.generateResolverTestBatches
 import viaduct.engine.runtime2.contract.CorrectResolutionPostTestPolicy
 import viaduct.engine.runtime2.coverage.CandidateCoverage
 import viaduct.engine.runtime2.coverage.ConfigSweepVariant
@@ -57,10 +58,16 @@ class SuiteCoverageComparisonTest : CorrectResolutionPostTestPolicy, ResolutionD
     private lateinit var measurement: ResolverCoverageMeasurement
     private lateinit var coverage: CandidateCoverage
 
+    // Live generation is compared with these batches stored in memory, since checked-in suites need not match it.
+    private lateinit var freshlyStored: CoverageCandidate.Stored
+    private lateinit var freshMeasurement: ResolverCoverageMeasurement
+
     @BeforeAll
     fun measureStoredSuite(): Unit =
         runTest {
             measurement = measureCoverage(stored, runId = "run")
+            freshlyStored = CoverageCandidate.Stored(ResolverTestSuite.fromGenerated(definition, generateResolverTestBatches(definition.counts, definition.config, definition.seed)))
+            freshMeasurement = measureCoverage(freshlyStored, runId = "run")
             coverage = CandidateCoverage.of("a", 0, measurement)
         }
 
@@ -69,7 +76,7 @@ class SuiteCoverageComparisonTest : CorrectResolutionPostTestPolicy, ResolutionD
         runTest {
             val generated = measureCoverage(CoverageCandidate.Generated(definition), runId = "run")
 
-            assertEquals(measurement, generated)
+            assertEquals(freshMeasurement, generated)
         }
 
     @Test
@@ -78,7 +85,7 @@ class SuiteCoverageComparisonTest : CorrectResolutionPostTestPolicy, ResolutionD
             val candidate = CoverageCandidate.Generated(definition)
             candidate.prepare()
 
-            assertEquals(measurement, measureCoverage(candidate, runId = "run"))
+            assertEquals(freshMeasurement, measureCoverage(candidate, runId = "run"))
         }
 
     @Test
@@ -232,12 +239,13 @@ class SuiteCoverageComparisonTest : CorrectResolutionPostTestPolicy, ResolutionD
     @Test
     fun `the comparison page draws a batch both candidates contain once`(): Unit =
         runTest {
-            val page = SuiteCoverageComparisonPage.render(SuiteCoverageComparison(coverage, coverage), stored.batches(), CoverageCandidate.Generated(definition).batches())
+            val freshCoverage = CandidateCoverage.of("a", 0, freshMeasurement)
+            val page = SuiteCoverageComparisonPage.render(SuiteCoverageComparison(freshCoverage, freshCoverage), freshlyStored.batches(), CoverageCandidate.Generated(definition).batches())
 
             val batches = page.embeddedBatches()
-            assertEquals(suite.batches.map { it.id }, batches.map { it["id"] })
+            assertEquals(freshlyStored.suite.batches.map { it.id }, batches.map { it["id"] })
             assertEquals(setOf("both"), batches.map { it["side"] }.toSet())
-            assertEquals(measurement.executions.size, batches.sumOf { (it["cases"] as List<*>).size })
+            assertEquals(freshMeasurement.executions.size, batches.sumOf { (it["cases"] as List<*>).size })
         }
 
     @Test

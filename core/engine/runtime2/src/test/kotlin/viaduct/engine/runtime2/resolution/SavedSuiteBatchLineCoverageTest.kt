@@ -34,13 +34,14 @@ class SavedSuiteBatchLineCoverageTest : CorrectResolutionPostTestPolicy, Resolut
             val suiteId = requireNotNull(System.getenv(BATCH_LINE_COVERAGE_SUITE)) {
                 "$BATCH_LINE_COVERAGE_SUITE must name a saved suite"
             }
-            val batchId = requireNotNull(System.getenv(BATCH_LINE_COVERAGE_BATCH)) {
+            val requestedBatchId = requireNotNull(System.getenv(BATCH_LINE_COVERAGE_BATCH)) {
                 "$BATCH_LINE_COVERAGE_BATCH must name a batch in $suiteId"
             }
             val definition = requireNotNull(ResolverTestSuiteDefinition.entries.singleOrNull { it.id == suiteId }) {
                 "Unknown saved suite $suiteId"
             }
             val suite = ResolverTestSuite.load(definition)
+            val batchId = requireNotNull(suite.batch(requestedBatchId)) { "Saved suite $suiteId has no batch $requestedBatchId" }.id
             val expectedCaseCount = suite.testCaseIds().count { it.batch == batchId }
             require(expectedCaseCount > 0) { "Saved suite $suiteId has no cases in batch $batchId" }
 

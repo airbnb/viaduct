@@ -19,12 +19,16 @@ import viaduct.engine.runtime2.arbitrary.ArbitraryQuery
 import viaduct.engine.runtime2.arbitrary.ArbitraryRegistry
 import viaduct.engine.runtime2.arbitrary.ArbitrarySchema
 import viaduct.engine.runtime2.arbitrary.FieldDefinitionSpec
+import viaduct.engine.runtime2.arbitrary.GeneratorConfigData
+import viaduct.engine.runtime2.arbitrary.MaxSelectionDepth
 import viaduct.engine.runtime2.arbitrary.RESOLVER_TEST_CASE_ID_PROPERTY
 import viaduct.engine.runtime2.arbitrary.RESOLVER_TEST_CASE_MARKER_PROPERTY
 import viaduct.engine.runtime2.arbitrary.RESOLVER_TEST_CASE_PROPERTY
 import viaduct.engine.runtime2.arbitrary.RESOLVER_TEST_SEED_PROPERTY
+import viaduct.engine.runtime2.arbitrary.ResolverFragmentDepth
 import viaduct.engine.runtime2.arbitrary.ResolverTestBatch
 import viaduct.engine.runtime2.arbitrary.ResolverTestRun
+import viaduct.engine.runtime2.arbitrary.SelectiveNodeResolversEnabled
 import viaduct.engine.runtime2.arbitrary.TestCaseCount
 import viaduct.engine.runtime2.arbitrary.generateResolverTestBatches
 import viaduct.engine.runtime2.arbitrary.withResolverProperties
@@ -114,10 +118,12 @@ class ResolverTestSuiteTest {
             val manifest = PropertyTestJson.read<ResolverTestSuiteManifest>(entries.getValue(MANIFEST_ENTRY).inputStream())
             val schemaId = ResolverTestShardCodec.ids(batch).schema
             assertEquals(listOf(ResolverTestSuiteSchema(schemaId, ResolverTestShardCodec.encode("b001", batch).sdl.sha256Hash())), manifest.schemas)
-            assertEquals(listOf("b001", "b002"), manifest.batches.map(ResolverTestSuiteBatch::id))
+            assertEquals(listOf("g1-b001", "g1-b002"), manifest.batches.map(ResolverTestSuiteBatch::id))
+            assertEquals(listOf("b001", "b002"), manifest.batches.map(ResolverTestSuiteBatch::poolBatch))
+            assertEquals(listOf(ResolverTestSuiteGeneration.of(definition, FIRST_GENERATION_ID)), manifest.generations)
             assertEquals(listOf(ResolverTestShardCodec.ids(first), ResolverTestShardCodec.ids(second)), manifest.batches.map(ResolverTestSuiteBatch::ids))
             assertTrue(manifest.batches[0].queries != manifest.batches[1].queries)
-            assertEquals(listOf("batch-b001.json.gz", "batch-b002.json.gz", "manifest.json", "schema-$schemaId.graphqls.gz"), entries.keys.sorted())
+            assertEquals(listOf("batch-g1-b001.json.gz", "batch-g1-b002.json.gz", "manifest.json", "schema-$schemaId.graphqls.gz"), entries.keys.sorted())
             val archive = Files.readAllBytes(root.resolve(suiteArchiveResource(definition.id)))
             ResolverTestSuiteMaterializer.write(root, definition, listOf(first, second))
             assertTrue(archive.contentEquals(Files.readAllBytes(root.resolve(suiteArchiveResource(definition.id)))), "rewriting a suite changed its archive bytes")
@@ -151,19 +157,6 @@ class ResolverTestSuiteTest {
         }
 
     @Test
-    fun `the generated pool pruned to the retained batches reproduces the stored archive`(): Unit =
-        runBlocking {
-            val definition = ResolverTestSuiteDefinition.OBJECT_FRAGMENT
-
-            val pruned = generatedSuite(definition, definition.counts.schemas).retainingDefinitionBatches()
-
-            val stored = ResolverTestSuite.load(definition).parts()
-            val regenerated = pruned.parts()
-            assertEquals(stored.size, regenerated.size)
-            assertTrue(stored.zip(regenerated).all { (expected, actual) -> expected.contentEquals(actual) })
-        }
-
-    @Test
     fun `retaining batches keeps their IDs and only the schemas they use`(): Unit =
         runBlocking {
             val definition = ResolverTestSuiteDefinition.OBJECT_FRAGMENT
@@ -175,12 +168,32 @@ class ResolverTestSuiteTest {
             pruned.writeTo(root)
 
             assertEquals(listOf(kept), pruned.batches)
+            assertEquals(pool.generations, pruned.generations)
             assertEquals(pruned.caseCount, pruned.testCaseIds().size)
             assertEquals(ResolverTestShardCodec.ids(pool.loadShard(kept.id)), ResolverTestShardCodec.ids(pruned.loadShard(kept.id)))
             val entries = readResolverTestSuiteArchive(Files.readAllBytes(root.resolve(suiteArchiveResource(definition.id))))
             assertEquals(setOf(MANIFEST_ENTRY, sdlEntry(kept.schema), shardEntry(kept.id)), entries.keys)
             assertContains(assertFailsWith<IllegalArgumentException> { pool.retaining(listOf("b999")) }.message.orEmpty(), "b999")
             assertFailsWith<IllegalArgumentException> { pool.retaining(emptyList()) }
+        }
+
+    @Test
+    fun `a generation whose batches were all dropped stays recorded and generations must be listed in order`(): Unit =
+        runBlocking {
+            val definition = ResolverTestSuiteDefinition.OBJECT_FRAGMENT
+            val entries = generatedSuite(definition, schemas = 3, queriesPerSchema = 2).parts().single().let(::readResolverTestSuiteArchive)
+
+            fun withGenerations(ids: List<String>): Map<String, ByteArray> {
+                val manifest = PropertyTestJson.read<ResolverTestSuiteManifest>(entries.getValue(MANIFEST_ENTRY).inputStream())
+                val first = manifest.generations.single()
+                return entries + (MANIFEST_ENTRY to PropertyTestJson.write(manifest.copy(generations = ids.map { id -> first.copy(id = id) })).toByteArray())
+            }
+
+            val emptied = ResolverTestSuite.fromEntries(definition, withGenerations(listOf("g1", "g2")))
+
+            assertEquals(listOf("g1", "g2"), emptied.retaining(emptied.batches.map(ResolverTestSuiteBatch::id).take(1)).generations.map(ResolverTestSuiteGeneration::id))
+            assertContains(assertFailsWith<IllegalArgumentException> { ResolverTestSuite.fromEntries(definition, withGenerations(listOf("g2", "g1"))) }.message.orEmpty(), "in order")
+            assertContains(assertFailsWith<IllegalArgumentException> { ResolverTestSuite.fromEntries(definition, withGenerations(listOf("g1", "g3"))) }.message.orEmpty(), "in order")
         }
 
     @ParameterizedTest
@@ -194,20 +207,74 @@ class ResolverTestSuiteTest {
         assertEquals(suite.caseCount, suite.testCaseIds().toSet().size)
     }
 
-    @ParameterizedTest
-    @EnumSource(ResolverTestSuiteDefinition::class)
-    fun `stored suite matches live generation for its seed`(definition: ResolverTestSuiteDefinition): Unit =
+    @Test
+    fun `a legacy test case ID selects its first-generation batch`(): Unit =
         runBlocking {
-            val stored = ResolverTestSuite.load(definition).batches.first()
-            val throughFirstStored = definition.counts.copy(schemas = stored.id.drop(1).toInt())
-            val batch = ResolverTestShardCodec.withoutDuplicates(generateResolverTestBatches(throughFirstStored, definition.config, definition.seed).last())
-            val ids = ResolverTestShardCodec.ids(batch)
-            val shard = ResolverTestShardCodec.encode(stored.id, batch)
+            val suite = ResolverTestSuite.load(ResolverTestSuiteDefinition.OBJECT_FRAGMENT)
+            val batch = suite.batches[3]
+            val legacy = ResolverTestCaseId(suite.definition.id, batch.poolBatch, batch.queries[2])
+            val visited = mutableListOf<String?>()
 
-            assertEquals(ResolverTestSuiteBatch(stored.id, ids.schema, shard.json.sha256Hash(), ids.registry, ids.queries), stored)
-            val entries = readResolverTestSuiteParts(definition.id, PropertyTestJson::readResourceBytesOrNull)
-            assertTrue(entries.getValue(sdlEntry(ids.schema)).contentEquals(shard.sdl), sdlEntry(ids.schema))
-            assertTrue(entries.getValue(shardEntry(stored.id)).contentEquals(shard.json), shardEntry(stored.id))
+            val run = suite.replay(legacy) { _, testCase -> visited += testCase.testCaseId }
+
+            assertEquals(1, run.attemptedCases)
+            assertEquals(listOf<String?>(ResolverTestCaseId(suite.definition.id, batch.id, batch.queries[2]).toString()), visited)
+            assertEquals(ResolverTestShardCodec.ids(suite.loadShard(batch.id)), ResolverTestShardCodec.ids(suite.loadShard(batch.poolBatch)))
+        }
+
+    @Test
+    fun `a stored suite outlives config keys its definition leaves at their defaults`(): Unit =
+        runBlocking {
+            val definition = ResolverTestSuiteDefinition.OBJECT_FRAGMENT
+            val suite = generatedSuite(definition, schemas = 3, queriesPerSchema = 2)
+            val entries = suite.parts().single().let(::readResolverTestSuiteArchive)
+
+            val predatesKey = entries.withGenerationConfig { config -> config.copy(booleans = config.booleans - SelectiveNodeResolversEnabled.wireName) }
+            val otherDefault = entries.withGenerationConfig { config -> config.copy(integers = config.integers + (MaxSelectionDepth.wireName to 7)) }
+            val drifted = entries.withGenerationConfig { config -> config.copy(integers = config.integers + (ResolverFragmentDepth.wireName to 1)) }
+            val missingExplicit = entries.withGenerationConfig { config -> config.copy(integers = config.integers - ResolverFragmentDepth.wireName) }
+
+            assertEquals(suite.batches, ResolverTestSuite.fromEntries(definition, predatesKey).batches)
+            assertEquals(suite.batches, ResolverTestSuite.fromEntries(definition, otherDefault).batches)
+            val driftFailure = assertFailsWith<IllegalArgumentException> { ResolverTestSuite.fromEntries(definition, drifted) }.message.orEmpty()
+            assertContains(driftFailure, "resolverFragmentDepth=3 (recorded 1)")
+            assertContains(driftFailure, "latest generation g1")
+            // A record that predates a key the definition sets reads as the key's default, so the definition's value is drift.
+            assertContains(assertFailsWith<IllegalArgumentException> { ResolverTestSuite.fromEntries(definition, missingExplicit) }.message.orEmpty(), "resolverFragmentDepth=3 (recorded 2)")
+        }
+
+    @Test
+    fun `loading rejects an archive in another format`(): Unit =
+        runBlocking {
+            val definition = ResolverTestSuiteDefinition.OBJECT_FRAGMENT
+            val entries = generatedSuite(definition, schemas = 3, queriesPerSchema = 2).parts().single().let(::readResolverTestSuiteArchive)
+            val version3 = entries + (MANIFEST_ENTRY to """{"formatVersion":3,"id":"${definition.id}"}""".toByteArray())
+
+            val failure = assertFailsWith<IllegalArgumentException> { ResolverTestSuite.fromEntries(definition, version3) }.message.orEmpty()
+
+            assertContains(failure, "formatVersion 3; expected $RESOLVER_TEST_SUITE_FORMAT_VERSION")
+        }
+
+    @Test
+    fun `materializer keeps a stored suite unless asked to regenerate it`(): Unit =
+        runBlocking {
+            val definition = ResolverTestSuiteDefinition.EMPTY_OBJECT_FRAGMENT
+            val root = Files.createTempDirectory("resolver-test-suite")
+            generatedSuite(definition, schemas = 3, queriesPerSchema = 2).writeTo(root)
+            val stored = Files.readAllBytes(root.resolve(suiteArchiveResource(definition.id)))
+
+            val kept = assertFailsWith<IllegalArgumentException> { ResolverTestSuiteMaterializer.main(arrayOf(root.toString(), definition.id)) }.message.orEmpty()
+            val unscoped = assertFailsWith<IllegalArgumentException> { ResolverTestSuiteMaterializer.main(arrayOf(root.toString(), "--regenerate")) }.message.orEmpty()
+
+            assertContains(kept, "already stored; pass --regenerate")
+            assertContains(unscoped, "requires the suite IDs")
+            assertTrue(stored.contentEquals(Files.readAllBytes(root.resolve(suiteArchiveResource(definition.id)))))
+
+            ResolverTestSuiteMaterializer.main(arrayOf(root.toString(), "--regenerate", definition.id))
+
+            val regenerated = ResolverTestSuite.fromEntries(definition, readResolverTestSuiteArchive(Files.readAllBytes(root.resolve(suiteArchiveResource(definition.id)))))
+            assertEquals(definition.counts.schemas, regenerated.batches.size)
+            assertEquals(listOf(ResolverTestSuiteGeneration.of(definition, FIRST_GENERATION_ID)), regenerated.generations)
         }
 
     @Test
@@ -225,7 +292,7 @@ class ResolverTestSuiteTest {
                 }
 
             assertEquals(1, run.attemptedCases)
-            assertEquals(listOf("$selected profile=object-fragment seed=1 S=4 Q=3 true"), visited)
+            assertEquals(listOf("$selected profile=object-fragment seed=1 S=56 Q=3 true"), visited)
             assertEquals(selected.toString(), run.selectedTestCase)
             assertTrue(run.stored && run.singleCase)
         }
@@ -410,7 +477,14 @@ private fun ArbitraryRegistry.snapshot(): List<Any?> =
 
 private fun ArbitraryQuery.snapshot(): List<Any?> = listOf(source, permutationEquivalentSource, selectionDepth, features)
 
+private fun Map<String, ByteArray>.withGenerationConfig(transform: (GeneratorConfigData) -> GeneratorConfigData): Map<String, ByteArray> {
+    val manifest = PropertyTestJson.read<ResolverTestSuiteManifest>(getValue(MANIFEST_ENTRY).inputStream())
+    val generations = manifest.generations.map { generation -> generation.copy(generatorConfig = transform(generation.generatorConfig)) }
+    return this + (MANIFEST_ENTRY to PropertyTestJson.write(manifest.copy(generations = generations)).toByteArray())
+}
+
 private suspend fun generatedSuite(
     definition: ResolverTestSuiteDefinition,
     schemas: Int,
-): ResolverTestSuite = ResolverTestSuite.fromGenerated(definition, generateResolverTestBatches(definition.counts.copy(schemas = schemas), definition.config, definition.seed))
+    queriesPerSchema: Int = definition.counts.queriesPerSchema,
+): ResolverTestSuite = ResolverTestSuite.fromGenerated(definition, generateResolverTestBatches(TestCaseCount(schemas, queriesPerSchema), definition.config, definition.seed))

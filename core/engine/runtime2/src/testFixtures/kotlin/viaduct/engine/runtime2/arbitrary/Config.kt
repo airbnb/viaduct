@@ -18,6 +18,9 @@ class Config private constructor(
 
     operator fun plus(overrides: Config): Config = Config(values + overrides.values)
 
+    /** The keys set on this config, as opposed to those that fall back to their defaults. */
+    internal fun explicitKeys(): Set<ConfigKey<*>> = values.keys
+
     internal fun resolvedValues(): Map<ConfigKey<*>, Any> =
         ConfigKeys.all.associateWith { key ->
             values[key] ?: requireNotNull(key.default)
