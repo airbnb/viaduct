@@ -1013,6 +1013,57 @@ class StandardViaductTest {
     }
 
     @ParameterizedTest
+    @CsvSource("false,node", "true,node", "false,nodes", "true,nodes", "false,listings", "true,listings")
+    fun `build rejects tenant replacements for built-in field resolvers`(
+        engine2Enabled: Boolean,
+        fieldName: String
+    ) {
+        val sdl = """
+            type User implements Node { id: ID! }
+            type Listings @namespaceType { name: String }
+            extend type Query { listings: Listings }
+        """.trimIndent()
+        val module = EngineTestModule(sdl) {
+            fieldWithValue("Query" to fieldName, null)
+        }
+
+        val exception = assertThrows<GraphQLBuildError> {
+            StandardViaduct.Builder()
+                .withFlagManager(MockFlagManager.forEngine(engine2Enabled))
+                .withSchemaConfiguration(SchemaConfiguration.fromSdl(sdl))
+                .withTenantModuleInjectorFactory(MockExecutorCodeInjector(module.mockExecutorRegistry))
+                .withExecutorRegistryConfigSources(listOf(module.toModuleConfigSource(tenantName = "test/builtin-conflict")))
+                .build()
+        }
+
+        assertTrue(exception.message!!.contains("Cannot replace built-in field resolver for Query.$fieldName"))
+        assertTrue(exception.message!!.contains("test/builtin-conflict"))
+        val builtinApi = if (fieldName == "listings") "builtin_namespace_type" else "builtin_query_node"
+        assertTrue(exception.message!!.contains(builtinApi))
+        assertInstanceOf(IllegalArgumentException::class.java, exception.cause)
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = [false, true])
+    fun `build allows tenant query node resolvers when built-ins are disabled`(engine2Enabled: Boolean) {
+        val sdl = "type User implements Node { id: ID! }"
+        val module = EngineTestModule(sdl) {
+            fieldWithValue("Query" to "node", null)
+            fieldWithValue("Query" to "nodes", emptyList<Any>())
+        }
+
+        assertDoesNotThrow {
+            StandardViaduct.Builder()
+                .withFlagManager(MockFlagManager.forEngine(engine2Enabled))
+                .withSchemaConfiguration(SchemaConfiguration.fromSdl(sdl))
+                .withTenantModuleInjectorFactory(MockExecutorCodeInjector(module.mockExecutorRegistry))
+                .withExecutorRegistryConfigSources(listOf(module.toModuleConfigSource()))
+                .withoutDefaultQueryNodeResolvers()
+                .build()
+        }
+    }
+
+    @ParameterizedTest
     @ValueSource(booleans = [false, true])
     fun `build should validate tenant-local resolver fields against full schema`(engine2Enabled: Boolean) {
         val sdl = """

@@ -174,9 +174,10 @@ Note that this replaced a previous last-write-wins collapse, so duplicated or sh
 a classpath now fail fast at startup instead of silently registering whichever config the scan
 happened to visit last.
 
-This invariant is independent of resolver-coordinate validation. Two *different* API configurations
-may still attempt to register conflicting fields; the existing dispatcher-registry validation remains
-responsible for those conflicts.
+This invariant is independent of resolver-coordinate validation. Field resolver coordinates and node
+resolver types must also be unique across configurations. Dispatcher-registry assembly rejects
+collisions with diagnostics naming both configurations and resolver implementations. Tenant attempts
+to replace framework-provided built-in resolvers fail with a built-in replacement diagnostic.
 
 ### Three distinct concerns
 
@@ -186,7 +187,7 @@ These are easy to conflate and are enforced in different places:
 |---|---|---|
 | API compatibility | May this tenant use both of these tenant APIs at once? | build-time validation |
 | Key uniqueness | Is there exactly one config per `<tenantName, apiName>`? | `ModuleConfigSource.requireUniqueKeys` |
-| Coordinate conflicts | Do two configs try to register the same field/node? | dispatcher-registry validation |
+| Coordinate conflicts | Do two configs try to register the same field/node? | dispatcher-registry assembly |
 
 ## Injector scope is deliberately coarser than the key
 

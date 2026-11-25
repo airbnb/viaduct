@@ -13,6 +13,7 @@ import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import viaduct.bootstrap.ExecutionRegistryConfigFile
 import viaduct.bootstrap.FieldEntryConfig
 import viaduct.bootstrap.KOTLIN_API_NAME
@@ -313,20 +314,73 @@ class DispatcherRegistryTest {
     }
 
     @Test
-    fun `resolver coordinate collision - last wins`() {
-        val module1 = MockTenantModuleBootstrapper(Samples.testSchema) {
-            fieldWithValue("TestType" to "aField", "module1")
-        }
-        val module2 = MockTenantModuleBootstrapper(Samples.testSchema) {
-            fieldWithValue("TestType" to "aField", "module2")
+    fun `field resolver collision across tenants fails bootstrap`() {
+        val module1 = MockTenantModuleBootstrapper(
+            Samples.testSchema,
+            fieldResolverExecutors = listOf(
+                ("TestType" to "aField") to MockFieldUnbatchedResolverExecutor(resolverName = "first-field-resolver", resolverId = "first"),
+            ),
+        )
+        val module2 = MockTenantModuleBootstrapper(
+            Samples.testSchema,
+            fieldResolverExecutors = listOf(
+                ("TestType" to "aField") to MockFieldUnbatchedResolverExecutor(resolverName = "second-field-resolver", resolverId = "second"),
+            ),
+        )
+
+        val exception = assertThrows<IllegalArgumentException> {
+            dispatcherRegistryFactory(listOf(module1, module2), Validator.Unvalidated, MockCheckerExecutorFactory()).create(Samples.testSchema)
         }
 
-        val registry = dispatcherRegistryFactory(listOf(module1, module2), Validator.Unvalidated, MockCheckerExecutorFactory()).create(Samples.testSchema) as DispatcherRegistry.Impl
+        assertTrue(exception.message!!.contains("Duplicate field resolver for TestType.aField"))
+        assertTrue(exception.message!!.contains("test/tenant0"))
+        assertTrue(exception.message!!.contains("test/tenant1"))
+        assertTrue(exception.message!!.contains("first-field-resolver"))
+        assertTrue(exception.message!!.contains("second-field-resolver"))
+    }
 
-        assertEquals(1, registry.fieldResolverDispatchers.size)
-        // The second module should win - verify the resolver is from module2
-        val resolver = registry.getFieldResolverDispatcher("TestType", "aField")
-        assertNotNull(resolver)
+    @Test
+    fun `node resolver collision across APIs of one tenant fails bootstrap`() {
+        val module = EngineTestModule(
+            Samples.testSchema,
+            nodeResolverExecutors = listOf("TestNode" to MockNodeUnbatchedResolverExecutor("TestNode")),
+        )
+        val config = module.buildExecutionRegistryConfigFile(tenantName = "test/shared")
+        val sources = listOf("first_api", "second_api").map { apiName ->
+            ModuleConfigSource.from(
+                InputStreamSource.fromString(ExecutionRegistryConfigFile.toJson(config.copy(apiName = apiName)), name = apiName)
+            )
+        }
+
+        val exception = assertThrows<IllegalArgumentException> {
+            StandardDispatcherRegistryFactory(
+                moduleConfigSources = sources,
+                tenantModuleInjectorFactory = MockExecutorCodeInjector(module.mockExecutorRegistry),
+                validator = Validator.Unvalidated,
+                checkerExecutorFactory = MockCheckerExecutorFactory(),
+            ).create(Samples.testSchema)
+        }
+
+        assertTrue(exception.message!!.contains("Duplicate node resolver for TestNode"))
+        assertTrue(exception.message!!.contains("test/shared"))
+        assertTrue(exception.message!!.contains("first_api"))
+        assertTrue(exception.message!!.contains("second_api"))
+        assertEquals(2, Regex("Node:TestNode").findAll(exception.message!!).count())
+    }
+
+    @Test
+    fun `collisions on coordinates absent from the schema are filtered out`() {
+        val module = MockTenantModuleBootstrapper(
+            Samples.testSchema,
+            fieldResolverExecutors = listOf(("TestType" to "aField") to MockFieldUnbatchedResolverExecutor.Null),
+            nodeResolverExecutors = listOf("TestNode" to MockNodeUnbatchedResolverExecutor("TestNode")),
+        )
+        val schema = createSchemaWithWiring("extend type Query { value: String }")
+
+        val registry = dispatcherRegistryFactory(listOf(module, module), Validator.Unvalidated, MockCheckerExecutorFactory()).create(schema) as DispatcherRegistry.Impl
+
+        assertEquals(0, registry.fieldResolverDispatchers.size)
+        assertEquals(0, registry.nodeResolverDispatchers.size)
     }
 
     @Test

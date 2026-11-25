@@ -1311,17 +1311,6 @@ interface SubqueryExecutionContract : QueryExecutionContract {
             }
             """.trimIndent()
         ) {
-            field("Query" to "namespace") {
-                resolver {
-                    fn { _, _, _, _, _ ->
-                        createEngineObjectData(
-                            schema.schema.getObjectType("QueryNamespace"),
-                            mapOf()
-                        )
-                    }
-                }
-            }
-
             field("QueryNamespace" to "q1") {
                 resolver {
                     fn { _, _, _, _, _ ->

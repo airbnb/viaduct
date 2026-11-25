@@ -431,7 +431,7 @@ class ResolverConfigTest : KotestPropertyBase() {
     fun `fieldResolverOutputSelectionSet -- interface expansion`() {
         val rc = ResolverConfigImpl(
             """
-                extend type Query { node:Animal @resolver }
+                extend type Query { animal:Animal @resolver }
                 interface Animal { name:String }
                 type Dog implements Animal { name:String, breed:String }
                 type Cat implements Animal { name:String, lives:Int }
@@ -442,13 +442,13 @@ class ResolverConfigTest : KotestPropertyBase() {
 
         assertEquals(
             setOf(
-                "Query" to "node",
+                "Query" to "animal",
                 "Dog" to "name",
                 "Dog" to "breed",
                 "Cat" to "name",
                 "Cat" to "lives"
             ),
-            rc.fieldResolverOutputSelectionSet("Query" to "node")
+            rc.fieldResolverOutputSelectionSet("Query" to "animal")
         )
     }
 
@@ -473,6 +473,23 @@ class ResolverConfigTest : KotestPropertyBase() {
         assertFalse(rc.fieldResolvers.contains("Query" to "undeclared"), rc.fieldResolvers.toString())
         // @resolver-annotated node type is included; non-annotated node type is excluded
         assertEquals(setOf("Foo"), rc.nodeResolvers)
+    }
+
+    @Test
+    fun `factory -- excludes built-in query node fields`() {
+        val schema = """
+            extend type Query { foo: Foo }
+            type Foo implements Node { id: ID!, node: String, nodes: [String] }
+        """.asViaductSchema
+        val resolverConfig = ResolverConfigImpl(
+            schema,
+            Config.default + (UndeclaredFieldResolverWeight to 1.0),
+            randomSource,
+        )
+
+        assertFalse(resolverConfig.fieldResolvers.contains("Query" to "node"))
+        assertFalse(resolverConfig.fieldResolvers.contains("Query" to "nodes"))
+        assertTrue(resolverConfig.fieldResolvers.containsAll(setOf("Query" to "foo", "Foo" to "node", "Foo" to "nodes")))
     }
 
     @Test

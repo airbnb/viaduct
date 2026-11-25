@@ -52,6 +52,8 @@ abstract class AbstractDispatcherRegistryFactory(
     /** Runs on [Dispatchers.Default] inside a `runBlocking` scope during [create]. */
     protected abstract suspend fun moduleResolvers(): List<ModuleResolvers>
 
+    protected open suspend fun builtinModuleResolvers(): List<ModuleResolvers> = emptyList()
+
     final override fun create(schema: EngineSchema): DispatcherRegistry {
         val fieldResolverDispatchers = mutableMapOf<Coordinate, FieldResolverDispatcher>()
         val nodeResolverDispatchers = mutableMapOf<String, NodeResolverDispatcher>()
@@ -63,12 +65,14 @@ abstract class AbstractDispatcherRegistryFactory(
         val nodeResolverExecutorsToValidate = mutableMapOf<String, NodeResolverExecutor>()
         val fieldCheckerExecutorsToValidate = mutableMapOf<Coordinate, CheckerExecutor>()
         val typeCheckerExecutorsToValidate = mutableMapOf<String, CheckerExecutor>()
+        val fieldResolverOrigins = mutableMapOf<Coordinate, String>()
+        val nodeResolverOrigins = mutableMapOf<String, String>()
 
         val moduleResolvers = runBlocking(Dispatchers.Default) {
-            moduleResolvers()
+            moduleResolvers().map { it to false } + builtinModuleResolvers().map { it to true }
         }
 
-        for (module in moduleResolvers) {
+        for ((module, builtin) in moduleResolvers) {
             val (moduleFieldResolverExecutors, moduleNodeResolverExecutors) = try {
                 Pair(module.fieldResolverExecutors(schema), module.nodeResolverExecutors(schema))
             } catch (e: TenantModuleException) {
@@ -78,9 +82,14 @@ abstract class AbstractDispatcherRegistryFactory(
 
             var moduleContributesExecutors = false
             for ((fieldCoord, executor) in moduleFieldResolverExecutors) {
+                recordResolverOrigin(
+                    origins = fieldResolverOrigins,
+                    key = fieldCoord,
+                    description = "field resolver for ${fieldCoord.first}.${fieldCoord.second}",
+                    origin = "$module [${executor.metadata.name}]",
+                    builtin = builtin,
+                )
                 val finalExecutor = proxyResolverFactory.proxyField(executor) ?: executor
-                // Resolver coordinates are globally keyed. Duplicate registrations are deduped
-                // silently here, with the later registration winning.
                 fieldResolverDispatchers[fieldCoord] = FieldResolverDispatcherImpl(finalExecutor)
                 // The proxy executor is validated because the engine uses the proxy's RSS and type
                 // contract at runtime. Validating the original would check RSS that is no longer
@@ -89,6 +98,13 @@ abstract class AbstractDispatcherRegistryFactory(
                 moduleContributesExecutors = true
             }
             for ((typeName, executor) in moduleNodeResolverExecutors) {
+                recordResolverOrigin(
+                    origins = nodeResolverOrigins,
+                    key = typeName,
+                    description = "node resolver for $typeName",
+                    origin = "$module [${executor.metadata.name}]",
+                    builtin = builtin,
+                )
                 val finalExecutor = proxyResolverFactory.proxyNode(executor) ?: executor
                 nodeResolverDispatchers[typeName] = InstrumentedNodeResolverDispatcher(
                     NodeResolverDispatcherImpl(finalExecutor),
@@ -159,6 +175,23 @@ abstract class AbstractDispatcherRegistryFactory(
 
         return dispatcherRegistry
     }
+
+    private fun <K> recordResolverOrigin(
+        origins: MutableMap<K, String>,
+        key: K,
+        description: String,
+        origin: String,
+        builtin: Boolean,
+    ) {
+        val previous = origins.putIfAbsent(key, origin)
+        require(previous == null) {
+            if (builtin) {
+                "Cannot replace built-in $description: registration from $previous conflicts with built-in registration from $origin."
+            } else {
+                "Duplicate $description: registrations from $previous and $origin."
+            }
+        }
+    }
 }
 
 /**
@@ -168,9 +201,8 @@ abstract class AbstractDispatcherRegistryFactory(
  * [ModuleConfigBootstrapper] using [tenantModuleInjectorFactory].
  *
  * Generated built-in resolvers (`Query.node`/`Query.nodes` and `@namespaceType`) are supplied via
- * [builtinModuleConfigSourcesProvider] and are bootstrapped **last**. Resolver coordinates are
- * deduped with the later registration winning, so bootstrapping the built-ins last gives them
- * precedence over any tenant-supplied resolver registered at the same coordinate. Because built-in
+ * [builtinModuleConfigSourcesProvider]. Collisions with tenant registrations are rejected with a
+ * built-in replacement diagnostic. Because built-in
  * executor factories are schema-independent and ignore both the code injector and the GRT prefix,
  * they are bootstrapped in their own pass with a [NaiveTenantModuleInjectorFactory]; this also holds
  * the service-supplied [tenantModuleInjectorFactory]'s `onBootstrapComplete` contract to a single
@@ -200,19 +232,15 @@ class StandardDispatcherRegistryFactory(
         missingResolverValidator = missingResolverValidator,
         flagManager = flagManager,
     ) {
-    override suspend fun moduleResolvers(): List<ModuleResolvers> {
-        val fromConfigSources: List<ModuleResolvers> =
-            ModuleConfigBootstrapper(
-                tenantModuleInjectorFactory = tenantModuleInjectorFactory,
-                grtPackagePrefix = grtPackagePrefix,
-            ).bootstrap(moduleConfigSources)
+    override suspend fun moduleResolvers(): List<ModuleResolvers> =
+        ModuleConfigBootstrapper(
+            tenantModuleInjectorFactory = tenantModuleInjectorFactory,
+            grtPackagePrefix = grtPackagePrefix,
+        ).bootstrap(moduleConfigSources)
 
-        val fromBuiltins: List<ModuleResolvers> =
-            ModuleConfigBootstrapper(
-                tenantModuleInjectorFactory = NaiveTenantModuleInjectorFactory,
-                grtPackagePrefix = grtPackagePrefix,
-            ).bootstrap(builtinModuleConfigSourcesProvider())
-
-        return fromConfigSources + fromBuiltins
-    }
+    override suspend fun builtinModuleResolvers(): List<ModuleResolvers> =
+        ModuleConfigBootstrapper(
+            tenantModuleInjectorFactory = NaiveTenantModuleInjectorFactory,
+            grtPackagePrefix = grtPackagePrefix,
+        ).bootstrap(builtinModuleConfigSourcesProvider())
 }

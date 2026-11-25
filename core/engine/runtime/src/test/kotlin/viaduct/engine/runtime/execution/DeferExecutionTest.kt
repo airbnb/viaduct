@@ -109,11 +109,6 @@ class DeferExecutionTest {
             val initialData = if (namespaced) mapOf("actions" to payload) else payload
 
             MockTenantModuleBootstrapper(schema) {
-                if (namespaced) {
-                    field("Mutation" to "actions") {
-                        resolver { fn { _, _, _, _, _ -> createEngineObjectData("Actions") } }
-                    }
-                }
                 for (name in listOf("first", "second")) {
                     field(mutationType to name) {
                         resolver {

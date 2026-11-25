@@ -34,5 +34,5 @@ class ModuleResolvers(
         }
     }
 
-    override fun toString(): String = "ModuleResolvers(tenant=${registry.tenantName}, executorFactory=${registry.executorFactory})"
+    override fun toString(): String = "ModuleResolvers(tenant=${registry.tenantName}, api=${registry.apiName}, executorFactory=${registry.executorFactory})"
 }

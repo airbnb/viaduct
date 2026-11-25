@@ -208,16 +208,6 @@ class ShadowFieldExecutionTest {
             type MutationNamespace @namespaceType { update: String! }
             """.trimIndent(),
         ) {
-            field("Mutation" to "namespace") {
-                resolver {
-                    fn { _, _, _, _, _ ->
-                        createEngineObjectData(
-                            schema.schema.getObjectType("MutationNamespace"),
-                            emptyMap(),
-                        )
-                    }
-                }
-            }
             field("MutationNamespace" to "update") {
                 resolver {
                     fn { _, _, _, _, _ ->

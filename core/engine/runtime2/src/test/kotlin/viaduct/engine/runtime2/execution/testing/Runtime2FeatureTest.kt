@@ -10,6 +10,7 @@ import graphql.schema.GraphQLNonNull
 import graphql.schema.GraphQLObjectType
 import graphql.schema.GraphQLOutputType
 import graphql.schema.GraphQLScalarType
+import graphql.schema.GraphQLTypeUtil
 import java.util.Locale
 import viaduct.engine.EngineConfiguration
 import viaduct.engine.api.Engine
@@ -35,6 +36,7 @@ import viaduct.engine.runtime2.model.EngineErrorData
 import viaduct.engine.runtime2.model.conformsToScalarOutput
 import viaduct.engine.runtime2.model.runtime2SchemaTypeOrNull
 import viaduct.engine.runtime2.model.toScalarInput
+import viaduct.graphql.utils.DefaultSchemaFactory.DefaultDirective
 import viaduct.service.runtime.StandardViaduct
 
 /** GraphQL feature-test surface backed by engine2 through production [StandardViaduct] wiring. */
@@ -73,9 +75,22 @@ fun EngineTestModule.runRuntime2FeatureTest(
 ) {
     val suppliedFieldExecutors = fieldResolverExecutors.toList()
     val suppliedFieldCoordinates = suppliedFieldExecutors.mapTo(mutableSetOf()) { it.first }
+    val defaultQueryNodeResolversDisabled =
+        withoutDefaultQueryNodeResolvers ||
+            suppliedFieldCoordinates.any { (typeName, fieldName) ->
+                typeName == "Query" && fieldName in setOf("node", "nodes")
+            }
     val missingQueryExecutors =
         fullSchema.schema.queryType.fieldDefinitions
             .filter { ("Query" to it.name) !in suppliedFieldCoordinates }
+            .filterNot { field ->
+                !defaultQueryNodeResolversDisabled &&
+                    (
+                        field.name in setOf("node", "nodes") ||
+                            (GraphQLTypeUtil.unwrapAll(field.type) as? GraphQLObjectType)
+                                ?.hasAppliedDirective(DefaultDirective.NAMESPACE_TYPE.directiveName) == true
+                    )
+            }
             .map { field ->
                 ("Query" to field.name) to
                     MockFieldUnbatchedResolverExecutor(
@@ -116,11 +131,7 @@ fun EngineTestModule.runRuntime2FeatureTest(
     try {
         adaptedModule.runStandardViaductFeatureTest(
             engine2Enabled = true,
-            withoutDefaultQueryNodeResolvers =
-                withoutDefaultQueryNodeResolvers ||
-                    suppliedFieldCoordinates.any { (typeName, fieldName) ->
-                        typeName == "Query" && fieldName in setOf("node", "nodes")
-                    },
+            withoutDefaultQueryNodeResolvers = defaultQueryNodeResolversDisabled,
             schema = schema,
             engineConfig = engineConfig,
         ) {

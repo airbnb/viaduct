@@ -280,6 +280,7 @@ class ResolverConfigImpl private constructor(
                 .sortedWith(compareBy({ it.first }, { it.second }))
                 .filterNot(schema::isParentField)
                 .forEach { coord ->
+                    if (coord.first == schema.schema.queryType.name && coord.second in setOf("node", "nodes")) return@forEach
                     val field = schema.schema.getFieldDefinition(coord.gj)
                     if (field.returnsNamespaceType()) return@forEach
 
