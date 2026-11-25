@@ -6,7 +6,7 @@ micronautCore = "4.7.4"
 kotest = "6.1.4"
 junit5 = "5.11.3"
 junitPlatform = "1.11.3"
-graphql-java-extension = "24.0"
+graphql-java-extension = "24.1"
 coroutines = "1.5.2"
 
 [plugins]
