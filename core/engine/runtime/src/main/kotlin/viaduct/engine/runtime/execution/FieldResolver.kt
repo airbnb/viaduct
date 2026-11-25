@@ -1140,7 +1140,7 @@ class FieldResolver(
                 }
             },
             launch = { selectionParameters, materializationPlan, keyTree ->
-                launchMatPlan(selectionParameters, materializationPlan, keyTree)
+                prepareMatPlanLaunch(selectionParameters, materializationPlan, keyTree)
             },
         )
         val ledger = MatLedgerImpl(mat, parameters.engineExecutionContext.materializedFieldValueReader)
@@ -1193,7 +1193,7 @@ class FieldResolver(
         selectionParameters: ExecutionParameters,
         memberIndices: List<Int>,
         expectedType: GraphQLObjectType,
-    ): EngineObjectData? {
+    ): FieldMatImpl.Materialized {
         val matPlan = materializationPlan(selectionParameters, keyTree)
         val matField = FieldExecutionHelpers.withMaterializationSelectionSet(
             originalField = originalField,
@@ -1245,33 +1245,33 @@ class FieldResolver(
                     "`${expectedType.name}`, found `${matSource.type.name}`"
             )
         }
-        if (matSource != null) {
-            // Run matPlan on the object that was missing these fields, and keep the new depth for
-            // the work it starts.
-            val planParameters =
-                selectionParameters.copy(matBatchDepth = matParameters.matBatchDepth)
-            launchMatPlan(planParameters, matPlan, keyTree)
-        }
-        return matSource
+        if (matSource == null) return FieldMatImpl.Materialized(null, launchAfterRecord = {})
+        // Run matPlan on the object that was missing these fields, and keep the new depth for
+        // the work it starts.
+        val planParameters =
+            selectionParameters.copy(matBatchDepth = matParameters.matBatchDepth)
+        return FieldMatImpl.Materialized(matSource, prepareMatPlanLaunch(planParameters, matPlan, keyTree))
     }
 
-    internal fun launchMatPlan(
+    internal fun prepareMatPlanLaunch(
         selectionParameters: ExecutionParameters,
         matPlan: QueryPlan,
         keyTree: KeyTree,
-    ) {
-        if (keyTree.isEmpty()) return
+    ): () -> Unit {
+        if (keyTree.isEmpty()) return {}
 
         checkNotNull(selectionParameters.currentObjectEngineResult.matSource as? MatSource.Ledger)
-        if (!matPlan.executionCondition.shouldExecute(null)) return
+        if (!matPlan.executionCondition.shouldExecute(null)) return {}
 
-        selectionParameters.launchOnRootScope {
-            val parameters = selectionParameters.forChildPlan(
-                matPlan,
-                selectionParameters.coercedVariables,
-                target = ChildQueryPlanTarget.CurrentObjectResult,
-            )
-            fetchObject(parameters)
+        return {
+            selectionParameters.launchOnRootScope {
+                val parameters = selectionParameters.forChildPlan(
+                    matPlan,
+                    selectionParameters.coercedVariables,
+                    target = ChildQueryPlanTarget.CurrentObjectResult,
+                )
+                fetchObject(parameters)
+            }
         }
     }
 

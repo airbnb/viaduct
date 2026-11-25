@@ -400,7 +400,7 @@ class MatHelpersTest {
                 val plan = materializationPlan(execution, shape)
 
                 FieldResolver(AccessCheckRunner(DefaultCoroutineInterop), DefaultCoroutineInterop)
-                    .launchMatPlan(execution, plan, shape)
+                    .prepareMatPlanLaunch(execution, plan, shape)()
                 objectResult.fieldResolutionState.await()
 
                 val result = objectResult.getValue(key, RAW_VALUE_SLOT).getCompleted() as FieldResolutionResult

@@ -16,7 +16,7 @@ import viaduct.engine.runtime.mat.MatResult
  * @property ref is the typed node reference represented by this mat.
  * @property outputSelectionSetFilter identifies the selections owned by the node resolver.
  * @property materialize resolves [ref] for one materialization selection set.
- * @property launch starts execution of the query plan represented by a materialization result.
+ * @property launch prepares the step that starts the query plan of a materialization result.
  */
 internal class NodeMatImpl(
     private val ref: NodeEngineObjectData,
@@ -42,7 +42,8 @@ internal class NodeMatImpl(
     }
 
     /**
-     * Starts the fields selected by a node materialization.
+     * Prepares to start the fields selected by a node materialization, and returns the step that
+     * starts them.
      *
      * [materializationPlan] describes the work to start, and [requestedShape] is the shape used to
      * build that plan. Exceptions become failed materialization results.
@@ -52,7 +53,7 @@ internal class NodeMatImpl(
             selectionParameters: ExecutionParameters,
             materializationPlan: QueryPlan,
             requestedShape: KeyTree,
-        )
+        ): () -> Unit
     }
 
     override fun toString(): String = "${ref.type.name}(id:${ref.id})"
@@ -97,12 +98,10 @@ internal class NodeMatImpl(
             filter = outputSelectionSetFilter,
             fieldValueReader = selectionParameters.engineExecutionContext.materializedFieldValueReader,
         )
-        // Launched work may re-enter the ledger while this result is being recorded.
-        launch(selectionParameters, matPlan, matKeyTree)
-
         return MatResult(
             coverage = outputKeyTree + returnedCoverage,
             source = Result.success(source),
+            launchAfterRecord = launch(selectionParameters, matPlan, matKeyTree),
         )
     }
 }

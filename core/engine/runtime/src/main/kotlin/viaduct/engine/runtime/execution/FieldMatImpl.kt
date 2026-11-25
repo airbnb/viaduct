@@ -31,7 +31,7 @@ internal class FieldMatImpl(
      *
      * This function is not used for the initial resolver call. [requestedShape] contains the
      * missing fields owned by the resolver, and [selectionParameters] describes the read that
-     * requested them. The returned object may include additional resolver-owned fields, or it may
+     * requested them. The returned source may include additional resolver-owned fields, or it may
      * be null when the resolver returns null.
      *
      * Cancellation is rethrown. Other exceptions are recorded as a failed materialization and are
@@ -41,8 +41,13 @@ internal class FieldMatImpl(
         suspend operator fun invoke(
             requestedShape: KeyTree,
             selectionParameters: ExecutionParameters,
-        ): EngineObjectData?
+        ): Materialized
     }
+
+    class Materialized(
+        val source: EngineObjectData?,
+        val launchAfterRecord: () -> Unit,
+    )
 
     private val field = checkNotNull(parameters.field) {
         "FieldMatImpl requires field execution parameters"
@@ -82,7 +87,7 @@ internal class FieldMatImpl(
         selectionHandle: EngineExecutionContext.ExecutionHandle,
     ): MatResult {
         val selectionParameters = selectionHandle.asExecutionParameters()
-        val source = try {
+        val materialized = try {
             materialize(keyTree, selectionParameters)
         } catch (e: CancellationException) {
             throw e
@@ -91,9 +96,10 @@ internal class FieldMatImpl(
         }
 
         return result(
-            source = source,
+            source = materialized.source,
             requestedCoverage = keyTree,
             selectionParameters = selectionParameters,
+            launchAfterRecord = materialized.launchAfterRecord,
         )
     }
 
@@ -101,6 +107,7 @@ internal class FieldMatImpl(
         source: EngineObjectData?,
         requestedCoverage: KeyTree,
         selectionParameters: ExecutionParameters,
+        launchAfterRecord: () -> Unit = {},
     ): MatResult {
         val returnedCoverage = source.toKeyTree(
             schema = selectionParameters.engineExecutionContext.activeSchema.schema,
@@ -112,6 +119,7 @@ internal class FieldMatImpl(
         return MatResult(
             coverage = requestedCoverage + returnedCoverage,
             source = Result.success(source),
+            launchAfterRecord = launchAfterRecord,
         )
     }
 }

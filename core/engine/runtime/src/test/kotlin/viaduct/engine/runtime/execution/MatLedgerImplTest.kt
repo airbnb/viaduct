@@ -583,6 +583,29 @@ class MatLedgerImplTest {
             }
 
         @Test
+        fun `launched work starts after the result and its surplus coverage are recorded`(): Unit =
+            runBlocking {
+                val requested = KeyTree.build(schema) {
+                    field(foo.name, key("a"))
+                }
+                val surplus = KeyTree.build(schema) {
+                    field(foo.name, key("b"))
+                }
+                val source = ResolvedEngineObjectData(foo, mapOf("a" to "A", "b" to "B"))
+                val coverageSeenByLaunchedWork = mutableListOf<KeyTree>()
+                lateinit var ledger: MatLedgerImpl
+                ledger = newLedger { tree, _ ->
+                    MatResult(tree + surplus, Result.success(source)) {
+                        coverageSeenByLaunchedWork += ledger.subtreeAt(mkMatPath(foo))
+                    }
+                }
+
+                ledger.materializeInitial(requested, testParameters())
+
+                assertEquals(listOf(requested + surplus), coverageSeenByLaunchedWork)
+            }
+
+        @Test
         fun `initial result covers selections without invoking Mat`(): Unit =
             runBlocking {
                 val matCalls = AtomicInteger()
