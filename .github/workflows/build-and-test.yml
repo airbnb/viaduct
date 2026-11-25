@@ -159,13 +159,15 @@ jobs:
       - name: Run tests
         id: run_tests
         run: |
+          probe_flags=()
           if [ "$RUNNER_OS" = Linux ]; then
             python3 .github/scripts/memory_probe.py "$RUNNER_TEMP/memprobe" &
             trap "kill $! 2>/dev/null || true" EXIT
+            probe_flags=(--no-build-cache)
           fi
           echo "🧪 Running tests..."
           # The root test aggregate does not include build-logic's own tests.
-          if ./gradlew :build-logic:test test --scan --continue -PtestJavaVersion=${{ matrix.java }}; then
+          if ./gradlew :build-logic:test test --scan --continue "${probe_flags[@]}" -PtestJavaVersion=${{ matrix.java }}; then
             echo "✅ Test execution completed"
           else
             echo "⚠️ Some tests failed"
