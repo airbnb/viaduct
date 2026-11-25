@@ -20,6 +20,7 @@ import org.junit.jupiter.api.Test;
 
 @MicronautTest
 @Property(name = "micronaut.server.port", value = "-1")
+@Property(name = "micronaut.http.client.read-timeout", value = "30s")
 final class StarWarsJavaIntegrationTest {
   private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
