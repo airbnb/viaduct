@@ -61,6 +61,7 @@ internal class MatLedgerImpl(
             checkUninitializedUnsafe()
             state = state.record(result)
         }
+        result.launchAfterRecord()
     }
 
     /**
@@ -101,7 +102,7 @@ internal class MatLedgerImpl(
         return result
     }
 
-    /** Publishes a completed materialization and wakes its waiters. */
+    /** Publishes a completed materialization, starts its follow-up work, and wakes its waiters. */
     private suspend fun completeSuccess(
         reservation: Pending,
         result: MatResult,
@@ -122,7 +123,11 @@ internal class MatLedgerImpl(
                 check(state.pendings.any { it === reservation })
                 state = state.record(result).remove(reservation)
             }
-            reservation.completion.complete(Unit)
+            try {
+                result.launchAfterRecord()
+            } finally {
+                reservation.completion.complete(Unit)
+            }
         }
     }
 
