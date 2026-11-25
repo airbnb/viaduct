@@ -11,6 +11,7 @@ import java.util.concurrent.atomic.AtomicInteger
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertNotNull
+import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Test
@@ -19,6 +20,7 @@ import viaduct.engine.api.CheckerResultContext
 import viaduct.engine.api.EngineExecutionContext
 import viaduct.engine.api.EngineObjectData
 import viaduct.engine.runtime2.airbnb.resolverRegistryWithRequestDependencies
+import viaduct.engine.runtime2.model.Arguments
 import viaduct.engine.runtime2.model.ErrorEngineResult
 import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.RootFieldReferenceData
@@ -36,6 +38,7 @@ import viaduct.engine.runtime2.model.registry.TypeCheckerResolver
 import viaduct.engine.runtime2.model.registry.fieldResolverOf
 import viaduct.engine.runtime2.model.registry.selectiveFieldResolverOf
 import viaduct.engine.runtime2.model.requireObjectField
+import viaduct.engine.runtime2.model.requireQueryTypeDef
 import viaduct.engine.runtime2.model.requireType
 import viaduct.engine.runtime2.model.testing.TestWorld
 import viaduct.engine.runtime2.model.testing.fragmentFrom
@@ -46,6 +49,130 @@ import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
 import viaduct.graphql.schema.ViaductSchema
 
 class EngineExecutionContextPropagationTest : ResolutionDispatcherResource {
+    @Test
+    fun `fixed requirements preserve request choices with operation reuse and independent shared caching`() {
+        for (preserveFirst in listOf(false, true)) {
+            val fixture = argumentPreservationFixture()
+            val schema = fixture.schema
+            val container = schema.requireType("Container") as ViaductSchema.Object
+            val label = schema.requireObjectField("Item", "label")
+            val optedIn = engineExecutionContextStub()
+            val optedOut = engineExecutionContextStub()
+            val preservationCalls = AtomicInteger()
+            val registry = argumentPreservationRegistry(fixture, optedIn, preservationCalls)
+            val world = Assumptions.of(schema, registry)
+            val cache = (registry as FixedSuccessorDemandCacheOwner).fixedSuccessorDemandCache
+            val summaryBoundary = SuccessorBoundary(field = schema.requireObjectField("Container", "summary"), kind = SuccessorBoundaryKind.RESOLVER)
+            val checkerBoundaries = listOf(
+                SuccessorBoundary(field = schema.requireObjectField("Container", "summary"), kind = SuccessorBoundaryKind.CHECKER),
+                SuccessorBoundary(type = container, kind = SuccessorBoundaryKind.TYPE_CHECKER),
+            )
+            val stableBoundary = SuccessorBoundary(field = schema.requireObjectField("Container", "stable"), kind = SuccessorBoundaryKind.RESOLVER)
+            val input = Demand.checked(fixture.schemas.fragmentFrom("fragment _ on Container { summary stable }").subselections)
+            var stableExpansion: viaduct.engine.runtime2.model.SelectionForest? = null
+
+            for (preserve in listOf(preserveFirst, !preserveFirst, preserveFirst)) {
+                val context = if (preserve) optedIn else optedOut
+                val operationCache = OperationDemandCache()
+                val before = preservationCalls.get()
+                val result = input.successorDemandFromConstructionDemand(world, setOf(container), engineExecutionContext = context, operationDemandCache = operationCache)
+                val item = result.merge(container).byKey().values.single { it.key.field.name == "item" }
+                val keys = item.subselections.merge(label.containingDef).keys()
+                assertEquals(if (preserve) setOf(label) else emptySet(), keys.map { it.field }.toSet())
+                assertEquals(if (preserve) setOf(emptyMap(), mapOf("language" to "en")) else emptySet(), keys.map { (it.arguments as Arguments.Resolved).fieldValues }.toSet())
+                assertTrue(preservationCalls.get() > before, "A fresh operation must choose its own preservation policy")
+                val callsAfterFirstExpansion = preservationCalls.get()
+                input.successorDemandFromConstructionDemand(world, setOf(container), engineExecutionContext = context, operationDemandCache = operationCache)
+                assertEquals(callsAfterFirstExpansion, preservationCalls.get(), "Warm operation expansions must reuse preservation choices")
+                org.junit.jupiter.api.Assertions.assertNull(cache.get(summaryBoundary))
+                assertNotNull(operationCache.successorDemands[summaryBoundary])
+                checkerBoundaries.forEach { boundary ->
+                    org.junit.jupiter.api.Assertions.assertNull(cache.get(boundary))
+                    assertNotNull(operationCache.successorDemands[boundary])
+                }
+                val expansion = assertNotNull(cache.get(stableBoundary))
+                if (stableExpansion == null) stableExpansion = expansion else assertSame(stableExpansion, expansion)
+            }
+        }
+    }
+
+    @Test
+    fun `concurrent argument preservation choices stay isolated and reuse warm operation expansions`() {
+        val fixture = argumentPreservationFixture()
+        val optedIn = engineExecutionContextStub()
+        val optedOut = engineExecutionContextStub()
+        val preservationCalls = AtomicInteger()
+        val registry = argumentPreservationRegistry(fixture, optedIn, preservationCalls)
+        val world = Assumptions.of(fixture.schema, registry)
+        val container = fixture.schema.requireType("Container") as ViaductSchema.Object
+        val input = Demand.checked(fixture.schemas.fragmentFrom("fragment _ on Container { summary }").subselections)
+        val operations = listOf(optedIn, optedOut).map { it to OperationDemandCache() }
+
+        fun expand(index: Int) {
+            val (context, cache) = operations[index]
+            val result = input.successorDemandFromConstructionDemand(world, engineExecutionContext = context, operationDemandCache = cache)
+            val item = result.merge(container).byKey().values.single { it.key.field.name == "item" }
+            assertEquals(context === optedOut, item.subselections.isEmpty())
+        }
+
+        val executor = Executors.newFixedThreadPool(4)
+        val barrier = CyclicBarrier(4)
+        try {
+            val tasks = (0 until 4).map { worker ->
+                executor.submit {
+                    barrier.await(10, TimeUnit.SECONDS)
+                    repeat(12) { expand(worker % operations.size) }
+                }
+            }
+            tasks.forEach { it.get(30, TimeUnit.SECONDS) }
+        } finally {
+            executor.shutdownNow()
+        }
+        val warmedCalls = preservationCalls.get()
+        assertTrue(warmedCalls > 0)
+        operations.indices.forEach(::expand)
+        assertEquals(warmedCalls, preservationCalls.get(), "Completed operation expansions must not repeat preservation choices")
+    }
+
+    private fun argumentPreservationFixture(): TestWorld =
+        TestWorld.fromSDL("type Query { container: Container } type Container { summary: String item: Item stable: String stableLeaf: String } type Item { label(language: String): String }")
+
+    private fun argumentPreservationRegistry(
+        fixture: TestWorld,
+        optedIn: EngineExecutionContext,
+        preservationCalls: AtomicInteger,
+    ): ResolverRegistry {
+        val schema = fixture.schema
+        val label = schema.requireObjectField("Item", "label")
+        val summary = schema.requireObjectField("Container", "summary")
+        val container = schema.requireType("Container") as ViaductSchema.Object
+        val query = schema.requireQueryTypeDef()
+        val fragment = fixture.schemas.fragmentFrom("fragment _ on Container { item { implicit: label english: label(language: \"en\") } }")
+        val checkerTemplates = mapOf("input" to ResolverFragmentTemplates(fragment.materializeSelections, materializeSelectionForestOf()))
+        return resolverRegistryWithRequestDependencies(
+            fixture.schemas,
+            nodeResolvers = emptyMap(),
+            fieldResolvers = mapOf(
+                schema.requireObjectField("Query", "container") to fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ -> null },
+                summary to fieldResolverOf(fragment) { _, _ -> null },
+                schema.requireObjectField("Container", "item") to fieldResolverOf(schema.emptyFragmentOf("Container")) { _, _ -> null },
+                label to fieldResolverOf(schema.emptyFragmentOf("Item")) { _, _ -> null },
+                schema.requireObjectField("Container", "stable") to fieldResolverOf(fixture.schemas.fragmentFrom("fragment _ on Container { stableLeaf }")) { _, _ -> null },
+                schema.requireObjectField("Container", "stableLeaf") to fieldResolverOf(schema.emptyFragmentOf("Container")) { _, _ -> null },
+            ),
+            fieldCheckers = mapOf(summary to FieldCheckerResolver.of(summary, query, checkerTemplates) { _, _, _ -> CheckerResult.Success }),
+            typeCheckers = mapOf(container to TypeCheckerResolver.of(container, query, checkerTemplates) { _, _ -> CheckerResult.Success }),
+            variableProviders = emptyMap(),
+            fieldDependenciesEnabled = emptyMap(),
+            argumentSelectionsPreserved = mapOf(
+                label to { context ->
+                    preservationCalls.incrementAndGet()
+                    context === optedIn
+                },
+            ),
+        )
+    }
+
     @Test
     fun `shared successor caches preserve request-dependent type checker applicability`() {
         val denial = object : CheckerResult.Error {

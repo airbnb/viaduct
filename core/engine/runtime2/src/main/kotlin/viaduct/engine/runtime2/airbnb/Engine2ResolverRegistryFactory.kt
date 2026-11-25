@@ -18,7 +18,7 @@ import viaduct.engine.runtime2.model.registry.VariableDeclaration
 import viaduct.engine.runtime2.schema.ViaductAndGJSchema
 import viaduct.graphql.schema.ViaductSchema
 
-/** Airbnb-only hook: true enables declared inputs, false disables them; choices must stay stable within each request. */
+/** Airbnb-only input and argument-preservation policies; choices must stay stable within each request. */
 @Deprecated("Airbnb use only")
 fun resolverRegistryWithRequestDependencies(
     schema: ViaductAndGJSchema,
@@ -28,6 +28,7 @@ fun resolverRegistryWithRequestDependencies(
     typeCheckers: Map<ViaductSchema.Object, TypeCheckerResolver> = emptyMap(),
     variableProviders: Map<Arguments.Variable, VariableDeclaration>,
     fieldDependenciesEnabled: Map<ViaductSchema.ObjectField, (EngineExecutionContext?) -> Boolean>,
+    argumentSelectionsPreserved: Map<ViaductSchema.ObjectField, (EngineExecutionContext?) -> Boolean> = emptyMap(),
 ): ResolverRegistry =
     resolverRegistryOf(
         schema,
@@ -37,6 +38,7 @@ fun resolverRegistryWithRequestDependencies(
         typeCheckers,
         variableProviders,
         fieldDependenciesEnabled,
+        argumentSelectionsPreserved,
     )
 
 /**

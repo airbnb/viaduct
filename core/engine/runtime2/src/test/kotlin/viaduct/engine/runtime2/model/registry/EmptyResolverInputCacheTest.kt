@@ -1,4 +1,4 @@
-@file:Suppress("ForbiddenImport")
+@file:Suppress("DEPRECATION", "ForbiddenImport")
 
 package viaduct.engine.runtime2.model.registry
 
@@ -7,6 +7,10 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertNotSame
 import kotlin.test.assertSame
+import kotlin.test.assertTrue
+import viaduct.engine.runtime2.airbnb.resolverRegistryWithRequestDependencies
+import viaduct.engine.runtime2.model.emptyFragmentOf
+import viaduct.engine.runtime2.model.requireObjectField
 import viaduct.engine.runtime2.model.requireQueryTypeDef
 import viaduct.engine.runtime2.model.requireType
 import viaduct.engine.runtime2.model.schemaType
@@ -39,5 +43,38 @@ class EmptyResolverInputCacheTest {
         val decorator = object : ResolverRegistry by original {}
         val type = fixture.schema.requireQueryTypeDef()
         assertNotSame(original.emptyResolverInput(type), decorator.emptyResolverInput(type))
+    }
+
+    @Test
+    fun `request preservation policies retain typed empty input reuse and require registered fields`() {
+        val fixture = TestWorld.fromSDL("type Query { value(language: String): String } type Other { other: String }")
+        val schema = fixture.schema
+        val query = schema.requireQueryTypeDef()
+        val value = schema.requireObjectField("Query", "value")
+        val definitions = mapOf<ViaductSchema.Field, FieldResolverDefinition>(value to fieldResolverOf(schema.emptyFragmentOf("Query")) { _, _ -> null })
+        val registry = resolverRegistryWithRequestDependencies(
+            fixture.schemas,
+            nodeResolvers = emptyMap(),
+            fieldResolvers = definitions,
+            variableProviders = emptyMap(),
+            fieldDependenciesEnabled = emptyMap(),
+            argumentSelectionsPreserved = mapOf(value to { true }),
+        )
+        assertSame(registry.emptyResolverInput(query), registry.emptyResolverInput(query))
+        assertSame(query, registry.emptyResolverInput(query).schemaType)
+        assertFalse(fixture.resolverRegistry.preservesArgumentSelections(value))
+        assertTrue(registry.preservesArgumentSelections(value))
+        assertFalse(registry.preservesArgumentSelections(schema.requireObjectField("Other", "other")))
+
+        assertFailsWith<IllegalArgumentException> {
+            resolverRegistryWithRequestDependencies(
+                fixture.schemas,
+                nodeResolvers = emptyMap(),
+                fieldResolvers = definitions,
+                variableProviders = emptyMap(),
+                fieldDependenciesEnabled = emptyMap(),
+                argumentSelectionsPreserved = mapOf(schema.requireObjectField("Other", "other") to { true }),
+            )
+        }
     }
 }

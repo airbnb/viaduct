@@ -123,7 +123,7 @@ class RegistrySuccessorDemandCacheTest {
 
             override fun typeChecker(type: ViaductSchema.Object) = if (type == item) checker else fixture.resolverRegistry.typeChecker(type)
         }
-        cache.prepare(fixture.schema, registry)
+        cache.prepare(fixture.schema, registry, argumentSelectionFields = emptySet())
         val world = Assumptions.of(fixture.schema, registry)
         val boundary = SuccessorBoundary(field = value, kind = SuccessorBoundaryKind.RESOLVER)
         val shared = requireNotNull(cache.preparedInput(boundary)).fragments.single()

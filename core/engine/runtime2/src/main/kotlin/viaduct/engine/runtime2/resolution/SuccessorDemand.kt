@@ -74,7 +74,8 @@ internal class FixedSuccessorDemandCache {
 
     internal fun prepare(
         schema: ViaductSchema,
-        registry: ResolverRegistry
+        registry: ResolverRegistry,
+        argumentSelectionFields: Set<ViaductSchema.ObjectField>,
     ) {
         val prepared = mutableMapOf<SuccessorBoundary, PreparedSuccessorInputs>()
         schema.types.values.filterIsInstance<ViaductSchema.Object>().forEach { type ->
@@ -85,7 +86,7 @@ internal class FixedSuccessorDemandCache {
                     prepared[SuccessorBoundary(field = field, kind = SuccessorBoundaryKind.RESOLVER)] = PreparedSuccessorInputs(
                         variants.values,
                         { context -> variants.getValue(resolver.dependenciesFor(context)) },
-                        resolver.dependencyAlternatives.size == 1 || variants.values.all { it.isEmpty() },
+                        field !in argumentSelectionFields && (resolver.dependencyAlternatives.size == 1 || variants.values.all { it.isEmpty() }),
                     )
                 }
                 registry.fieldChecker(field)?.let { checker ->
@@ -339,7 +340,12 @@ private fun Selection.fusedRequestedSuccessorDemand(
     producerSuppliableOnly: Boolean,
 ): FusedSuccessorResult {
     val hasRegisteredResolver = key.field in context.expansionContext.registry
-    if (hasRegisteredResolver && (key !is ObjectEngineResult.GroundKey || (producerSuppliableOnly && key.field.args.isNotEmpty()))) {
+    if (hasRegisteredResolver &&
+        (
+            key !is ObjectEngineResult.GroundKey ||
+                (producerSuppliableOnly && key.field.args.isNotEmpty() && !context.expansionContext.registry.preservesArgumentSelections(key.field, context.expansionContext.engineExecutionContext))
+        )
+    ) {
         return EMPTY_FUSED_RESULT
     }
     check(key is ObjectEngineResult.GroundKey) { "Resolution found open arguments on passive key $key" }
@@ -496,7 +502,12 @@ private fun Selection.requestedSuccessorDemand(
     producerSuppliableOnly: Boolean,
 ): SelectionForest {
     val hasRegisteredResolver = key.field in context.registry
-    if (hasRegisteredResolver && (key !is ObjectEngineResult.GroundKey || (producerSuppliableOnly && key.field.args.isNotEmpty()))) {
+    if (hasRegisteredResolver &&
+        (
+            key !is ObjectEngineResult.GroundKey ||
+                (producerSuppliableOnly && key.field.args.isNotEmpty() && !context.registry.preservesArgumentSelections(key.field, context.engineExecutionContext))
+        )
+    ) {
         return selectionForestOf()
     }
     check(key is ObjectEngineResult.GroundKey) { "Resolution found open arguments on passive key $key" }

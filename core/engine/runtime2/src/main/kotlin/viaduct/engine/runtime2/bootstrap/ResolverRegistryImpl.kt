@@ -101,10 +101,16 @@ internal fun resolverRegistryOf(
     typeCheckers: Map<ViaductSchema.Object, TypeCheckerResolver>,
     variableProviders: Map<Arguments.Variable, VariableDeclaration>,
     fieldDependenciesEnabled: Map<ViaductSchema.ObjectField, (EngineExecutionContext?) -> Boolean>,
+    argumentSelectionsPreserved: Map<ViaductSchema.ObjectField, (EngineExecutionContext?) -> Boolean> = emptyMap(),
 ): ResolverRegistry {
     fieldDependenciesEnabled.keys.forEach { field ->
         require(field in fieldResolvers) {
             "Dependency activation requires a registered resolver for ${field.containingDef.name}/${field.name}"
+        }
+    }
+    argumentSelectionsPreserved.keys.forEach { field ->
+        require(field in fieldResolvers) {
+            "Argument selection preservation requires a registered resolver for ${field.containingDef.name}/${field.name}"
         }
     }
     val lowering = NodeResolverLowering(schema, nodeResolvers, fieldResolvers)
@@ -158,6 +164,7 @@ internal fun resolverRegistryOf(
         typeCheckers = typeCheckers,
         variableDeclarations = registryVariableProviders,
         fieldDependenciesEnabled = fieldDependenciesEnabled,
+        argumentSelectionsPreserved = argumentSelectionsPreserved,
     )
 }
 
@@ -410,6 +417,7 @@ private class ResolverRegistryImpl(
     private val typeCheckers: Map<ViaductSchema.Object, TypeCheckerResolver>,
     variableDeclarations: Map<Arguments.Variable, VariableDeclaration>,
     fieldDependenciesEnabled: Map<ViaductSchema.ObjectField, (EngineExecutionContext?) -> Boolean>,
+    private val argumentSelectionsPreserved: Map<ViaductSchema.ObjectField, (EngineExecutionContext?) -> Boolean>,
 ) : ResolverRegistry, FixedSuccessorDemandCacheOwner, EmptyResolverInputCacheOwner {
     override val emptyResolverInputCache = EmptyResolverInputCache()
     override val fixedSuccessorDemandCache = FixedSuccessorDemandCache()
@@ -664,12 +672,17 @@ private class ResolverRegistryImpl(
         parentCompiler.prepare(assembledResolvers.values, fieldCheckers.values + typeCheckers.values)
         precomputedDemand = precomputeConstructionDemand(parentCompiler)
         parentSelectionDemand = parentCompiler.finish()
-        fixedSuccessorDemandCache.prepare(schema, this)
+        fixedSuccessorDemandCache.prepare(schema, this, argumentSelectionsPreserved.keys)
     }
 
     override fun contains(field: ViaductSchema.ObjectField): Boolean {
         return field in fieldResolvers
     }
+
+    override fun preservesArgumentSelections(
+        field: ViaductSchema.ObjectField,
+        engineExecutionContext: EngineExecutionContext?,
+    ): Boolean = argumentSelectionsPreserved[field]?.invoke(engineExecutionContext) ?: false
 
     override fun createRootQueryInput(): EngineObjectData.Sync {
         val query = schema.requireQueryTypeDef()

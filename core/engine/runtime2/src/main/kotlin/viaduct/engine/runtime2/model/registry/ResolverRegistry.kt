@@ -38,6 +38,12 @@ interface ResolverRegistry {
     /** Defined only when [field] is registered. */
     fun resolver(field: ViaductSchema.ObjectField): FieldValueResolver
 
+    /** Retains grounded argument-bearing selections as producer fetch metadata, without supplying their values passively. */
+    fun preservesArgumentSelections(
+        field: ViaductSchema.ObjectField,
+        engineExecutionContext: EngineExecutionContext? = null,
+    ): Boolean = false
+
     /** Returns the checker for [field], or null when no field checker applies. */
     fun fieldChecker(field: ViaductSchema.ObjectField): FieldCheckerResolver? = null
 
