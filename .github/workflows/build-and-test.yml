@@ -159,6 +159,10 @@ jobs:
       - name: Run tests
         id: run_tests
         run: |
+          if [ "$RUNNER_OS" = Linux ]; then
+            python3 .github/scripts/memory_probe.py "$RUNNER_TEMP/memprobe" &
+            trap "kill $! 2>/dev/null || true" EXIT
+          fi
           echo "🧪 Running tests..."
           # The root test aggregate does not include build-logic's own tests.
           if ./gradlew :build-logic:test test --scan --continue -PtestJavaVersion=${{ matrix.java }}; then
@@ -168,6 +172,22 @@ jobs:
             exit 1
           fi
         shell: bash
+
+      - name: Collect memory probe
+        if: always() && runner.os == 'Linux'
+        run: |
+          pkill -f memory_probe.py || true
+          sudo dmesg -T | grep -i -E 'oom|killed process' > "$RUNNER_TEMP/memprobe/dmesg-oom.txt" || true
+          { echo '### Memory probe minimum'; echo '```'; cat "$RUNNER_TEMP/memprobe/min.txt" || echo "probe wrote no samples"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+          echo "::notice title=memprobe minimum::$(head -1 "$RUNNER_TEMP/memprobe/min.txt")"
+        shell: bash
+
+      - name: Upload memory probe
+        if: always() && runner.os == 'Linux'
+        uses: actions/upload-artifact@v6
+        with:
+          name: memprobe-java-${{ matrix.java }}-${{ matrix.os }}
+          path: ${{ runner.temp }}/memprobe
 
       - name: Report test results
         if: always()
