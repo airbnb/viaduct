@@ -88,7 +88,7 @@ abstract class GenerateExecutionRegistryResourceIndexTask : DefaultTask() {
     ): Nothing =
         throw IllegalArgumentException(
             "Legacy Viaduct execution manifest '$path' found in '${artifact.path}'. " +
-                "Rebuild the module with a Viaduct module plugin compatible with this application plugin."
+                "Rebuild the module with a module language plugin that matches the application's Viaduct version."
         )
 
     private fun registryContribution(

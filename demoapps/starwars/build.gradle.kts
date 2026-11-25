@@ -2,7 +2,6 @@ plugins {
     alias(libs.plugins.kotlinJvm)
     alias(libs.plugins.kotlinKapt)
     alias(libs.plugins.micronautApplication)
-    alias(libs.plugins.viaduct.application)
     jacoco
 }
 

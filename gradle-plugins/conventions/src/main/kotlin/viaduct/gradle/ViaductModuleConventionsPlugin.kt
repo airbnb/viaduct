@@ -15,7 +15,7 @@ import viaduct.gradle.ViaductPluginCommon.validateModuleProjectPlacement
 class ViaductModuleConventionsPlugin : Plugin<Project> {
     override fun apply(project: Project): Unit =
         with(project) {
-            val topology = validateModuleProjectPlacement(ID)
+            val topology = validateModuleProjectPlacement("Viaduct module conventions")
             val layout = ViaductModulePluginSupport.modulePackageLayout(this, topology)
 
             ViaductModulePluginSupport.configureDirectModuleDependencyChecks(this, topology)
@@ -79,14 +79,6 @@ class ViaductModuleConventionsPlugin : Plugin<Project> {
                     layout = layout,
                 ),
             )
-            extensions.add(
-                EXTENSION_NAME,
-                DefaultViaductMetamoduleExtension(
-                    layout = layout,
-                    applicationProjectPath = topology.applicationProjectPath,
-                    centralSchemaConfiguration = centralSchemaConfiguration,
-                ),
-            )
         }
 
     private fun Project.setupSchemaResourcesForTests(
@@ -119,8 +111,6 @@ class ViaductModuleConventionsPlugin : Plugin<Project> {
     }
 
     companion object {
-        const val ID = "com.airbnb.viaduct.metamodule-gradle-plugin"
-        const val EXTENSION_NAME = "viaductMetamodule"
         const val SCHEMA_CONTRIBUTIONS_EXTENSION_NAME = "viaductSchemaContributions"
     }
 }

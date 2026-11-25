@@ -4,7 +4,7 @@ plugins {
     alias(libs.plugins.kotlinJvm)
     alias(libs.plugins.kotlinKapt)
     alias(libs.plugins.micronautApplication)
-    id("com.airbnb.viaduct.application-gradle-plugin") apply false
+    id("com.airbnb.viaduct.kotlinapi") apply false
 }
 
 val executionRegistryResourceIndex =

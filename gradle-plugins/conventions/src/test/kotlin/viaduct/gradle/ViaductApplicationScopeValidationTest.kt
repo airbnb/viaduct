@@ -40,6 +40,8 @@ class ViaductApplicationScopeValidationTest {
             rootProject.name = "test"
 
             includeViaductApplication {
+                usePlugin("com.airbnb.viaduct.kotlinapi")
+                usePlugin("com.airbnb.viaduct.javaapi")
                 project(":")
                 modulePackagePrefix("com.example.test")
             }
@@ -49,7 +51,6 @@ class ViaductApplicationScopeValidationTest {
             """
             plugins {
                 `java-library`
-                id("com.airbnb.viaduct.application-gradle-plugin")
             }
             """.trimIndent()
         )
@@ -181,7 +182,7 @@ class ViaductApplicationScopeValidationTest {
         assertEquals(
             emptyList<File>(),
             File(projectDir, "build/$centralSchemaDirectoryName").walkTopDown()
-                .filter { it.invariantSeparatorsPath.endsWith("/" + ViaductApplicationPlugin.BUILTIN_SCHEMA_FILE) }
+                .filter { it.invariantSeparatorsPath.endsWith("/" + ViaductApplicationConventionsPlugin.BUILTIN_SCHEMA_FILE) }
                 .toList(),
         )
     }
@@ -294,6 +295,15 @@ class ViaductApplicationScopeValidationTest {
 
     @Test
     fun `plugin resources and generated inputs survive isolated configuration and build cache reuse`() {
+        File(projectDir, "settings.gradle.kts").appendText(
+            "\n\n" + """
+            buildCache {
+                local {
+                    directory = file("build-cache")
+                }
+            }
+            """.trimIndent(),
+        )
         writeSchema(scoped = false)
         val directoryText = "\n\ndirective @directoryFixture on OBJECT\n"
         File(projectDir, "directory.graphqls").writeText(directoryText)

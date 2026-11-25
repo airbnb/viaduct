@@ -8,7 +8,7 @@ import viaduct.apiannotations.InternalApi
 class ViaductKotlinSettingsPlugin : Plugin<Settings> {
     override fun apply(settings: Settings) {
         settings.registerViaductPlugin(
-            id = "com.airbnb.viaduct.kotlinapi",
+            id = ViaductGRTLanguage.KOTLIN.settingsPluginId,
             applicationPlugin = ViaductKotlinApplicationPlugin::class.java,
         )
     }

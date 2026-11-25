@@ -12,7 +12,7 @@ import org.junit.jupiter.api.Test
 import viaduct.gradle.task.AssembleCentralSchemaTask
 import viaduct.gradle.task.AssembleSchemaPartitionTask
 
-class ViaductMetamodulePluginTest {
+class ViaductModuleConventionsPluginTest {
     @Test
     fun `public conventions supply an empty manifest variant and isolated schema inputs`() {
         val project = ProjectBuilder.builder().build()
@@ -70,13 +70,11 @@ class ViaductMetamodulePluginTest {
 
         project.pluginManager.apply(TestTenantApiPlugin::class.java)
 
-        project.pluginManager.hasPlugin(ViaductMetamodulePlugin.ID) shouldBe true
-        val extension = project.extensions.getByType(ViaductMetamoduleExtension::class.java)
-        extension.applicationProjectPath shouldBe ":"
+        project.plugins.hasPlugin(ViaductModuleConventionsPlugin::class.java) shouldBe true
+        val extension = project.extensions.getByType(ViaductModuleConventions::class.java)
         extension.layout.modulePackagePrefix shouldBe "com.example.test"
         extension.layout.modulePackageSuffix shouldBe "resolvers"
         extension.layout.fullTenantPackage shouldBe "com.example.test.resolvers"
-        extension.centralSchemaConfiguration.name shouldBe ViaductPluginCommon.Configs.CENTRAL_SCHEMA_INCOMING
 
         project.configurations.getByName(ViaductPluginCommon.Configs.SCHEMA_PARTITION_OUTGOING).run {
             isCanBeConsumed shouldBe true
@@ -94,7 +92,7 @@ class ViaductMetamodulePluginTest {
         project.registerViaductTopology()
 
         val error = shouldThrow<GradleException> {
-            project.pluginManager.apply(ViaductMetamodulePlugin::class.java)
+            project.pluginManager.apply(ViaductModuleConventionsPlugin::class.java)
         }
 
         generateSequence<Throwable>(error) { it.cause }
@@ -125,7 +123,7 @@ class ViaductMetamodulePluginTest {
 
     private class TestTenantApiPlugin : Plugin<Project> {
         override fun apply(project: Project) {
-            project.pluginManager.apply(ViaductMetamodulePlugin.ID)
+            project.pluginManager.apply(ViaductModuleConventionsPlugin::class.java)
         }
     }
 }

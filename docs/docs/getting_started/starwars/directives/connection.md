@@ -24,7 +24,7 @@ directive @connection on OBJECT
 
 ## Usage
 
-The same SDL works for Kotlin and Java. Both module plugins validate these types and generate connection builders; the [Pagination guide](../pagination/index.md) shows the language-specific builder calls.
+The same SDL works for Kotlin and Java. Both module language plugins validate these types and generate connection builders. The [Pagination guide](../pagination/index.md) shows the language-specific builder calls.
 
 
 Apply `@connection` to object types that follow the Relay Connection pattern:

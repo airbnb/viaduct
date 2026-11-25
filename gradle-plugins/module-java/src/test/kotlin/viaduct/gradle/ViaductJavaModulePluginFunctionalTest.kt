@@ -64,6 +64,7 @@ class ViaductJavaModulePluginFunctionalTest {
             rootProject.name = "test"
 
             includeViaductApplication {
+                usePlugin("com.airbnb.viaduct.javaapi")
                 project(":")
                 modulePackagePrefix("com.example.test")
             }
@@ -73,7 +74,6 @@ class ViaductJavaModulePluginFunctionalTest {
             """
             plugins {
                 `java-library`
-                id("com.airbnb.viaduct.application-gradle-plugin")
                 id("com.airbnb.viaduct.module-java-gradle-plugin")
             }
             """.trimIndent()
@@ -86,6 +86,26 @@ class ViaductJavaModulePluginFunctionalTest {
             .buildAndFail()
 
         assertTrue(result.output.contains("not as a module project"), "Expected output to reject application-only placement")
+        assertTrue(result.output.contains("cannot apply 'com.airbnb.viaduct.module-java-gradle-plugin'"), result.output)
+    }
+
+    @Test
+    fun `Java module requires Java even when its owning application enables Kotlin`() {
+        writeJavaApplicationAndModuleFixture(settingsPlugin = "com.airbnb.viaduct.kotlinapi")
+
+        val result = GradleRunner.create()
+            .withProjectDir(projectDir)
+            .withPluginClasspath(combinedPluginClasspath())
+            .withArguments(
+                ":app:javaresolvers:help",
+                "--configuration-cache",
+                "--configuration-cache-problems=fail",
+                "-Dorg.gradle.unsafe.isolated-projects=true",
+            )
+            .buildAndFail()
+
+        assertTrue(result.output.contains("usePlugin(\"com.airbnb.viaduct.javaapi\")"), result.output)
+        assertTrue(result.output.contains("includeViaductApplication"), result.output)
     }
 
     @Test
@@ -141,6 +161,7 @@ class ViaductJavaModulePluginFunctionalTest {
             rootProject.name = "test"
 
             includeViaductApplication {
+                usePlugin("com.airbnb.viaduct.javaapi")
                 project(":app")
                 modulePackagePrefix("com.example.topology")
 
@@ -158,7 +179,6 @@ class ViaductJavaModulePluginFunctionalTest {
             """
             plugins {
                 id 'java-library'
-                id 'com.airbnb.viaduct.application-gradle-plugin'
             }
             """.trimIndent()
         )
@@ -252,7 +272,7 @@ class ViaductJavaModulePluginFunctionalTest {
         assertTrue(result.output.contains("JAR_EXCLUDES_RAW_DESCRIPTORS=true"), result.output)
     }
 
-    private fun writeJavaApplicationAndModuleFixture() {
+    private fun writeJavaApplicationAndModuleFixture(settingsPlugin: String = "com.airbnb.viaduct.javaapi") {
         File(projectDir, "settings.gradle.kts").writeText(
             """
             plugins {
@@ -262,6 +282,7 @@ class ViaductJavaModulePluginFunctionalTest {
             rootProject.name = "test"
 
             includeViaductApplication {
+                usePlugin("$settingsPlugin")
                 project(":app")
                 modulePackagePrefix("com.example.topology")
 
@@ -279,7 +300,6 @@ class ViaductJavaModulePluginFunctionalTest {
             """
             plugins {
                 id 'java-library'
-                id 'com.airbnb.viaduct.application-gradle-plugin'
             }
             """.trimIndent()
         )

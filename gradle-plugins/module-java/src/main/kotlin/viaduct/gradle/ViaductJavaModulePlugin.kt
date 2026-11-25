@@ -13,13 +13,15 @@ import viaduct.gradle.ViaductPluginCommon.configureIdeaIntegration
 import viaduct.gradle.ViaductPluginCommon.createOrGetCodegenClasspath
 import viaduct.gradle.ViaductPluginCommon.createOrGetJavaCodegenClasspath
 import viaduct.gradle.ViaductPluginCommon.pluginVersion
+import viaduct.gradle.ViaductPluginCommon.requireModuleLanguageBinding
 import viaduct.gradle.task.AssembleTenantModuleConfigFileTask
 import viaduct.gradle.task.GenerateJavaResolverBasesTask
 
 class ViaductJavaModulePlugin : Plugin<Project> {
     override fun apply(project: Project): Unit =
         with(project) {
-            pluginManager.apply(ViaductMetamodulePlugin.ID)
+            requireModuleLanguageBinding(ViaductGRTLanguage.JAVA)
+            pluginManager.apply(ViaductModuleConventionsPlugin::class.java)
             val conventions = extensions.getByType(ViaductModuleConventions::class.java)
             val moduleLayout = conventions.layout
             ViaductGRTSupport.setupModuleDependencies(

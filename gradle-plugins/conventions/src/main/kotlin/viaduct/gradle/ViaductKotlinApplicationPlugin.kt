@@ -19,6 +19,7 @@ class ViaductKotlinApplicationPlugin : Plugin<Project> {
     override fun apply(project: Project): Unit =
         with(project) {
             pluginManager.apply(ViaductApplicationConventionsPlugin::class.java)
+            ViaductPluginCommon.requireJvmPlugin(this)
             val conventions = extensions.getByType(ViaductApplicationConventions::class.java)
             val grt = setupKotlinGenerateGRTsTask(conventions.centralSchemaDirectory)
             configureIdeaIntegration(grt)

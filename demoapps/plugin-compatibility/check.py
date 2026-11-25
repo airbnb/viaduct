@@ -26,6 +26,35 @@ GRT_TASKS = {
 }
 
 
+def check_published_markers(repository):
+    required = (
+        "com.airbnb.viaduct.settings-gradle-plugin",
+        "com.airbnb.viaduct.kotlinapi",
+        "com.airbnb.viaduct.javaapi",
+        "com.airbnb.viaduct.module-kotlin-gradle-plugin",
+        "com.airbnb.viaduct.module-java-gradle-plugin",
+    )
+    retired = (
+        "com.airbnb.viaduct.application-gradle-plugin",
+        "com.airbnb.viaduct.metamodule-gradle-plugin",
+        "com.airbnb.viaduct.module-gradle-plugin",
+    )
+
+    def has_marker(plugin_id):
+        group_path = plugin_id.replace(".", "/")
+        artifact = f"{plugin_id}.gradle.plugin"
+        return (repository / group_path / artifact / VERSION / f"{artifact}-{VERSION}.pom").is_file()
+
+    missing = [plugin_id for plugin_id in required if not has_marker(plugin_id)]
+    unexpected = [plugin_id for plugin_id in retired if has_marker(plugin_id)]
+    if missing or unexpected:
+        raise AssertionError(
+            f"Unexpected Viaduct plugin markers for {VERSION} in {repository}.\n"
+            f"Missing required markers [{', '.join(missing)}]\n"
+            f"Published retired markers [{', '.join(unexpected)}]"
+        )
+
+
 def write(path, content):
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(content)
@@ -65,8 +94,7 @@ def build_script(language, application=False):
     if language == "kotlin":
         plugins += ['id("org.jetbrains.kotlin.jvm")', 'id("com.google.devtools.ksp")']
     if language:
-        suffix = "module" if language == "kotlin" else "module-java"
-        plugins += [f'id("com.airbnb.viaduct.{suffix}-gradle-plugin")']
+        plugins += [f'id("com.airbnb.viaduct.module-{language}-gradle-plugin")']
     dependencies = [f'implementation("com.airbnb.viaduct:api:{VERSION}")']
     if language == "java":
         dependencies += [f'implementation("com.airbnb.viaduct:javaapi-{part}:{VERSION}")' for part in ("api", "runtime")]
@@ -130,7 +158,7 @@ def consumer(root, languages, same_project, cache):
     plugins {{
         id("org.jetbrains.kotlin.jvm") version "{VERSIONS['kotlin']}"
         id("com.google.devtools.ksp") version "{VERSIONS['ksp']}"
-        id("com.airbnb.viaduct.module-gradle-plugin") version "{VERSION}"
+        id("com.airbnb.viaduct.module-kotlin-gradle-plugin") version "{VERSION}"
         id("com.airbnb.viaduct.module-java-gradle-plugin") version "{VERSION}"
     }}
 }}
@@ -317,6 +345,9 @@ def main():
     parser.add_argument("--offline", action="store_true")
     parser.add_argument("--case", choices=("kotlin-multi", "java-multi", "mixed", "kotlin-local", "java-local"))
     args = parser.parse_args()
+    repository = args.maven_repository.resolve()
+    if args.case is None:
+        check_published_markers(repository)
     work = args.work_directory or Path(tempfile.mkdtemp(prefix="viaduct-plugin-compatibility-"))
     for name, languages, same_project in (
         ("kotlin-multi", ["kotlin"], False),
@@ -326,9 +357,9 @@ def main():
         ("java-local", ["java"], True),
     ):
         if args.case is None or args.case == name:
-            check_case(work / name, args.maven_repository.resolve(), languages, same_project, args.offline)
+            check_case(work / name, repository, languages, same_project, args.offline)
     if args.case is None:
-        check_minimum_gradle(work / "minimum-gradle", args.maven_repository.resolve(), args.offline)
+        check_minimum_gradle(work / "minimum-gradle", repository, args.offline)
     print(f"Published plugin compatibility checks passed: {work}", flush=True)
 
 

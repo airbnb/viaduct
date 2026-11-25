@@ -7,7 +7,6 @@ plugins {
 tasks.register("publishPlugins") {
     dependsOn(":settings:publishPlugins")
     dependsOn(":conventions:publishPlugins")
-    dependsOn(":application:publishPlugins")
     dependsOn(":module:publishPlugins")
     dependsOn(":module-java:publishPlugins")
     dependsOn(":federation:publishPlugins")

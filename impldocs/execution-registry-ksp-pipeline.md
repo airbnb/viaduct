@@ -23,6 +23,7 @@ Kotlin source files
        build/generated-resources/viaduct-registry/viaduct/execution-manifest/module/<module-id>/generated/com.airbnb.viaduct.module-gradle-plugin/<pkg>.json
 ```
 
+The Kotlin manifest producer key stays `com.airbnb.viaduct.module-gradle-plugin` to preserve existing resource paths.
 The generated directory is contributed through `moduleManifests`. The module JAR adds exactly one
 `META-INF/` prefix when copying it; a resources-only JAR supplies the same entries for local runtime
 classpaths. Generation and staging outputs never contain that archive prefix.

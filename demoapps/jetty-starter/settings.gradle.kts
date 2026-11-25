@@ -21,11 +21,13 @@ pluginManagement {
     }
     plugins {
         id("com.airbnb.viaduct.settings-gradle-plugin") version viaductVersion
+        id("com.airbnb.viaduct.kotlinapi") version viaductVersion
     }
 }
 
 plugins {
     id("com.airbnb.viaduct.settings-gradle-plugin")
+    id("com.airbnb.viaduct.kotlinapi") apply false
 }
 
 rootProject.name = "viaduct-jetty-starter"
@@ -54,6 +56,7 @@ dependencyResolutionManagement {
 }
 
 includeViaductApplication {
+    usePlugin("com.airbnb.viaduct.kotlinapi")
     project(":")
     modulePackagePrefix("com.example.viadapp")
 

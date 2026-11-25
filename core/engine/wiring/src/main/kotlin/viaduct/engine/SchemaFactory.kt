@@ -85,7 +85,7 @@ class SchemaFactory(
         val (resources, elapsedTime) = measureTimedValue {
             val index = requireNotNull(ClasspathResourceIndex.load(ViaductResourceIndexes.SCHEMA, classLoader)) {
                 "No Viaduct schema resource index found at '${ViaductResourceIndexes.SCHEMA}'. " +
-                    "Apply the Viaduct application Gradle plugin or supply schema SDL explicitly."
+                    "Declare the application with includeViaductApplication in settings.gradle.kts and rebuild, or supply schema SDL explicitly."
             }
             val acceptedPath = grtPackagePrefix?.replace('.', '/')
             index.paths

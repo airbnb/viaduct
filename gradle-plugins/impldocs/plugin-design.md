@@ -4,12 +4,13 @@
 
 Viaduct's Gradle plugins organize an application's schema, tenant modules, and generated code into a build:
 
-- The **settings plugin** records which project owns each application and which projects are its modules. The service engineer supplies the application's package prefix and each module's suffix; together these determine the module's full tenant package name.
-- **Application and module conventions** provide language-neutral schema and manifest transport, plugin SDL contributions, and integrated schema validation. The settings plugin installs them on declared projects before project build scripts run.
-- **Tenant API settings plugins** enable capabilities for a particular application. `com.airbnb.viaduct.kotlinapi` installs Kotlin GRT generation on the application; `com.airbnb.viaduct.javaapi` installs Java GRT generation. Enabling generation makes variants available without adding unused GRTs to the classpath.
-- The **Kotlin and Java module plugins**, applied by tenant developers, generate resolver bases, connect shared types to compilation, and produce module manifests describing resolvers and other bootstrap information.
+- **Settings plugins** declare the application's projects and make language bindings available. The topology supplies the application package prefix and each module's package suffix. Enable `com.airbnb.viaduct.kotlinapi` and/or `com.airbnb.viaduct.javaapi` through `usePlugin` in each application's settings declaration. This makes the matching GRT variants available.
+- **Module language plugins** select a tenant module's language and wire its compilation and resolver generation. Apply `com.airbnb.viaduct.module-kotlin-gradle-plugin` or `com.airbnb.viaduct.module-java-gradle-plugin` in that module's build script.
+- An **application extension plugin** provides optional application features such as federation. Extension plugins can also provide module features, such as persistence. The extension scope determines where its project plugin runs.
 
-The existing application and metamodule plugin IDs remain supported. The application plugin is a compatibility wrapper that enables both language generators. The metamodule plugin delegates to the module conventions helper. Applications may contain separate Kotlin and Java modules, or contain their tenant module in the application project itself.
+Settings installs the language-neutral application and module conventions on declared projects before the project build scripts run. The conventions coordinate schema, manifest transport and validation. An application may use separate Java and Kotlin modules or contain a tenant module in the application project itself.
+
+For build-script changes, see [Migrating an Existing Build](../../docs/docs/docs/service_engineers/multi_tenancy/index.md#migrating-an-existing-build).
 
 ## Enabling tenant APIs
 
@@ -41,17 +42,17 @@ includeViaductApplication {
 }
 ```
 
-A module applies its chosen tenant API plugin, along with the language and processor plugins it needs. Project plugins are resolved with the consumer's chosen versions:
+A module applies its module language plugin, along with the JVM and processor plugins it needs. The owning application must enable the corresponding settings plugin with `usePlugin`. A schema-only build can use the neutral conventions without choosing a language.
 
 ```kotlin
 plugins {
     kotlin("jvm") version "<kotlin-version>"
     id("com.google.devtools.ksp") version "<ksp-version>"
-    id("com.airbnb.viaduct.module-gradle-plugin") version "<viaduct-version>"
+    id("com.airbnb.viaduct.module-kotlin-gradle-plugin") version "<viaduct-version>"
 }
 ```
 
-The `conventions` artifact contains the settings capabilities, neutral helpers, and application-side generators. It does not carry the legacy application plugin descriptor or tenant module plugins. Keeping those project plugins off the settings classpath preserves versioned legacy plugin requests and lets the Kotlin module plugin see the consumer's Kotlin Gradle plugin.
+The `conventions` artifact contains the language settings plugins, neutral conventions, and application-side generators. The module language plugins ship in separate artifacts so consumers can request their versions and the Kotlin module language plugin can use the consumer's Kotlin Gradle plugin.
 
 An application still applies its hosting and JVM plugins and declares its runtime dependencies. The neutral conventions helper does not apply a language or hosting plugin.
 
@@ -68,9 +69,9 @@ Configuration properties, including `schemaValidationPlugins`, use `NamedDomainO
 
 `pluginSchema` and `pluginFinalSchema` are `CopySpec` inputs for plugin SDL. The former contributes to the central schema used for code generation; the latter contributes additions to the final schema used at runtime. Both `centralSchemaDirectory` and `finalSchemaDirectory` are `Provider<Directory>` outputs owned by Viaduct. Plugins consume these providers and register their own input files or task outputs instead of modifying assembled directories.
 
-A third-party settings plugin calls `Settings.registerViaductPlugin(id, applicationPlugin, moduleStubPlugin)` synchronously from its `apply` method. The application plugin class is required; the module stub class is optional. `usePlugin(id)` applies the settings plugin and verifies that registration completed before `apply` returned. Repeated identical registrations and repeated use within an application are harmless; conflicting registrations fail with the plugin ID.
+A third-party settings plugin calls `Settings.registerViaductPlugin(id, applicationPlugin, moduleStubPlugin)` synchronously from its `apply` method. The required `applicationPlugin` parameter names the project plugin class that settings installs on the application project. The `moduleStubPlugin` parameter is optional. `usePlugin(id)` applies the settings plugin and verifies that registration completed before `apply` returned. Identical registrations and repeated use within an application are harmless. Conflicting registrations fail with the plugin ID.
 
-After validating all declarations, the settings plugin installs conventions, selected application plugins, and optional module stubs using Gradle's isolated project lifecycle callback. Capabilities are scoped to the applications that enable them. A stub can publish an empty contribution variant so applications can resolve that contribution from every declared module before any module opts into its real plugin.
+After validating all declarations, the settings plugin uses Gradle's isolated project lifecycle callback to install conventions, the project plugins registered for the selected bindings and extensions, and optional module stubs. Each application chooses its own bindings and extensions. A stub can publish an empty contribution variant so applications can resolve that contribution from every declared module before any module opts into its real plugin.
 
 ## Three build stages
 
@@ -150,9 +151,9 @@ Plugin scalars use a fixed JSON value representation: Java `Object` or Kotlin `A
 
 ### 2. Module stage
 
-The Kotlin and Java module plugins generate resolver bases and extract resolver descriptors through Kotlin Symbol Processing (KSP) or Java annotation processing. Manifest assembly uses the central schema to validate resolver selections, including required selection sets, and determine tenant-local field ownership.
+The Kotlin and Java module language plugins generate resolver bases and extract resolver descriptors through Kotlin Symbol Processing (KSP) or Java annotation processing. Manifest assembly uses the central schema to validate resolver selections, including required selection sets, and determine tenant-local field ownership.
 
-The language plugin contributes its canonical generated directory through `moduleManifests`. The Kotlin and Java generators use producer IDs `com.airbnb.viaduct.module-gradle-plugin` and `com.airbnb.viaduct.module-java-gradle-plugin`. The module JAR adds `META-INF/` when copying the manifest alongside compiled tenant code. Existing first-party local execution uses a resources-only JAR with the same entries on source-set runtime classpaths; the generated directory itself remains unprefixed.
+The module language plugin contributes its canonical generated directory through `moduleManifests`. The Kotlin and Java generators use producer IDs `com.airbnb.viaduct.module-gradle-plugin` and `com.airbnb.viaduct.module-java-gradle-plugin`. The Kotlin producer ID is fixed at the retired marker's value so existing manifest paths remain valid when the Gradle marker changes. The module JAR adds `META-INF/` when copying the manifest alongside compiled tenant code. Existing first-party local execution uses a resources-only JAR with the same entries on source-set runtime classpaths. The generated directory itself remains unprefixed.
 
 Framework generators resolve these roots through `layout.buildDirectory`:
 

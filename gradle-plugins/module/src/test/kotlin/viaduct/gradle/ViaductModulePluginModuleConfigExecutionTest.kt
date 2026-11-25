@@ -209,13 +209,13 @@ class ViaductModulePluginModuleConfigExecutionTest {
         writeGradleProperties()
         File(projectDir, "settings.gradle.kts").writeViaductSettings(
             modules = mapOf(":" to "resolvers"),
+            kotlinApi = true,
         )
         File(projectDir, "build.gradle.kts").writeText(
             """
             plugins {
                 kotlin("jvm")
-                id("com.airbnb.viaduct.application-gradle-plugin")
-                id("com.airbnb.viaduct.module-gradle-plugin")
+                id("com.airbnb.viaduct.module-kotlin-gradle-plugin")
                 id("com.google.devtools.ksp")
             }
 
@@ -247,6 +247,7 @@ class ViaductModulePluginModuleConfigExecutionTest {
     private fun writeCrossTenantLocalExecutionProject() {
         writeGradleProperties()
         File(projectDir, "settings.gradle.kts").writeViaductSettings(
+            kotlinApi = true,
             modules = linkedMapOf(
                 ":alpha" to "alpha",
                 ":beta" to "beta",
@@ -256,7 +257,6 @@ class ViaductModulePluginModuleConfigExecutionTest {
             """
             plugins {
                 `java-library`
-                id("com.airbnb.viaduct.application-gradle-plugin")
             }
 
             repositories {
@@ -272,7 +272,7 @@ class ViaductModulePluginModuleConfigExecutionTest {
                 """
                 plugins {
                     kotlin("jvm")
-                    id("com.airbnb.viaduct.module-gradle-plugin")
+                    id("com.airbnb.viaduct.module-kotlin-gradle-plugin")
                     id("com.google.devtools.ksp")
                 }
 

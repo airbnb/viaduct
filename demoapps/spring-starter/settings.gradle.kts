@@ -21,11 +21,13 @@ pluginManagement {
     }
     plugins {
         id("com.airbnb.viaduct.settings-gradle-plugin") version viaductVersion
+        id("com.airbnb.viaduct.javaapi") version viaductVersion
     }
 }
 
 plugins {
     id("com.airbnb.viaduct.settings-gradle-plugin")
+    id("com.airbnb.viaduct.javaapi") apply false
 }
 
 val viaductVersion: String by settings
@@ -54,6 +56,7 @@ dependencyResolutionManagement {
 rootProject.name = "viaduct-spring-starter"
 
 includeViaductApplication {
+    usePlugin("com.airbnb.viaduct.javaapi")
     project(":")
     modulePackagePrefix("com.example.viadapp")
 

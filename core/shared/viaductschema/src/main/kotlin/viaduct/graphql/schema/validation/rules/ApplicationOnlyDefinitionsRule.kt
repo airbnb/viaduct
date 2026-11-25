@@ -11,7 +11,7 @@ import viaduct.graphql.schema.validation.ValidationRule
  * Validates that directives and scalars are defined at application level only.
  *
  * Module partitions (schemas under partition/ directories) cannot define
- * their own directives or scalars - these must come from the application plugin.
+ * their own directives or scalars. Declare these in the application-level schema.
  *
  * Definitions without a source location (e.g., built-in scalars) are automatically
  * skipped since they cannot originate from a module partition.

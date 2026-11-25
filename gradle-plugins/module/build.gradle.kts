@@ -16,7 +16,6 @@ java {
 dependencies {
     implementation(project(":common"))
     implementation(project(":conventions"))
-    implementation(project(":metamodule"))
 
     // Libraries the plugin source imports directly (binary schema generation).
     // tenant-codegen is NOT here — it is an external tool artifact resolved at
@@ -31,7 +30,7 @@ dependencies {
     // Testing
     testImplementation(gradleTestKit())
     testImplementation(project(":settings"))
-    testImplementation(project(":application"))
+    testImplementation(project(":conventions"))
     testImplementation(libs.kotest.assertions.core.jvm)
     testImplementation(libs.ksp.gradle.plugin)
     testImplementation(libs.kotlin.gradle.plugin)
@@ -80,10 +79,10 @@ gradlePlugin {
 
     plugins {
         create("viaductModule") {
-            id = "${libs.versions.pluginIdPrefix.get()}.module-gradle-plugin"
+            id = "${libs.versions.pluginIdPrefix.get()}.module-kotlin-gradle-plugin"
             implementationClass = "viaduct.gradle.ViaductModulePlugin"
-            displayName = "Viaduct :: Module Plugin"
-            description = "Module plugin for Viaduct tenant modules."
+            displayName = "Viaduct :: Kotlin Module Plugin"
+            description = "Module plugin for Viaduct tenant modules written in Kotlin."
             tags.set(listOf("viaduct", "graphql", "kotlin"))
         }
     }

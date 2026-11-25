@@ -58,7 +58,7 @@ object ViaductModulePluginSupport {
     }
 
     fun configureDirectModuleDependencyChecks(project: Project) {
-        val topology = project.requireViaductTopology("com.airbnb.viaduct.module-gradle-plugin")
+        val topology = project.requireViaductTopology("com.airbnb.viaduct.module-kotlin-gradle-plugin")
         configureDirectModuleDependencyChecks(project, topology)
     }
 

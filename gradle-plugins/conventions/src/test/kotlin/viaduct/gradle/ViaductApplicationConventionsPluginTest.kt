@@ -24,12 +24,12 @@ import viaduct.gradle.task.GenerateSchemaResourceIndexTask
 import viaduct.utils.resources.ViaductResourcePaths
 
 /**
- * Tests for ViaductApplicationPlugin base schema functionality.
+ * Tests for ViaductApplicationConventionsPlugin base schema functionality.
  *
  * These tests focus on the AssembleCentralSchemaTask's ability to discover and process
  * base schema files from src/main/viaduct/schemabase directory.
  */
-class ViaductApplicationPluginTest {
+class ViaductApplicationConventionsPluginTest {
     @TempDir
     lateinit var tempDir: Path
 
@@ -102,7 +102,7 @@ class ViaductApplicationPluginTest {
     @Test
     fun `plugin cannot overwrite the reserved built-in source`() {
         val input = tempDir.resolve("reserved-input").toFile()
-        input.resolve(ViaductApplicationPlugin.BUILTIN_SCHEMA_FILE.replace("viaduct/central-schema/", "viaduct/schema/")).apply {
+        input.resolve(ViaductApplicationConventionsPlugin.BUILTIN_SCHEMA_FILE.replace("viaduct/central-schema/", "viaduct/schema/")).apply {
             parentFile.mkdirs()
             writeText("scalar Hijack")
         }
@@ -217,7 +217,10 @@ class ViaductApplicationPluginTest {
             val message = failure.message.orEmpty()
             assertTrue(message.contains(legacyArtifact.name), message)
             assertTrue(message.contains(legacyPath), message)
-            assertTrue(message.contains("Rebuild the module"), message)
+            assertTrue(
+                message.contains("Rebuild the module with a module language plugin that matches the application's Viaduct version."),
+                message,
+            )
         }
     }
 
@@ -281,7 +284,7 @@ class ViaductApplicationPluginTest {
             writeText("extend type Query { z: String }")
         }
         schemaDir.resolve("viaduct/final-schema/module/example/source/a.graphqls").writeText("extend type Query { a: String }")
-        schemaDir.resolve(ViaductResourcePaths.atStage(ViaductApplicationPlugin.BUILTIN_SCHEMA_FILE, "final-schema")).apply {
+        schemaDir.resolve(ViaductResourcePaths.atStage(ViaductApplicationConventionsPlugin.BUILTIN_SCHEMA_FILE, "final-schema")).apply {
             parentFile.mkdirs()
             writeText("type Query")
         }
@@ -355,7 +358,7 @@ class ViaductApplicationPluginTest {
             .build()
         root.pluginManager.apply("java-library")
         root.registerViaductTopology(":")
-        root.pluginManager.apply(ViaductApplicationPlugin::class.java)
+        root.pluginManager.apply(ViaductApplicationConventionsPlugin::class.java)
 
         val assembleTask = root.tasks.named(
             "assembleViaductCentralSchema",
@@ -376,7 +379,7 @@ class ViaductApplicationPluginTest {
             .build()
         root.pluginManager.apply("java-library")
         root.registerViaductTopology(":")
-        root.pluginManager.apply(ViaductApplicationPlugin::class.java)
+        root.pluginManager.apply(ViaductApplicationConventionsPlugin::class.java)
 
         val assembleTask = root.tasks.named(
             "assembleViaductCentralSchema",
@@ -404,9 +407,9 @@ class ViaductApplicationPluginTest {
         appProject.pluginManager.apply("java-library")
         root.registerViaductTopology(":app")
 
-        appProject.pluginManager.apply(ViaductApplicationPlugin::class.java)
+        appProject.pluginManager.apply(ViaductApplicationConventionsPlugin::class.java)
 
-        assertNotNull(appProject.extensions.findByType(ViaductApplicationExtension::class.java))
+        assertNotNull(appProject.extensions.findByType(ViaductApplicationConventions::class.java))
     }
 
     @Test
@@ -422,7 +425,7 @@ class ViaductApplicationPluginTest {
             modules = mapOf(":" to "resolvers"),
         )
 
-        root.pluginManager.apply(ViaductApplicationPlugin::class.java)
+        root.pluginManager.apply(ViaductApplicationConventionsPlugin::class.java)
 
         val viaductModuleDependencies = root.configurations
             .getByName(ViaductPluginCommon.Configs.VIADUCT_MODULES)
@@ -458,10 +461,10 @@ class ViaductApplicationPluginTest {
         nestedProject.pluginManager.apply("java-library")
         root.registerViaductTopology(":app")
 
-        appProject.pluginManager.apply(ViaductApplicationPlugin::class.java)
+        appProject.pluginManager.apply(ViaductApplicationConventionsPlugin::class.java)
 
         val ex = assertThrows<GradleException> {
-            nestedProject.pluginManager.apply(ViaductApplicationPlugin::class.java)
+            nestedProject.pluginManager.apply(ViaductApplicationConventionsPlugin::class.java)
         }
         val allMessages = generateSequence(ex as Throwable?) { it.cause }
             .mapNotNull { it.message }

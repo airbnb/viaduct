@@ -23,4 +23,4 @@ description: Tenant API Code Structure
     * `viaduct.java.grts`: The application's generated GraphQL representational types. Import Java GRTs from this package rather than the Kotlin `viaduct.api.grts` package.
     * `<module-prefix>.resolverbases`: Generated resolver base classes for a tenant module, such as `QueryResolvers`, `CharacterResolvers`, and `NodeResolvers`.
 
-    The Java module plugin configures the source set and shared GRT dependency. Your implementation subclasses the generated base class and returns `CompletableFuture` from its resolver method. See [Generated Code](index.md) for getters, builders, and the different Java generation model.
+    The Java module language plugin configures the source set and shared GRT dependency. Your implementation subclasses the generated base class and returns `CompletableFuture` from its resolver method. See [Generated Code](index.md) for getters, builders, and the different Java generation model.

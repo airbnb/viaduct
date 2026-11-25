@@ -1,6 +1,5 @@
 plugins {
     `java-library`
-    alias(libs.plugins.viaduct.application)
     alias(libs.plugins.viaduct.module.java)
     application
 }

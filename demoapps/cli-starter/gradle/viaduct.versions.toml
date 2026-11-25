@@ -10,8 +10,7 @@ junitPlatform = "1.11.3"
 [plugins]
 kotlinJvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
-viaduct-application = { id = "com.airbnb.viaduct.application-gradle-plugin", version.ref = "viaduct" }
-viaduct-module = { id = "com.airbnb.viaduct.module-gradle-plugin", version.ref = "viaduct" }
+viaduct-module = { id = "com.airbnb.viaduct.module-kotlin-gradle-plugin", version.ref = "viaduct" }
 
 [libraries]
 # Viaduct

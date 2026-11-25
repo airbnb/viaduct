@@ -27,9 +27,9 @@ object ExecutionRegistryConfigSourceCollector {
             ClasspathResourceIndex.load(ViaductResourceIndexes.EXECUTION_REGISTRY, classLoader)
         ) {
             "No Viaduct execution-registry resource index found at '${ViaductResourceIndexes.EXECUTION_REGISTRY}'. " +
-                "Apply the Viaduct application Gradle plugin or supply module config sources explicitly. " +
-                "Rebuild tenant artifacts with module and application plugins compatible with this runtime; " +
-                "legacy META-INF/viaduct/modules manifests are not discovered."
+                "Declare the application with includeViaductApplication in settings.gradle.kts and rebuild, or supply module config sources explicitly. " +
+                "Use settings and module language plugins compatible with this runtime. " +
+                "Replace legacy META-INF/viaduct/modules manifests with indexed manifest resources."
         }
         val claims = ViaductResourceClaims()
         val paths = index.paths.filter { it.startsWith(prefix) && it.endsWith(".json") }.filter { path ->

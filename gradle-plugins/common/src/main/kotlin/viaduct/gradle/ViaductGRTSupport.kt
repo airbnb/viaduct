@@ -23,9 +23,24 @@ enum class ViaductGRTLanguage(
     val configurationPrefix: String,
     val capability: String,
     val jarTaskName: String,
+    val settingsPluginId: String,
+    /** Published Gradle marker for the module language plugin. Manifest paths use a stable producer key. */
+    val modulePluginId: String,
 ) {
-    KOTLIN("Kotlin", "com.airbnb.viaduct:kotlin-grt", "generateViaductGRTs"),
-    JAVA("Java", "com.airbnb.viaduct:java-grt", "generateViaductJavaGRTs"),
+    KOTLIN(
+        configurationPrefix = "Kotlin",
+        capability = "com.airbnb.viaduct:kotlin-grt",
+        jarTaskName = "generateViaductGRTs",
+        settingsPluginId = "com.airbnb.viaduct.kotlinapi",
+        modulePluginId = "com.airbnb.viaduct.module-kotlin-gradle-plugin",
+    ),
+    JAVA(
+        configurationPrefix = "Java",
+        capability = "com.airbnb.viaduct:java-grt",
+        jarTaskName = "generateViaductJavaGRTs",
+        settingsPluginId = "com.airbnb.viaduct.javaapi",
+        modulePluginId = "com.airbnb.viaduct.module-java-gradle-plugin",
+    ),
 }
 
 @InternalApi

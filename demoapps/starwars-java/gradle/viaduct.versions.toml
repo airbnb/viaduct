@@ -19,8 +19,7 @@ kotlinJvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 kotlinKapt = { id = "org.jetbrains.kotlin.kapt", version.ref = "kotlin" }
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
 micronautApplication = { id = "io.micronaut.application", version.ref = "micronaut" }
-viaduct-application = { id = "com.airbnb.viaduct.application-gradle-plugin", version.ref = "viaduct" }
-viaduct-module = { id = "com.airbnb.viaduct.module-gradle-plugin", version.ref = "viaduct" }
+viaduct-module = { id = "com.airbnb.viaduct.module-kotlin-gradle-plugin", version.ref = "viaduct" }
 viaduct-module-java = { id = "com.airbnb.viaduct.module-java-gradle-plugin", version.ref = "viaduct" }
 
 [libraries]

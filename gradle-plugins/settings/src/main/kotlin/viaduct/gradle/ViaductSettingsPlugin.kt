@@ -83,6 +83,7 @@ open class IncludeViaductApplicationHandler(private val settings: Settings) {
                         modulePackageSuffixes = application.modules.associate {
                             it.projectPath!! to it.modulePackageSuffix!!
                         },
+                        enabledPluginIds = application.enabledPlugins.toSet(),
                     )
                     put(topology.applicationProjectPath, topology)
                     topology.modulePackageSuffixes.keys.forEach { modulePath ->

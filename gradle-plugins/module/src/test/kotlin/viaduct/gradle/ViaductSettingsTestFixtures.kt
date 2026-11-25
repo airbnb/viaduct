@@ -7,6 +7,7 @@ internal fun File.writeViaductSettings(
     modulePackagePrefix: String = "com.example.test",
     modules: Map<String, String>,
     plainIncludes: List<String> = emptyList(),
+    kotlinApi: Boolean = true,
 ) {
     val plainIncludeBlock = plainIncludes.joinToString("\n") { includePath ->
         """
@@ -21,6 +22,7 @@ internal fun File.writeViaductSettings(
         }
         """.trimIndent().prependIndent("    ")
     }
+    val capability = if (kotlinApi) "usePlugin(\"com.airbnb.viaduct.kotlinapi\")" else ""
     val optionalPlainIncludes = plainIncludeBlock.takeIf { it.isNotBlank() }?.let { "\n$it\n" } ?: ""
     val optionalModuleIncludes = moduleIncludeBlock.takeIf { it.isNotBlank() }?.let { "\n\n$it" } ?: ""
 
@@ -33,6 +35,7 @@ internal fun File.writeViaductSettings(
         rootProject.name = "test"
         $optionalPlainIncludes
         includeViaductApplication {
+            $capability
             project("$applicationProjectPath")
             modulePackagePrefix("$modulePackagePrefix")$optionalModuleIncludes
         }

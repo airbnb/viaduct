@@ -70,9 +70,10 @@ class ExecutionRegistryConfigSourceCollectorTest {
                 ExecutionRegistryConfigSourceCollector.fromResources(null, classLoader)
             }
 
-            assertThat(exception).hasMessageContaining("Apply the Viaduct application Gradle plugin")
+            assertThat(exception).hasMessageContaining("includeViaductApplication in settings.gradle.kts")
+                .hasMessageContaining("supply module config sources explicitly")
                 .hasMessageContaining("plugins compatible with this runtime")
-                .hasMessageContaining("legacy META-INF/viaduct/modules manifests are not discovered")
+                .hasMessageContaining("Replace legacy META-INF/viaduct/modules manifests")
         }
     }
 

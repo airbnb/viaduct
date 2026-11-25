@@ -9,7 +9,7 @@ Tenant developers mark visibility with the `@scope` directive; see [Developers: 
 
 ## Where `scopes.yaml` lives
 
-Put the file at `src/main/viaduct/scopes.yaml` in the application project, the project that applies the Viaduct application plugin. A `scopes.yaml` in a tenant project is not read, and an application has at most one.
+Put one `src/main/viaduct/scopes.yaml` in the [application project declared in settings](../multi_tenancy/index.md#settings-topology).
 
 Without the file, or with a file that declares neither `schemaScopes` nor `scopedSchemas`, the build packages no scope definitions and does not check `@scope` names against a declared universe. The runtime then infers the valid scope IDs from the scope directives the schema contains, and `SchemaScopeInfo.fromResources` throws.
 

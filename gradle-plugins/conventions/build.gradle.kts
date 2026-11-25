@@ -19,6 +19,9 @@ dependencies {
     bundled(libs.viaduct.shared.bootstrap)
 
     testImplementation(libs.kotest.assertions.core.jvm)
+    testImplementation(gradleTestKit())
+    testImplementation(project(":settings"))
+    testImplementation(libs.viaduct.shared.bootstrap)
 }
 
 gradlePlugin {

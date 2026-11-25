@@ -368,7 +368,8 @@ class SchemaFactoryTest {
                 }
             }
 
-            (exception.message ?: "") shouldContain "Apply the Viaduct application Gradle plugin"
+            (exception.message ?: "") shouldContain "includeViaductApplication in settings.gradle.kts"
+            (exception.message ?: "") shouldContain "supply schema SDL explicitly"
         }
 
         @Test

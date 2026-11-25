@@ -1,8 +1,7 @@
 import viaduct.gradle.viaductSchemaContributions
 
 plugins {
-    // `java-library` on top of `conventions.java`: the application plugin's `validateJvmPluginApplied`
-    // requires an `api` configuration, which the plain `java` plugin does not create.
+    // Viaduct Java integration requires the `api` configuration that `java-library` creates.
     `java-library`
     id("conventions.java")
     id("conventions.test-retry")
@@ -23,7 +22,7 @@ viaductSchemaContributions.register(
 
 // The smoke test asserts on what the module actually ships: the assembled registry is packaged by
 // `jar`, and the raw APT descriptors must not be. `test` does not build the jar on its own, and
-// build/libs also holds the application plugin's GRT jars, so hand the test the exact path.
+// build/libs also holds the application's generated GRT jars, so hand the test the exact path.
 val moduleJar = tasks.named<Jar>("jar").flatMap { it.archiveFile }
 val schemaJar = tasks.named<Jar>("generateViaductSchemaResources").flatMap { it.archiveFile }
 

@@ -10,7 +10,7 @@ The schema format, directory layout and validation tasks on this page apply to b
 
 ## The schemabase directory
 
-The Viaduct [application plugin](../../../getting_started/index.md) automatically discovers and includes schema files from:
+Viaduct reads schema extensions from this directory in the [application project declared in settings](../multi_tenancy/index.md#settings-topology):
 
 ```
 src/main/viaduct/schemabase/

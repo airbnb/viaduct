@@ -8,7 +8,7 @@ import viaduct.apiannotations.InternalApi
 class ViaductJavaSettingsPlugin : Plugin<Settings> {
     override fun apply(settings: Settings) {
         settings.registerViaductPlugin(
-            id = "com.airbnb.viaduct.javaapi",
+            id = ViaductGRTLanguage.JAVA.settingsPluginId,
             applicationPlugin = ViaductJavaApplicationPlugin::class.java,
         )
     }

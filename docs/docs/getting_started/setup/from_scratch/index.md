@@ -23,6 +23,8 @@ cd viaduct-hello-world
 
 ### Configuring Gradle
 
+These examples target Viaduct 4.0.0. Use the same Viaduct version for the Gradle plugins and library dependencies.
+
 === "Kotlin"
 
     Create `settings.gradle.kts`:
@@ -36,7 +38,8 @@ cd viaduct-hello-world
     }
 
     plugins {
-        id("com.airbnb.viaduct.settings-gradle-plugin") version "3.0.0"
+        id("com.airbnb.viaduct.settings-gradle-plugin") version "4.0.0"
+        id("com.airbnb.viaduct.kotlinapi") version "4.0.0" apply false
     }
 
     dependencyResolutionManagement {
@@ -48,6 +51,7 @@ cd viaduct-hello-world
     rootProject.name = "viaduct-hello-world"
 
     includeViaductApplication {
+        usePlugin("com.airbnb.viaduct.kotlinapi")
         project(":")
         modulePackagePrefix("com.example.viadapp")
         includeModule {
@@ -65,14 +69,13 @@ cd viaduct-hello-world
     plugins {
         kotlin("jvm") version "2.3.21"
         id("com.google.devtools.ksp") version "2.3.7"
-        id("com.airbnb.viaduct.application-gradle-plugin") version "3.0.0"
-        id("com.airbnb.viaduct.module-gradle-plugin") version "3.0.0"
+        id("com.airbnb.viaduct.module-kotlin-gradle-plugin") version "4.0.0"
         application
     }
 
     dependencies {
-        implementation("com.airbnb.viaduct:api:3.0.0")
-        implementation("com.airbnb.viaduct:runtime:3.0.0")
+        implementation("com.airbnb.viaduct:api:4.0.0")
+        implementation("com.airbnb.viaduct:runtime:4.0.0")
         implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.1")
         implementation("com.fasterxml.jackson.core:jackson-databind:2.17.3")
         implementation("ch.qos.logback:logback-classic:1.5.21")
@@ -84,7 +87,7 @@ cd viaduct-hello-world
     }
     ```
 
-    Use the same Viaduct version for the settings, application, and module plugins and all Viaduct dependencies. Viaduct does not bundle `kotlin-reflect` or `kotlinx-coroutines`, so the application declares them.
+    Use the same Viaduct version for the settings plugins, the Kotlin module language plugin, and all Viaduct dependencies. Viaduct does not bundle `kotlin-reflect` or `kotlinx-coroutines`, so the application declares them.
 
 === "Java"
 
@@ -99,7 +102,8 @@ cd viaduct-hello-world
     }
 
     plugins {
-        id("com.airbnb.viaduct.settings-gradle-plugin") version "3.0.0"
+        id("com.airbnb.viaduct.settings-gradle-plugin") version "4.0.0"
+        id("com.airbnb.viaduct.javaapi") version "4.0.0" apply false
     }
 
     dependencyResolutionManagement {
@@ -111,6 +115,7 @@ cd viaduct-hello-world
     rootProject.name = "viaduct-hello-world"
 
     includeViaductApplication {
+        usePlugin("com.airbnb.viaduct.javaapi")
         project(":")
         modulePackagePrefix("com.example.viadapp")
         includeModule {
@@ -128,8 +133,7 @@ cd viaduct-hello-world
     plugins {
         application
         `java-library`
-        id("com.airbnb.viaduct.application-gradle-plugin") version "3.0.0"
-        id("com.airbnb.viaduct.module-java-gradle-plugin") version "3.0.0"
+        id("com.airbnb.viaduct.module-java-gradle-plugin") version "4.0.0"
     }
 
     java {
@@ -139,10 +143,10 @@ cd viaduct-hello-world
     }
 
     dependencies {
-        implementation("com.airbnb.viaduct:api:3.0.0")
-        implementation("com.airbnb.viaduct:runtime:3.0.0")
-        implementation("com.airbnb.viaduct:javaapi-api:3.0.0")
-        implementation("com.airbnb.viaduct:javaapi-runtime:3.0.0")
+        implementation("com.airbnb.viaduct:api:4.0.0")
+        implementation("com.airbnb.viaduct:runtime:4.0.0")
+        implementation("com.airbnb.viaduct:javaapi-api:4.0.0")
+        implementation("com.airbnb.viaduct:javaapi-runtime:4.0.0")
         runtimeOnly("org.jetbrains.kotlin:kotlin-reflect:2.3.21")
         runtimeOnly("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.1")
     }
@@ -152,7 +156,7 @@ cd viaduct-hello-world
     }
     ```
 
-    Use the same Viaduct version for the settings, application, and Java module plugins and all Viaduct dependencies. Viaduct does not bundle `kotlin-reflect` or `kotlinx-coroutines`, so the application declares them as runtime dependencies; you do not need Kotlin source files or the Kotlin JVM plugin.
+    Use the same Viaduct version for the settings plugins, the Java module language plugin, and all Viaduct dependencies. Viaduct does not bundle `kotlin-reflect` or `kotlinx-coroutines`, so the application declares them as runtime dependencies. The application can use Java throughout.
 
 ### Creating the Schema
 
@@ -277,7 +281,7 @@ extend type Query {
     }
     ```
 
-    The Java module plugin generates `QueryResolvers` from the schema before Java compilation. The default factory constructs these public no-argument resolvers; this small CLI does not need a dependency injection framework. `join()` is used only at the CLI boundary; compose futures inside resolvers instead of blocking.
+    The Java module language plugin generates `QueryResolvers` from the schema before Java compilation. The default factory constructs these public no-argument resolvers; this small CLI does not need a dependency injection framework. `join()` is used only at the CLI boundary; compose futures inside resolvers instead of blocking.
 
 ### Building and running the Application
 

@@ -80,9 +80,9 @@ Concrete examples (filmography):
     modules/filmography/src/main/java/com/example/starwars/modules/filmography/characters/resolvers/CharacterFilmCountResolver.java
     ```
 
-    The Java module plugin generates Java GRTs and resolver base classes before Java compilation. Its annotation processor records resolver and document metadata for runtime discovery.
+    The Java module language plugin uses the application’s Java GRTs and generates resolver base classes before Java compilation. Its annotation processor records resolver and document metadata for runtime discovery.
 
-The Kotlin module plugin generates **resolver base classes** you extend, under:
+The Kotlin module language plugin generates the **resolver base classes** you extend.
 
 ```
 modules/<module>/build/generated-sources/viaduct/resolverBases/...

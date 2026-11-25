@@ -1,6 +1,5 @@
 plugins {
     id("conventions.kotlin")
-    id("com.airbnb.viaduct.application-gradle-plugin")
 }
 
 dependencies {

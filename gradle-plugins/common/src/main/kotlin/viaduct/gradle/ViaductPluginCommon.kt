@@ -10,7 +10,6 @@ import org.gradle.api.file.Directory
 import org.gradle.api.file.FileCollection
 import org.gradle.api.file.FileVisitDetails
 import org.gradle.api.file.FileVisitor
-import org.gradle.api.file.RegularFile
 import org.gradle.api.plugins.JavaPluginExtension
 import org.gradle.api.provider.Provider
 import org.gradle.api.tasks.Sync
@@ -67,9 +66,13 @@ object ViaductPluginCommon {
         return roots.single()
     }
 
-    val APPLICATION_PLUGIN_IDS = listOf(
-        "com.airbnb.viaduct.application-gradle-plugin",
-    )
+    fun requireJvmPlugin(project: Project) {
+        project.afterEvaluate {
+            require(project.configurations.findByName("api") != null && project.configurations.findByName("runtimeOnly") != null) {
+                "Viaduct language integration in ${project.path} requires a Java/Kotlin JVM plugin (for example java-library or org.jetbrains.kotlin.jvm)."
+            }
+        }
+    }
 
     val VIADUCT_KIND: Attribute<String> =
         Attribute.of("viaduct.kind", String::class.java)
@@ -184,10 +187,10 @@ object ViaductPluginCommon {
     fun buildFlagFileContent(flags: Map<String, String>): String = BuildFlags.toFileContent(flags)
 
     fun Project.validateApplicationProjectPlacement(): ViaductApplicationTopology {
-        val topology = requireViaductTopology("com.airbnb.viaduct.application-gradle-plugin")
+        val topology = requireViaductTopology("Viaduct application conventions")
         if (!topology.isApplicationProject(path)) {
             throw GradleException(
-                "Project ${prettyPath()} cannot apply 'com.airbnb.viaduct.application-gradle-plugin' " +
+                "Project ${prettyPath()} cannot apply 'Viaduct application conventions' " +
                     "because the Viaduct settings topology declares it as a module of application " +
                     "'${topology.applicationProjectPath}', not as an application project.",
             )
@@ -195,11 +198,11 @@ object ViaductPluginCommon {
         return topology
     }
 
-    fun Project.validateModuleProjectPlacement(modulePluginId: String): ViaductApplicationTopology {
-        val topology = requireViaductTopology(modulePluginId)
+    fun Project.validateModuleProjectPlacement(requester: String): ViaductApplicationTopology {
+        val topology = requireViaductTopology(requester)
         if (!topology.isModuleProject(path)) {
             throw GradleException(
-                "Project ${prettyPath()} cannot apply '$modulePluginId' because the Viaduct settings " +
+                "Project ${prettyPath()} cannot apply '$requester' because the Viaduct settings " +
                     "topology declares it as an application project, not as a module project. " +
                     "For a self-contained application module, add includeModule { project(\"$path\") } " +
                     "to the includeViaductApplication declaration.",
@@ -208,10 +211,22 @@ object ViaductPluginCommon {
         return topology
     }
 
-    fun Project.requireViaductTopology(pluginId: String): ViaductApplicationTopology =
+    fun Project.requireModuleLanguageBinding(language: ViaductGRTLanguage) {
+        val topology = validateModuleProjectPlacement(language.modulePluginId)
+        if (language.settingsPluginId !in topology.enabledPluginIds) {
+            throw GradleException(
+                "Project ${prettyPath()} requires the Viaduct ${language.configurationPrefix} language binding " +
+                    "for application '${topology.applicationProjectPath}'. " +
+                    "Add usePlugin(\"${language.settingsPluginId}\") to that application's " +
+                    "includeViaductApplication block in settings.gradle.kts.",
+            )
+        }
+    }
+
+    fun Project.requireViaductTopology(requester: String): ViaductApplicationTopology =
         requireViaductTopologyService().topologyFor(path)
             ?: throw GradleException(
-                "Project ${prettyPath()} applies '$pluginId' but is not declared in the Viaduct " +
+                "Project ${prettyPath()} applies '$requester' but is not declared in the Viaduct " +
                     "settings topology. Apply 'com.airbnb.viaduct.settings-gradle-plugin' in " +
                     "settings.gradle.kts and declare the project with includeViaductApplication { ... }.",
             )
@@ -235,13 +250,3 @@ object ViaductPluginCommon {
 
     fun Project.prettyPath(): String = if (path == ":") ": (root)" else path
 }
-
-@InternalApi
-const val VIADUCT_APPLICATION_OUTPUTS_EXTENSION_NAME = "viaductApplicationOutputs"
-
-@InternalApi
-data class ViaductApplicationOutputProviders(
-    val centralSchemaDirectory: Provider<Directory>,
-    val kotlinGrtJar: Provider<RegularFile>,
-    val javaGrtJar: Provider<RegularFile>,
-)

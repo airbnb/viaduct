@@ -17,6 +17,7 @@ data class ViaductApplicationTopology(
     val applicationProjectPath: String,
     val modulePackagePrefix: String,
     val modulePackageSuffixes: Map<String, String>,
+    val enabledPluginIds: Set<String> = emptySet(),
 ) {
     fun isApplicationProject(projectPath: String): Boolean = applicationProjectPath == projectPath
 

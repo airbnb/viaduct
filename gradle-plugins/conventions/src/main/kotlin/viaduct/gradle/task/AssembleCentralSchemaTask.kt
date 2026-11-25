@@ -55,7 +55,7 @@ abstract class AssembleCentralSchemaTask
             description = "Merge and validate GraphQL schema files from all modules into a single central schema. Run this in CI to verify the complete schema is valid."
         }
 
-        /** Schema partition files from individual viaduct-module projects. */
+        /** Schema partition files from declared Viaduct modules. */
         @get:InputFiles
         @get:PathSensitive(PathSensitivity.RELATIVE)
         abstract val schemaPartitions: ConfigurableFileCollection

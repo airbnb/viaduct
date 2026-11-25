@@ -33,7 +33,8 @@ viaduct/                         ← root project (orchestration only)
 │   ├── test-fixtures            (test utilities)
 │   └── javaapi-*                (api, buildtime, runtime, test-fixtures facades for Java tenants)
 ├── gradle-plugins/              ← included build: Gradle plugins for application developers
-│   ├── application              (ViaductApplicationPlugin)
+│   ├── settings                 (ViaductSettingsPlugin)
+│   ├── conventions              (neutral conventions and Kotlin/Java settings capabilities)
 │   ├── module                   (ViaductModulePlugin)
 │   └── common                   (shared plugin utilities)
 ├── demoapps/                    ← standalone Gradle builds, not part of this composite;

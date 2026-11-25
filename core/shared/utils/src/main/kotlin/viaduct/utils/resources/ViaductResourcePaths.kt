@@ -7,6 +7,8 @@ import viaduct.apiannotations.InternalApi
 @InternalApi
 object ViaductResourcePaths {
     const val FRAMEWORK = "viaduct.core"
+
+    // Keep this producer key stable so execution manifest paths survive Gradle plugin renames.
     const val KOTLIN_GENERATOR = "com.airbnb.viaduct.module-gradle-plugin"
     const val JAVA_GENERATOR = "com.airbnb.viaduct.module-java-gradle-plugin"
     const val MANIFEST_ROOT = "viaduct/execution-manifest"

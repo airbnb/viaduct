@@ -3,7 +3,7 @@ import viaduct.gradle.task.GenerateExecutionRegistryResourceIndexTask
 plugins {
     alias(libs.plugins.kotlinJvm)
     application
-    id("com.airbnb.viaduct.application-gradle-plugin") apply false
+    id("com.airbnb.viaduct.kotlinapi") apply false
 }
 
 val executionRegistryResourceIndex =

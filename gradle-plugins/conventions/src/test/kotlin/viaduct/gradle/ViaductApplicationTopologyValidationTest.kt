@@ -13,7 +13,7 @@ class ViaductApplicationTopologyValidationTest {
     lateinit var projectDir: File
 
     @Test
-    fun `application project declared in topology configures successfully`() {
+    fun `settings install schema tasks for an application without a language binding`() {
         writeSettings(
             """
             plugins {
@@ -28,20 +28,14 @@ class ViaductApplicationTopologyValidationTest {
             }
             """.trimIndent()
         )
-        writeBuildScript(
-            """
-            plugins {
-                `java-library`
-                id("com.airbnb.viaduct.application-gradle-plugin")
-            }
-            """.trimIndent()
-        )
+        writeBuildScript("")
 
         val result = runner()
-            .withArguments("help")
+            .withArguments("help", "--task", "assembleViaductCentralSchema")
             .build()
 
         assertEquals(TaskOutcome.SUCCESS, result.task(":help")?.outcome)
+        result.output shouldContain "assembleViaductCentralSchema"
     }
 
     @Test
@@ -51,8 +45,9 @@ class ViaductApplicationTopologyValidationTest {
             """
             plugins {
                 `java-library`
-                id("com.airbnb.viaduct.application-gradle-plugin")
+                id("com.airbnb.viaduct.kotlinapi") apply false
             }
+            apply<viaduct.gradle.ViaductApplicationConventionsPlugin>()
             """.trimIndent()
         )
 
@@ -90,8 +85,8 @@ class ViaductApplicationTopologyValidationTest {
             """
             plugins {
                 `java-library`
-                id("com.airbnb.viaduct.application-gradle-plugin")
             }
+            apply<viaduct.gradle.ViaductApplicationConventionsPlugin>()
             """.trimIndent()
         )
 
@@ -134,8 +129,8 @@ class ViaductApplicationTopologyValidationTest {
             """
             plugins {
                 `java-library`
-                id("com.airbnb.viaduct.application-gradle-plugin")
             }
+            apply<viaduct.gradle.ViaductApplicationConventionsPlugin>()
             """.trimIndent()
         )
 

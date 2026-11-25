@@ -2,7 +2,7 @@ import viaduct.gradle.task.GenerateResolverBasesTask
 plugins {
     id("conventions.kotlin")
     id("conventions.ksp")
-    id("com.airbnb.viaduct.module-gradle-plugin")
+    id("com.airbnb.viaduct.module-kotlin-gradle-plugin")
 }
 
 dependencies {

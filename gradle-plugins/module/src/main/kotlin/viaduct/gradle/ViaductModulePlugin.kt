@@ -14,6 +14,7 @@ import viaduct.apiannotations.InternalApi
 import viaduct.gradle.ViaductPluginCommon.configureIdeaIntegration
 import viaduct.gradle.ViaductPluginCommon.createOrGetCodegenClasspath
 import viaduct.gradle.ViaductPluginCommon.pluginVersion
+import viaduct.gradle.ViaductPluginCommon.requireModuleLanguageBinding
 import viaduct.gradle.task.AssembleTenantModuleConfigFileTask
 import viaduct.gradle.task.GenerateResolverBasesTask
 
@@ -21,7 +22,8 @@ import viaduct.gradle.task.GenerateResolverBasesTask
 class ViaductModulePlugin : Plugin<Project> {
     override fun apply(project: Project): Unit =
         with(project) {
-            pluginManager.apply(ViaductMetamodulePlugin.ID)
+            requireModuleLanguageBinding(ViaductGRTLanguage.KOTLIN)
+            pluginManager.apply(ViaductModuleConventionsPlugin::class.java)
             val conventions = extensions.getByType(ViaductModuleConventions::class.java)
             val moduleLayout = conventions.layout
             ViaductGRTSupport.setupModuleDependencies(

@@ -160,8 +160,11 @@ Runtime libraries are published to Maven Central. Artifacts are grouped under th
 
 ### Gradle Plugin Portal
 
-* [application-gradle-plugin](https://plugins.gradle.org/plugin/com.airbnb.viaduct.application-gradle-plugin)
-* [module-gradle-plugin](https://plugins.gradle.org/plugin/com.airbnb.viaduct.module-gradle-plugin)
+* [settings-gradle-plugin](https://plugins.gradle.org/plugin/com.airbnb.viaduct.settings-gradle-plugin)
+* [kotlinapi](https://plugins.gradle.org/plugin/com.airbnb.viaduct.kotlinapi)
+* [javaapi](https://plugins.gradle.org/plugin/com.airbnb.viaduct.javaapi)
+* [module-kotlin-gradle-plugin](https://plugins.gradle.org/plugin/com.airbnb.viaduct.module-kotlin-gradle-plugin)
+* [module-java-gradle-plugin](https://plugins.gradle.org/plugin/com.airbnb.viaduct.module-java-gradle-plugin)
 
 # Runbook
 

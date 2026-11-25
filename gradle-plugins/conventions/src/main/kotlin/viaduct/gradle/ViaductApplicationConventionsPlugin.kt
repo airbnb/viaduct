@@ -37,7 +37,6 @@ abstract class ViaductApplicationConventionsPlugin : Plugin<Project> {
     override fun apply(project: Project): Unit =
         with(project) {
             val topology = validateApplicationProjectPlacement()
-            val applicationExtension = extensions.create("viaductApplication", ViaductApplicationExtension::class.java, objects)
             val modules = setupViaductModulesConfiguration()
             val contributions = setupSchemaContributionsConfiguration(modules)
             val pluginSchema = copySpec()
@@ -110,7 +109,9 @@ abstract class ViaductApplicationConventionsPlugin : Plugin<Project> {
                     attribute(Usage.USAGE_ATTRIBUTE, objects.named(Usage::class.java, ViaductArtifacts.USAGE))
                 }
             }
-            applicationExtension.initializeConventions(
+            extensions.add(
+                ViaductApplicationConventions::class.java,
+                "viaductApplication",
                 DefaultViaductApplicationConventions(
                     pluginSchema = pluginSchema,
                     pluginFinalSchema = pluginFinalSchema,
@@ -267,7 +268,7 @@ abstract class ViaductApplicationConventionsPlugin : Plugin<Project> {
         pluginSchema: TaskProvider<Sync>,
     ): TaskProvider<AssembleCentralSchemaTask> {
         val allPartitions = configurations.create(ViaductPluginCommon.Configs.ALL_SCHEMA_PARTITIONS_INCOMING).apply {
-            description = "Resolvable configuration where all viaduct-module plugins send their schema partitions."
+            description = "Resolvable configuration for schema partitions contributed by declared Viaduct modules."
             isCanBeConsumed = false
             isCanBeResolved = true
             isCanBeDeclared = false

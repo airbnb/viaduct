@@ -484,20 +484,22 @@ If you are evaluating Viaduct for real adoption, the next question is usually no
 
 === "Kotlin"
 
-    Viaduct has two Gradle plugins that orchestrate schema validation, code generation, and application packaging:
+    Viaduct uses settings plugins and module language plugins to configure the build:
 
-    * `com.airbnb.viaduct.application-gradle-plugin` - this plugin is applied to the project that will build the `Viaduct` instance using the `BasicViaductFactory` (or the more full-featured `ViaductBuilder`). This is typically the project that contains the host web server, although it need not be.
+    * `com.airbnb.viaduct.kotlinapi` is enabled through settings `usePlugin` for the application project. It selects Kotlin generation while settings conventions arrange schema validation and resources.
 
-    * `com.airbnb.viaduct.module-gradle-plugin` - this plugin is applied to the projects that contain schema fragments and the corresponding resolvers. Projects applying this plugin must be declared in the Viaduct topology in `settings.gradle.kts`; module projects must be either the same as the application project or descendants of it.
+    * Apply `com.airbnb.viaduct.module-kotlin-gradle-plugin` to each module containing Kotlin resolvers and their schema. Declare each module in the owning application's `includeViaductApplication` block in `settings.gradle.kts`. A module can share the application project or be one of its subprojects.
 
     The Viaduct topology in `settings.gradle.kts` declares the application project, its modules, and the package layout used by generated resolver code:
 
     ```kotlin
     plugins {
         id("com.airbnb.viaduct.settings-gradle-plugin")
+        id("com.airbnb.viaduct.kotlinapi") apply false
     }
 
     includeViaductApplication {
+        usePlugin("com.airbnb.viaduct.kotlinapi")
         project(":")
         modulePackagePrefix("com.example.viadapp")
 
@@ -508,13 +510,12 @@ If you are evaluating Viaduct for real adoption, the next question is usually no
     }
     ```
 
-    In our Ktor application, the root Gradle project applies the application plugin and contains the Ktor server:
+    In our Ktor application, the root Gradle project contains the Ktor server:
 
     ```kotlin
     plugins {
         alias(libs.plugins.kotlinJvm)
         alias(libs.plugins.ktor)
-        alias(libs.plugins.viaduct.application) // Marks this project as the "root" of a Viaduct application
     }
 
     application {
@@ -531,7 +532,7 @@ If you are evaluating Viaduct for real adoption, the next question is usually no
     }
     ```
 
-    The `resolvers` subproject applies the module plugin:
+    The `resolvers` subproject applies the Kotlin module language plugin.
 
     ```kotlin
     plugins {
@@ -553,7 +554,7 @@ If you are evaluating Viaduct for real adoption, the next question is usually no
 
     Viaduct uses Gradle plugins to orchestrate schema validation, code generation, and application packaging:
 
-    * `com.airbnb.viaduct.application-gradle-plugin` is applied to the root project that creates the `Viaduct` instance and hosts the web server.
+    * `com.airbnb.viaduct.javaapi` is enabled through settings `usePlugin` for the application project that creates the `Viaduct` instance and hosts the web server.
     * `com.airbnb.viaduct.module-java-gradle-plugin` is applied to each project containing Java resolvers and their schema. It generates Java types and resolver base classes and wires annotation processing for Viaduct's module configuration.
 
     The build scripts use Gradle's Kotlin DSL (`.gradle.kts`), while the application and resolvers are written in Java.
@@ -563,9 +564,11 @@ If you are evaluating Viaduct for real adoption, the next question is usually no
     ```kotlin
     plugins {
         id("com.airbnb.viaduct.settings-gradle-plugin")
+        id("com.airbnb.viaduct.javaapi") apply false
     }
 
     includeViaductApplication {
+        usePlugin("com.airbnb.viaduct.javaapi")
         project(":")
         modulePackagePrefix("com.example.starwars")
 
@@ -580,13 +583,12 @@ If you are evaluating Viaduct for real adoption, the next question is usually no
     }
     ```
 
-    The root `build.gradle.kts` applies the application and Micronaut plugins:
+    The root `build.gradle.kts` applies the JVM and Micronaut plugins:
 
     ```kotlin
     plugins {
         `java-library`
         alias(libs.plugins.micronautApplication)
-        alias(libs.plugins.viaduct.application)
         jacoco
     }
     ```
@@ -599,7 +601,7 @@ If you are evaluating Viaduct for real adoption, the next question is usually no
     implementation(libs.viaduct.runtime)
     ```
 
-    The `modules/filmography/build.gradle.kts` file applies the Java module plugin:
+    The `modules/filmography/build.gradle.kts` file applies the Java module language plugin.
 
     ```kotlin
     plugins {
@@ -616,7 +618,7 @@ If you are evaluating Viaduct for real adoption, the next question is usually no
     }
     ```
 
-    The Micronaut annotation processor registers the resolver classes with dependency injection. The Java module plugin handles Viaduct's generated types and module configuration.
+    The Micronaut annotation processor registers the resolver classes with dependency injection. The Java module language plugin handles Viaduct's generated types and module configuration.
 
     This example has two tenant modules. Each owns part of the schema and its Java resolvers; the host service brings them together and handles HTTP, runtime configuration, and dependency injection.
 

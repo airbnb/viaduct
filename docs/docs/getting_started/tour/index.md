@@ -158,27 +158,26 @@ At the top of `build.gradle.kts` you'll see:
 
 === "Java"
 
-    The Gradle build remains Kotlin DSL. Apply the Java module plugin for Java tenant code:
+    The Gradle build remains Kotlin DSL. The Java tenant uses the Java module language plugin.
 
     ```kotlin
     plugins {
         application
         `java-library`
-        id("com.airbnb.viaduct.application-gradle-plugin") version "3.0.0"
-        id("com.airbnb.viaduct.module-java-gradle-plugin") version "3.0.0"
+        id("com.airbnb.viaduct.module-java-gradle-plugin") version "4.0.0"
     }
     ```
 
-    The settings plugin registers each module’s package, and the Java module plugin generates Java GRTs and resolver bases and processes Java annotations. See [Build From Scratch](../setup/from_scratch/index.md) for the complete settings and dependency configuration.
+    Settings declares each module’s package. The Java module language plugin uses the application’s generated Java types, generates resolver bases, and wires the Viaduct annotation processor. See [Build From Scratch](../setup/from_scratch/index.md) for the complete settings and dependency configuration.
 
 
-You can see the two Viaduct plugins appearing here:
+Settings and the tenant build scripts have separate roles:
 
-- **`viaduct.application`**: This plugin must be applied to the root project. It coordinates build processes across the entire application, including code generation.
+- **Settings plugins** declare the application and its modules and install the schema and resource conventions. Select the application’s language settings plugins with `usePlugin("com.airbnb.viaduct.kotlinapi")` or `usePlugin("com.airbnb.viaduct.javaapi")`.
 
-- **`viaduct.module`** (Kotlin) / **`viaduct.module.java`** (Java): This plugin indicates that the project contains application code (resolvers). One or more projects in your build can apply this plugin.
+- **Module language plugins** configure a module’s resolver code. The demo version catalogs provide `viaduct.module` for Kotlin and `viaduct.module.java` for Java.
 
-Viaduct applications are structured as multi-project Gradle builds. The CLI starter is the simplest case — a single project where both plugins are applied to the same module. Real-world applications usually split things up: one project applies `viaduct.application` and wires the runtime, and one or more sibling projects apply `viaduct.module` to contribute schema and resolvers (one Gradle module per **tenant**). The Star Wars demo's [Architecture section](../starwars/architecture/index.md) walks through that layout end-to-end.
+The CLI starter uses one Gradle project. Settings declares it as both the application and a module, and its build script applies the module language plugin. Larger applications typically use a dedicated application project for the runtime and one project per tenant to contribute schema and resolvers. The Star Wars demo's [Architecture section](../starwars/architecture/index.md) walks through that layout.
 
 ## What's Next
 

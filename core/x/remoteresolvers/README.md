@@ -99,6 +99,8 @@ unzip -p demoapps/starwars/modules/filmography/build/libs/filmography.jar \
   META-INF/viaduct/execution-manifest/module/filmography/generated/com.airbnb.viaduct.module-gradle-plugin/com.example.starwars.filmography.json | jq .
 ```
 
+The path uses the stable Kotlin manifest producer key `com.airbnb.viaduct.module-gradle-plugin`.
+
 ## Proxying field resolvers
 
 The engine proxies the field coordinates in `RemoteResolverSelection`. It resolves each field's
