@@ -163,7 +163,7 @@ jobs:
           if [ "$RUNNER_OS" = Linux ]; then
             python3 .github/scripts/memory_probe.py "$RUNNER_TEMP/memprobe" &
             trap "kill $! 2>/dev/null || true" EXIT
-            probe_flags=(--no-build-cache)
+            probe_flags=(--no-build-cache "-Pkotlin.daemon.jvmargs=-XX:-UseBASE64Intrinsics -Xmx3g")
           fi
           echo "🧪 Running tests..."
           # The root test aggregate does not include build-logic's own tests.
