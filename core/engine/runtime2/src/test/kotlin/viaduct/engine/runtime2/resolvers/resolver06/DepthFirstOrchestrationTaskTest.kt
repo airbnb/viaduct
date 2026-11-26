@@ -6,6 +6,7 @@ import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.requireType
 import viaduct.engine.runtime2.model.testing.TestWorld
 import viaduct.engine.runtime2.model.testing.fragmentFrom
+import viaduct.engine.runtime2.resolution.framework.Demand
 import viaduct.engine.runtime2.resolution.framework.OEROccurrence
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
 import viaduct.graphql.schema.ViaductSchema
@@ -35,17 +36,18 @@ class DepthFirstOrchestrationTaskTest {
 
         val selections = worldFixture.schemas.fragmentFrom("fragment ignored on Query { __typename }").subselections
 
+        val operation =
+            DepthFirstOperationContext(
+                SharedOperationContext.create(world),
+                { it },
+                DepthFirstReactor(SharedOperationContext.create(world), { it }, source, selections),
+            )
+
         assertFailsWith<IllegalArgumentException> {
-            DepthFirstOrchestrationTask.create(
-                operation = DepthFirstOperationContext(
-                    SharedOperationContext.create(world),
-                    { it },
-                    DepthFirstReactor(SharedOperationContext.create(world), { it }, source, selections),
-                ),
+            operation.passiveValues(queryOERDepth = 0).closeAndPrepareOrchestration(
                 occurrence = OEROccurrence(target, emptyList(), target),
                 source = source,
-                constructionDemand = selections,
-                queryOERDepth = 0,
+                constructionDemand = Demand.checked(selections),
             )
         }
     }

@@ -23,6 +23,7 @@ import viaduct.engine.runtime2.model.testing.TestWorld
 import viaduct.engine.runtime2.resolution.framework.CycleCheckState
 import viaduct.engine.runtime2.resolution.framework.CycleSlotKind
 import viaduct.engine.runtime2.resolution.framework.CycleTask
+import viaduct.engine.runtime2.resolution.framework.Demand
 import viaduct.engine.runtime2.resolution.framework.OEROccurrence
 import viaduct.engine.runtime2.resolution.framework.ResolutionObserver
 import viaduct.engine.runtime2.resolution.framework.ResolverInvocationObservation
@@ -30,7 +31,6 @@ import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
 import viaduct.engine.runtime2.resolvers.resolver21.CoroutineFieldPublicationOccurrence
 import viaduct.engine.runtime2.resolvers.resolver21.CoroutineFieldResolverTask
 import viaduct.engine.runtime2.resolvers.resolver21.CoroutineOperationContext
-import viaduct.engine.runtime2.resolvers.resolver21.CoroutineOrchestrationTask
 import viaduct.engine.runtime2.schema.operationSelectionsFrom
 
 class PublicationValidationTest : ResolutionDispatcherResource {
@@ -56,11 +56,10 @@ class PublicationValidationTest : ResolutionDispatcherResource {
                         cycleChecker = CycleCheckState.create(),
                     )
                     val root = ObjectEngineResult.of(world.schema.requireQueryTypeDef(), mutable = true)
-                    val orchestration = CoroutineOrchestrationTask.create(
-                        operation,
+                    val orchestration = operation.passiveValues.closeAndPrepareOrchestration(
                         OEROccurrence(root, emptyList(), root),
                         world.resolverRegistry.createRootQueryInput(),
-                        worldFixture.schemas.operationSelectionsFrom("{ invalid sibling }"),
+                        Demand.checked(worldFixture.schemas.operationSelectionsFrom("{ invalid sibling }")),
                     )
                     val publications = CoroutineFieldResolverTask.prepareAll(orchestration)
                     val invalid = publications.single { it.selection.key.field.name == "invalid" }
@@ -126,11 +125,10 @@ class PublicationValidationTest : ResolutionDispatcherResource {
                         cycleChecker,
                     )
                     val root = ObjectEngineResult.of(world.schema.requireQueryTypeDef(), mutable = true)
-                    val orchestration = OrchestrationTask.create(
-                        operation,
+                    val orchestration = operation.passiveValues.closeAndPrepareOrchestration(
                         OEROccurrence(root, emptyList(), root),
                         world.resolverRegistry.createRootQueryInput(),
-                        worldFixture.schemas.operationSelectionsFrom("{ invalid sibling }"),
+                        Demand.checked(worldFixture.schemas.operationSelectionsFrom("{ invalid sibling }")),
                     )
                     val publications = FieldResolverTask.prepareAll(orchestration)
                     val invalid = publications.single { it.sourceOccurrence.selection.key.field.name == "invalid" }

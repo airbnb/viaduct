@@ -20,6 +20,7 @@ import viaduct.engine.runtime2.model.requireObjectField
 import viaduct.engine.runtime2.model.requireQueryTypeDef
 import viaduct.engine.runtime2.model.testing.TestWorld
 import viaduct.engine.runtime2.model.testing.fragmentFrom
+import viaduct.engine.runtime2.resolution.framework.Demand
 import viaduct.engine.runtime2.resolution.framework.OEROccurrence
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
 import viaduct.engine.runtime2.schema.operationSelectionsFrom
@@ -41,11 +42,10 @@ open class FieldCheckerClosureTest : ResolutionDispatcherResource {
             )
             val operation = OperationContext.create(SharedOperationContext.create(world.newAssumptions(usePrecomputedConstructionDemand = precomputedConstructionDemand)), this)
             val root = ObjectEngineResult.of(world.schema.requireQueryTypeDef(), mutable = true)
-            val task = OrchestrationTask.create(
-                operation,
+            val task = operation.passiveValues.closeAndPrepareOrchestration(
                 OEROccurrence(root, emptyList(), root),
                 world.assumptions.resolverRegistry.createRootQueryInput(),
-                world.schemas.operationSelectionsFrom("{ checked }")
+                Demand.checked(world.schemas.operationSelectionsFrom("{ checked }"))
             )
             assertEquals(
                 setOf("checked", "protected"),

@@ -117,20 +117,12 @@ internal fun OperationContext.startResolve(
 ): ObjectEngineResult {
     val result: ObjectEngineResult =
         OrchestrationTask.createObjectResult(this, source.schemaType(world.schema), selections)
-    val orchestration =
-        OrchestrationTask.create(
-            operation = this@startResolve,
-            occurrence =
-                OEROccurrence(
-                    root = result,
-                    path = emptyList(),
-                    target = result,
-                ),
-            source = source,
-            constructionDemand = selections,
-            creator = creator,
-        )
-    dispatcher.dispatchOrchestration(orchestration)
+    passiveValues.resolveObjectOccurrence(
+        source = source,
+        occurrence = OEROccurrence(root = result, path = emptyList(), target = result),
+        constructionDemand = selections,
+        creator = creator,
+    )
     return result
 }
 

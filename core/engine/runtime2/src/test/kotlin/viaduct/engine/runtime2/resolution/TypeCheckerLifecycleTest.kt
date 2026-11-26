@@ -185,8 +185,7 @@ open class TypeCheckerLifecycleTest : ResolutionDispatcherResource {
             val key = ObjectEngineResult.GroundKey.of(world.schema.requireObjectField("Query", "subject"), emptyMap())
             root.setCellValue(key, checked)
             root.freeze()
-            val task = OrchestrationTask.create(
-                operation,
+            val task = operation.passiveValues.closeAndPrepareOrchestration(
                 OEROccurrence(root, listOf(key), checked),
                 engineObjectDataOf(type),
                 selections,

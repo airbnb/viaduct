@@ -10,10 +10,12 @@ import viaduct.engine.runtime2.model.RootFieldReferenceData
 import viaduct.engine.runtime2.model.SelectionForest
 import viaduct.engine.runtime2.resolution.framework.Demand
 import viaduct.engine.runtime2.resolution.framework.OEROccurrence
+import viaduct.engine.runtime2.resolution.framework.OrchestrationConstructionDemand
 import viaduct.engine.runtime2.resolution.framework.ResolutionTask
 import viaduct.engine.runtime2.resolution.framework.SharedPassiveValueResolutionLogic
 import viaduct.engine.runtime2.resolvers.GroundedFieldPublicationOccurrence
 import viaduct.engine.runtime2.resolvers.applicableGroundSelections
+import viaduct.engine.runtime2.resolvers.closeOrchestrationConstructionDemand
 import viaduct.engine.runtime2.resolvers.referencePassiveFieldKeys
 import viaduct.graphql.schema.ViaductSchema
 
@@ -25,18 +27,28 @@ import viaduct.graphql.schema.ViaductSchema
 class DepthFirstPassiveValueResolutionLogic(
     operation: DepthFirstOperationContext,
     private val queryOERDepth: Int,
-) : SharedPassiveValueResolutionLogic<DepthFirstOrchestrationTask, DepthFirstOperationContext>(operation) {
-    override fun createOrchestrationTask(
+) : SharedPassiveValueResolutionLogic<DepthFirstOrchestrationTask, DepthFirstOperationContext, OrchestrationConstructionDemand<ObjectSelectionForest>>(operation) {
+    override fun closeConstructionDemand(
         occurrence: OEROccurrence,
+        queryOccurrence: OEROccurrence,
         source: EngineObjectData.Sync,
         constructionDemand: Demand<SelectionForest>,
+    ): OrchestrationConstructionDemand<ObjectSelectionForest> =
+        source.closeOrchestrationConstructionDemand(operation, occurrence, queryOccurrence, OrchestrationConstructionDemand(constructionDemand, Demand.EMPTY))
+
+    override fun prepareOrchestration(
+        occurrence: OEROccurrence,
+        queryOccurrence: OEROccurrence,
+        source: EngineObjectData.Sync,
+        closedDemand: OrchestrationConstructionDemand<ObjectSelectionForest>,
         creator: ResolutionTask?,
     ): DepthFirstOrchestrationTask =
-        DepthFirstOrchestrationTask.create(
+        DepthFirstOrchestrationTask.prepare(
             operation = operation,
             occurrence = occurrence,
+            queryOccurrence = queryOccurrence,
             source = source,
-            constructionDemand = constructionDemand,
+            closedConstructionDemand = closedDemand,
             queryOERDepth = queryOERDepth,
             creator = creator,
         )

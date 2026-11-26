@@ -32,6 +32,9 @@ internal sealed interface ValueSourceOccurrence {
         get() = Demand.checked(selection.subselections)
 }
 
+/** A value source that closure classifies as active: a task, not the passive source, publishes its field. */
+internal sealed interface ActiveFieldOccurrence : ValueSourceOccurrence
+
 /** One resolver invocation, with its identity, instantiated inputs, and variable definitions. */
 internal data class FieldResolverOccurrence(
     override val selection: ObjectSelection,
@@ -44,7 +47,7 @@ internal data class FieldResolverOccurrence(
     val dependencies: FieldResolverDependencies,
     override val publicationConstructionDemand: Demand<SelectionForest> =
         Demand.checked(selection.subselections),
-) : ValueSourceOccurrence {
+) : ActiveFieldOccurrence {
     override val publicationPath: List<PathComponent>
         get() = invocationPath
 
@@ -60,7 +63,7 @@ internal data class RootFieldReferenceOccurrence(
     override val publicationPath: List<PathComponent>,
     override val publicationExpectedType: ViaductSchema.TypeExpr<ViaductSchema.OutputTypeDef> =
         selection.key.field.outputType,
-) : ValueSourceOccurrence
+) : ActiveFieldOccurrence
 
 /** A conditioned passive value whose embedded references must not launch before activation. */
 internal data class PassiveValueOccurrence(

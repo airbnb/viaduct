@@ -159,45 +159,38 @@ internal class FieldResolverTask(
                 orchestrationTask.queryOER to orchestrationTask.closedConstructionDemand.queryRooted,
             ).flatMap { (oer, closedOER) ->
                 buildList {
-                    closedOER.fieldResolverOccurrences.forEach { (objectKey, fieldResolverOccurrence) ->
-                        check(objectKey.field in operation.world.resolverRegistry) {
-                            "Resolution attempted to install passive key $objectKey"
-                        }
-                        check(!oer.source.isPresent(objectKey.field.name)) {
-                            "Resolution attempted to install source-provided key $objectKey"
-                        }
+                    closedOER.forEachActiveOccurrence { activeOccurrence ->
+                        val objectKey = activeOccurrence.selection.key
+
+                        // Check that the source agrees with closure's classification, then find the provider reads.
+                        val providerReads =
+                            when (activeOccurrence) {
+                                is FieldResolverOccurrence -> {
+                                    check(objectKey.field in operation.world.resolverRegistry) {
+                                        "Resolution attempted to install passive key $objectKey"
+                                    }
+                                    check(!oer.source.isPresent(objectKey.field.name)) {
+                                        "Resolution attempted to install source-provided key $objectKey"
+                                    }
+                                    closedOER.variableProviderReadsByResolverOccurrence.getValue(activeOccurrence.resolverOccurrenceId)
+                                }
+                                is RootFieldReferenceOccurrence -> {
+                                    check(oer.source.outputValue(objectKey.field.name).rootFieldReferenceDataOrNull() === activeOccurrence.reference) {
+                                        "Resolution root reference does not match its source value"
+                                    }
+                                    emptyList()
+                                }
+                            }
+
                         add(
                             prepare(
                                 operation = operation,
                                 creator = orchestrationTask,
                                 oerOccurrence = oer.occurrence,
-                                sourceOccurrence = fieldResolverOccurrence,
+                                sourceOccurrence = activeOccurrence,
                                 checkerScheduled = objectKey in closedOER.fieldCheckerOccurrences,
                                 queryOER = orchestrationTask.queryOER,
-                                providerReads =
-                                    closedOER.variableProviderReadsByResolverOccurrence.getValue(
-                                        fieldResolverOccurrence.resolverOccurrenceId,
-                                    ),
-                            ),
-                        )
-                    }
-                    closedOER.rootFieldReferenceOccurrences.values.forEach { referenceOccurrence ->
-                        val objectKey = referenceOccurrence.selection.key
-                        check(
-                            oer.source.outputValue(objectKey.field.name).rootFieldReferenceDataOrNull() ===
-                                referenceOccurrence.reference,
-                        ) {
-                            "Resolution root reference does not match its source value"
-                        }
-                        add(
-                            prepare(
-                                operation = operation,
-                                creator = orchestrationTask,
-                                oerOccurrence = oer.occurrence,
-                                sourceOccurrence = referenceOccurrence,
-                                checkerScheduled = objectKey in closedOER.fieldCheckerOccurrences,
-                                queryOER = orchestrationTask.queryOER,
-                                providerReads = emptyList(),
+                                providerReads = providerReads,
                             ),
                         )
                     }
@@ -486,17 +479,12 @@ private suspend fun FieldResolverDependencies.resolveQueryFragment(
     val source = operation.world.resolverRegistry.createRootQueryInput()
     val queryResult =
         OrchestrationTask.createObjectResult(operation, source.schemaType(operation.world.schema), Demand.checked(constructionSelections))
+    // Observers must see the prepared Query OER before dispatch, so this skips resolveObjectOccurrence.
     val orchestration =
-        OrchestrationTask.create(
-            operation = operation,
-            occurrence =
-                OEROccurrence(
-                    root = queryResult,
-                    path = emptyList(),
-                    target = queryResult,
-                ),
+        operation.passiveValues.closeAndPrepareOrchestration(
+            occurrence = OEROccurrence(root = queryResult, path = emptyList(), target = queryResult),
             source = source,
-            constructionDemand = constructionSelections,
+            constructionDemand = Demand.checked(constructionSelections),
             creator = creator,
         )
     operation.resolutionObserver.onIndependentQueryFragmentPrepared?.invoke(queryFragment.resolverOccurrenceId, queryResult)

@@ -93,11 +93,10 @@ class OrchestrationTaskTest : ResolutionDispatcherResource {
             val operation = OperationContext.create(SharedOperationContext.create(world, resolutionObserver = observer), this)
             val root = ObjectEngineResult.of(world.schema.requireQueryTypeDef(), mutable = true)
 
-            OrchestrationTask.create(
-                operation,
+            operation.passiveValues.closeAndPrepareOrchestration(
                 OEROccurrence(root, emptyList(), root),
                 world.resolverRegistry.createRootQueryInput(),
-                fixture.schemas.operationSelectionsFrom("{ first second }"),
+                Demand.checked(fixture.schemas.operationSelectionsFrom("{ first second }")),
             )
 
             assertEquals(1, queryOERs)
@@ -215,11 +214,10 @@ class OrchestrationTaskTest : ResolutionDispatcherResource {
                 requestScope = this,
             )
             val root = ObjectEngineResult.of(world.schema.requireQueryTypeDef(), mutable = true)
-            val task = OrchestrationTask.create(
-                operation,
+            val task = operation.passiveValues.closeAndPrepareOrchestration(
                 OEROccurrence(root, emptyList(), root),
                 world.resolverRegistry.createRootQueryInput(),
-                worldFixture.schemas.operationSelectionsFrom("{ second }"),
+                Demand.checked(worldFixture.schemas.operationSelectionsFrom("{ second }")),
             )
             assertEquals(
                 setOf("first", "second"),
@@ -254,11 +252,10 @@ class OrchestrationTaskTest : ResolutionDispatcherResource {
             val world = worldFixture.assumptions
             val operation = OperationContext.create(SharedOperationContext.create(world), this)
             val root = ObjectEngineResult.of(world.schema.requireQueryTypeDef(), mutable = true)
-            val task = OrchestrationTask.create(
-                operation,
+            val task = operation.passiveValues.closeAndPrepareOrchestration(
                 OEROccurrence(root, emptyList(), root),
                 world.resolverRegistry.createRootQueryInput(),
-                worldFixture.schemas.operationSelectionsFrom("{ consumer }"),
+                Demand.checked(worldFixture.schemas.operationSelectionsFrom("{ consumer }")),
             )
             assertNull(task.creator)
             val publications = FieldResolverTask.prepareAll(task)
@@ -296,11 +293,10 @@ class OrchestrationTaskTest : ResolutionDispatcherResource {
                     val root = ObjectEngineResult.of(world.schema.requireQueryTypeDef(), mutable = true)
                     val reference = RootFieldReferenceData.of(listOf(world.schema.requireObjectField("Query", "target")), emptyMap())
                     val source = world.objectOf("Query") { "values" setTo listOf(reference) }
-                    val task = OrchestrationTask.create(
-                        operation,
+                    val task = operation.passiveValues.closeAndPrepareOrchestration(
                         OEROccurrence(root, emptyList(), root),
                         source,
-                        worldFixture.schemas.operationSelectionsFrom("{ outer }"),
+                        Demand.checked(worldFixture.schemas.operationSelectionsFrom("{ outer }")),
                     )
                     PassiveValueResolutionLogic(operation).materializePassiveFields(
                         task,
@@ -341,11 +337,10 @@ class OrchestrationTaskTest : ResolutionDispatcherResource {
             val operation = OperationContext.create(SharedOperationContext.create(world), this)
             val root = ObjectEngineResult.of(world.schema.requireQueryTypeDef(), mutable = true)
             val source = world.objectOf("Query") { "passive" setTo 3 }
-            val task = OrchestrationTask.create(
-                operation,
+            val task = operation.passiveValues.closeAndPrepareOrchestration(
                 OEROccurrence(root, emptyList(), root),
                 source,
-                worldFixture.schemas.operationSelectionsFrom("{ checked pending passive }"),
+                Demand.checked(worldFixture.schemas.operationSelectionsFrom("{ checked pending passive }")),
             )
             val preparation = task.checkerPreparation
             assertEquals(3, preparation.claimedSlots.size)
@@ -402,8 +397,7 @@ class OrchestrationTaskTest : ResolutionDispatcherResource {
                     )
 
                 assertFailsWith<IllegalArgumentException> {
-                    OrchestrationTask.create(
-                        operation = operation,
+                    operation.passiveValues.closeAndPrepareOrchestration(
                         occurrence =
                             OEROccurrence(
                                 root = root,
@@ -417,7 +411,7 @@ class OrchestrationTaskTest : ResolutionDispatcherResource {
                                 target = target,
                             ),
                         source = world.resolverRegistry.createRootQueryInput(),
-                        constructionDemand = selectionForestOf(),
+                        constructionDemand = Demand.checked(selectionForestOf()),
                     )
                 }
             }

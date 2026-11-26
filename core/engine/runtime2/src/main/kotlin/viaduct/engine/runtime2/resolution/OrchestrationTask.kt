@@ -9,11 +9,9 @@ import viaduct.engine.runtime2.model.Promise
 import viaduct.engine.runtime2.model.SelectionForest
 import viaduct.engine.runtime2.model.VariableBinding
 import viaduct.engine.runtime2.model.registry.VariableDefinition
-import viaduct.engine.runtime2.model.requireQueryTypeDef
 import viaduct.engine.runtime2.model.schemaType
 import viaduct.engine.runtime2.resolution.framework.Demand
 import viaduct.engine.runtime2.resolution.framework.OEROccurrence
-import viaduct.engine.runtime2.resolution.framework.OrchestrationConstructionDemand
 import viaduct.engine.runtime2.resolution.framework.ResolutionTask
 import viaduct.engine.runtime2.resolution.framework.SharedOERContext
 import viaduct.engine.runtime2.resolution.framework.argumentsContainErrorValue
@@ -72,42 +70,19 @@ internal class OrchestrationTask private constructor(
                 },
             )
 
-        /** Creates a fully prepared task without dispatching its active work. */
-        fun create(
+        /**
+         * Returns a task ready for passive descent. Declares the closed demand's bindings, installs its
+         * `@parent` cells, reserves checker cells and prepares checker publications; dispatches nothing.
+         */
+        fun prepare(
             operation: OperationContext,
             occurrence: OEROccurrence,
+            queryOccurrence: OEROccurrence,
             source: EngineObjectData.Sync,
-            constructionDemand: SelectionForest,
-            creator: ResolutionTask? = null,
-        ): OrchestrationTask =
-            create(
-                operation,
-                occurrence,
-                source,
-                Demand.checked(constructionDemand),
-                creator,
-            )
-
-        fun create(
-            operation: OperationContext,
-            occurrence: OEROccurrence,
-            source: EngineObjectData.Sync,
-            constructionDemand: Demand<SelectionForest>,
+            closedConstructionDemand: ClosedConstructionDemandContext,
             creator: ResolutionTask? = null,
         ): OrchestrationTask {
-            val queryType = operation.world.schema.requireQueryTypeDef()
             val emptyQuerySource = operation.world.resolverRegistry.createRootQueryInput()
-            val queryResult = ObjectEngineResult.of(queryType, mutable = true)
-            val queryOccurrence = OEROccurrence(queryResult, emptyList(), queryResult)
-            val closedConstructionDemand =
-                source.closeSelectedConstructionDemand(
-                    world = operation.world,
-                    objectOccurrence = occurrence,
-                    queryOccurrence = queryOccurrence,
-                    initialDemand = OrchestrationConstructionDemand(constructionDemand, Demand.EMPTY),
-                    engineExecutionContext = operation.engineExecutionContext,
-                    operationDemandCache = operation.demandCache,
-                )
             val objectOER =
                 SharedOERContext(
                     occurrence = occurrence,
@@ -144,8 +119,7 @@ internal class OrchestrationTask private constructor(
         get() = typeCheckerPublications.isNotEmpty() || conditionedPassivePublications.isNotEmpty() || listOf(closedConstructionDemand.objectRooted, closedConstructionDemand.queryRooted).any {
                 closedOER ->
             closedOER.fieldCheckerOccurrences.isNotEmpty() ||
-                closedOER.fieldResolverOccurrences.isNotEmpty() ||
-                closedOER.rootFieldReferenceOccurrences.isNotEmpty() ||
+                closedOER.hasActiveFields ||
                 closedOER.variableProviderReadsByResolverOccurrence.values.any { it.isNotEmpty() }
         }
 
@@ -183,21 +157,9 @@ internal class OrchestrationTask private constructor(
     override fun validateDispatch() {
         listOf(objectOER to closedConstructionDemand.objectRooted, queryOER to closedConstructionDemand.queryRooted)
             .forEach { (oer, closedOER) ->
-                closedOER.closedValueSelections.byKey().forEach entry@{ (key, selection) ->
-                    if (selection.inclusionCondition === InclusionCondition.Never) {
-                        return@entry
-                    }
-                    if (
-                        key !in closedOER.fieldResolverOccurrences &&
-                        key !in closedOER.rootFieldReferenceOccurrences
-                    ) {
-                        check(
-                            key is ObjectEngineResult.GroundKey &&
-                                oer.occurrence.target.isCellSet(key),
-                        ) {
-                            "Resolution passive key $key was not materialized by " +
-                                "resolvePassiveValues"
-                        }
+                closedOER.passiveKeys().forEach { key ->
+                    check(key is ObjectEngineResult.GroundKey && oer.occurrence.target.isCellSet(key)) {
+                        "Resolution passive key $key was not materialized by resolvePassiveValues"
                     }
                 }
             }

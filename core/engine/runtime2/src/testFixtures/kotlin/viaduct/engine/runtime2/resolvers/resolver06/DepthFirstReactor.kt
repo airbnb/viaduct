@@ -60,7 +60,7 @@ class DepthFirstReactor(
             enqueue(task)
         } else {
             result = ObjectEngineResult.of(source.schemaType(operation.world.schema), mutable = true)
-            operation.passiveValues(queryOERDepth = 0).resolvePassiveObjectValues(
+            operation.passiveValues(queryOERDepth = 0).resolveObjectOccurrence(
                 source,
                 OEROccurrence(result, emptyList(), result),
                 Demand.checked(selections),

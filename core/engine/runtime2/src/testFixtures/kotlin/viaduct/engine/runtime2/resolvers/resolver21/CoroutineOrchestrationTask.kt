@@ -21,7 +21,6 @@ import viaduct.engine.runtime2.resolution.framework.OrchestrationConstructionDem
 import viaduct.engine.runtime2.resolution.framework.ResolutionTask
 import viaduct.engine.runtime2.resolution.framework.SharedOERContext
 import viaduct.engine.runtime2.resolution.installParentBackedgeFields
-import viaduct.engine.runtime2.resolvers.closeOrchestrationConstructionDemand
 import viaduct.graphql.schema.ViaductSchema
 
 /** Closes one object's demand before passive descent, then prepares and dispatches its field work. */
@@ -55,47 +54,16 @@ class CoroutineOrchestrationTask private constructor(
             )
         }
 
-        /** Prepares grounded bindings and parent backedges without dispatching active work. */
-        fun create(
+        /** Settles an absent type check and installs parent backedges without dispatching active work. */
+        fun prepare(
             operation: CoroutineOperationContext,
             occurrence: OEROccurrence,
+            queryOccurrence: OEROccurrence,
             source: EngineObjectData.Sync,
-            constructionDemand: SelectionForest,
-            creator: ResolutionTask? = null,
-        ): CoroutineOrchestrationTask =
-            create(
-                operation,
-                occurrence,
-                source,
-                Demand.checked(constructionDemand),
-                creator,
-            )
-
-        /** Retains checked and unchecked descendant demand through passive object boundaries. */
-        fun create(
-            operation: CoroutineOperationContext,
-            occurrence: OEROccurrence,
-            source: EngineObjectData.Sync,
-            constructionDemand: Demand<SelectionForest>,
+            closedConstructionDemand: OrchestrationConstructionDemand<ObjectSelectionForest>,
             creator: ResolutionTask? = null,
         ): CoroutineOrchestrationTask {
-            require(source.schemaType(operation.world.schema) == occurrence.target.type) {
-                "Source type ${source.schemaType(operation.world.schema).name} does not match result type ${occurrence.target.type.name}"
-            }
             val queryType = operation.world.schema.requireQueryTypeDef()
-            val queryResult = ObjectEngineResult.of(queryType, mutable = true)
-            val queryOccurrence = OEROccurrence(queryResult, emptyList(), queryResult)
-            val closedConstructionDemand =
-                source.closeOrchestrationConstructionDemand(
-                    operation = operation,
-                    objectOccurrence = occurrence,
-                    queryOccurrence = queryOccurrence,
-                    initialDemand =
-                        OrchestrationConstructionDemand(
-                            objectRooted = constructionDemand,
-                            queryRooted = Demand.EMPTY,
-                        ),
-                )
             val checkerApplies = closedConstructionDemand.objectRooted.typeCheckDemanded &&
                 operation.world.resolverRegistry.typeChecker(occurrence.target.type)?.isApplicable(occurrence.root, occurrence.path, executionContext = null) == true
             if (!checkerApplies && !occurrence.target.typeCheckerResult.isCompleted) {

@@ -62,8 +62,7 @@ fun CoroutineOperationContext.startResolve(
     }
     val result = CoroutineOrchestrationTask.createObjectResult(this, source.schemaType(world.schema), demand)
     val orchestration =
-        CoroutineOrchestrationTask.create(
-            this@startResolve,
+        this@startResolve.passiveValues.closeAndPrepareOrchestration(
             OEROccurrence(result, emptyList(), result),
             source,
             demand,

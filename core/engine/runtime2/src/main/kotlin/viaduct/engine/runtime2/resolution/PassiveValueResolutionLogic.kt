@@ -13,6 +13,7 @@ import viaduct.engine.runtime2.model.SelectionForest
 import viaduct.engine.runtime2.model.merge
 import viaduct.engine.runtime2.resolution.framework.Demand
 import viaduct.engine.runtime2.resolution.framework.OEROccurrence
+import viaduct.engine.runtime2.resolution.framework.OrchestrationConstructionDemand
 import viaduct.engine.runtime2.resolution.framework.ResolutionTask
 import viaduct.engine.runtime2.resolution.framework.SharedPassiveValueResolutionLogic
 import viaduct.graphql.schema.ViaductSchema
@@ -20,18 +21,34 @@ import viaduct.graphql.schema.ViaductSchema
 /** Only symbolic demand and task dispatch are specific to Resolution. */
 internal class PassiveValueResolutionLogic(
     operation: OperationContext,
-) : SharedPassiveValueResolutionLogic<OrchestrationTask, OperationContext>(operation) {
+) : SharedPassiveValueResolutionLogic<OrchestrationTask, OperationContext, ClosedConstructionDemandContext>(operation) {
     override fun createObjectResult(
         type: ViaductSchema.Object,
         constructionDemand: Demand<SelectionForest>,
     ): ObjectEngineResult = OrchestrationTask.createObjectResult(operation, type, constructionDemand)
 
-    override fun createOrchestrationTask(
+    override fun closeConstructionDemand(
         occurrence: OEROccurrence,
+        queryOccurrence: OEROccurrence,
         source: EngineObjectData.Sync,
         constructionDemand: Demand<SelectionForest>,
+    ): ClosedConstructionDemandContext =
+        source.closeSelectedConstructionDemand(
+            world = operation.world,
+            objectOccurrence = occurrence,
+            queryOccurrence = queryOccurrence,
+            initialDemand = OrchestrationConstructionDemand(constructionDemand, Demand.EMPTY),
+            engineExecutionContext = operation.engineExecutionContext,
+            operationDemandCache = operation.demandCache,
+        )
+
+    override fun prepareOrchestration(
+        occurrence: OEROccurrence,
+        queryOccurrence: OEROccurrence,
+        source: EngineObjectData.Sync,
+        closedDemand: ClosedConstructionDemandContext,
         creator: ResolutionTask?,
-    ): OrchestrationTask = OrchestrationTask.create(operation, occurrence, source, constructionDemand, creator)
+    ): OrchestrationTask = OrchestrationTask.prepare(operation, occurrence, queryOccurrence, source, closedDemand, creator)
 
     override fun closedConstructionDemand(orchestration: OrchestrationTask): Demand<ObjectSelectionForest> = orchestration.closedConstructionDemand.objectRooted.constructionDemand
 

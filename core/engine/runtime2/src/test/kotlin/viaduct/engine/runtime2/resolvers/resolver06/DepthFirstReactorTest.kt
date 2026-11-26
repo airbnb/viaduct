@@ -10,6 +10,7 @@ import viaduct.engine.runtime2.model.requireQueryTypeDef
 import viaduct.engine.runtime2.model.schemaType
 import viaduct.engine.runtime2.model.testing.TestWorld
 import viaduct.engine.runtime2.model.testing.fragmentFrom
+import viaduct.engine.runtime2.resolution.framework.Demand
 import viaduct.engine.runtime2.resolution.framework.OEROccurrence
 import viaduct.engine.runtime2.resolution.framework.SharedOERContext
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
@@ -70,12 +71,10 @@ class DepthFirstReactorTest {
                 queryOERDepth = 1,
             )
         val orchestration =
-            DepthFirstOrchestrationTask.create(
-                operation,
+            operation.passiveValues(queryOERDepth = 0).closeAndPrepareOrchestration(
                 occurrence,
                 source,
-                selections,
-                queryOERDepth = 0,
+                Demand.checked(selections),
             )
         assertSame(operation, orchestration.operation)
         val publication = firstResolver.publication

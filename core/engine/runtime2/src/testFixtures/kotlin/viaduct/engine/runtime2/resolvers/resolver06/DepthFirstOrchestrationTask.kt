@@ -7,14 +7,12 @@ import viaduct.engine.runtime2.model.ObjectSelectionForest
 import viaduct.engine.runtime2.model.PathComponent
 import viaduct.engine.runtime2.model.ResolverOccurrenceId
 import viaduct.engine.runtime2.model.RootFieldReferenceData
-import viaduct.engine.runtime2.model.SelectionForest
 import viaduct.engine.runtime2.model.engineObjectDataOf
 import viaduct.engine.runtime2.model.merge
 import viaduct.engine.runtime2.model.outputValue
 import viaduct.engine.runtime2.model.requireQueryTypeDef
 import viaduct.engine.runtime2.model.rootFieldReferenceDataOrNull
 import viaduct.engine.runtime2.model.schemaType
-import viaduct.engine.runtime2.resolution.framework.Demand
 import viaduct.engine.runtime2.resolution.framework.OEROccurrence
 import viaduct.engine.runtime2.resolution.framework.OrchestrationConstructionDemand
 import viaduct.engine.runtime2.resolution.framework.ResolutionTask
@@ -22,7 +20,6 @@ import viaduct.engine.runtime2.resolution.framework.SharedOERContext
 import viaduct.engine.runtime2.resolution.framework.SharedOrchestrationTask
 import viaduct.engine.runtime2.resolution.framework.descendants
 import viaduct.engine.runtime2.resolvers.GroundedFieldPublicationOccurrence
-import viaduct.engine.runtime2.resolvers.closeOrchestrationConstructionDemand
 
 /** The executable task kinds accepted by the depth-first reactor. */
 sealed interface DepthFirstTask {
@@ -150,51 +147,18 @@ class DepthFirstOrchestrationTask private constructor(
             }
 
     companion object {
-        /** Closes the pair, retaining the optimistic Query OER even when its demand is empty. */
-        fun create(
+        /** Pairs the object and Query OERs with their closed demand, retaining the Query OER even when its demand is empty. */
+        fun prepare(
             operation: DepthFirstOperationContext,
             occurrence: OEROccurrence,
+            queryOccurrence: OEROccurrence,
             source: EngineObjectData.Sync,
-            constructionDemand: SelectionForest,
-            queryOERDepth: Int,
-            creator: ResolutionTask? = null,
-        ): DepthFirstOrchestrationTask =
-            create(
-                operation,
-                occurrence,
-                source,
-                Demand.checked(constructionDemand),
-                queryOERDepth,
-                creator,
-            )
-
-        /** Retains checked and unchecked descendant demand through passive object boundaries. */
-        fun create(
-            operation: DepthFirstOperationContext,
-            occurrence: OEROccurrence,
-            source: EngineObjectData.Sync,
-            constructionDemand: Demand<SelectionForest>,
+            closedConstructionDemand: OrchestrationConstructionDemand<ObjectSelectionForest>,
             queryOERDepth: Int,
             creator: ResolutionTask? = null,
         ): DepthFirstOrchestrationTask {
             require(queryOERDepth >= 0) { "Query-OER depth must be nonnegative" }
-            require(source.schemaType(operation.world.schema) == occurrence.target.type) {
-                "Source type ${source.schemaType(operation.world.schema).name} does not match result type ${occurrence.target.type.name}"
-            }
             val queryType = operation.world.schema.requireQueryTypeDef()
-            val queryResult = ObjectEngineResult.of(queryType, mutable = true)
-            val queryOccurrence = OEROccurrence(queryResult, emptyList(), queryResult)
-            val closedConstructionDemand =
-                source.closeOrchestrationConstructionDemand(
-                    operation = operation,
-                    objectOccurrence = occurrence,
-                    queryOccurrence = queryOccurrence,
-                    initialDemand =
-                        OrchestrationConstructionDemand(
-                            objectRooted = constructionDemand,
-                            queryRooted = Demand.EMPTY,
-                        ),
-                )
             val queryOER =
                 SharedOERContext(
                     occurrence = queryOccurrence,

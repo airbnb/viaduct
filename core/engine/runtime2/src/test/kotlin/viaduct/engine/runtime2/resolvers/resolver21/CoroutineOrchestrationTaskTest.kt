@@ -35,11 +35,10 @@ class CoroutineOrchestrationTaskTest {
                 )
             val root = ObjectEngineResult.of(world.schema.requireQueryTypeDef(), mutable = true)
             val task =
-                CoroutineOrchestrationTask.create(
-                    operation = operation,
+                operation.passiveValues.closeAndPrepareOrchestration(
                     occurrence = OEROccurrence(root, emptyList(), root),
                     source = world.resolverRegistry.createRootQueryInput(),
-                    constructionDemand = selectionForestOf(),
+                    constructionDemand = Demand.checked(selectionForestOf()),
                 )
 
             assertFalse(task.queryOER.isDemanded())
@@ -77,8 +76,7 @@ class CoroutineOrchestrationTaskTest {
                     mutable = true,
                 )
             val task =
-                CoroutineOrchestrationTask.create(
-                    operation = operation,
+                operation.passiveValues.closeAndPrepareOrchestration(
                     occurrence = OEROccurrence(root, emptyList(), root),
                     source = world.resolverRegistry.createRootQueryInput(),
                     constructionDemand = Demand.checked(selectionForestOf()),

@@ -20,6 +20,7 @@ import viaduct.engine.runtime2.model.isParentField
 import viaduct.engine.runtime2.model.merge
 import viaduct.engine.runtime2.model.outputType
 import viaduct.engine.runtime2.model.outputValue
+import viaduct.engine.runtime2.model.requireQueryTypeDef
 import viaduct.engine.runtime2.model.rootFieldReferenceDataOrNull
 import viaduct.engine.runtime2.model.schemaType
 import viaduct.engine.runtime2.model.selectionForestOf
@@ -29,27 +30,40 @@ import viaduct.graphql.schema.ViaductSchema
 /**
  * Passively resolves resolver-returned values and initiates active resolution for each object
  * occurrence. This traversal owns result shape, occurrence identity, source coverage, and
- * propagation of construction versus invocation demand. Its factory hook prepares each object
- * before passive descent; the operation dispatcher schedules its active work afterward.
- * [T] connects the factory's result to the dispatcher's task type; [O] retains the concrete operation type.
+ * propagation of construction versus invocation demand. [resolveObjectOccurrence] is the per-object
+ * loop: close demand, prepare the orchestration, supply passive fields, then dispatch active work.
+ * [T] connects the prepared task to the dispatcher's task type; [O] retains the concrete operation type;
+ * [C] is the family's closed demand for an object and its fresh Query OER.
  */
 @InternalApi
 abstract class SharedPassiveValueResolutionLogic<
     T : SharedOrchestrationTask<*>,
     O : SharedOperationContext<SharedTaskDispatcher<T, *, *>>,
+    C,
 >(
     protected val operation: O,
 ) {
     /**
-     * Ensures demand is closed and active resolution occurs for OERs on the fringe. Resolution's
-     * factory closes symbolic demand and declares runtime bindings. Other implementations can
-     * close grounded demand and initialize their own task state. The returned task is ready
-     * for passive descent; creating it does not dispatch active work.
+     * Closes [constructionDemand] for [occurrence] and [queryOccurrence], adding the inputs of every
+     * resolver and checker that will run. Resolution closes symbolic demand; other families can close
+     * grounded demand. Closing installs no cells and dispatches no work.
      */
-    protected abstract fun createOrchestrationTask(
+    protected abstract fun closeConstructionDemand(
         occurrence: OEROccurrence,
+        queryOccurrence: OEROccurrence,
         source: EngineObjectData.Sync,
         constructionDemand: Demand<SelectionForest>,
+    ): C
+
+    /**
+     * Returns a task for [occurrence] that is ready for passive descent. Preparation may declare
+     * bindings, install `@parent` cells and reserve checker cells, but it does not dispatch active work.
+     */
+    protected abstract fun prepareOrchestration(
+        occurrence: OEROccurrence,
+        queryOccurrence: OEROccurrence,
+        source: EngineObjectData.Sync,
+        closedDemand: C,
         creator: ResolutionTask?,
     ): T
 
@@ -203,7 +217,7 @@ abstract class SharedPassiveValueResolutionLogic<
             is ViaductSchema.CompositeTypeDef -> {
                 val source = value as EngineObjectData.Sync
                 val target = createObjectResult(source.schemaType(operation.world.schema), constructionDemand)
-                resolvePassiveObjectValues(
+                resolveObjectOccurrence(
                     source = source,
                     occurrence = OEROccurrence(root, path, target, parent, source.additionalContextForResolver, invocationDemand),
                     constructionDemand = constructionDemand,
@@ -217,27 +231,53 @@ abstract class SharedPassiveValueResolutionLogic<
     }
 
     /**
-     * Passively resolves [source] into the OER in [occurrence]. Prepares the object's closed demand
-     * before resolving passive fields recursively, then dispatches its active work. The occurrence
-     * may be a root or a newly allocated child; it must enter this lifecycle only once.
+     * Resolves [source] into the OER in [occurrence] under [constructionDemand]. On return, the object's
+     * active work has been handed to the dispatcher, but cell values may still be pending. The
+     * occurrence may be a root or a newly allocated child; it must enter this lifecycle only once.
+     * Child objects in [source] recursively enter the same lifecycle.
      */
-    fun resolvePassiveObjectValues(
+    fun resolveObjectOccurrence(
         source: EngineObjectData.Sync,
         occurrence: OEROccurrence,
         constructionDemand: Demand<SelectionForest>,
         invocationDemand: SelectionForest = constructionDemand.values,
         creator: ResolutionTask? = null,
     ) {
+        // Close demand and prepare the task first: passive descent writes into its OER and may add
+        // deferred work to it.
+        val orchestration = closeAndPrepareOrchestration(occurrence, source, constructionDemand, creator)
+
+        // Supply passive fields from the source.
+        materializePassiveFields(orchestration, closedConstructionDemand(orchestration), invocationDemand)
+
+        // Orchestrate: hand the active field and checker work to the dispatcher.
+        operation.dispatcher.dispatchOrchestration(orchestration)
+    }
+
+    /**
+     * Closes [constructionDemand] for [occurrence] and returns its prepared task, without supplying
+     * passive fields or dispatching work. Callers that skip [resolveObjectOccurrence] must dispatch
+     * the task themselves.
+     *
+     * @throws IllegalArgumentException when [source] does not have the type of [occurrence]'s target.
+     */
+    fun closeAndPrepareOrchestration(
+        occurrence: OEROccurrence,
+        source: EngineObjectData.Sync,
+        constructionDemand: Demand<SelectionForest>,
+        creator: ResolutionTask? = null,
+    ): T {
         require(source.schemaType(operation.world.schema) == occurrence.target.type) {
             "Source type ${source.schemaType(operation.world.schema).name} does not match result type ${occurrence.target.type.name}"
         }
-        val orchestration = createOrchestrationTask(occurrence, source, constructionDemand, creator)
-        materializePassiveFields(
-            orchestration,
-            closedConstructionDemand(orchestration),
-            invocationDemand,
-        )
-        operation.dispatcher.dispatchOrchestration(orchestration)
+
+        // Close demand: add the inputs of every resolver and checker that will run, on the object
+        // and on a fresh Query OER for its Query-rooted inputs.
+        val queryResult = ObjectEngineResult.of(operation.world.schema.requireQueryTypeDef(), mutable = true)
+        val queryOccurrence = OEROccurrence(queryResult, emptyList(), queryResult)
+        val closedDemand = closeConstructionDemand(occurrence, queryOccurrence, source, constructionDemand)
+
+        return prepareOrchestration(occurrence, queryOccurrence, source, closedDemand, creator)
     }
 
     /**
@@ -256,10 +296,13 @@ abstract class SharedPassiveValueResolutionLogic<
         val source = objectOER.source
         val occurrence = objectOER.occurrence
         val type = source.schemaType(operation.world.schema)
+        // An empty source, such as a root's, supplies no passive fields.
+        val sourceFields = source.getSelections().mapNotNull { type.field(it) }.filterNot { it.isParentField() }
+        if (sourceFields.isEmpty()) return
+
         val invocationByKey = collect(invocationDemand, type).byKey()
         val passiveByKey = collect(invocationDemand + closedConstructionDemand.values, type).byKey()
         val passiveKeysByField = passiveByKey.keys.groupBy { it.field }
-        val sourceFields = source.getSelections().mapNotNull { type.field(it) }.filterNot { it.isParentField() }
         sourceFields.forEach { field ->
             val fieldName = field.name
             val demandedKeys = passiveFieldKeys(source, field, passiveKeysByField[field])

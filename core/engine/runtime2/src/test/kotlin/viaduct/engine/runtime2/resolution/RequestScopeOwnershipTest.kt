@@ -47,10 +47,10 @@ class RequestScopeOwnershipTest {
 
         val orchestrationDispatch = Regex("""\.\s*dispatchOrchestration\s*\(""")
         assertEquals(
-            listOf("FieldResolverTask.kt", "Resolver.kt"),
-            sources.filter { source ->
-                orchestrationDispatch.containsMatchIn(source.readText())
-            }.map(Path::name)
+            listOf("resolution/FieldResolverTask.kt", "resolution/framework/SharedPassiveValueResolutionLogic.kt"),
+            allSources.filter { source ->
+                source.startsWith(sourceDirectory) && orchestrationDispatch.containsMatchIn(source.readText())
+            }.map(::relativePath)
                 .sorted(),
         )
 

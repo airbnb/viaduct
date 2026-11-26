@@ -32,6 +32,7 @@ import viaduct.engine.runtime2.model.requireObjectField
 import viaduct.engine.runtime2.model.requireQueryTypeDef
 import viaduct.engine.runtime2.model.testing.TestWorld
 import viaduct.engine.runtime2.model.testing.emptyFragmentOf
+import viaduct.engine.runtime2.resolution.framework.Demand
 import viaduct.engine.runtime2.resolution.framework.MutationOrchestrationTask
 import viaduct.engine.runtime2.resolution.framework.OEROccurrence
 import viaduct.engine.runtime2.resolution.framework.ResolutionObserver
@@ -300,11 +301,10 @@ class TaskObservationTest : ResolutionDispatcherResource {
                         SharedOperationContext.create(world.assumptions, resolutionObserver = observer),
                         CoroutineScope(dispatcher + request),
                     )
-                    val orchestration = OrchestrationTask.create(
-                        operation,
+                    val orchestration = operation.passiveValues.closeAndPrepareOrchestration(
                         OEROccurrence(root, emptyList(), root),
                         world.assumptions.resolverRegistry.createRootQueryInput(),
-                        world.schemas.operationSelectionsFrom("{ value }"),
+                        Demand.checked(world.schemas.operationSelectionsFrom("{ value }")),
                     )
                     val publication = FieldResolverTask.prepareAll(orchestration).single()
                     publication.dispatch(CoroutineScope(dispatcher + fieldScope + CoroutineExceptionHandler { _, cause -> failures.add(cause) }))

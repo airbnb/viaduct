@@ -62,7 +62,28 @@ internal class ClosedOERConstructionDemandContext(
     val fieldResolverOccurrences: Map<ObjectEngineResult.ObjectKey, FieldResolverOccurrence>,
     val rootFieldReferenceOccurrences: Map<ObjectEngineResult.ObjectKey, RootFieldReferenceOccurrence>,
     val variableProviderReadsByResolverOccurrence: Map<ResolverOccurrenceId, List<VariableProviderReadOccurrence>>,
-)
+) {
+    /** Whether any field of this OER is published by a task: a resolver invocation or a source reference. */
+    val hasActiveFields: Boolean
+        get() = fieldResolverOccurrences.isNotEmpty() || rootFieldReferenceOccurrences.isNotEmpty()
+
+    /** Calls [action] on each occurrence that publishes one of this OER's active fields, resolver invocations first. */
+    inline fun forEachActiveOccurrence(action: (ActiveFieldOccurrence) -> Unit) {
+        fieldResolverOccurrences.values.forEach(action)
+        rootFieldReferenceOccurrences.values.forEach(action)
+    }
+
+    /**
+     * Returns the included keys whose values the passive source must supply before dispatch.
+     * Passive descent may also supply source fields outside this set: ones the producer was asked for but closure did not add.
+     */
+    fun passiveKeys(): List<ObjectEngineResult.ObjectKey> =
+        closedValueSelections.byKey().mapNotNull { (key, selection) ->
+            val isIncluded = selection.inclusionCondition !== InclusionCondition.Never
+            val isActive = key in fieldResolverOccurrences || key in rootFieldReferenceOccurrences
+            key.takeIf { isIncluded && !isActive }
+        }
+}
 
 /** The OER and path that root one provider fragment. */
 internal data class ProviderReadRoot(

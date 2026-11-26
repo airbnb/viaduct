@@ -10,21 +10,32 @@ import viaduct.engine.runtime2.model.RootFieldReferenceData
 import viaduct.engine.runtime2.model.SelectionForest
 import viaduct.engine.runtime2.resolution.framework.Demand
 import viaduct.engine.runtime2.resolution.framework.OEROccurrence
+import viaduct.engine.runtime2.resolution.framework.OrchestrationConstructionDemand
 import viaduct.engine.runtime2.resolution.framework.ResolutionTask
 import viaduct.engine.runtime2.resolution.framework.SharedPassiveValueResolutionLogic
 import viaduct.engine.runtime2.resolvers.applicableGroundSelections
+import viaduct.engine.runtime2.resolvers.closeOrchestrationConstructionDemand
 import viaduct.engine.runtime2.resolvers.referencePassiveFieldKeys
 import viaduct.graphql.schema.ViaductSchema
 
 /** Grounded selection collection and field-task dispatch around the common passive traversal. */
 class CoroutinePassiveValueResolutionLogic(operation: CoroutineOperationContext) :
-    SharedPassiveValueResolutionLogic<CoroutineOrchestrationTask, CoroutineOperationContext>(operation) {
-    override fun createOrchestrationTask(
+    SharedPassiveValueResolutionLogic<CoroutineOrchestrationTask, CoroutineOperationContext, OrchestrationConstructionDemand<ObjectSelectionForest>>(operation) {
+    override fun closeConstructionDemand(
         occurrence: OEROccurrence,
+        queryOccurrence: OEROccurrence,
         source: EngineObjectData.Sync,
         constructionDemand: Demand<SelectionForest>,
+    ): OrchestrationConstructionDemand<ObjectSelectionForest> =
+        source.closeOrchestrationConstructionDemand(operation, occurrence, queryOccurrence, OrchestrationConstructionDemand(constructionDemand, Demand.EMPTY))
+
+    override fun prepareOrchestration(
+        occurrence: OEROccurrence,
+        queryOccurrence: OEROccurrence,
+        source: EngineObjectData.Sync,
+        closedDemand: OrchestrationConstructionDemand<ObjectSelectionForest>,
         creator: ResolutionTask?,
-    ): CoroutineOrchestrationTask = CoroutineOrchestrationTask.create(operation, occurrence, source, constructionDemand, creator)
+    ): CoroutineOrchestrationTask = CoroutineOrchestrationTask.prepare(operation, occurrence, queryOccurrence, source, closedDemand, creator)
 
     override fun createObjectResult(
         type: ViaductSchema.Object,

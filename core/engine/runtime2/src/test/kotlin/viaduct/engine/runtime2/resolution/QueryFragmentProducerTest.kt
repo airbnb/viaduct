@@ -36,6 +36,7 @@ import viaduct.engine.runtime2.model.schemaType
 import viaduct.engine.runtime2.model.testing.TestWorld
 import viaduct.engine.runtime2.model.testing.emptyFragmentOf
 import viaduct.engine.runtime2.model.testing.fragmentFrom
+import viaduct.engine.runtime2.resolution.framework.Demand
 import viaduct.engine.runtime2.resolution.framework.OEROccurrence
 import viaduct.engine.runtime2.resolution.framework.ResolutionObserver
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
@@ -241,8 +242,7 @@ class QueryFragmentProducerTest : ResolutionDispatcherResource {
             )
         val key = selections.merge(root.type).byKey().keys.single()
         val orchestration =
-            OrchestrationTask.create(
-                operation = operation,
+            operation.passiveValues.closeAndPrepareOrchestration(
                 occurrence =
                     OEROccurrence(
                         root = root,
@@ -250,7 +250,7 @@ class QueryFragmentProducerTest : ResolutionDispatcherResource {
                         target = root,
                     ),
                 source = source,
-                constructionDemand = selections,
+                constructionDemand = Demand.checked(selections),
             )
         operation.dispatcher.dispatchOrchestration(orchestration)
         return StartedQueryFragmentResolution(operation, root, key)

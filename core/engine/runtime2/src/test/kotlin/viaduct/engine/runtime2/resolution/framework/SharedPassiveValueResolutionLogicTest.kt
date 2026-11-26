@@ -751,24 +751,32 @@ private fun ResolverOutputData?.recordPassiveResolution(
     val resolution = object : SharedPassiveValueResolutionLogic<
         SharedOrchestrationTask<*>,
         SharedOperationContext<SharedTaskDispatcher<SharedOrchestrationTask<*>, *, *>>,
+        Demand<ObjectSelectionForest>,
     >(taskOperation) {
         override fun collect(
             selections: SelectionForest,
             type: ViaductSchema.Object
         ): ObjectSelectionForest = selections.applicableGroundSelections(operation, type)
 
-        override fun createOrchestrationTask(
+        override fun closeConstructionDemand(
             occurrence: OEROccurrence,
+            queryOccurrence: OEROccurrence,
             source: EngineObjectData.Sync,
             constructionDemand: Demand<SelectionForest>,
+        ): Demand<ObjectSelectionForest> =
+            Demand(
+                checked = collect(constructionDemand.checked, occurrence.target.type),
+                unchecked = collect(constructionDemand.unchecked, occurrence.target.type),
+                typeCheckDemanded = constructionDemand.typeCheckDemanded,
+            )
+
+        override fun prepareOrchestration(
+            occurrence: OEROccurrence,
+            queryOccurrence: OEROccurrence,
+            source: EngineObjectData.Sync,
+            closedDemand: Demand<ObjectSelectionForest>,
             creator: ResolutionTask?,
         ): SharedOrchestrationTask<*> {
-            val closed =
-                Demand(
-                    checked = collect(constructionDemand.checked, occurrence.target.type),
-                    unchecked = collect(constructionDemand.unchecked, occurrence.target.type),
-                    typeCheckDemanded = constructionDemand.typeCheckDemanded,
-                )
             val task = object : SharedOrchestrationTask<SharedOperationContext<*>> {
                 override val operation = taskOperation
                 override val creator = creator
@@ -776,12 +784,12 @@ private fun ResolverOutputData?.recordPassiveResolution(
                     SharedOERContext(
                         occurrence,
                         source,
-                        collect(closed.values, occurrence.target.type),
+                        collect(closedDemand.values, occurrence.target.type),
                     )
                 override val queryOER =
                     SharedOERContext.undemandedQuery(operation.world.schema.requireQueryTypeDef())
             }
-            constructionDemandByTask[task] = closed
+            constructionDemandByTask[task] = closedDemand
             return task
         }
 

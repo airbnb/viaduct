@@ -18,6 +18,7 @@ import viaduct.engine.runtime2.model.ObjectEngineResult
 import viaduct.engine.runtime2.model.SelectionForest
 import viaduct.engine.runtime2.model.schemaType
 import viaduct.engine.runtime2.resolution.framework.CycleCheckState
+import viaduct.engine.runtime2.resolution.framework.Demand
 import viaduct.engine.runtime2.resolution.framework.OEROccurrence
 import viaduct.engine.runtime2.resolution.framework.SharedOperationContext
 
@@ -50,9 +51,9 @@ class CoroutineResolveTest :
             cycleChecker,
         )
         val source = operation.world.resolverRegistry.createRootQueryInput()
-        val root = OrchestrationTask.createObjectResult(resolverOperation, source.schemaType, viaduct.engine.runtime2.resolution.framework.Demand.checked(selections))
+        val root = OrchestrationTask.createObjectResult(resolverOperation, source.schemaType, Demand.checked(selections))
         resolverOperation.dispatcher.dispatchOrchestration(
-            OrchestrationTask.create(resolverOperation, OEROccurrence(root, emptyList(), root), source, selections),
+            resolverOperation.passiveValues.closeAndPrepareOrchestration(OEROccurrence(root, emptyList(), root), source, Demand.checked(selections)),
         )
         return root
     }
