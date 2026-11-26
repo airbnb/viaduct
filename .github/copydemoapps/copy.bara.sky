@@ -30,7 +30,7 @@ def create_demoapp_workflow(demoapp_name):
         mode = "SQUASH",
         transformations = [
             core.move(root, ""),
-            metadata.replace_message("Update from airbnb/viaduct at ${COPYBARA_CONTEXT_REFERENCE}\n"),
+            metadata.replace_message("Update from airbnb/viaduct at ${FLAG_SOURCE_NAME}\n"),
         ],
     )
 
