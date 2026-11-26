@@ -16,6 +16,12 @@ inputs:
       different Gradle version, so demo app jobs otherwise fetch theirs on every run.
     required: false
     default: 'false'
+  cap-kotlin-daemon-heap:
+    description: >-
+      Cap the Kotlin daemon heap for every build that uses this job's Gradle user home.
+      Demo app test jobs turn this off so their builds keep consumer defaults.
+    required: false
+    default: 'true'
 
 runs:
   using: composite
@@ -70,6 +76,20 @@ runs:
       uses: gradle/actions/setup-gradle@0723195856401067f7a2779048b490ace7a47d7c  # v5
       with:
         cache-read-only: ${{ inputs.cache-read-only }}
+
+    - name: Cap the Kotlin daemon heap
+      if: inputs.cap-kotlin-daemon-heap == 'true'
+      shell: bash
+      run: |
+        # kotlin.daemon.jvmargs sets no -Xmx, so the Kotlin daemon would otherwise inherit org.gradle.jvmargs' -Xmx8g.
+        jvmargs="$(sed -n 's/^kotlin\.daemon\.jvmargs=//p' gradle.properties)"
+        if [ -z "$jvmargs" ]; then
+          echo "::error::kotlin.daemon.jvmargs not found in gradle.properties"
+          exit 1
+        fi
+        user_home="${GRADLE_USER_HOME:-$HOME/.gradle}"
+        mkdir -p "$user_home"
+        echo "kotlin.daemon.jvmargs=$jvmargs -Xmx3g" >> "$user_home/gradle.properties"
 
     # Distributions pinned by the demo app wrappers, keyed on those wrapper properties so
     # a version bump invalidates the entry. The key is deliberately not OS-scoped: a
