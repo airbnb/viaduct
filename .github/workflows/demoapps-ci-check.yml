@@ -108,6 +108,7 @@ jobs:
           java-version: ${{ matrix.java }}
           cache-read-only: 'true'
           cache-demoapp-distributions: 'true'
+          cap-kotlin-daemon-heap: 'false'
 
       - name: Download Maven Local repository
         uses: actions/download-artifact@v7
@@ -141,6 +142,7 @@ jobs:
           java-version: ${{ matrix.java }}
           cache-read-only: 'true'
           cache-demoapp-distributions: 'true'
+          cap-kotlin-daemon-heap: 'false'
 
       - name: Download Maven Local repository
         uses: actions/download-artifact@v7
@@ -178,6 +180,7 @@ jobs:
           java-version: '17'
           cache-read-only: 'true'
           cache-demoapp-distributions: 'true'
+          cap-kotlin-daemon-heap: 'false'
 
       - name: Download Maven Local repository
         uses: actions/download-artifact@v7
@@ -225,6 +228,7 @@ jobs:
           java-version: '17'
           cache-read-only: 'true'
           cache-demoapp-distributions: 'true'
+          cap-kotlin-daemon-heap: 'false'
 
       - name: Download Maven Local repository
         uses: actions/download-artifact@v7
