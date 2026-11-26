@@ -71,6 +71,19 @@ runs:
       with:
         cache-read-only: ${{ inputs.cache-read-only }}
 
+    - name: Cap the Kotlin daemon heap
+      shell: bash
+      run: |
+        # Without -Xmx the Kotlin daemon inherits org.gradle.jvmargs' 8g and keeps ~6 GB resident through the tests.
+        jvmargs="$(sed -n 's/^kotlin\.daemon\.jvmargs=//p' gradle.properties)"
+        if [ -z "$jvmargs" ]; then
+          echo "::error::kotlin.daemon.jvmargs not found in gradle.properties"
+          exit 1
+        fi
+        user_home="${GRADLE_USER_HOME:-$HOME/.gradle}"
+        mkdir -p "$user_home"
+        echo "kotlin.daemon.jvmargs=$jvmargs -Xmx3g" >> "$user_home/gradle.properties"
+
     # Distributions pinned by the demo app wrappers, keyed on those wrapper properties so
     # a version bump invalidates the entry. The key is deliberately not OS-scoped: a
     # distribution unpacks to a URL-derived path that is identical on every platform and
