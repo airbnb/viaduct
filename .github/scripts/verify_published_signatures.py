@@ -5,12 +5,16 @@ Reads the coordinate files written by the `writePublishedCoordinates` Gradle
 task, lists each coordinate's files from its snapshot `maven-metadata.xml`, and
 downloads each file with its `.asc`. It first waits until each coordinate's
 metadata lists a build stamped at or after --built-after, so an earlier build
-cannot stand in for this run's. A signature passes only if gpg reports it good
-and the signing key is in the committed key file.
+cannot stand in for this run's. With --local-repo it instead checks every file
+of each coordinate in a local Maven repository, for any version. A signature
+passes only if gpg reports it good and the signing key is in the committed key
+file.
 
 Usage: verify_published_signatures.py --version 4.0.0-rc.1-SNAPSHOT
            --built-after 20261111.120000 --key .github/release-signing-key.asc
            [--root .]
+       verify_published_signatures.py --version 4.0.0 --local-repo ~/.m2/repository
+           --key .github/release-signing-key.asc [--root .]
 
 Exit codes:
   0 - every listed file has a valid signature from the release key
@@ -46,6 +50,7 @@ FETCH_RETRY_SECONDS = 5
 DEFAULT_TIMEOUT_SECONDS = 600
 DEFAULT_SLEEP_SECONDS = 30
 BUILD_STAMP = re.compile(r"\d{8}\.\d{6}")
+UNSIGNED_SUFFIXES = (".asc", ".md5", ".sha1", ".sha256", ".sha512")
 
 
 def snapshot_stamp(metadata_xml):
@@ -199,23 +204,50 @@ def verify_coordinate(coordinate, built_after, deadline, gnupg_home, work_dir, f
     return problems, len(names)
 
 
+def local_directory(local_repo, coordinate):
+    return os.path.join(local_repo, *coordinate.group.split("."), coordinate.artifact, coordinate.version)
+
+
+def verify_local_coordinate(coordinate, local_repo, gnupg_home):
+    """Problems found in one coordinate's files in a local Maven repository, and how many files were checked."""
+    directory = local_directory(local_repo, coordinate)
+    names = sorted(
+        name
+        for name in (os.listdir(directory) if os.path.isdir(directory) else [])
+        if not name.endswith(UNSIGNED_SUFFIXES) and not name.startswith("maven-metadata")
+    )
+    if not names:
+        return [f"no files: {directory}"], 0
+    problems = []
+    for name in names:
+        data_path = os.path.join(directory, name)
+        if not os.path.isfile(f"{data_path}.asc"):
+            problems.append(f"missing signature: {data_path}.asc")
+            continue
+        problem = signature_problem(gnupg_home, data_path, f"{data_path}.asc")
+        if problem:
+            problems.append(f"{problem}: {data_path}")
+    return problems, len(names)
+
+
 def main(argv=None, fetch=fetch, now=time.time, sleep=time.sleep):
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("--version", required=True, help="the published -SNAPSHOT version")
-    parser.add_argument(
+    parser.add_argument("--version", required=True, help="the published version")
+    source = parser.add_mutually_exclusive_group(required=True)
+    source.add_argument(
         "--built-after",
-        required=True,
         help="UTC yyyyMMdd.HHmmss recorded before publishing; older builds do not count",
     )
+    source.add_argument("--local-repo", help="local Maven repository to check instead of the snapshot repository")
     parser.add_argument("--key", required=True, help="armored public key file of the release key")
     parser.add_argument("--root", default=".", help="directory to scan for coordinate files")
     parser.add_argument("--timeout-seconds", type=int, default=DEFAULT_TIMEOUT_SECONDS)
     args = parser.parse_args(argv)
 
-    if not args.version.endswith("-SNAPSHOT"):
+    if args.local_repo is None and not args.version.endswith("-SNAPSHOT"):
         print(f"::error::{args.version} is not a -SNAPSHOT version")
         return 1
-    if not BUILD_STAMP.fullmatch(args.built_after):
+    if args.local_repo is None and not BUILD_STAMP.fullmatch(args.built_after):
         print(f"::error::--built-after {args.built_after!r} is not yyyyMMdd.HHmmss")
         return 1
 
@@ -245,11 +277,19 @@ def main(argv=None, fetch=fetch, now=time.time, sleep=time.sleep):
         deadline = now() + args.timeout_seconds
         for coordinate in coordinates:
             try:
-                found, count = verify_coordinate(
-                    coordinate, args.built_after, deadline, gnupg_home, work_dir, fetch, now, sleep
-                )
+                if args.local_repo is not None:
+                    found, count = verify_local_coordinate(coordinate, args.local_repo, gnupg_home)
+                else:
+                    found, count = verify_coordinate(
+                        coordinate, args.built_after, deadline, gnupg_home, work_dir, fetch, now, sleep
+                    )
             except (OSError, http.client.HTTPException, ElementTree.ParseError, ValueError) as error:
-                found, count = [f"error checking {artifact_url(coordinate)}: {error}"], 0
+                location = (
+                    local_directory(args.local_repo, coordinate)
+                    if args.local_repo is not None
+                    else artifact_url(coordinate)
+                )
+                found, count = [f"error checking {location}: {error}"], 0
             checked += count
             failures.extend(found)
             mark = "❌" if found else "✅"

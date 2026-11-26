@@ -114,7 +114,8 @@ pluginManager.withPlugin("signing") {
 
 mavenPublishing {
     val isRelease = providers.environmentVariable("RELEASE").orElse("false").get().toBoolean()
-    publishToMavenCentral(automaticRelease = true, validateDeployment = DeploymentValidation.NONE)
+    val isCentralRehearsal = providers.environmentVariable("CENTRAL_REHEARSAL").orElse("false").get().toBoolean()
+    publishToMavenCentral(automaticRelease = !isCentralRehearsal, validateDeployment = DeploymentValidation.NONE)
     if (isRelease) {
         signAllPublications()
     }
