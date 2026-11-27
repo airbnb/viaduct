@@ -18,11 +18,11 @@ dependencies {
 
     implementation(libs.viaduct.engine.api)
     implementation(libs.viaduct.shared.utils)
-    implementation(libs.kotest.common.jvm)
     implementation(libs.kotlinx.coroutines.core)
 
     testImplementation(libs.graphql.java.extension)
     testImplementation(libs.kotest.assertions.shared)
+    testImplementation(libs.kotest.common.jvm)
     testImplementation(libs.kotest.property.jvm)
     testImplementation(libs.viaduct.shared.arbitrary)
     testImplementation(testFixtures(libs.viaduct.engine.api))

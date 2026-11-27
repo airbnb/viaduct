@@ -1,4 +1,4 @@
-
+package viaduct.tenant.codegen.kotlingen.bytecode
 
 private val TO_ESCAPE = setOf(
     // Keywords from https://kotlinlang.org/docs/keyword-reference.html#hard-keywords

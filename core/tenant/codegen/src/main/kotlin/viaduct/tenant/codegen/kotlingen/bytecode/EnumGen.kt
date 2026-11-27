@@ -2,7 +2,6 @@ package viaduct.tenant.codegen.kotlingen.bytecode
 
 // See README.md for the patterns that guided this file
 
-import getEscapedFieldName
 import viaduct.apiannotations.VisibleForTest
 import viaduct.codegen.st.STContents
 import viaduct.codegen.st.stTemplate

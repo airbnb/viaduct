@@ -371,7 +371,7 @@ for j in publications/*/build/libs/*-$(cat VERSION).jar; do
 done
 ```
 
-Every count must be `0`. `buildtime` currently also ships `io/kotest` classes; that is a known issue, not a new leak.
+Every count must be `0`.
 
 > **Gradle trap:** after an `exclude(...)` change, `shadowJar` can report `UP-TO-DATE` and keep the old jar contents, with or without the build cache. Always pass `--rerun` when you inspect jar contents.
 
@@ -724,6 +724,7 @@ Push the branch to your fork and open a PR against main as in [Step 3](#3-bump-v
 | `writePublishedCoordinates` | Records every published coordinate to `<module>/build/reports/publication/coordinates.txt`; `release.yml` probes these for CDN visibility |
 | `-p publications :test-fixtures:checkTestFixturesPublication` | Fails if the `test-fixtures` jar bundles JUnit or `engine-api`'s test-fixture classes under `viaduct/engine/runtime/execution/` |
 | `-p publications checkFatJarLayers` | Fails if a fat jar ships a class, resource or `META-INF/maven` descriptor that one of its lower jars (its POM dependencies) ships, or if its POM does not depend on exactly those jars, or if its relocations differ from theirs or from the fat-jar convention's; other `META-INF` files are exempt |
+| `-p publications checkBundledPackages` | Fails if `buildtime` or `javaapi-buildtime` ships a class outside `viaduct` and the packages its relocation set leaves unrelocated (graphql-java, Kotlin and the JetBrains annotations) |
 
 `bumpSnapshotVersion` / `unbumpSnapshotVersion` are only for ephemeral SNAPSHOT publication testing. Public release candidates use explicit versions like `X.Y.Z-rc.N-SNAPSHOT`.
 
